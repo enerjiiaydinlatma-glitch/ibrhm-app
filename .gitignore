@@ -50,3 +50,4 @@ auro-backend/__pycache__/
 auro-backend/.env
 *.env
 .env
+auro-backend/aura.db
