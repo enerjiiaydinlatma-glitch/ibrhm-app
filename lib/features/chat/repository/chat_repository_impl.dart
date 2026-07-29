@@ -12,18 +12,11 @@ class ChatRepositoryImpl implements ChatRepository {
   }) : _dio = dio ?? Dio();
 
   @override
-  Future<Message> sendMessage(List<Message> history) async {
+  Future<Message> sendMessage(String text) async {
     try {
       final response = await _dio.post(
         '$baseUrl/api/chat',
-        data: {
-          'history': history
-              .map((m) => {
-                    'role': m.isUser ? 'user' : 'assistant',
-                    'text': m.text,
-                  })
-              .toList(),
-        },
+        data: {'message': text},
       );
 
       final replyText = response.data['reply'] ?? '';

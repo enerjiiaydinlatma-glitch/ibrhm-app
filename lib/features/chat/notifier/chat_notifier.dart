@@ -28,16 +28,14 @@ class ChatNotifier extends Notifier<ChatState> {
       isUser: true,
     );
 
-    final updatedMessages = [...state.messages, userMessage];
-
     state = state.copyWith(
-      messages: updatedMessages,
+      messages: [...state.messages, userMessage],
       isLoading: true,
       errorMessage: null,
     );
 
     try {
-      final aiMessage = await repository.sendMessage(updatedMessages);
+      final aiMessage = await repository.sendMessage(text);
       state = state.copyWith(
         messages: [...state.messages, aiMessage],
         isLoading: false,
