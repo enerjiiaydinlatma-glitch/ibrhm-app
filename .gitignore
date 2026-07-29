@@ -51,3 +51,4 @@ auro-backend/.env
 *.env
 .env
 auro-backend/aura.db
+auro-backend/aura.db
