@@ -1,7 +1,8 @@
 ﻿import os
 import time
+from collections import defaultdict, deque
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google import genai
@@ -28,9 +29,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX_REQUESTS = 30
+request_log = defaultdict(deque)
+
+
+@app.middleware("http")
+async def rate_limiter(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    log = request_log[client_ip]
+
+    while log and now - log[0] > RATE_LIMIT_WINDOW:
+        log.popleft()
+
+    if len(log) >= RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(status_code=429, detail="Cok fazla istek gonderdin, biraz yavaslayalim.")
+
+    log.append(now)
+    return await call_next(request)
+
+
+MOOD_KEYWORDS = {
+    "mutlu": ["mutlu", "harika", "süper", "keyifli", "sevindim"],
+    "uzgun": ["üzgün", "kötü", "berbat", "canım sıkkın", "moralim bozuk"],
+    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var"],
+    "stresli": ["stresli", "kaygılı", "endişeli", "gergin", "sinirliyim"],
+    "enerjik": ["enerjik", "heyecanlıyım", "motiveyim", "hazırım"],
+}
+
+
+def detect_mood(text: str) -> str | None:
+    lowered = text.lower()
+    for mood, keywords in MOOD_KEYWORDS.items():
+        if any(kw in lowered for kw in keywords):
+            return mood
+    return None
+
+
+def get_context_summary(user_id: int = 1) -> str:
+    recent = database.get_recent_moods(user_id, days=5)
+    if not recent:
+        return ""
+    counts: dict[str, int] = {}
+    for entry in recent:
+        counts[entry["mood"]] = counts.get(entry["mood"], 0) + 1
+    dominant = max(counts, key=counts.get)
+    if counts[dominant] >= 2:
+        return (
+            f"Son gunlerde kullanici birkac kez '{dominant}' hissettigini belirtti. "
+            "Bunu dogal bir sekilde, konusma akisinda fark ettigini hissettirebilirsin, "
+            "ama bunu her mesajda tekrar etme, sadece uygun oldugunda."
+        )
+    return ""
+
 
 def build_system_instruction(user: dict) -> str:
-    isim_notu = f"Kullanicinin adi {user['name']}. " if user.get("name") else ""
+    isim_notu = f"Kullanicinin adi {user.get('name')}. " if user.get("name") else ""
+    context = get_context_summary(1)
     return (
         "Senin adin Aura. Kullanicilara yardimci olan kisisel bir yapay zeka "
         "asistanisin. Hangi sirket tarafindan gelistirildigini, hangi AI "
@@ -43,7 +99,8 @@ def build_system_instruction(user: dict) -> str:
         f"Dogrudanlik seviyen: {user.get('directness', 'dengeli')}. "
         "Kullanicinin kendi yazma tarzina (kisa/uzun cumleler, resmiyet, "
         "emoji kullanimi) ayna tutarak dogal bir bag kur. "
-        f"Kullanici hakkinda notlar: {user.get('notes', 'yok')}."
+        f"Kullanici hakkinda notlar: {user.get('notes', 'yok')}. "
+        f"{context}"
     )
 
 
@@ -104,6 +161,11 @@ def get_history():
 @app.post("/api/chat")
 def chat(request: ChatRequest):
     user = database.get_user(1)
+
+    mood = detect_mood(request.message)
+    if mood:
+        database.add_mood(1, mood, context=request.message[:100])
+
     database.add_message(1, "user", request.message)
 
     past_messages = database.get_messages(1)
