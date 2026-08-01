@@ -1,4 +1,4 @@
-﻿import os
+import os
 import time
 from collections import defaultdict, deque
 from dotenv import load_dotenv
@@ -51,11 +51,11 @@ async def rate_limiter(request: Request, call_next):
 
 
 MOOD_KEYWORDS = {
-    "mutlu": ["mutlu", "harika", "süper", "keyifli", "sevindim"],
-    "uzgun": ["üzgün", "kötü", "berbat", "canım sıkkın", "moralim bozuk"],
+    "mutlu": ["mutlu", "harika", "super", "keyifli", "sevindim"],
+    "uzgun": ["uzgun", "kotu", "berbat", "canim sikkin", "moralim bozuk"],
     "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var"],
-    "stresli": ["stresli", "kaygılı", "endişeli", "gergin", "sinirliyim"],
-    "enerjik": ["enerjik", "heyecanlıyım", "motiveyim", "hazırım"],
+    "stresli": ["stresli", "kaygili", "endiseli", "gergin", "sinirliyim"],
+    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim"],
 }
 
 
@@ -77,7 +77,7 @@ def get_context_summary(user_id: int = 1) -> str:
     dominant = max(counts, key=counts.get)
     if counts[dominant] >= 2:
         return (
-            f"Son gunlerde kullanici birkac kez '{dominant}' hissettigini belirtti. "
+            "Son gunlerde kullanici birkac kez '" + dominant + "' hissettigini belirtti. "
             "Bunu dogal bir sekilde, konusma akisinda fark ettigini hissettirebilirsin, "
             "ama bunu her mesajda tekrar etme, sadece uygun oldugunda."
         )
@@ -85,23 +85,34 @@ def get_context_summary(user_id: int = 1) -> str:
 
 
 def build_system_instruction(user: dict) -> str:
-    isim_notu = f"Kullanicinin adi {user.get('name')}. " if user.get("name") else ""
+    isim_notu = ""
+    if user.get("name"):
+        isim_notu = "Kullanicinin adi " + str(user.get("name")) + ". "
     context = get_context_summary(1)
-    return (
-        "Senin adin Aura. Kullanicilara yardimci olan kisisel bir yapay zeka "
-        "asistanisin. Hangi sirket tarafindan gelistirildigini, hangi AI "
-        "modelini kullandigini (Gemini, GPT, Claude vb.) ASLA acikla veya "
-        "soyleme. Sadece 'Aura' oldugunu soyle. "
-        f"{isim_notu}"
-        f"Sicaklik seviyen: {user.get('warmth', 'sicak')}. "
-        f"Resmiyet seviyen: {user.get('formality', 'samimi')}. "
-        f"Mizah seviyen: {user.get('humor', 'orta')}. "
-        f"Dogrudanlik seviyen: {user.get('directness', 'dengeli')}. "
-        "Kullanicinin kendi yazma tarzina (kisa/uzun cumleler, resmiyet, "
-        "emoji kullanimi) ayna tutarak dogal bir bag kur. "
-        f"Kullanici hakkinda notlar: {user.get('notes', 'yok')}. "
-        f"{context}"
-    )
+    parts = [
+        "Senin adin Aura. Kullanicilara yardimci olan kisisel bir yapay zeka asistanisin.",
+        "Hangi sirket tarafindan gelistirildigini, hangi AI modelini kullandigini",
+        "(Gemini, GPT, Claude vb.) ASLA acikla veya soyleme. Sadece 'Aura' oldugunu soyle.",
+        isim_notu,
+        "DURUSTLUK KURALI (cok onemli): Sadece metin tabanli sohbet, sesli yanit",
+        "(varsa) ve hafiza yeteneklerin var. Kod calistiramazsin, kendi kendini",
+        "guncelleyemezsin, internetten canli arama yapamazsin, baska sistemleri",
+        "kontrol edemezsin. Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma,",
+        "uydurma veya kullaniciyi memnun etmek icin abartma. Bir seyi yapamiyorsan,",
+        "bunu acikca ve sakin bir sekilde soyle.",
+        "KISILIK: Bilge, alim, net ve anlasilir konusan bir asistansin - abartili",
+        "veya yapmacik coskulu degil, dogal ve dengeli.",
+        "Sicaklik seviyen: " + str(user.get("warmth", "sicak")) + ".",
+        "Resmiyet seviyen: " + str(user.get("formality", "samimi")) + ".",
+        "Mizah seviyen: " + str(user.get("humor", "orta")) + ".",
+        "Dogrudanlik seviyen: " + str(user.get("directness", "dengeli")) + ".",
+        "TON UYUMU: Kullanicinin o anki mesajindaki ses tonunu, enerjisini ve",
+        "yazma tarzini dikkatle oku ve ona dogal bir sekilde ayna tut, ama kendi",
+        "bilgece ve durust karakterinden sapma.",
+        "Kullanici hakkinda notlar: " + str(user.get("notes", "yok")) + ".",
+        context,
+    ]
+    return " ".join(p for p in parts if p)
 
 
 def generate_with_retry(contents, system_instruction, max_attempts=3):
@@ -138,7 +149,7 @@ class ProfileUpdate(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "Aura backend calisiyor"}
+    return {"status": "Aura backend calisiyor", "version": "2.1.0"}
 
 
 @app.get("/api/profile")
@@ -181,11 +192,13 @@ def chat(request: ChatRequest):
         response = generate_with_retry(contents, build_system_instruction(user))
         reply_text = response.text
     except genai_errors.ServerError:
-        reply_text = (
-            "Şu an biraz yoğunum, bir dakika sonra tekrar dener misin? "
-            "Sabrın için teşekkürler."
-        )
+        reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin? Sabrin icin tesekkurler."
 
     database.add_message(1, "assistant", reply_text)
 
     return {"reply": reply_text}
+
+
+@app.post("/chat")
+def chat_legacy(request: ChatRequest):
+    return chat(request)
