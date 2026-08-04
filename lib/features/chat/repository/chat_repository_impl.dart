@@ -1,4 +1,5 @@
-﻿import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import '../models/message.dart';
 import 'chat_repository.dart';
 
@@ -26,6 +27,26 @@ class ChatRepositoryImpl implements ChatRepository {
         text: replyText.toString(),
         isUser: false,
       );
+    } on DioException catch (_) {
+      throw Exception(
+        'Aura\'ya şu an ulaşamıyorum. İnternet bağlantını kontrol edip tekrar dener misin?',
+      );
+    }
+  }
+
+  @override
+  Stream<String> sendMessageStream(String text) async* {
+    try {
+      final response = await _dio.post<ResponseBody>(
+        '$baseUrl/api/chat/stream',
+        data: {'message': text},
+        options: Options(responseType: ResponseType.stream),
+      );
+
+      final stream = response.data!.stream;
+      await for (final chunk in stream) {
+        yield utf8.decode(chunk, allowMalformed: true);
+      }
     } on DioException catch (_) {
       throw Exception(
         'Aura\'ya şu an ulaşamıyorum. İnternet bağlantını kontrol edip tekrar dener misin?',

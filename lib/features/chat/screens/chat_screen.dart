@@ -1,9 +1,12 @@
-﻿import "package:flutter/material.dart";
+import "dart:typed_data";
+import "dart:ui";
+import "package:dio/dio.dart";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:google_fonts/google_fonts.dart";
 import "package:speech_to_text/speech_to_text.dart" as stt;
-import "package:flutter_tts/flutter_tts.dart";
+import "package:audioplayers/audioplayers.dart";
 import "../notifier/chat_notifier.dart";
-import "../../settings/screens/settings_screen.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -16,18 +19,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
-  final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final Dio _dio = Dio();
+
   bool _isListening = false;
   bool _speechAvailable = false;
-  bool _ttsReady = false;
-  bool _ttsUnlocked = false;
-  int _lastSpokenCount = 0;
+  String _selectedVoice = "female";
+
+  static const String _backendUrl = "http://127.0.0.1:8000";
+
+  static const Color _bgColor = Color(0xFF0A0A1A);
+  static const Color _indigoColor = Color(0xFF6C63FF);
+  static const Color _userBubbleStart = Color(0xFF6C63FF);
+  static const Color _userBubbleEnd = Color(0xFF9C8FFF);
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
-    _initTts();
   }
 
   Future<void> _initSpeech() async {
@@ -37,56 +46,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           setState(() => _isListening = false);
         }
       },
-      onError: (error) {
-        setState(() => _isListening = false);
-      },
+      onError: (error) => setState(() => _isListening = false),
     );
     setState(() {});
-  }
-
-  Future<void> _initTts() async {
-    try {
-      await _tts.setLanguage("tr-TR");
-      await _tts.setSpeechRate(0.62);
-      await _tts.setVolume(1.0);
-      await _tts.setPitch(1.0);
-
-      try {
-        final voices = await _tts.getVoices as List<dynamic>;
-        final trVoices = voices.where((v) {
-          final map = Map<String, dynamic>.from(v as Map);
-          final locale = (map["locale"] ?? "").toString().toLowerCase();
-          return locale.contains("tr");
-        }).toList();
-
-        if (trVoices.isNotEmpty) {
-          final preferred = trVoices.firstWhere(
-            (v) {
-              final name = Map<String, dynamic>.from(v as Map)["name"]
-                  .toString()
-                  .toLowerCase();
-              return name.contains("online") ||
-                  name.contains("natural") ||
-                  name.contains("emel");
-            },
-            orElse: () => trVoices.first,
-          );
-          await _tts.setVoice(
-            Map<String, String>.from(preferred as Map),
-          );
-        }
-      } catch (e) {
-        debugPrint("Ses listesi alinamadi: $e");
-      }
-
-      _tts.setErrorHandler((msg) {
-        debugPrint("TTS HATASI: $msg");
-      });
-      _ttsReady = true;
-    } catch (e) {
-      debugPrint("TTS baslatma hatasi: $e");
-      _ttsReady = false;
-    }
   }
 
   String _cleanForSpeech(String text) {
@@ -101,18 +63,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .trim();
   }
 
+  Future<void> _speakWithElevenLabs(String text) async {
+    final cleanText = _cleanForSpeech(text);
+    if (cleanText.isEmpty) return;
+    try {
+      final response = await _dio.post<List<int>>(
+        "$_backendUrl/api/tts",
+        data: {"text": cleanText, "voice": _selectedVoice},
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (response.data != null) {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(
+          BytesSource(Uint8List.fromList(response.data!)),
+        );
+      }
+    } catch (e) {
+      debugPrint("ElevenLabs TTS hatasi: $e");
+    }
+  }
+
   void _toggleListening() async {
     if (!_speechAvailable) {
       await _initSpeech();
       if (!_speechAvailable) return;
     }
-
     if (_isListening) {
       await _speech.stop();
       setState(() => _isListening = false);
       return;
     }
-
     setState(() => _isListening = true);
     await _speech.listen(
       localeId: "tr_TR",
@@ -139,25 +119,154 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _unlockTtsIfNeeded() {
-    if (!_ttsUnlocked && _ttsReady) {
-      _ttsUnlocked = true;
-      _tts.speak(" ");
-    }
-  }
-
   void _send() {
     final text = _controller.text;
     if (text.trim().isEmpty) return;
-    _unlockTtsIfNeeded();
     ref.read(chatNotifierProvider.notifier).sendMessage(text);
     _controller.clear();
+  }
+
+  void _showVoiceSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF12122A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                "Aura Sesi",
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _voiceTile("female", "Kadın Ses", Icons.face),
+            _voiceTile("male", "Erkek Ses", Icons.face_3),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _voiceTile(String voice, String label, IconData icon) {
+    final selected = _selectedVoice == voice;
+    return ListTile(
+      leading: Icon(icon, color: selected ? _indigoColor : Colors.white54),
+      title: Text(
+        label,
+        style: GoogleFonts.poppins(
+          color: selected ? _indigoColor : Colors.white70,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle, color: _indigoColor)
+          : null,
+      onTap: () {
+        setState(() => _selectedVoice = voice);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  Widget _buildMessageBubble(message) {
+    final isUser = message.isUser;
+
+    if (isUser) {
+      return Container(
+        constraints: const BoxConstraints(maxWidth: 280),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [_userBubbleStart, _userBubbleEnd],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _indigoColor.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Text(
+          message.text,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(4),
+        topRight: Radius.circular(20),
+        bottomLeft: Radius.circular(20),
+        bottomRight: Radius.circular(20),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.07),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.12),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            message.text,
+            style: GoogleFonts.poppins(
+              color: Colors.white.withOpacity(0.92),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _speech.stop();
-    _tts.stop();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -166,106 +275,236 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatState = ref.watch(chatNotifierProvider);
 
     ref.listen(chatNotifierProvider, (previous, next) {
-      if (previous?.messages.length != next.messages.length) {
-        _scrollToBottom();
-
-        if (next.messages.isNotEmpty && next.messages.length > _lastSpokenCount) {
-          final lastMessage = next.messages.last;
-          if (!lastMessage.isUser && _ttsReady) {
-            final cleanText = _cleanForSpeech(lastMessage.text);
-            _tts.stop().then((_) => _tts.speak(cleanText));
-          }
-          _lastSpokenCount = next.messages.length;
+      _scrollToBottom();
+      final justFinished = (previous?.isLoading ?? false) && !next.isLoading;
+      if (justFinished && next.messages.isNotEmpty) {
+        final lastMessage = next.messages.last;
+        if (!lastMessage.isUser && lastMessage.text.isNotEmpty) {
+          _speakWithElevenLabs(lastMessage.text);
         }
       }
     });
 
     return Scaffold(
+      backgroundColor: _bgColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Aura"),
+        backgroundColor: Colors.transparent,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF12122A).withOpacity(0.85),
+                    const Color(0xFF0A0A1A).withOpacity(0.7),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                border: const Border(
+                  bottom: BorderSide(color: Color(0xFF2A2A4A), width: 0.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Color(0xFF00E676),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "Aura",
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
+            icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
+            onPressed: _showVoiceSelector,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: chatState.messages.isEmpty && chatState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(12),
-                    itemCount: chatState.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = chatState.messages[index];
-                      return Align(
-                        alignment: message.isUser
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: message.isUser
-                                ? Colors.blue.shade100
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(message.text),
-                        ),
-                      );
-                    },
-                  ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0A0A1A), Color(0xFF0D0B2A), Color(0xFF0A0A1A)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          if (chatState.isLoading && chatState.messages.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: chatState.messages.isEmpty && chatState.isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: _indigoColor.withOpacity(0.7),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+                      itemCount: chatState.messages.length +
+                          (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == chatState.messages.length) {
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: _buildTypingIndicator(),
+                            ),
+                          );
+                        }
+                        final message = chatState.messages[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Align(
+                            alignment: message.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: _buildMessageBubble(message),
+                          ),
+                        );
+                      },
+                    ),
             ),
-          if (chatState.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(
-                chatState.errorMessage!,
-                style: const TextStyle(color: Colors.red),
+            if (chatState.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  chatState.errorMessage!,
+                  style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
+            _buildInputBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(3, (i) => _dot(i)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dot(int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.4, end: 1.0),
+      duration: Duration(milliseconds: 600 + index * 200),
+      curve: Curves.easeInOut,
+      builder: (_, value, __) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          color: _indigoColor.withOpacity(value),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A1A).withOpacity(0.95),
+        border: const Border(
+          top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _toggleListening,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isListening
+                    ? Colors.red.withOpacity(0.2)
+                    : _indigoColor.withOpacity(0.15),
+                border: Border.all(
+                  color: _isListening ? Colors.red : _indigoColor.withOpacity(0.4),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                _isListening ? Icons.mic : Icons.mic_none,
+                color: _isListening ? Colors.red : _indigoColor,
+                size: 20,
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: _isListening ? Colors.red : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: "Mesaj yaz...",
+              ),
+              onSubmitted: (_) => _send(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _send,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [_userBubbleStart, _userBubbleEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _indigoColor.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  onPressed: () {
-                    _unlockTtsIfNeeded();
-                    _toggleListening();
-                  },
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: "Mesaj yaz...",
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) => _send(),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _send,
-                ),
-              ],
+                ],
+              ),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],

@@ -5,10 +5,10 @@
 import FlutterMacOS
 import Foundation
 
-import flutter_tts
+import audioplayers_darwin
 import speech_to_text
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  FlutterTtsPlugin.register(with: registry.registrar(forPlugin: "FlutterTtsPlugin"))
+  AudioplayersDarwinPlugin.register(with: registry.registrar(forPlugin: "AudioplayersDarwinPlugin"))
   SpeechToTextPlugin.register(with: registry.registrar(forPlugin: "SpeechToTextPlugin"))
 }

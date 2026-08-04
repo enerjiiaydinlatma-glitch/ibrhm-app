@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chat_state.dart';
 import '../models/message.dart';
@@ -45,18 +45,36 @@ class ChatNotifier extends Notifier<ChatState> {
       isUser: true,
     );
 
+    final assistantId = _uuid.v4();
+    final placeholder = Message(
+      id: assistantId,
+      text: '',
+      isUser: false,
+    );
+
     state = state.copyWith(
-      messages: [...state.messages, userMessage],
+      messages: [...state.messages, userMessage, placeholder],
       isLoading: true,
       errorMessage: null,
     );
 
+    final buffer = StringBuffer();
+
     try {
-      final aiMessage = await repository.sendMessage(text);
-      state = state.copyWith(
-        messages: [...state.messages, aiMessage],
-        isLoading: false,
-      );
+      await for (final chunk in repository.sendMessageStream(text)) {
+        buffer.write(chunk);
+        final updatedMessages = [...state.messages];
+        final index = updatedMessages.indexWhere((m) => m.id == assistantId);
+        if (index != -1) {
+          updatedMessages[index] = Message(
+            id: assistantId,
+            text: buffer.toString(),
+            isUser: false,
+          );
+          state = state.copyWith(messages: updatedMessages, isLoading: true);
+        }
+      }
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
