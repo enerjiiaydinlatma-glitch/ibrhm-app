@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'features/chat/screens/chat_screen.dart';
+import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:google_fonts/google_fonts.dart";
+import "features/chat/screens/auth_screen.dart";
+import "features/chat/screens/chat_screen.dart";
+import "services/auth_service.dart";
 
 void main() {
   runApp(const ProviderScope(child: AuraApp()));
@@ -22,7 +24,7 @@ class AuraApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Aura',
+      title: "Aura",
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -50,10 +52,7 @@ class AuraApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color(0xFF1A1A3A),
-          hintStyle: GoogleFonts.poppins(
-            color: Colors.white38,
-            fontSize: 14,
-          ),
+          hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
             borderSide: BorderSide.none,
@@ -70,7 +69,52 @@ class AuraApp extends StatelessWidget {
         ),
         textTheme: textTheme,
       ),
-      home: const ChatScreen(),
+      home: const SplashRouter(),
+    );
+  }
+}
+
+class SplashRouter extends StatefulWidget {
+  const SplashRouter({super.key});
+
+  @override
+  State<SplashRouter> createState() => _SplashRouterState();
+}
+
+class _SplashRouterState extends State<SplashRouter> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final authService = AuthService();
+    final token = await authService.getToken();
+    if (!mounted) return;
+
+    if (token != null) {
+      final valid = await authService.isLoggedIn();
+      if (!mounted) return;
+      if (valid) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+        );
+        return;
+      }
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF0A0A1A),
+      body: Center(
+        child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+      ),
     );
   }
 }

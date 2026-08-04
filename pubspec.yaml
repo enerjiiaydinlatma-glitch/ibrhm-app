@@ -17,6 +17,7 @@ dependencies:
   speech_to_text: ^7.4.0
   audioplayers: ^6.1.0
   google_fonts: ^6.2.1
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

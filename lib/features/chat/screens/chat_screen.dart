@@ -1,3 +1,4 @@
+import "dart:convert";
 import "dart:typed_data";
 import "dart:ui";
 import "package:dio/dio.dart";
@@ -7,9 +8,11 @@ import "package:google_fonts/google_fonts.dart";
 import "package:speech_to_text/speech_to_text.dart" as stt;
 import "package:audioplayers/audioplayers.dart";
 import "../notifier/chat_notifier.dart";
+import "../models/message.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key});
+  final String token;
+  const ChatScreen({super.key, required this.token});
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -26,8 +29,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _speechAvailable = false;
   String _selectedVoice = "female";
 
-  static const String _backendUrl = "http://127.0.0.1:8000";
+  // Hikaye modu
+  bool _storyMode = false;
+  List<Map<String, String>> _storyHistory = [];
+  bool _storyLoading = false;
 
+  static const String _backendUrl = "http://127.0.0.1:8000";
   static const Color _bgColor = Color(0xFF0A0A1A);
   static const Color _indigoColor = Color(0xFF6C63FF);
   static const Color _userBubbleStart = Color(0xFF6C63FF);
@@ -37,6 +44,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _initSpeech();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(chatTokenProvider.notifier).state = widget.token;
+    });
   }
 
   Future<void> _initSpeech() async {
@@ -83,6 +93,137 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _pickAndAnalyzeImage() async {
+    try {
+      // Web icin file picker yerine input element kullaniyoruz
+      final input = await _showImageInputDialog();
+      if (input == null) return;
+
+      ref.read(chatNotifierProvider.notifier).addUserMessage("[Fotoğraf gönderildi]");
+
+      final response = await _dio.post(
+        "$_backendUrl/api/analyze",
+        data: {"image_base64": input, "mime_type": "image/jpeg"},
+      );
+
+      final analysis = response.data["analysis"] ?? "";
+      ref.read(chatNotifierProvider.notifier).addAssistantMessage(analysis);
+      _speakWithElevenLabs(analysis);
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint("Fotograf analiz hatasi: $e");
+    }
+  }
+
+  Future<String?> _showImageInputDialog() async {
+    String? base64Result;
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        final pasteController = TextEditingController();
+        return AlertDialog(
+          backgroundColor: const Color(0xFF12122A),
+          title: Text(
+            "Fotoğraf URL veya Base64",
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
+          ),
+          content: TextField(
+            controller: pasteController,
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: "Görsel URL'sini yapıştır (https://...)",
+              hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("İptal", style: GoogleFonts.poppins(color: Colors.white54)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final url = pasteController.text.trim();
+                if (url.isNotEmpty) {
+                  try {
+                    final r = await _dio.get<List<int>>(
+                      url,
+                      options: Options(responseType: ResponseType.bytes),
+                    );
+                    if (r.data != null) {
+                      base64Result = base64Encode(r.data!);
+                    }
+                  } catch (_) {}
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: Text("Gönder", style: GoogleFonts.poppins(color: _indigoColor)),
+            ),
+          ],
+        );
+      },
+    );
+    return base64Result;
+  }
+
+  Future<void> _startStory() async {
+    setState(() {
+      _storyMode = true;
+      _storyHistory = [];
+      _storyLoading = true;
+    });
+
+    try {
+      final response = await _dio.post(
+        "$_backendUrl/api/story",
+        data: {"action": "", "history": []},
+      );
+      final text = response.data["continuation"] ?? "";
+      setState(() {
+        _storyHistory = [{"role": "assistant", "text": text}];
+        _storyLoading = false;
+      });
+      _speakWithElevenLabs(text);
+      _scrollToBottom();
+    } catch (e) {
+      setState(() => _storyLoading = false);
+    }
+  }
+
+  Future<void> _continueStory(String action) async {
+    if (action.trim().isEmpty) return;
+    setState(() {
+      _storyHistory.add({"role": "user", "text": action});
+      _storyLoading = true;
+    });
+
+    try {
+      final response = await _dio.post(
+        "$_backendUrl/api/story",
+        data: {
+          "action": action,
+          "history": _storyHistory.sublist(0, _storyHistory.length - 1),
+        },
+      );
+      final text = response.data["continuation"] ?? "";
+      setState(() {
+        _storyHistory.add({"role": "assistant", "text": text});
+        _storyLoading = false;
+      });
+      _speakWithElevenLabs(text);
+      _scrollToBottom();
+    } catch (e) {
+      setState(() => _storyLoading = false);
+    }
+  }
+
+  void _exitStory() {
+    setState(() {
+      _storyMode = false;
+      _storyHistory = [];
+    });
+  }
+
   void _toggleListening() async {
     if (!_speechAvailable) {
       await _initSpeech();
@@ -120,10 +261,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _send() {
-    final text = _controller.text;
-    if (text.trim().isEmpty) return;
-    ref.read(chatNotifierProvider.notifier).sendMessage(text);
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
     _controller.clear();
+    if (_storyMode) {
+      _continueStory(text);
+    } else {
+      ref.read(chatNotifierProvider.notifier).sendMessage(text);
+    }
   }
 
   void _showVoiceSelector() {
@@ -139,8 +284,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             const SizedBox(height: 12),
             Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                 color: Colors.white24,
                 borderRadius: BorderRadius.circular(2),
@@ -148,14 +292,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Text(
-                "Aura Sesi",
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text("Aura Sesi",
+                style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
             ),
             _voiceTile("female", "Kadın Ses", Icons.face),
             _voiceTile("male", "Erkek Ses", Icons.face_3),
@@ -170,16 +308,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final selected = _selectedVoice == voice;
     return ListTile(
       leading: Icon(icon, color: selected ? _indigoColor : Colors.white54),
-      title: Text(
-        label,
-        style: GoogleFonts.poppins(
-          color: selected ? _indigoColor : Colors.white70,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      trailing: selected
-          ? const Icon(Icons.check_circle, color: _indigoColor)
-          : null,
+      title: Text(label, style: GoogleFonts.poppins(
+        color: selected ? _indigoColor : Colors.white70,
+        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+      )),
+      trailing: selected ? const Icon(Icons.check_circle, color: _indigoColor) : null,
       onTap: () {
         setState(() => _selectedVoice = voice);
         Navigator.pop(context);
@@ -187,8 +320,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(message) {
-    final isUser = message.isUser;
+  Widget _buildMessageBubble(dynamic message) {
+    final isUser = message is Message ? message.isUser : message["role"] == "user";
+    final text = message is Message ? message.text : message["text"] as String;
 
     if (isUser) {
       return Container(
@@ -207,21 +341,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomRight: Radius.circular(4),
           ),
           boxShadow: [
-            BoxShadow(
-              color: _indigoColor.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: _indigoColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
-        child: Text(
-          message.text,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 14,
-            height: 1.5,
-          ),
-        ),
+        child: Text(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
       );
     }
 
@@ -245,20 +368,127 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               bottomLeft: Radius.circular(20),
               bottomRight: Radius.circular(20),
             ),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.12),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
           ),
-          child: Text(
-            message.text,
-            style: GoogleFonts.poppins(
-              color: Colors.white.withOpacity(0.92),
-              fontSize: 14,
-              height: 1.5,
-            ),
+          child: Text(text, style: GoogleFonts.poppins(
+            color: Colors.white.withOpacity(0.92), fontSize: 14, height: 1.5)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(3, (i) => _dot(i)),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _dot(int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.4, end: 1.0),
+      duration: Duration(milliseconds: 600 + index * 200),
+      curve: Curves.easeInOut,
+      builder: (_, value, __) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        width: 7, height: 7,
+        decoration: BoxDecoration(
+          color: _indigoColor.withOpacity(value),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A1A).withOpacity(0.95),
+        border: const Border(top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _toggleListening,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isListening ? Colors.red.withOpacity(0.2) : _indigoColor.withOpacity(0.15),
+                border: Border.all(
+                  color: _isListening ? Colors.red : _indigoColor.withOpacity(0.4),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                _isListening ? Icons.mic : Icons.mic_none,
+                color: _isListening ? Colors.red : _indigoColor,
+                size: 20,
+              ),
+            ),
+          ),
+          if (!_storyMode) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: _pickAndAnalyzeImage,
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _indigoColor.withOpacity(0.15),
+                  border: Border.all(color: _indigoColor.withOpacity(0.4), width: 1),
+                ),
+                child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
+              ),
+            ),
+          ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: _storyMode ? "Hikayeyi yönlendir..." : "Mesaj yaz...",
+              ),
+              onSubmitted: (_) => _send(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _send,
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [_userBubbleStart, _userBubbleEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(color: _indigoColor.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -313,31 +543,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Color(0xFF00E676),
-                shape: BoxShape.circle,
+            if (_storyMode)
+              const Icon(Icons.auto_stories, color: Color(0xFFFFD700), size: 16)
+            else
+              Container(
+                width: 8, height: 8,
+                decoration: const BoxDecoration(color: Color(0xFF00E676), shape: BoxShape.circle),
               ),
-            ),
             const SizedBox(width: 8),
             Text(
-              "Aura",
+              _storyMode ? "Hikaye Modu" : "Aura",
               style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
+                color: Colors.white, fontSize: 20,
+                fontWeight: FontWeight.w600, letterSpacing: 1.5,
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
-            onPressed: _showVoiceSelector,
-          ),
+          if (_storyMode)
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white70),
+              onPressed: _exitStory,
+              tooltip: "Hikayeden Çık",
+            )
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.auto_stories_outlined, color: Colors.white70),
+              onPressed: _startStory,
+              tooltip: "Hikaye Başlat",
+            ),
+            IconButton(
+              icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
+              onPressed: _showVoiceSelector,
+              tooltip: "Ses Seç",
+            ),
+          ],
         ],
       ),
       body: Container(
@@ -351,41 +592,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: chatState.messages.isEmpty && chatState.isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: _indigoColor.withOpacity(0.7),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-                      itemCount: chatState.messages.length +
-                          (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == chatState.messages.length) {
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: _buildTypingIndicator(),
-                            ),
-                          );
-                        }
-                        final message = chatState.messages[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Align(
-                            alignment: message.isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: _buildMessageBubble(message),
-                          ),
-                        );
-                      },
-                    ),
+              child: _storyMode
+                  ? _buildStoryView()
+                  : _buildChatView(chatState),
             ),
-            if (chatState.errorMessage != null)
+            if (!_storyMode && chatState.errorMessage != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Text(
@@ -400,115 +611,74 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildTypingIndicator() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) => _dot(i)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _dot(int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.4, end: 1.0),
-      duration: Duration(milliseconds: 600 + index * 200),
-      curve: Curves.easeInOut,
-      builder: (_, value, __) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 7,
-        height: 7,
-        decoration: BoxDecoration(
-          color: _indigoColor.withOpacity(value),
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0A1A).withOpacity(0.95),
-        border: const Border(
-          top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _toggleListening,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isListening
-                    ? Colors.red.withOpacity(0.2)
-                    : _indigoColor.withOpacity(0.15),
-                border: Border.all(
-                  color: _isListening ? Colors.red : _indigoColor.withOpacity(0.4),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: _isListening ? Colors.red : _indigoColor,
-                size: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: "Mesaj yaz...",
-              ),
-              onSubmitted: (_) => _send(),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _send,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [_userBubbleStart, _userBubbleEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _indigoColor.withOpacity(0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+  Widget _buildChatView(dynamic chatState) {
+    return chatState.messages.isEmpty && chatState.isLoading
+        ? Center(child: CircularProgressIndicator(color: _indigoColor.withOpacity(0.7)))
+        : ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+            itemCount: chatState.messages.length +
+                (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == chatState.messages.length) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: _buildTypingIndicator(),
                   ),
-                ],
-              ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                );
+              }
+              final message = chatState.messages[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Align(
+                  alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: _buildMessageBubble(message),
+                ),
+              );
+            },
+          );
+  }
+
+  Widget _buildStoryView() {
+    if (_storyLoading && _storyHistory.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: _indigoColor.withOpacity(0.7)),
+            const SizedBox(height: 16),
+            Text("Hikaye başlıyor...",
+              style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+      itemCount: _storyHistory.length + (_storyLoading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _storyHistory.length) {
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _buildTypingIndicator(),
             ),
+          );
+        }
+        final msg = _storyHistory[index];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Align(
+            alignment: msg["role"] == "user" ? Alignment.centerRight : Alignment.centerLeft,
+            child: _buildMessageBubble(msg),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
