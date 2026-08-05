@@ -34,7 +34,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, String>> _storyHistory = [];
   bool _storyLoading = false;
 
-  static const String _backendUrl = "http://127.0.0.1:8000";
+  static const String _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const Color _bgColor = Color(0xFF0A0A1A);
   static const Color _indigoColor = Color(0xFF6C63FF);
   static const Color _userBubbleStart = Color(0xFF6C63FF);

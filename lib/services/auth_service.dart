@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String _baseUrl = 'http://127.0.0.1:8000';
+  static const String _baseUrl = 'https://aura-backend-production-bc9c.up.railway.app';
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
 

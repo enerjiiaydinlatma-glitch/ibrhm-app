@@ -10,7 +10,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
   ChatRepositoryImpl({
     Dio? dio,
-    this.baseUrl = 'http://127.0.0.1:8000',
+    this.baseUrl = 'https://aura-backend-production-bc9c.up.railway.app',
     required this.token,
   }) : _dio = dio ?? Dio();
 
