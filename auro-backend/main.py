@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 import time
 import httpx
@@ -153,7 +153,7 @@ def generate_with_retry(contents, system_instruction, max_attempts=3):
     for attempt in range(max_attempts):
         try:
             return client.models.generate_content(
-                model="gemini-3.5-flash",
+                model="gemini-3.6-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(system_instruction=system_instruction),
             )
@@ -184,7 +184,7 @@ def sanitize_reply(text: str, message_count: int) -> str:
 
 def generate_stream(contents, system_instruction):
     return client.models.generate_content_stream(
-        model="gemini-3.5-flash",
+        model="gemini-3.6-flash",
         contents=contents,
         config=types.GenerateContentConfig(system_instruction=system_instruction),
     )
@@ -404,7 +404,7 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
             "Dogal, akici Aura uslubunda yaz. Paragraf olarak yaz."
         )
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-3.6-flash",
             contents=[
                 types.Content(
                     role="user",
@@ -442,7 +442,7 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
             contents.append(types.Content(role="user", parts=[types.Part(text=request.action)]))
     try:
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-3.6-flash",
             contents=contents,
             config=types.GenerateContentConfig(system_instruction=system),
         )
