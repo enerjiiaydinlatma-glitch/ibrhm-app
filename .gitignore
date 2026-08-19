@@ -52,3 +52,7 @@ auro-backend/.env
 .env
 auro-backend/aura.db
 auro-backend/aura.db
+
+_safe_backup_*/
+*.backup
+diff_*.txt
