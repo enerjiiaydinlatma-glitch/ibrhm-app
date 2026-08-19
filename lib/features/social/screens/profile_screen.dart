@@ -1,4 +1,4 @@
-import "dart:ui";
+﻿import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -17,7 +17,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _nameController = TextEditingController();
   final _dio = Dio();
-  static const _baseUrl = "https://aura-backend-production-bc9c.up.railway.app";
+  static const _baseUrl = "http://127.0.0.1:8000";
   static const _indigo = Color(0xFF6C63FF);
   static const _bg = Color(0xFF0A0A1A);
 
@@ -27,7 +27,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _bioLoading = false;
   int _selectedAvatar = 0;
 
-  final List<String> _avatarEmojis = ["🌟", "🔮", "⚡", "🌙", "🎯", "🦋", "🌊", "🔥", "💎", "🌸"];
+  final List<String> _avatarEmojis = ["ğŸŒŸ", "ğŸ”®", "âš¡", "ğŸŒ™", "ğŸ¯", "ğŸ¦‹", "ğŸŒŠ", "ğŸ”¥", "ğŸ’", "ğŸŒ¸"];
 
   @override
   void initState() {
@@ -72,7 +72,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         "$_baseUrl/api/chat",
         data: {
           "message":
-              "Benim hakkımda şimdiye kadar öğrendiklerinden yola çıkarak, beni tanımlayan felsefi ve özgün bir biyografi yaz. 2-3 cümle, birinci şahıs değil üçüncü şahıs. Şiirsel ama gerçekçi olsun."
+              "Benim hakkÄ±mda ÅŸimdiye kadar Ã¶ÄŸrendiklerinden yola Ã§Ä±karak, beni tanÄ±mlayan felsefi ve Ã¶zgÃ¼n bir biyografi yaz. 2-3 cÃ¼mle, birinci ÅŸahÄ±s deÄŸil Ã¼Ã§Ã¼ncÃ¼ ÅŸahÄ±s. Åiirsel ama gerÃ§ekÃ§i olsun."
         },
         options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
       );
@@ -149,21 +149,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text("Avatarını seç", style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
+                    Text("AvatarÄ±nÄ± seÃ§", style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
                     const SizedBox(height: 24),
 
-                    // İsim
+                    // Ä°sim
                     _glassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("İsim", style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
+                          Text("Ä°sim", style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _nameController,
                             style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
                             decoration: InputDecoration(
-                              hintText: "Adın ne?",
+                              hintText: "AdÄ±n ne?",
                               hintStyle: GoogleFonts.poppins(color: Colors.white24),
                               border: InputBorder.none,
                             ),
@@ -195,7 +195,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                   child: _bioLoading
                                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _indigo))
-                                      : Text("✨ Üret", style: GoogleFonts.poppins(color: _indigo, fontSize: 12)),
+                                      : Text("âœ¨ Ãœret", style: GoogleFonts.poppins(color: _indigo, fontSize: 12)),
                                 ),
                               ),
                             ],
@@ -203,7 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(height: 12),
                           _biography.isEmpty
                               ? Text(
-                                  "Aura seni tanıdıkça burada seni anlatan özgün bir biyografi üretecek.",
+                                  "Aura seni tanÄ±dÄ±kÃ§a burada seni anlatan Ã¶zgÃ¼n bir biyografi Ã¼retecek.",
                                   style: GoogleFonts.poppins(color: Colors.white24, fontSize: 13, fontStyle: FontStyle.italic),
                                 )
                               : Text(_biography, style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.85), fontSize: 14, height: 1.6)),
@@ -271,7 +271,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Avatar Seç", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+              Text("Avatar SeÃ§", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 16,

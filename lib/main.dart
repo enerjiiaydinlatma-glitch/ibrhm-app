@@ -1,12 +1,17 @@
-import "package:flutter/material.dart";
-import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:google_fonts/google_fonts.dart";
-import "features/chat/screens/auth_screen.dart";
-import "features/chat/screens/chat_screen.dart";
-import "services/auth_service.dart";
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'features/chat/screens/auth_screen.dart';
+import 'features/chat/screens/chat_screen.dart';
+import 'services/auth_service.dart';
 
 void main() {
-  runApp(const ProviderScope(child: AuraApp()));
+  runApp(
+    const ProviderScope(
+      child: AuraApp(),
+    ),
+  );
 }
 
 class AuraApp extends StatelessWidget {
@@ -24,12 +29,13 @@ class AuraApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: "Aura",
+      title: 'Aura',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: bgColor,
+
         colorScheme: const ColorScheme.dark(
           primary: primaryIndigo,
           secondary: Color(0xFF9C8FFF),
@@ -37,6 +43,7 @@ class AuraApp extends StatelessWidget {
           onPrimary: Colors.white,
           onSurface: Colors.white,
         ),
+
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -47,28 +54,45 @@ class AuraApp extends StatelessWidget {
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
           ),
-          iconTheme: const IconThemeData(color: Colors.white70),
+          iconTheme: const IconThemeData(
+            color: Colors.white70,
+          ),
         ),
+
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color(0xFF1A1A3A),
-          hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
+          hintStyle: GoogleFonts.poppins(
+            color: Colors.white38,
+            fontSize: 14,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: Color(0xFF2A2A4A), width: 1),
+            borderSide: const BorderSide(
+              color: Color(0xFF2A2A4A),
+              width: 1,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(color: primaryIndigo, width: 1.5),
+            borderSide: const BorderSide(
+              color: primaryIndigo,
+              width: 1.5,
+            ),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 14,
+          ),
         ),
+
         textTheme: textTheme,
       ),
+
       home: const SplashRouter(),
     );
   }
@@ -90,21 +114,37 @@ class _SplashRouterState extends State<SplashRouter> {
 
   Future<void> _checkAuth() async {
     final authService = AuthService();
+
     final token = await authService.getToken();
+
     if (!mounted) return;
 
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       final valid = await authService.isLoggedIn();
+
       if (!mounted) return;
+
       if (valid) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              token: token,
+            ),
+          ),
         );
+
         return;
       }
+
+      await authService.clearToken();
+
+      if (!mounted) return;
     }
+
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      MaterialPageRoute(
+        builder: (_) => const AuthScreen(),
+      ),
     );
   }
 
@@ -113,7 +153,9 @@ class _SplashRouterState extends State<SplashRouter> {
     return const Scaffold(
       backgroundColor: Color(0xFF0A0A1A),
       body: Center(
-        child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+        child: CircularProgressIndicator(
+          color: Color(0xFF6C63FF),
+        ),
       ),
     );
   }

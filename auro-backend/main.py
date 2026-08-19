@@ -372,7 +372,12 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
 def tts(request: TTSRequest):
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
+
+    headers = {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+    }
+
     payload = {
         "text": request.text,
         "model_id": "eleven_multilingual_v2",
@@ -383,13 +388,33 @@ def tts(request: TTSRequest):
             "use_speaker_boost": True,
         },
     }
+
     try:
-        r = httpx.post(url, json=payload, headers=headers, timeout=60)
+        r = httpx.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=60,
+        )
+
         if r.status_code != 200:
-            raise HTTPException(status_code=502, detail="ElevenLabs hatasi")
-        return Response(content=r.content, media_type="audio/mpeg")
+            print(f"ELEVENLABS ERROR STATUS: {r.status_code}")
+            print(f"ELEVENLABS ERROR BODY: {r.text}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"ElevenLabs hatasi: {r.status_code} - {r.text}",
+            )
+
+        return Response(
+            content=r.content,
+            media_type="audio/mpeg",
+        )
+
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="ElevenLabs zaman asimi")
+        raise HTTPException(
+            status_code=504,
+            detail="ElevenLabs zaman asimi",
+        )
 
 
 @app.post("/api/analyze")

@@ -1,4 +1,4 @@
-import "dart:ui";
+﻿import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:google_fonts/google_fonts.dart";
@@ -15,7 +15,7 @@ class StoryScreen extends StatefulWidget {
 class _StoryScreenState extends State<StoryScreen> {
   final _dio = Dio();
   final _contentController = TextEditingController();
-  static const _baseUrl = "https://aura-backend-production-bc9c.up.railway.app";
+  static const _baseUrl = "http://127.0.0.1:8000";
   static const _indigo = Color(0xFF6C63FF);
   static const _bg = Color(0xFF0A0A1A);
   List<dynamic> _feed = [];
@@ -55,7 +55,7 @@ class _StoryScreenState extends State<StoryScreen> {
         "$_baseUrl/api/chat",
         data: {
           "message":
-              "Şu metinden yola çıkarak, paylaşılabilir, kısa ve felsefi bir 'bilge yorum' üret. Sanki bir düşünürün günlüğünden alınmış gibi, 1-2 cümle, güçlü ve özgün olsun: '$message'"
+              "Åu metinden yola Ã§Ä±karak, paylaÅŸÄ±labilir, kÄ±sa ve felsefi bir 'bilge yorum' Ã¼ret. Sanki bir dÃ¼ÅŸÃ¼nÃ¼rÃ¼n gÃ¼nlÃ¼ÄŸÃ¼nden alÄ±nmÄ±ÅŸ gibi, 1-2 cÃ¼mle, gÃ¼Ã§lÃ¼ ve Ã¶zgÃ¼n olsun: '$message'"
         },
         options: _auth,
       );
@@ -85,7 +85,7 @@ class _StoryScreenState extends State<StoryScreen> {
       });
       _loadFeed();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Story paylaşıldı!", style: GoogleFonts.poppins()), backgroundColor: _indigo),
+        SnackBar(content: Text("Story paylaÅŸÄ±ldÄ±!", style: GoogleFonts.poppins()), backgroundColor: _indigo),
       );
     } catch (_) {
       setState(() => _sharing = false);
@@ -108,7 +108,7 @@ class _StoryScreenState extends State<StoryScreen> {
           TextButton(
             onPressed: () => setState(() => _selectedTab = _selectedTab == 0 ? 1 : 0),
             child: Text(
-              _selectedTab == 0 ? "+ Paylaş" : "Feed",
+              _selectedTab == 0 ? "+ PaylaÅŸ" : "Feed",
               style: GoogleFonts.poppins(color: _indigo, fontWeight: FontWeight.w600),
             ),
           ),
@@ -134,9 +134,9 @@ class _StoryScreenState extends State<StoryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("✨", style: TextStyle(fontSize: 48)),
+            const Text("âœ¨", style: TextStyle(fontSize: 48)),
             const SizedBox(height: 16),
-            Text("Arkadaşlarının henüz story'si yok.\nİlk story'yi sen paylaş!",
+            Text("ArkadaÅŸlarÄ±nÄ±n henÃ¼z story'si yok.\nÄ°lk story'yi sen paylaÅŸ!",
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(color: Colors.white38, fontSize: 14)),
             const SizedBox(height: 24),
@@ -148,7 +148,7 @@ class _StoryScreenState extends State<StoryScreen> {
                   gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF9C8FFF)]),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text("Story Oluştur", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+                child: Text("Story OluÅŸtur", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -190,7 +190,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(story["author_name"] ?? "Kullanıcı", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text(story["author_name"] ?? "KullanÄ±cÄ±", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 12),
@@ -206,14 +206,14 @@ class _StoryScreenState extends State<StoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Story Paylaş", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+          Text("Story PaylaÅŸ", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 16),
           TextField(
             controller: _contentController,
             maxLines: 5,
             style: GoogleFonts.poppins(color: Colors.white),
             decoration: InputDecoration(
-              hintText: "Düşünceni veya Aura'nın bilge yorumunu paylaş...",
+              hintText: "DÃ¼ÅŸÃ¼nceni veya Aura'nÄ±n bilge yorumunu paylaÅŸ...",
               hintStyle: GoogleFonts.poppins(color: Colors.white38),
               fillColor: Colors.white.withOpacity(0.05),
               filled: true,
@@ -232,7 +232,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 onPressed: _sharing ? null : _shareStory,
                 child: _sharing
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : Text("Paylaş", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+                    : Text("PaylaÅŸ", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
               ),
             ),
         ],
