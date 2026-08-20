@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static const String _baseUrl =
-      'http://127.0.0.1:8000';
+      'https://aura-backend-production-bc9c.up.railway.app';
 
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
@@ -23,6 +23,40 @@ class AuthService {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  Future<String> getOrCreateAnonymousToken() async {
+    final existingToken = await getToken();
+
+    if (existingToken != null && existingToken.isNotEmpty) {
+      final valid = await isLoggedIn();
+
+      if (valid) {
+        return existingToken;
+      }
+
+      await clearToken();
+    }
+
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final email = 'anonymous_$stamp@aura.local';
+    final password = 'Aura_$stamp!';
+
+    final result = await register(
+      email,
+      password,
+      'Aura Kullanıcısı',
+    );
+
+    final token = result['token']?.toString();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Anonim Aura oturumu oluşturulamadı.');
+    }
+
+    await saveToken(token);
+
+    return token;
   }
 
   Future<void> saveToken(String token) async {

@@ -15,6 +15,37 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _startAnonymousSession();
+  }
+
+  Future<void> _startAnonymousSession() async {
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      final token = await _authService.getOrCreateAnonymousToken();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(token: token),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _error = 'Aura başlatılamadı.';
+      });
+    }
+  }
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();

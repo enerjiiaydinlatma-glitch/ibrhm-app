@@ -87,24 +87,14 @@ class ChatNotifier extends Notifier<ChatState> {
     );
 
     try {
-      final stream = _repository.sendMessageStream(cleanText);
+      final reply = await _repository.sendMessage(cleanText);
 
-      await for (final chunk in stream) {
-        if (chunk.isEmpty) {
-          continue;
-        }
+      final messages = state.messages;
 
-        final messages = state.messages;
-
-        if (messages.isEmpty || messages.last.isUser) {
-          continue;
-        }
-
-        final currentAssistant = messages.last;
-
+      if (messages.isNotEmpty && !messages.last.isUser) {
         final updatedAssistant = Message(
-          id: currentAssistant.id,
-          text: currentAssistant.text + chunk,
+          id: assistantId,
+          text: reply.text,
           isUser: false,
         );
 
@@ -113,15 +103,19 @@ class ChatNotifier extends Notifier<ChatState> {
             ...messages.sublist(0, messages.length - 1),
             updatedAssistant,
           ],
-          isLoading: true,
+          isLoading: false,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          messages: [
+            ...messages,
+            reply,
+          ],
+          isLoading: false,
           errorMessage: null,
         );
       }
-
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: null,
-      );
     } catch (e) {
       final messages = state.messages;
 
@@ -148,7 +142,6 @@ class ChatNotifier extends Notifier<ChatState> {
       }
     }
   }
-
   void addUserMessage(String text) {
     final cleanText = text.trim();
 
