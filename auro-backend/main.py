@@ -21,7 +21,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY .env dosyasinda bulunamadi")
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
 
 VOICE_IDS = {
     "male": "9OXwpKJw7rW6WI0ORNzm",
