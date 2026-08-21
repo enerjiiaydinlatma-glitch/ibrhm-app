@@ -514,8 +514,8 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     mood = detect_mood(request.message)
     if mood:
         database.add_mood(user["id"], mood, context=request.message[:100])
-    detect_memory_candidate(user["id"], request.message)
-    database.add_message(user["id"], "user", request.message)
+    user_message_id = database.add_message(user["id"], "user", request.message)
+    extract_memory_candidate(user["id"], request.message, user_message_id)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
