@@ -5,7 +5,10 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
-DB_PATH = "aura.db"
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "aura.db")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -239,32 +242,46 @@ def update_user(user_id: int, **kwargs) -> dict:
 def add_message(user_id: int, role: str, text: str, emotion: Optional[str] = None):
     conn = get_db()
     cursor = conn.cursor()
+
     cursor.execute(
         "INSERT INTO messages (user_id, role, text, emotion_detected) VALUES (?, ?, ?, ?)",
         (user_id, role, text, emotion)
     )
+
+    message_id = cursor.lastrowid
+
     conn.commit()
     conn.close()
+
+    return message_id
+
 
 def get_messages(user_id: int, limit: int = 100) -> List[dict]:
     conn = get_db()
     cursor = conn.cursor()
+
     cursor.execute(
         "SELECT * FROM messages WHERE user_id = ? ORDER BY timestamp LIMIT ?",
         (user_id, limit)
     )
+
     rows = cursor.fetchall()
     conn.close()
+
     return [dict(row) for row in rows]
+
 
 def clear_messages(user_id: int):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM messages WHERE user_id = ?", (user_id,))
+
+    cursor.execute(
+        "DELETE FROM messages WHERE user_id = ?",
+        (user_id,)
+    )
+
     conn.commit()
     conn.close()
-
-
 # --- MOOD ---
 
 def add_mood(user_id: int, mood: str, intensity: int = 5, context: str = ""):

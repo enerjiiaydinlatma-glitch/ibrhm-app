@@ -2,6 +2,7 @@
 import re
 import time
 import httpx
+import aura_memory
 import base64
 from collections import defaultdict, deque
 from dotenv import load_dotenv
@@ -30,7 +31,7 @@ VOICE_IDS = {
 
 client = genai.Client(api_key=api_key)
 database.init_db()
-
+aura_memory.init_memory_db()
 app = FastAPI()
 
 app.add_middleware(
@@ -123,6 +124,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     if user.get("name"):
         isim_notu = "Kullanicinin adi " + str(user.get("name")) + ". "
     context = get_context_summary(user["id"])
+    memory_context = aura_memory.get_memory_context(user["id"])
     parts = [
         "Senin adin Aura. Kullanicinin kisisel yapay zeka asistanisin.",
         "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
@@ -144,11 +146,41 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "TON UYUMU: Kullanicinin mesajindaki tonu oku ve ona dogal sekilde karsilik ver.",
         "Notlar: " + str(user.get("notes", "yok")) + ".",
         context,
+        memory_context,
     ]
     return " ".join(p for p in parts if p)
 
 
 def generate_with_retry(contents, system_instruction, max_attempts=3):
+    last_error = None
+
+    for attempt in range(max_attempts):
+        try:
+            return client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction
+                ),
+            )
+
+        except genai_errors.ServerError as e:
+            last_error = e
+
+            if attempt < max_attempts - 1:
+                time.sleep(2 * (attempt + 1))
+
+    raise last_error
+
+
+def generate_stream(contents, system_instruction):
+    return client.models.generate_content_stream(
+        model="gemini-3.6-flash",
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction
+        ),
+    )
     last_error = None
     for attempt in range(max_attempts):
         try:
@@ -181,6 +213,99 @@ def sanitize_reply(text: str, message_count: int) -> str:
     cleaned = re.sub(r"^\s*[!,.\s]+", "", cleaned)
     return cleaned.strip()
 
+def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
+    """
+    Kullanici mesajinda uzun vadeli hafizaya deger bir bilgi varsa
+    memory_candidates tablosuna aday olarak kaydeder.
+    """
+
+    prompt = f"""
+Asagidaki kullanici mesajini Aura'nin uzun vadeli hafizasi icin analiz et.
+
+Kullanici mesaji:
+{message}
+
+Sadece uzun vadede kullanici hakkinda anlamli olabilecek bilgilerle ilgilen.
+
+Ornekler:
+- kullanicinin adi
+- yasadigi yer
+- meslegi
+- hobileri
+- ilgi alanlari
+- hedefleri
+- tercihleri
+- onemli projeleri
+- uzun vadeli planlari
+- iletisim veya cevap tercihleri
+
+Anlik duygu, gecici durum, selamlasma veya tek seferlik olaylari hafizaya alma.
+
+Eger hafizaya alinmaya deger bir bilgi YOKSA tam olarak:
+NONE
+
+Eger VARSA SADECE su formatta cevap ver:
+
+CATEGORY: kategori
+KEY: anahtar
+VALUE: bilgi
+CONFIDENCE: 0.0-1.0
+
+Baska hicbir sey yazma.
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[types.Part(text=prompt)],
+                )
+            ],
+        )
+
+        text = (response.text or "").strip()
+
+        if not text or text.upper() == "NONE":
+            return None
+
+        data = {}
+
+        for line in text.splitlines():
+            if ":" not in line:
+                continue
+
+            key, value = line.split(":", 1)
+            data[key.strip().upper()] = value.strip()
+
+        category = data.get("CATEGORY")
+        memory_key = data.get("KEY")
+        memory_value = data.get("VALUE")
+
+        if not category or not memory_key or not memory_value:
+            return None
+
+        try:
+            confidence = float(data.get("CONFIDENCE", "0.5"))
+        except ValueError:
+            confidence = 0.5
+
+        confidence = max(0.0, min(1.0, confidence))
+
+        return aura_memory.add_candidate(
+            user_id=user_id,
+            category=category,
+            memory_key=memory_key,
+            memory_value=memory_value,
+            confidence=confidence,
+            source_message_id=source_message_id,
+        )
+
+    except Exception as e:
+        print(f"MEMORY CANDIDATE ERROR: {e}")
+        return None
+
 
 def generate_stream(contents, system_instruction):
     return client.models.generate_content_stream(
@@ -189,7 +314,90 @@ def generate_stream(contents, system_instruction):
         config=types.GenerateContentConfig(system_instruction=system_instruction),
     )
 
+def detect_memory_candidate(user_id: int, message: str):
+    """
+    Kullanici mesajinda kalici olabilecek basit bilgileri yakalar.
+    Ilk asamada kontrollu pattern tabanli sistem.
+    """
 
+    text = message.strip()
+
+    if not text:
+        return None
+
+    patterns = [
+        (
+            r"\bbenim adim\s+(.+)",
+            "identity",
+            "name",
+        ),
+        (
+            r"\badim\s+(.+)",
+            "identity",
+            "name",
+        ),
+        (
+            r"\bben\s+(.+)\s+seviyorum\b",
+            "preference",
+            "likes",
+        ),
+        (
+            r"\b(.+)\s+seviyorum\b",
+            "preference",
+            "likes",
+        ),
+        (
+            r"\bben\s+(.+)\s+sevmiyorum\b",
+            "preference",
+            "dislikes",
+        ),
+        (
+            r"\b(.+)\s+sevmiyorum\b",
+            "preference",
+            "dislikes",
+        ),
+        (
+            r"\bben\s+(.+)\s+istiyorum\b",
+            "goal",
+            "wants",
+        ),
+        (
+            r"\b(.+)\s+istiyorum\b",
+            "goal",
+            "wants",
+        ),
+    ]
+
+    for pattern, category, memory_key in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+
+        if not match:
+            continue
+
+        value = match.group(1).strip(" .,!?:;")
+
+        if len(value) < 2:
+            continue
+
+        if len(value) > 200:
+            continue
+
+        try:
+            candidate_id = aura_memory.add_candidate(
+                user_id=user_id,
+                category=category,
+                memory_key=memory_key,
+                memory_value=value,
+                confidence=0.70,
+            )
+
+            return candidate_id
+
+        except Exception as e:
+            print(f"MEMORY CANDIDATE ERROR: {e}")
+            return None
+
+    return None
 class RegisterRequest(BaseModel):
     email: str
     password: str
@@ -306,6 +514,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     mood = detect_mood(request.message)
     if mood:
         database.add_mood(user["id"], mood, context=request.message[:100])
+    detect_memory_candidate(user["id"], request.message)
     database.add_message(user["id"], "user", request.message)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
@@ -333,7 +542,11 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
     mood = detect_mood(request.message)
     if mood:
         database.add_mood(user["id"], mood, context=request.message[:100])
-    database.add_message(user["id"], "user", request.message)
+    message_id = database.add_message(
+    user["id"],
+    "user",
+    request.message
+)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
