@@ -35,7 +35,7 @@ if not GEMINI_API_KEY:
 
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 
-MODEL_NAME = "gemini-3.6-flash"
+MODEL_NAME = "gemini-3.7-flash"
 GROQ_MODEL = "openai/gpt-oss-20b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -154,7 +154,26 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     return " ".join(p for p in parts if p)
 
 
-def generate_with_retry(contents, system_instruction, max_attempts=3):
+# ============================================================
+# SAGLAYICI KAYDI (provider router)
+# ============================================================
+# Aura'nin kullaniciya verdigi tek "ses" (VOICE_PROVIDER) ile arka planda
+# calisan "ajan" (BACKGROUND_PROVIDER) burada birbirinden ayrilir. Yeni bir
+# saglayici (OpenAI, Claude, ...) eklemek icin: asagidaki gibi bir adapter
+# fonksiyonu yaz, sozluge ekle, VOICE_PROVIDER/BACKGROUND_PROVIDER'i
+# guncelle - main.py ve geri kalan kod hicbir zaman hangi saglayicinin
+# calistigini bilmez, hep ayni arayuzu (metin -> metin) gorur.
+
+
+class _TextResponse:
+    """Hangi saglayici calisirsa calissin, cagiran kod hep ayni
+    `response.text` arayuzunu gorur (Gemini SDK'siyla ayni sekil)."""
+
+    def __init__(self, text: str):
+        self.text = text
+
+
+def _gemini_voice(contents, system_instruction, max_attempts=3):
     last_error = None
 
     for attempt in range(max_attempts):
@@ -165,7 +184,7 @@ def generate_with_retry(contents, system_instruction, max_attempts=3):
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction
                 ),
-            )
+            ).text
 
         except genai_errors.ServerError as e:
             last_error = e
@@ -178,6 +197,19 @@ def generate_with_retry(contents, system_instruction, max_attempts=3):
             raise
 
     raise last_error
+
+
+# Bugun tek secenek Gemini - yarin ikinci bir "ses" adaylandirmak icin
+# buraya "openai": _openai_voice gibi bir satir eklemek yeterli olmali.
+VOICE_PROVIDERS = {
+    "gemini": _gemini_voice,
+}
+VOICE_PROVIDER = "gemini"
+
+
+def generate_with_retry(contents, system_instruction, max_attempts=3):
+    text = VOICE_PROVIDERS[VOICE_PROVIDER](contents, system_instruction, max_attempts)
+    return _TextResponse(text)
 
 
 def generate_stream(contents, system_instruction):
@@ -275,6 +307,16 @@ def _extract_with_gemini(prompt: str) -> str:
     return (response.text or "").strip()
 
 
+# Arka planda sessizce calisan "ajan". Groq anahtari yoksa Gemini'ye
+# duser (chat hic kesilmez). Ucuncu bir saglayici eklemek icin: bir
+# _extract_with_xxx yaz, buraya ekle, BACKGROUND_PROVIDER'i guncelle.
+BACKGROUND_PROVIDERS = {
+    "groq": _extract_with_groq,
+    "gemini": _extract_with_gemini,
+}
+BACKGROUND_PROVIDER = "groq" if GROQ_API_KEY else "gemini"
+
+
 def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
     """
     Kullanici mesajinda uzun vadeli hafizaya deger bir bilgi varsa
@@ -289,10 +331,7 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
     prompt = _MEMORY_EXTRACTION_PROMPT.format(message=message)
 
     try:
-        if GROQ_API_KEY:
-            text = _extract_with_groq(prompt)
-        else:
-            text = _extract_with_gemini(prompt)
+        text = BACKGROUND_PROVIDERS[BACKGROUND_PROVIDER](prompt)
 
         if not text or text.upper() == "NONE":
             return None
