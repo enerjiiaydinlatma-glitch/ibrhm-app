@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import '../models/profile.dart';
 
 abstract class ProfileRepository {
@@ -16,15 +16,26 @@ abstract class ProfileRepository {
 class ProfileRepositoryImpl implements ProfileRepository {
   final Dio _dio;
   final String baseUrl;
+  final String token;
 
   ProfileRepositoryImpl({
     Dio? dio,
-    this.baseUrl = 'http://127.0.0.1:8000',
+    this.baseUrl = 'https://aura-backend-production-bc9c.up.railway.app',
+    required this.token,
   }) : _dio = dio ?? Dio();
+
+  Options get _authOptions => Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
 
   @override
   Future<UserProfile> getProfile() async {
-    final response = await _dio.get('$baseUrl/api/profile');
+    final response = await _dio.get(
+      '$baseUrl/api/profile',
+      options: _authOptions,
+    );
     return UserProfile.fromJson(response.data);
   }
 
@@ -48,6 +59,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     final response = await _dio.post(
       '$baseUrl/api/profile',
       data: data,
+      options: _authOptions,
     );
     return UserProfile.fromJson(response.data);
   }

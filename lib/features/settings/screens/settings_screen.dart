@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/memory_item.dart';
+import '../notifier/memory_notifier.dart';
 import '../notifier/profile_notifier.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final String token;
+  const SettingsScreen({super.key, required this.token});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -22,6 +25,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const formalityOptions = ['resmi', 'dengeli', 'samimi'];
   static const humorOptions = ['dusuk', 'orta', 'yuksek'];
   static const directnessOptions = ['yumusak', 'dengeli', 'dogrudan'];
+
+  static const _categoryLabels = {
+    'identity': 'Kimlik',
+    'preference': 'Tercihler',
+    'hobiler': 'Hobiler',
+    'hobby': 'Hobiler',
+    'goals': 'Hedefler',
+    'work': 'Meslek',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(profileNotifierProvider.notifier)
+      ..setToken(widget.token)
+      ..load();
+    ref.read(memoryNotifierProvider.notifier)
+      ..setToken(widget.token)
+      ..load();
+  }
 
   void _fillFromProfile(profile) {
     if (_initialized) return;
@@ -50,6 +73,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _deleteMemory(MemoryItem memory) async {
+    try {
+      await ref.read(memoryNotifierProvider.notifier).delete(memory.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${memory.memoryValue}" unutuldu')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silinemedi, tekrar dene')),
+      );
+    }
+  }
+
   Widget _buildDropdown(
     String label,
     String value,
@@ -75,6 +113,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildMemorySection() {
+    final memoriesAsync = ref.watch(memoryNotifierProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Hafızam',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Aura senin hakkında bunları hatırlıyor. İstemediğini silebilirsin.',
+          style: TextStyle(fontSize: 12, color: Colors.white54),
+        ),
+        const SizedBox(height: 12),
+        memoriesAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (err, st) => Text('Hafıza yüklenemedi: $err'),
+          data: (memories) {
+            if (memories.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Henüz hiçbir şey hatırlamıyor.',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              );
+            }
+            return Column(
+              children: memories.map((memory) {
+                final label = _categoryLabels[memory.category] ??
+                    memory.category;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    dense: true,
+                    title: Text(memory.memoryValue),
+                    subtitle: Text(label),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Unut',
+                      onPressed: () => _deleteMemory(memory),
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileNotifierProvider);
@@ -85,6 +180,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, st) => Center(child: Text('Hata: $err')),
         data: (profile) {
+          if (profile == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
           _fillFromProfile(profile);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -158,6 +256,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 16),
+                _buildMemorySection(),
               ],
             ),
           );

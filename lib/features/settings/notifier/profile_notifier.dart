@@ -1,16 +1,37 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/profile.dart';
 import '../repository/profile_repository.dart';
 
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepositoryImpl();
-});
+class ProfileNotifier extends AsyncNotifier<UserProfile?> {
+  String? _token;
 
-class ProfileNotifier extends AsyncNotifier<UserProfile> {
   @override
-  Future<UserProfile> build() async {
-    final repository = ref.read(profileRepositoryProvider);
-    return repository.getProfile();
+  FutureOr<UserProfile?> build() => null;
+
+  void setToken(String token) {
+    _token = token;
+  }
+
+  ProfileRepository get _repository {
+    final token = _token;
+
+    if (token == null || token.isEmpty) {
+      throw StateError('Aura oturum anahtarı bulunamadı.');
+    }
+
+    return ProfileRepositoryImpl(token: token);
+  }
+
+  Future<void> load() async {
+    state = const AsyncValue.loading();
+    try {
+      final profile = await _repository.getProfile();
+      state = AsyncValue.data(profile);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
   }
 
   Future<void> save({
@@ -21,7 +42,7 @@ class ProfileNotifier extends AsyncNotifier<UserProfile> {
     String? directness,
     String? notes,
   }) async {
-    final repository = ref.read(profileRepositoryProvider);
+    final repository = _repository;
     state = const AsyncValue.loading();
     try {
       final updated = await repository.updateProfile(
@@ -40,6 +61,4 @@ class ProfileNotifier extends AsyncNotifier<UserProfile> {
 }
 
 final profileNotifierProvider =
-    AsyncNotifierProvider<ProfileNotifier, UserProfile>(() {
-  return ProfileNotifier();
-});
+    AsyncNotifierProvider<ProfileNotifier, UserProfile?>(ProfileNotifier.new);

@@ -513,6 +513,21 @@ def update_profile(update: ProfileUpdate, authorization: Optional[str] = Header(
     return _safe_user(updated)
 
 
+@app.get("/api/memories")
+def get_memories(authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    return aura_memory.get_memories(user["id"])
+
+
+@app.delete("/api/memories/{memory_id}")
+def delete_memory(memory_id: int, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    ok = aura_memory.forget_memory(user["id"], memory_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
+    return {"status": "silindi"}
+
+
 @app.get("/api/history")
 def get_history(authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
