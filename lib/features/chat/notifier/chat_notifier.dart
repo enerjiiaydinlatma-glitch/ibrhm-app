@@ -1,4 +1,7 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat_state.dart';
 import '../models/message.dart';
@@ -177,11 +180,12 @@ class ChatNotifier extends Notifier<ChatState> {
   /// kullanici + bos asistan mesaji eklenir, isLoading acilir (yaziyor
   /// gostergesi ve mesaj bitince otomatik ElevenLabs sesi bunun
   /// uzerinden calisir), sonuc/hata yerine yazilir.
-  Future<void> sendImageForAnalysis(String base64Image) async {
+  Future<void> sendImageForAnalysis(Uint8List imageBytes) async {
     final userMessage = Message(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-      text: '[Fotoğraf gönderildi]',
+      text: '',
       isUser: true,
+      imageBytes: imageBytes,
     );
 
     final assistantId = DateTime.now().microsecondsSinceEpoch.toString();
@@ -194,7 +198,7 @@ class ChatNotifier extends Notifier<ChatState> {
     );
 
     try {
-      final reply = await _repository.analyzeImage(base64Image);
+      final reply = await _repository.analyzeImage(base64Encode(imageBytes));
       final messages = state.messages;
 
       state = state.copyWith(

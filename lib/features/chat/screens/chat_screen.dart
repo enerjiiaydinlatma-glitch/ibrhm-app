@@ -1,5 +1,4 @@
-﻿import "dart:convert";
-import "dart:typed_data";
+﻿import "dart:typed_data";
 import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
@@ -106,9 +105,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (picked == null) return;
 
       final bytes = await picked.readAsBytes();
-      final base64Image = base64Encode(bytes);
 
-      await ref.read(chatProvider.notifier).sendImageForAnalysis(base64Image);
+      await ref.read(chatProvider.notifier).sendImageForAnalysis(bytes);
       _scrollToBottom();
     } catch (e) {
       debugPrint("Fotograf secme hatasi: $e");
@@ -276,11 +274,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildMessageBubble(dynamic message) {
     final isUser = message is Message ? message.isUser : message["role"] == "user";
     final text = message is Message ? message.text : message["text"] as String;
+    final imageBytes = message is Message ? message.imageBytes : null;
 
     if (isUser) {
       return Container(
         constraints: const BoxConstraints(maxWidth: 280),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: imageBytes != null
+            ? const EdgeInsets.all(6)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [_userBubbleStart, _userBubbleEnd],
@@ -297,7 +298,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             BoxShadow(color: _indigoColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
-        child: Text(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (imageBytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.memory(
+                  imageBytes,
+                  fit: BoxFit.cover,
+                  height: 180,
+                ),
+              ),
+            if (text.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(top: imageBytes != null ? 8 : 0, left: 10, right: 10),
+                child: Text(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
+              ),
+          ],
+        ),
       );
     }
 
