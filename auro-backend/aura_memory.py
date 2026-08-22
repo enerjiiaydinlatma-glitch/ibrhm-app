@@ -364,6 +364,77 @@ def get_memories(
     return [dict(row) for row in rows]
 
 
+def find_active_memory(
+    user_id: int,
+    category: str,
+    memory_key: str,
+) -> Optional[dict]:
+    """
+    Ayni kullanici+kategori+anahtar icin zaten aktif bir hafiza kaydi
+    var mi diye bakar (kucuk/buyuk harf duyarsiz). Upsert icin kullanilir.
+    """
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM memories
+        WHERE user_id = ?
+        AND status = 'active'
+        AND category = ?
+        AND LOWER(memory_key) = LOWER(?)
+        """,
+        (
+            user_id,
+            category,
+            memory_key,
+        ),
+    )
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+
+
+def promote_candidate_to_memory(
+    user_id: int,
+    category: str,
+    memory_key: str,
+    memory_value: str,
+    confidence: float,
+    source_message_id: Optional[int] = None,
+) -> int:
+    """
+    Bir memory candidate'i aktif hafizaya tasir (upsert).
+    Ayni user+category+key icin aktif kayit varsa deger/confidence
+    guncellenir, yoksa yeni aktif hafiza olusturulur.
+    """
+
+    existing = find_active_memory(user_id, category, memory_key)
+
+    if existing:
+        update_memory(
+            user_id=user_id,
+            memory_id=existing["id"],
+            memory_value=memory_value,
+            confidence=confidence,
+        )
+        return existing["id"]
+
+    return add_memory(
+        user_id=user_id,
+        category=category,
+        memory_key=memory_key,
+        memory_value=memory_value,
+        confidence=confidence,
+        importance=confidence,
+        source_message_id=source_message_id,
+    )
+
+
 def get_memory(
     user_id: int,
     memory_id: int,

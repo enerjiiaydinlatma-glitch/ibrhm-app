@@ -218,6 +218,9 @@ def sanitize_reply(text: str, message_count: int) -> str:
     cleaned = re.sub(r"^\s*[!,.\s]+", "", cleaned)
     return cleaned.strip()
 
+MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
+
+
 def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
     """
     Kullanici mesajinda uzun vadeli hafizaya deger bir bilgi varsa
@@ -297,6 +300,16 @@ Baska hicbir sey yazma.
             confidence = 0.5
 
         confidence = max(0.0, min(1.0, confidence))
+
+        if confidence >= MEMORY_AUTO_PROMOTE_THRESHOLD:
+            aura_memory.promote_candidate_to_memory(
+                user_id=user_id,
+                category=category,
+                memory_key=memory_key,
+                memory_value=memory_value,
+                confidence=confidence,
+                source_message_id=source_message_id,
+            )
 
         return aura_memory.add_candidate(
             user_id=user_id,
