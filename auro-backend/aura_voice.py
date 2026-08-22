@@ -47,6 +47,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         "system_instruction": system_instruction,
         "input_audio_transcription": {},
         "output_audio_transcription": {},
+        "speech_config": {"language_code": "tr-TR"},
     }
 
     user_transcript_parts: list[str] = []
