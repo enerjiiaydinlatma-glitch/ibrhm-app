@@ -4,10 +4,11 @@ import time
 import httpx
 import aura_brain
 import aura_memory
+import aura_voice
 import base64
 from collections import defaultdict, deque
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
@@ -394,6 +395,16 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
                 database.add_message(user["id"], "assistant", full)
 
     return StreamingResponse(event_generator(), media_type="text/plain; charset=utf-8")
+
+
+@app.websocket("/api/voice")
+async def voice_endpoint(websocket: WebSocket):
+    """
+    Gercek zamanli, tam serbest sesli konusma. Token query string'den
+    okunur (?token=...) - WebSocket'te custom header web'de guvenilir
+    olmadigi icin.
+    """
+    await aura_voice.handle_voice_session(websocket)
 
 
 @app.post("/api/tts")
