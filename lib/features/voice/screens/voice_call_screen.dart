@@ -89,17 +89,23 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
       return;
     }
 
-    final micStream = await _recorder.startStream(
-      const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: 16000,
-        numChannels: 1,
-      ),
-    );
+    try {
+      final micStream = await _recorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+      );
 
-    _micSubscription = micStream.listen((chunk) {
-      _channel?.sink.add(chunk);
-    });
+      _micSubscription = micStream.listen((chunk) {
+        _channel?.sink.add(chunk);
+      });
+    } catch (e) {
+      debugPrint("Mikrofon akis hatasi: $e");
+      setState(() => _state = _CallState.error);
+      return;
+    }
 
     if (mounted) setState(() => _state = _CallState.listening);
   }
