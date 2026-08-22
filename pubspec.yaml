@@ -21,6 +21,9 @@ dependencies:
   audioplayers: ^6.8.1
   image_picker: ^1.2.3
   speech_to_text: ^7.4.0
+  record: ^6.0.0
+  flutter_soloud: ^3.3.1
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:

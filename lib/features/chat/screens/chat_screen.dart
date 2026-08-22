@@ -9,6 +9,7 @@ import "package:audioplayers/audioplayers.dart";
 import "package:image_picker/image_picker.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
+import "../../voice/screens/voice_call_screen.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -550,6 +551,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
               onPressed: _showVoiceSelector,
               tooltip: "Ses SeÃ§",
+            ),
+            IconButton(
+              icon: const Icon(Icons.call_outlined, color: Colors.white70),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => VoiceCallScreen(token: widget.token),
+                  ),
+                );
+              },
+              tooltip: "Sesli GÃ¶rÃ¼ÅŸ",
             ),
           ],
         ],
