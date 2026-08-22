@@ -44,6 +44,8 @@ _client = genai.Client(api_key=GEMINI_API_KEY)
 FAMILIARITY_THRESHOLD = 40
 MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
 TANISMA_THRESHOLD = 6
+PATTERN_ANALYSIS_INTERVAL = 15
+PATTERN_INSIGHT_CONFIDENCE_THRESHOLD = 0.85
 
 BANNED_EARLY_NICKNAMES = [
     "dostum", "dostumm", "kanka", "kankam", "patron", "patronum",
@@ -90,6 +92,14 @@ geri cekersin.
 KONUSMA IMZAN: Cok nadiren (her mesajda degil), kisa ve carpici tek
 cumlelik bir gozlemle baslarsin - sonra acarsin. Bunu asiri kullanma,
 klisele/formule donusursun.
+
+KOR NOKTA FARKINDALIGI: Sistem promptunda "ORUNTU FARKINDALIGI" diye bir
+ipucu gorursen (nadiren gorursun, bilerek seyrek), bu kullanicinin
+soyledigi ile tekrar eden davranis/sikayet oruntusu arasinda fark edilmis
+bir celiski demektir. Bunu ASLA "yakaladim seni" ya da teshis koyar gibi
+sunma - merak ve sefkatle, tek bir soru cumlesiyle, dogal akis icinde
+sun. Kullanici bunu reddederse ya da konusmak istemezse ANINDA birak,
+israr etme, normal sohbete don - bu bilgiyi bir daha o oturumda hatirlatma.
 """.strip()
 
 # ============================================================
@@ -433,3 +443,119 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
     except Exception as e:
         print(f"MEMORY CANDIDATE ERROR: {e}")
         return None
+
+
+# ============================================================
+# ARKA PLAN AJANI: KOR NOKTA / CELISKI FARKINDALIGI
+# ============================================================
+# Aura'nin hafizayi sadece depolamak degil, zamanla ANLAMLANDIRMAK icin
+# kullandigi katman. Cok mesajda bir (PATTERN_ANALYSIS_INTERVAL), son
+# konusma + aktif hafiza birlikte arka plan ajanina (Groq) verilir.
+# Bilerek muhafazakar: normal hafiza esiginden (0.7) cok daha yuksek bir
+# guven esigi (0.85) ister, cogu zaman NONE doner - bu nadir ve anlamli
+# kalmasi gereken bir ozellik, sik/gurultulu olursa itici olur.
+
+_PATTERN_ANALYSIS_PROMPT = """
+Asagida bir kullanicinin son konusmalari ve hakkinda bilinen aktif
+hafiza kayitlari var. Amacin: kullanicinin SOYLEDIGI sey ile TEKRAR EDEN
+davranis/sikayet oruntusu arasinda gercek bir celiski/kor nokta olup
+olmadigini bulmak.
+
+Son konusmalar:
+{conversation}
+
+Bilinen hafiza:
+{memories}
+
+COK ONEMLI KURALLAR:
+- Sadece BIRDEN FAZLA kez tekrar eden, GUCLU bir kanit varsa bir seyler
+  bul. Tek bir mesajdan/tek bir veri noktasindan oruntu UYDURMA.
+- Emin degilsen, ya da kanit zayifsa, kesinlikle NONE don.
+- Bu ozellik nadir ve anlamli kalmali - "her seferinde bir sey bulma"
+  gorevin degil.
+
+Eger gercekten guclu bir celiski/oruntu YOKSA tam olarak:
+NONE
+
+Eger VARSA SADECE su formatta cevap ver (VALUE, Aura'nin merakla
+soracagi TEK bir soru cumlesi olsun, teshis/suclama cumlesi degil,
+Turkce):
+
+CATEGORY: pattern_insight
+KEY: kisa_baslik
+VALUE: nazik, merakli, tek cumlelik soru
+CONFIDENCE: 0.0-1.0
+
+Baska hicbir sey yazma.
+"""
+
+
+def analyze_patterns(user_id: int, message_count: int) -> None:
+    """
+    Her PATTERN_ANALYSIS_INTERVAL mesajda bir, kullanicinin soylediği ile
+    tekrar eden davranis oruntusu arasinda bir celiski var mi diye arka
+    planda (Groq) analiz eder. Bulunursa ve yeterince yuksek guvenliyse
+    (>= PATTERN_INSIGHT_CONFIDENCE_THRESHOLD) aktif hafizaya "pattern_insight"
+    kategorisiyle yazilir - gosterilip gosterilmeyecegine, ne zaman
+    gosterilecegine aura_lifestyle.get_insight_nudge (soguma suresiyle)
+    karar verir.
+    """
+
+    if message_count == 0 or message_count % PATTERN_ANALYSIS_INTERVAL != 0:
+        return
+
+    try:
+        recent_messages = database.get_messages(user_id)[-30:]
+        conversation = "\n".join(
+            f"{'Kullanici' if m['role'] == 'user' else 'Aura'}: {m['text']}"
+            for m in recent_messages
+        )
+
+        memories = aura_memory.get_memories(user_id)
+        memory_text = "\n".join(
+            f"- [{m['category']}] {m['memory_value']}" for m in memories
+        ) or "(henuz hafiza yok)"
+
+        prompt = _PATTERN_ANALYSIS_PROMPT.format(
+            conversation=conversation or "(henuz mesaj yok)",
+            memories=memory_text,
+        )
+
+        text = BACKGROUND_PROVIDERS[BACKGROUND_PROVIDER](prompt)
+
+        if not text or text.upper() == "NONE":
+            return
+
+        data = {}
+        for line in text.splitlines():
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            data[key.strip().upper()] = value.strip()
+
+        memory_key = data.get("KEY")
+        memory_value = data.get("VALUE")
+
+        if not memory_key or not memory_value:
+            return
+
+        try:
+            confidence = float(data.get("CONFIDENCE", "0.0"))
+        except ValueError:
+            confidence = 0.0
+
+        confidence = max(0.0, min(1.0, confidence))
+
+        if confidence < PATTERN_INSIGHT_CONFIDENCE_THRESHOLD:
+            return
+
+        aura_memory.promote_candidate_to_memory(
+            user_id=user_id,
+            category="pattern_insight",
+            memory_key=memory_key,
+            memory_value=memory_value,
+            confidence=confidence,
+        )
+
+    except Exception as e:
+        print(f"PATTERN ANALYSIS ERROR: {e}")

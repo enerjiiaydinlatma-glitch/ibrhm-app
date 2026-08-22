@@ -334,6 +334,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
+    aura_brain.analyze_patterns(user["id"], message_count)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
     contents = [
         types.Content(

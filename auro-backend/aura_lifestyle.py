@@ -27,7 +27,9 @@ _SNOW_CODES = {71, 73, 75, 77, 85, 86}
 
 ROUTINE_CATEGORY = "routine"
 UPCOMING_EVENT_CATEGORY = "upcoming_event"
+PATTERN_INSIGHT_CATEGORY = "pattern_insight"
 _ROUTINE_GAP_HOURS = 20
+_INSIGHT_COOLDOWN_DAYS = 14
 
 
 def _parse_timestamp(value):
@@ -147,10 +149,50 @@ def get_followup_nudge(user_id: int) -> str:
     )
 
 
+def get_insight_nudge(user_id: int) -> str:
+    """
+    Kor nokta/celiski farkindaligi icin soguma sureli nudge. Son
+    _INSIGHT_COOLDOWN_DAYS icinde herhangi bir pattern_insight zaten
+    kullanildiysa, yenisi olsa bile GOSTERILMEZ - "her firsatta analiz
+    ediyor" hissini onleyen asil mekanizma burasi.
+    """
+    memories = aura_memory.get_memories(user_id)
+    insights = [m for m in memories if m.get("category") == PATTERN_INSIGHT_CATEGORY]
+
+    if not insights:
+        return ""
+
+    now = datetime.now(timezone.utc)
+
+    used_timestamps = [
+        ts
+        for ts in (_parse_timestamp(m.get("last_used_at")) for m in insights)
+        if ts is not None
+    ]
+    if used_timestamps:
+        hours_since_last_use = (now - max(used_timestamps)).total_seconds() / 3600
+        if hours_since_last_use < _INSIGHT_COOLDOWN_DAYS * 24:
+            return ""
+
+    unused = [m for m in insights if not m.get("last_used_at")]
+    if not unused:
+        return ""
+
+    insight = unused[0]
+
+    try:
+        aura_memory.mark_memory_used(user_id, insight["id"])
+    except Exception:
+        pass
+
+    return "ORUNTU FARKINDALIGI: " + insight["memory_value"]
+
+
 def get_lifestyle_nudges(user: dict) -> str:
     parts = [
         get_weather_nudge(user),
         get_routine_nudge(user["id"]),
         get_followup_nudge(user["id"]),
+        get_insight_nudge(user["id"]),
     ]
     return " ".join(p for p in parts if p)
