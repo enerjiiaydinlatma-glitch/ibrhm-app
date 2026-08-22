@@ -173,6 +173,56 @@ class ChatNotifier extends Notifier<ChatState> {
       }
     }
   }
+  /// Bir fotografi analiz icin gonderir - sendMessage ile ayni desen:
+  /// kullanici + bos asistan mesaji eklenir, isLoading acilir (yaziyor
+  /// gostergesi ve mesaj bitince otomatik ElevenLabs sesi bunun
+  /// uzerinden calisir), sonuc/hata yerine yazilir.
+  Future<void> sendImageForAnalysis(String base64Image) async {
+    final userMessage = Message(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      text: '[Fotoğraf gönderildi]',
+      isUser: true,
+    );
+
+    final assistantId = DateTime.now().microsecondsSinceEpoch.toString();
+    final assistantMessage = Message(id: assistantId, text: '', isUser: false);
+
+    state = state.copyWith(
+      messages: [...state.messages, userMessage, assistantMessage],
+      isLoading: true,
+      errorMessage: null,
+    );
+
+    try {
+      final reply = await _repository.analyzeImage(base64Image);
+      final messages = state.messages;
+
+      state = state.copyWith(
+        messages: [
+          ...messages.sublist(0, messages.length - 1),
+          Message(id: assistantId, text: reply.text, isUser: false),
+        ],
+        isLoading: false,
+        errorMessage: null,
+      );
+    } catch (e) {
+      final messages = state.messages;
+
+      state = state.copyWith(
+        messages: [
+          ...messages.sublist(0, messages.length - 1),
+          Message(
+            id: assistantId,
+            text: 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?',
+            isUser: false,
+          ),
+        ],
+        isLoading: false,
+        errorMessage: 'Fotoğraf analiz edilemedi.',
+      );
+    }
+  }
+
   void addUserMessage(String text) {
     final cleanText = text.trim();
 

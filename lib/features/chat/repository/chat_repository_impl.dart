@@ -80,6 +80,31 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Message> analyzeImage(String base64Image, {String mimeType = "image/jpeg"}) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/api/analyze',
+        data: {
+          'image_base64': base64Image,
+          'mime_type': mimeType,
+        },
+        options: _authOptions,
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final analysis = data['analysis']?.toString() ?? '';
+
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        text: analysis,
+        isUser: false,
+      );
+    } on DioException catch (_) {
+      throw Exception('Fotoğraf analiz edilemedi.');
+    }
+  }
+
+  @override
   Future<String?> getGreeting() async {
     try {
       final response = await _dio.get(

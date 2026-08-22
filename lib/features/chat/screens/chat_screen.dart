@@ -7,6 +7,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
 import "package:speech_to_text/speech_to_text.dart" as stt;
 import "package:audioplayers/audioplayers.dart";
+import "package:image_picker/image_picker.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
 
@@ -98,75 +99,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _pickAndAnalyzeImage() async {
     try {
-      // Web icin file picker yerine input element kullaniyoruz
-      final input = await _showImageInputDialog();
-      if (input == null) return;
-
-      ref.read(chatProvider.notifier).addUserMessage("[FotoÄŸraf gÃ¶nderildi]");
-
-      final response = await _dio.post(
-        "$_backendUrl/api/analyze",
-        data: {"image_base64": input, "mime_type": "image/jpeg"},
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
       );
+      if (picked == null) return;
 
-      final analysis = response.data["analysis"] ?? "";
-      ref.read(chatProvider.notifier).addAssistantMessage(analysis);
-      _speakWithElevenLabs(analysis);
+      final bytes = await picked.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      await ref.read(chatProvider.notifier).sendImageForAnalysis(base64Image);
       _scrollToBottom();
     } catch (e) {
-      debugPrint("Fotograf analiz hatasi: $e");
+      debugPrint("Fotograf secme hatasi: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
+      );
     }
-  }
-
-  Future<String?> _showImageInputDialog() async {
-    String? base64Result;
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        final pasteController = TextEditingController();
-        return AlertDialog(
-          backgroundColor: const Color(0xFF12122A),
-          title: Text(
-            "FotoÄŸraf URL veya Base64",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-          ),
-          content: TextField(
-            controller: pasteController,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: "GÃ¶rsel URL'sini yapÄ±ÅŸtÄ±r (https://...)",
-              hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text("Ä°ptal", style: GoogleFonts.poppins(color: Colors.white54)),
-            ),
-            TextButton(
-              onPressed: () async {
-                final url = pasteController.text.trim();
-                if (url.isNotEmpty) {
-                  try {
-                    final r = await _dio.get<List<int>>(
-                      url,
-                      options: Options(responseType: ResponseType.bytes),
-                    );
-                    if (r.data != null) {
-                      base64Result = base64Encode(r.data!);
-                    }
-                  } catch (_) {}
-                }
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: Text("GÃ¶nder", style: GoogleFonts.poppins(color: _indigoColor)),
-            ),
-          ],
-        );
-      },
-    );
-    return base64Result;
   }
 
   Future<void> _startStory() async {
