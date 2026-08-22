@@ -9,7 +9,6 @@ import "package:speech_to_text/speech_to_text.dart" as stt;
 import "package:audioplayers/audioplayers.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
-import "../../settings/screens/settings_screen.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -578,17 +577,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
               onPressed: _showVoiceSelector,
               tooltip: "Ses SeÃ§",
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings_outlined, color: Colors.white70),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => SettingsScreen(token: widget.token),
-                  ),
-                );
-              },
-              tooltip: "Ayarlar ve Hafizam",
             ),
           ],
         ],
