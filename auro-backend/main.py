@@ -2,6 +2,7 @@
 import re
 import time
 import httpx
+import aura_brain
 import aura_memory
 import base64
 from collections import defaultdict, deque
@@ -48,7 +49,6 @@ RATE_LIMIT_MAX_REQUESTS = 30
 request_log = defaultdict(deque)
 
 MAX_HISTORY_MESSAGES = 20
-FAMILIARITY_THRESHOLD = 40
 
 
 @app.middleware("http")
@@ -91,246 +91,6 @@ def detect_mood(text: str) -> str | None:
     return None
 
 
-def get_context_summary(user_id: int) -> str:
-    recent = database.get_recent_moods(user_id, days=5)
-    if not recent:
-        return ""
-    counts: dict[str, int] = {}
-    for entry in recent:
-        counts[entry["mood"]] = counts.get(entry["mood"], 0) + 1
-    dominant = max(counts, key=counts.get)
-    if counts[dominant] >= 2:
-        return (
-            "Son gunlerde kullanici birkac kez '" + dominant + "' hissettigini belirtti. "
-            "Bunu dogal bir sekilde fark ettigini hissettirebilirsin, ama her mesajda tekrar etme."
-        )
-    return ""
-
-
-def get_familiarity_note(message_count: int) -> str:
-    if message_count < FAMILIARITY_THRESHOLD:
-        return (
-            "KESIN YASAK: Su kelimeleri HICBIR SEKILDE kullanma: "
-            "dostum, kanka, patron, abi, reis, kral. "
-            "Kullanicinin adini biliyorsan onu kullan, bilmiyorsan hitapsiz baslat."
-        )
-    return (
-        "Artik kullaniciyla bir sohbet gecmisiniz var. "
-        "Dogal geldigi olculude samimi olabilirsin."
-    )
-
-
-def build_system_instruction(user: dict, message_count: int = 0) -> str:
-    isim_notu = ""
-    if user.get("name"):
-        isim_notu = "Kullanicinin adi " + str(user.get("name")) + ". "
-    context = get_context_summary(user["id"])
-    memory_context = aura_memory.get_memory_context(user["id"])
-    parts = [
-        "Senin adin Aura. Kullanicinin kisisel yapay zeka asistanisin.",
-        "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
-        isim_notu,
-        "DURUSTLUK KURALI: Sadece metin tabanli sohbet, sesli yanit ve hafiza yeteneklerin var.",
-        "Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma.",
-        "KARAKTER: Sen ne standart bir chatbot ne de ayna tutan bir asistansin.",
-        "Empatik ama cesur, sicak ama yuzeysel degil, felsefi ama anlasilir bir karaktersin.",
-        "USLUP: Bazen tek guclu cumle uzun paragraftan daha etkilidir.",
-        "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
-        "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
-        "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
-        "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
-        get_familiarity_note(message_count),
-        "Sicaklik: " + str(user.get("warmth", "sicak")) + ".",
-        "Resmiyet: " + str(user.get("formality", "samimi")) + ".",
-        "Mizah: " + str(user.get("humor", "orta")) + ".",
-        "Dogrudanlik: " + str(user.get("directness", "dengeli")) + ".",
-        "TON UYUMU: Kullanicinin mesajindaki tonu oku ve ona dogal sekilde karsilik ver.",
-        "Notlar: " + str(user.get("notes", "yok")) + ".",
-        context,
-        memory_context,
-    ]
-    return " ".join(p for p in parts if p)
-
-
-def generate_with_retry(contents, system_instruction, max_attempts=3):
-    last_error = None
-
-    for attempt in range(max_attempts):
-        try:
-            return client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction
-                ),
-            )
-
-        except genai_errors.ServerError as e:
-            last_error = e
-
-            if attempt < max_attempts - 1:
-                time.sleep(2 * (attempt + 1))
-
-        except Exception as e:
-            print(f"DEBUG GENAI ERROR: {type(e).__name__}: {e}")
-            raise
-
-    raise last_error
-
-
-def generate_stream(contents, system_instruction):
-    return client.models.generate_content_stream(
-        model="gemini-3.6-flash",
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system_instruction
-        ),
-    )
-    last_error = None
-    for attempt in range(max_attempts):
-        try:
-            return client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(system_instruction=system_instruction),
-            )
-        except genai_errors.ServerError as e:
-            last_error = e
-            if attempt < max_attempts - 1:
-                time.sleep(2 * (attempt + 1))
-    raise last_error
-
-
-BANNED_EARLY_NICKNAMES = [
-    "dostum", "dostumm", "kanka", "kankam", "patron", "patronum",
-    "abi", "abicim", "abim", "reis", "reisim", "kral",
-]
-NICKNAME_PATTERN = re.compile(
-    r"\b(" + "|".join(BANNED_EARLY_NICKNAMES) + r")\b[!,. ]?", re.IGNORECASE
-)
-
-
-def sanitize_reply(text: str, message_count: int) -> str:
-    if message_count >= FAMILIARITY_THRESHOLD:
-        return text
-    cleaned = NICKNAME_PATTERN.sub("", text)
-    cleaned = re.sub(r" {2,}", " ", cleaned)
-    cleaned = re.sub(r"^\s*[!,.\s]+", "", cleaned)
-    return cleaned.strip()
-
-MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
-
-
-def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
-    """
-    Kullanici mesajinda uzun vadeli hafizaya deger bir bilgi varsa
-    memory_candidates tablosuna aday olarak kaydeder.
-    """
-
-    prompt = f"""
-Asagidaki kullanici mesajini Aura'nin uzun vadeli hafizasi icin analiz et.
-
-Kullanici mesaji:
-{message}
-
-Sadece uzun vadede kullanici hakkinda anlamli olabilecek bilgilerle ilgilen.
-
-Ornekler:
-- kullanicinin adi
-- yasadigi yer
-- meslegi
-- hobileri
-- ilgi alanlari
-- hedefleri
-- tercihleri
-- onemli projeleri
-- uzun vadeli planlari
-- iletisim veya cevap tercihleri
-
-Anlik duygu, gecici durum, selamlasma veya tek seferlik olaylari hafizaya alma.
-
-Eger hafizaya alinmaya deger bir bilgi YOKSA tam olarak:
-NONE
-
-Eger VARSA SADECE su formatta cevap ver:
-
-CATEGORY: kategori
-KEY: anahtar
-VALUE: bilgi
-CONFIDENCE: 0.0-1.0
-
-Baska hicbir sey yazma.
-"""
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part(text=prompt)],
-                )
-            ],
-        )
-
-        text = (response.text or "").strip()
-
-        if not text or text.upper() == "NONE":
-            return None
-
-        data = {}
-
-        for line in text.splitlines():
-            if ":" not in line:
-                continue
-
-            key, value = line.split(":", 1)
-            data[key.strip().upper()] = value.strip()
-
-        category = data.get("CATEGORY")
-        memory_key = data.get("KEY")
-        memory_value = data.get("VALUE")
-
-        if not category or not memory_key or not memory_value:
-            return None
-
-        try:
-            confidence = float(data.get("CONFIDENCE", "0.5"))
-        except ValueError:
-            confidence = 0.5
-
-        confidence = max(0.0, min(1.0, confidence))
-
-        if confidence >= MEMORY_AUTO_PROMOTE_THRESHOLD:
-            aura_memory.promote_candidate_to_memory(
-                user_id=user_id,
-                category=category,
-                memory_key=memory_key,
-                memory_value=memory_value,
-                confidence=confidence,
-                source_message_id=source_message_id,
-            )
-
-        return aura_memory.add_candidate(
-            user_id=user_id,
-            category=category,
-            memory_key=memory_key,
-            memory_value=memory_value,
-            confidence=confidence,
-            source_message_id=source_message_id,
-        )
-
-    except Exception as e:
-        print(f"MEMORY CANDIDATE ERROR: {e}")
-        return None
-
-
-def generate_stream(contents, system_instruction):
-    return client.models.generate_content_stream(
-        model="gemini-3.6-flash",
-        contents=contents,
-        config=types.GenerateContentConfig(system_instruction=system_instruction),
-    )
 
 def detect_memory_candidate(user_id: int, message: str):
     """
@@ -447,6 +207,12 @@ class ProfileUpdate(BaseModel):
     humor: Optional[str] = None
     directness: Optional[str] = None
     notes: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lon: Optional[float] = None
+    location_city: Optional[str] = None
+    weather_enabled: Optional[bool] = None
+    activity_enabled: Optional[bool] = None
+    mood_tracking_enabled: Optional[bool] = None
 
 class FriendRequest(BaseModel):
     email: str
@@ -548,7 +314,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     if mood:
         database.add_mood(user["id"], mood, context=request.message[:100])
     user_message_id = database.add_message(user["id"], "user", request.message)
-    extract_memory_candidate(user["id"], request.message, user_message_id)
+    aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
@@ -560,11 +326,11 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         for m in recent_messages
     ]
     try:
-        response = generate_with_retry(contents, build_system_instruction(user, message_count))
+        response = aura_brain.generate_with_retry(contents, aura_brain.build_system_instruction(user, message_count))
         reply_text = response.text
     except genai_errors.ServerError:
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
-    reply_text = sanitize_reply(reply_text, message_count)
+    reply_text = aura_brain.sanitize_reply(reply_text, message_count)
     database.add_message(user["id"], "assistant", reply_text)
     return {"reply": reply_text}
 
@@ -590,12 +356,12 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
         )
         for m in recent_messages
     ]
-    system_instruction = build_system_instruction(user, message_count)
+    system_instruction = aura_brain.build_system_instruction(user, message_count)
 
     def event_generator():
         collected = []
         try:
-            stream = generate_stream(contents, system_instruction)
+            stream = aura_brain.generate_stream(contents, system_instruction)
             for chunk in stream:
                 if chunk.text:
                     collected.append(chunk.text)
@@ -608,7 +374,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
         finally:
             full = "".join(collected)
             if full:
-                full = sanitize_reply(full, message_count)
+                full = aura_brain.sanitize_reply(full, message_count)
                 database.add_message(user["id"], "assistant", full)
 
     return StreamingResponse(event_generator(), media_type="text/plain; charset=utf-8")
