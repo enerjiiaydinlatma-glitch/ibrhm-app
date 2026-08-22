@@ -6,6 +6,7 @@ import "package:flutter/material.dart";
 import "package:flutter_soloud/flutter_soloud.dart";
 import "package:google_fonts/google_fonts.dart";
 import "package:record/record.dart";
+import "package:wakelock_plus/wakelock_plus.dart";
 import "package:web_socket_channel/web_socket_channel.dart";
 
 /// Aura ile gercek zamanli, tam serbest (interrupt edilebilir) sesli
@@ -37,6 +38,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
     _startCall();
   }
 
@@ -98,7 +100,12 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
         ),
       );
 
+      var chunkCount = 0;
       _micSubscription = micStream.listen((chunk) {
+        chunkCount++;
+        if (chunkCount % 20 == 0) {
+          debugPrint("DEBUG mikrofon: $chunkCount chunk gonderildi, son boyut=${chunk.length}");
+        }
         _channel?.sink.add(chunk);
       });
     } catch (e) {
@@ -112,17 +119,24 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
 
   void _handleServerMessage(dynamic message) {
     if (message is List<int>) {
+      debugPrint("DEBUG sunucudan ses: ${message.length} byte, playbackSource=${_playbackSource != null}");
       if (_playbackSource != null) {
-        SoLoud.instance.addAudioDataStream(
-          _playbackSource!,
-          Uint8List.fromList(message),
-        );
+        try {
+          SoLoud.instance.addAudioDataStream(
+            _playbackSource!,
+            Uint8List.fromList(message),
+          );
+        } catch (e) {
+          debugPrint("DEBUG addAudioDataStream HATASI: $e");
+        }
       }
       if (mounted && _state != _CallState.auraSpeaking) {
         setState(() => _state = _CallState.auraSpeaking);
       }
       return;
     }
+
+    debugPrint("DEBUG sunucudan mesaj (tip: ${message.runtimeType}): $message");
 
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
@@ -144,6 +158,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   Future<void> _endCall() async {
     setState(() => _state = _CallState.ended);
 
+    await WakelockPlus.disable();
     await _micSubscription?.cancel();
     await _recorder.stop();
     await _channel?.sink.close();
@@ -159,6 +174,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     _micSubscription?.cancel();
     _recorder.dispose();
     _channel?.sink.close();
