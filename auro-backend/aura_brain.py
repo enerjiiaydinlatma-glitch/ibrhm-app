@@ -36,7 +36,7 @@ if not GEMINI_API_KEY:
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 
 MODEL_NAME = "gemini-3.7-flash"
-GROQ_MODEL = "openai/gpt-oss-20b"
+GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 _client = genai.Client(api_key=GEMINI_API_KEY)
