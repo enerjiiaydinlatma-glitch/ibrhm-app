@@ -44,8 +44,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _initSpeech();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(chatProvider.notifier).setToken(widget.token);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final notifier = ref.read(chatProvider.notifier);
+      notifier.setToken(widget.token);
+      await notifier.loadHistory();
+      await notifier.fetchGreeting();
     });
   }
 

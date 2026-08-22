@@ -80,6 +80,23 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<String?> getGreeting() async {
+    try {
+      final response = await _dio.get(
+        '$baseUrl/api/chat/greeting',
+        options: _authOptions,
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final reply = data['reply'];
+
+      return reply?.toString();
+    } on DioException catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<List<Message>> getHistory() async {
     try {
       final response = await _dio.get(

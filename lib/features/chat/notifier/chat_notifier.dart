@@ -46,6 +46,37 @@ class ChatNotifier extends Notifier<ChatState> {
     }
   }
 
+  /// Kullanicinin gecmisi bomsa Aura'nin ilk sozu kendisinin almasi
+  /// icin cagrilir. Gecmis doluysa sessizce hicbir sey yapmaz.
+  Future<void> fetchGreeting() async {
+    if (state.messages.isNotEmpty) return;
+
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final greeting = await _repository.getGreeting();
+
+      if (greeting != null && greeting.trim().isNotEmpty) {
+        state = state.copyWith(
+          messages: [
+            ...state.messages,
+            Message(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              text: greeting,
+              isUser: false,
+            ),
+          ],
+          isLoading: false,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(isLoading: false);
+      }
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
   Future<void> sendMessage(String text) async {
     final cleanText = text.trim();
 

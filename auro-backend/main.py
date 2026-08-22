@@ -307,6 +307,22 @@ def clear_history(authorization: Optional[str] = Header(None)):
     return {"status": "gecmis temizlendi"}
 
 
+@app.get("/api/chat/greeting")
+def chat_greeting(authorization: Optional[str] = Header(None)):
+    """
+    Kullanicinin gecmisi bomsa Aura'nin ilk sozu kendisinin almasi icin.
+    Gecmis doluysa hicbir sey uretmez (reply: null) - tanisma akisi
+    sadece gercekten ilk kez gelen kullanicida tetiklenir.
+    """
+    user = get_current_user(authorization)
+    past_messages = database.get_messages(user["id"])
+    if past_messages:
+        return {"reply": None}
+    reply_text = aura_brain.generate_onboarding_opening(user)
+    database.add_message(user["id"], "assistant", reply_text)
+    return {"reply": reply_text}
+
+
 @app.post("/api/chat")
 def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)

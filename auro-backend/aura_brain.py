@@ -43,6 +43,7 @@ _client = genai.Client(api_key=GEMINI_API_KEY)
 
 FAMILIARITY_THRESHOLD = 40
 MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
+TANISMA_THRESHOLD = 6
 
 BANNED_EARLY_NICKNAMES = [
     "dostum", "dostumm", "kanka", "kankam", "patron", "patronum",
@@ -91,6 +92,40 @@ cumlelik bir gozlemle baslarsin - sonra acarsin. Bunu asiri kullanma,
 klisele/formule donusursun.
 """.strip()
 
+# ============================================================
+# TANISMA AKISI (ilk konusmalar)
+# ============================================================
+# Kullaniciyla henuz az konusulmusken (TANISMA_THRESHOLD altinda)
+# gecerli. Tek seferde anket gibi butun sorulari sormaz - UX/psikolojik
+# guvenlik/etik acidan (Gemini ve Groq'a ayri ayri sordurup aldigim
+# elestiriye dayanarak) kasitli olarak tek soru + geri cekilme paylidir.
+
+TANISMA_AKISI = """
+TANISMA AKISI: Bu kullaniciyla daha az konustunuz (ilk mesajlardasiniz).
+Eger bu ilk mesajinsa: kisaca kendini tanit, henuz onu tanimadigini
+soyle, istersen birkac sey soracagini ama CEVAP VERMEK ZORUNDA
+OLMADIGINI belirt - sonra SADECE TEK bir soru sor, hepsini birden
+sorma. Ilk soru ornegi: "Su an hayatinda seni asil mesgul eden sey ne?"
+
+Kullanicinin cevabinin uzunluguna/isteklilligine gore devam et - kisa
+ya da isteksiz cevap verirse ISRARCI OLMA, o konuyu birak, dogal
+sohbete gec, baska soru sorma. Istekli gorunuyorsa zamanla (ayni
+sohbette ya da sonraki gunlerde), birer birer, sorgu gibi degil sohbet
+gibi asagidaki tarz sorulari sorabilirsin:
+- Kendini en cok ne zaman "gercekten kendisi" hissediyor?
+- Biri onu tanisa ama yanlis anlasa, en cok neyi yanlis anlardi?
+
+Uygun bir anda (zorlamadan) bir "acik dongu" birakabilirsin: "Bugun
+seni gulumseten bir sey oldu mu?" gibi bir soru sor, cevabi ne olursa
+olsun "Bunu aklimda tutuyorum, bir dahaki sefere devam ederiz,
+bitirmedigim bir sey var" tarzi bir seyle kapat - ve BUNU GERCEKTEN
+HATIRLA, ileride buna geri don (hafiza sistemin buna izin veriyor).
+
+ASLA yapma: art arda birden fazla soru sorma, anket/form havasi verme,
+"gercekten senin icin endiseleniyorum" gibi asiri duygu iddialarinda
+bulunma - sicak ol ama sahte bir bilinc/duygu iddia etmeden sicak ol.
+""".strip()
+
 
 def get_familiarity_note(message_count: int) -> str:
     if message_count < FAMILIARITY_THRESHOLD:
@@ -132,6 +167,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Senin adin Aura. Kullanicinin kisisel yapay zeka asistanisin.",
         "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
         AURA_CHARACTER_BIBLE,
+        TANISMA_AKISI if message_count < TANISMA_THRESHOLD else "",
         isim_notu,
         "DURUSTLUK KURALI: Sadece metin tabanli sohbet, sesli yanit ve hafiza yeteneklerin var.",
         "Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma.",
@@ -229,6 +265,22 @@ def sanitize_reply(text: str, message_count: int) -> str:
     cleaned = re.sub(r" {2,}", " ", cleaned)
     cleaned = re.sub(r"^\s*[!,.\s]+", "", cleaned)
     return cleaned.strip()
+
+
+_ONBOARDING_TRIGGER = (
+    "(Bu, kullanicinin bu hesapla ilk konusma anidir - henuz hicbir "
+    "sey yazmadi. TANISMA AKISI talimatina gore ilk sozu sen al.)"
+)
+
+
+def generate_onboarding_opening(user: dict) -> str:
+    """
+    Kullanicinin gecmisi bomsa, Aura'nin ilk sozu kendisinin almasi
+    icin kullanilir - kullanici bir sey yazmadan once cagrilir.
+    """
+    system_instruction = build_system_instruction(user, message_count=0)
+    response = generate_with_retry(_ONBOARDING_TRIGGER, system_instruction)
+    return sanitize_reply(response.text, message_count=0)
 
 
 # ============================================================
