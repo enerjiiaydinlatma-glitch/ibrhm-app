@@ -56,3 +56,6 @@ auro-backend/aura.db
 _safe_backup_*/
 *.backup
 diff_*.txt
+
+# Installer build output (binary, rebuildable from aura_setup.iss)
+installer_output/

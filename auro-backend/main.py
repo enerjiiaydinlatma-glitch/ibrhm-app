@@ -18,9 +18,10 @@ import database
 
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY .env dosyasinda bulunamadi")
+print(f"DEBUG GEMINI_API_KEY: {api_key[:6]!r}...{api_key[-4:]!r} len={len(api_key)}")
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
 
@@ -169,6 +170,10 @@ def generate_with_retry(contents, system_instruction, max_attempts=3):
 
             if attempt < max_attempts - 1:
                 time.sleep(2 * (attempt + 1))
+
+        except Exception as e:
+            print(f"DEBUG GENAI ERROR: {type(e).__name__}: {e}")
+            raise
 
     raise last_error
 
