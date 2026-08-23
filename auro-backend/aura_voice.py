@@ -54,6 +54,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     assistant_transcript_parts: list[str] = []
 
     def flush_transcripts():
+        """
+        Biriken transkriptleri hafizaya yazar VE geri doner - boylece
+        istemci ayni sozleri sohbet baloncugu olarak gosterebilir
+        (yazili/sesli mesajlar ayni akista birlesir).
+        """
         user_text = "".join(user_transcript_parts).strip()
         assistant_text = "".join(assistant_transcript_parts).strip()
         user_transcript_parts.clear()
@@ -64,6 +69,8 @@ async def handle_voice_session(websocket: WebSocket) -> None:
             aura_brain.extract_memory_candidate(user["id"], user_text, msg_id)
         if assistant_text:
             database.add_message(user["id"], "assistant", assistant_text)
+
+        return user_text, assistant_text
 
     try:
         async with _client.aio.live.connect(model=VOICE_MODEL, config=config) as session:
@@ -113,13 +120,33 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                         )
 
                     if server_content.turn_complete:
-                        flush_transcripts()
-                        await websocket.send_text(json.dumps({"type": "turn_complete"}))
+                        user_text, assistant_text = flush_transcripts()
+                        await websocket.send_text(json.dumps({
+                            "type": "turn_complete",
+                            "user_text": user_text,
+                            "assistant_text": assistant_text,
+                        }))
 
-            await asyncio.gather(relay_client_to_gemini(), relay_gemini_to_client())
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.ensure_future(relay_client_to_gemini()),
+                    asyncio.ensure_future(relay_gemini_to_client()),
+                ],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-    except WebSocketDisconnect:
-        pass
+            for task in pending:
+                task.cancel()
+
+            for task in done:
+                exc = task.exception()
+                if exc:
+                    print(f"VOICE SESSION TASK ERROR: {type(exc).__name__}: {exc}")
+                else:
+                    print("VOICE SESSION: bir taraf normal sekilde bitti (mikrofon akisi mi kesildi, Gemini oturumu mu kapandi?)")
+
+    except WebSocketDisconnect as e:
+        print(f"VOICE SESSION: istemci baglantiyi kesti (code={getattr(e, 'code', '?')})")
     except Exception as e:
         print(f"VOICE SESSION ERROR: {type(e).__name__}: {e}")
     finally:
