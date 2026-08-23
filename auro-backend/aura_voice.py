@@ -158,6 +158,14 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             user_transcript_parts.append(
                                 server_content.input_transcription.text
                             )
+                            # Canli altyazi: tur bitmeden, parca geldikce
+                            # o ana kadar birikeni gonder - istemci turn_complete'i
+                            # beklemeden kelime kelime metni gosterebilsin.
+                            await websocket.send_text(json.dumps({
+                                "type": "partial_transcript",
+                                "role": "user",
+                                "text": "".join(user_transcript_parts).strip(),
+                            }))
 
                         if (
                             server_content.output_transcription
@@ -166,6 +174,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             assistant_transcript_parts.append(
                                 server_content.output_transcription.text
                             )
+                            await websocket.send_text(json.dumps({
+                                "type": "partial_transcript",
+                                "role": "assistant",
+                                "text": "".join(assistant_transcript_parts).strip(),
+                            }))
 
                         if server_content.turn_complete:
                             user_text, assistant_text = pop_transcripts()

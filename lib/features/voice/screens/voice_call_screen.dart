@@ -38,6 +38,10 @@ class VoiceCallBar extends ConsumerWidget {
 
     final isSpeaking = callState.status == VoiceCallStatus.auraSpeaking;
     final isError = callState.status == VoiceCallStatus.error;
+    // Canli altyazi: Aura konusurken onun soyledigini, degilse kullanicinin
+    // o ana kadar soyledigini goster - turn_complete gelince ikisi de
+    // temizlenir (bkz. VoiceCallNotifier).
+    final liveText = isSpeaking ? callState.liveAssistantText : callState.liveUserText;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
@@ -50,42 +54,64 @@ class VoiceCallBar extends ConsumerWidget {
           width: 1,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            builder: (_, scale, __) => Transform.scale(
-              scale: scale,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isError ? Colors.redAccent : _indigoColor,
+          Row(
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOut,
+                builder: (_, scale, __) => Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isError ? Colors.redAccent : _indigoColor,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Sesli görüşme • ${_statusText(callState.status)}",
+                  style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+              if (isError)
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: _indigoColor, size: 20),
+                  tooltip: "Tekrar Dene",
+                  onPressed: () => ref.read(voiceCallProvider.notifier).retry(),
+                ),
+              IconButton(
+                icon: const Icon(Icons.call_end, color: Colors.redAccent, size: 20),
+                tooltip: "Görüşmeyi Bitir",
+                onPressed: () => ref.read(voiceCallProvider.notifier).endCall(),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "Sesli görüşme • ${_statusText(callState.status)}",
-              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+          if (liveText.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Text(
+                liveText,
+                style: GoogleFonts.poppins(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          if (isError)
-            IconButton(
-              icon: const Icon(Icons.refresh, color: _indigoColor, size: 20),
-              tooltip: "Tekrar Dene",
-              onPressed: () => ref.read(voiceCallProvider.notifier).retry(),
-            ),
-          IconButton(
-            icon: const Icon(Icons.call_end, color: Colors.redAccent, size: 20),
-            tooltip: "Görüşmeyi Bitir",
-            onPressed: () => ref.read(voiceCallProvider.notifier).endCall(),
-          ),
+          ],
         ],
       ),
     );

@@ -148,7 +148,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             debugPrint("resetBufferStream hatasi: $e");
           }
         }
-        state = state.copyWith(status: VoiceCallStatus.listening);
+        state = state.copyWith(
+          status: VoiceCallStatus.listening,
+          liveAssistantText: "",
+        );
+      } else if (type == "partial_transcript") {
+        final role = data["role"] as String?;
+        final text = (data["text"] as String?) ?? "";
+        if (role == "user") {
+          state = state.copyWith(liveUserText: text);
+        } else if (role == "assistant") {
+          state = state.copyWith(liveAssistantText: text);
+        }
       } else if (type == "turn_complete") {
         final userText = (data["user_text"] as String?)?.trim();
         final assistantText = (data["assistant_text"] as String?)?.trim();
@@ -161,7 +172,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           chatNotifier.addAssistantMessage(assistantText);
         }
 
-        state = state.copyWith(status: VoiceCallStatus.listening);
+        state = state.copyWith(
+          status: VoiceCallStatus.listening,
+          liveUserText: "",
+          liveAssistantText: "",
+        );
       }
     } catch (_) {
       // sesle ilgisi olmayan/parse edilemeyen kontrol mesaji - yoksay
