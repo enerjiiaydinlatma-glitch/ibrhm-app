@@ -140,15 +140,21 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       try {
         if (_pendingNewSource) {
           // ONEMLI: bunu HEMEN, senkron olarak false yapiyoruz - yoksa
-          // arka arkaya hizli gelen iki ses parcasi (birbirini await ile
-          // beklemeden) ayni anda "yeni source lazim" sanip IKI source
-          // olusturabilir (re-entrancy). play()/disposeSource() bilerek
-          // await EDILMIYOR (unawaited) - addAudioDataStream, source
-          // nesnesi var olur olmaz (play() Future'i tamamlanmadan da)
-          // guvenle cagrilabiliyor, boylece bu callback hicbir zaman
-          // bir sonraki mesaj gelene kadar askida kalmiyor.
+          // arka arkaya hizli gelen iki ses parcasi ayni anda "yeni
+          // source lazim" sanip IKI source olusturabilir (re-entrancy).
           _pendingNewSource = false;
-          final oldSource = _playbackSource;
+          // Eski source'u BILEREK dispose ETMIYORUZ. disposeSource()'in
+          // ilk (senkron) kismi dogrudan native FFI cagrisi yapiyor -
+          // unawaited() bu senkron kismi ERTELEYEMEZ, sadece donen
+          // Future'i beklemekten vazgeciyor. Native motor o an "veri
+          // bekliyor" durumundaki (preserved buffering, hic
+          // setDataIsEnded cagrilmamis) bir kaynagi silmeye calismak,
+          // tam da UYGULAMANIN TAMAMEN DONMASINA yol acan senkron
+          // kilitlenmeydi (kullanici testinde defalarca dogrulandi).
+          // Bunun yerine gorusme boyunca eski source'lari birak - cagri
+          // bitince zaten _cleanup()'taki SoLoud.instance.deinit() TUM
+          // kaynaklari tek seferde (guvenli sekilde, motor kapanirken)
+          // serbest birakiyor.
           _playbackSource = SoLoud.instance.setBufferStream(
             sampleRate: 24000,
             channels: Channels.mono,
@@ -160,14 +166,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             bufferingTimeNeeds: 0.3,
           );
           unawaited(SoLoud.instance.play(_playbackSource!));
-
-          if (oldSource != null) {
-            unawaited(
-              SoLoud.instance.disposeSource(oldSource).catchError((e) {
-                debugPrint("eski source dispose hatasi: $e");
-              }),
-            );
-          }
         }
 
         SoLoud.instance.addAudioDataStream(
@@ -189,17 +187,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       final type = data["type"];
 
       if (type == "interrupted") {
-        // Aura'nin sozu genuinely kesildi - kuyrugun tamamini beklemeden
-        // HEMEN durduruyoruz (turn_complete'teki gibi dogal bitmesine
-        // izin vermiyoruz).
-        if (_playbackSource != null) {
-          unawaited(
-            SoLoud.instance.disposeSource(_playbackSource!).catchError((e) {
-              debugPrint("disposeSource (interrupted) hatasi: $e");
-            }),
-          );
-          _playbackSource = null;
-        }
+        // Aura'nin sozu kesildi - yeni ses gelmeyecegi icin bu source'u
+        // birakip bir sonraki turda taze bir tanesi olusturulacak.
+        // disposeSource() BURADA CAGRILMIYOR - bkz. yukaridaki not
+        // (senkron FFI cagrisi UI'yi dondurebiliyordu).
+        _playbackSource = null;
         _pendingNewSource = true;
         _scheduleUnmute();
         state = state.copyWith(
@@ -291,13 +283,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     // kalip donmasina (tum pencerenin kilitlenmesine) yol aciyordu. Bir
     // sonraki startCall() zaten `if (!isInitialized) init()` ile motoru
     // sifirdan baslatiyor - kucuk bir gecikme pahasina saglamlik kazaniyoruz.
+    //
+    // NOT: burada AYRICA disposeSource() cagirmiyoruz - deinit() zaten
+    // TUM kaynaklari (disposeAllSound() ile, motoru kapatirken) tek
+    // seferde serbest birakiyor. Tekil disposeSource() cagrisi ayni
+    // riskli senkron FFI davranisini tasiyordu (bkz. _handleServerMessage
+    // notu) - burada da kaldirildi.
+    _playbackSource = null;
     if (_soloudReady) {
-      if (_playbackSource != null) {
-        try {
-          await SoLoud.instance.disposeSource(_playbackSource!);
-        } catch (_) {}
-        _playbackSource = null;
-      }
       try {
         SoLoud.instance.deinit();
       } catch (e) {
