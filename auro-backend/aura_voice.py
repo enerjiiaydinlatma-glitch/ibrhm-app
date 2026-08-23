@@ -80,6 +80,10 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                     message = await websocket.receive()
 
                     if message.get("type") == "websocket.disconnect":
+                        print(
+                            f"VOICE SESSION: istemci (Flutter) WS baglantisini kapatti "
+                            f"(disconnect mesaji: {message})"
+                        )
                         break
 
                     audio_bytes = message.get("bytes")
@@ -92,7 +96,9 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                         )
 
             async def relay_gemini_to_client():
+                chunk_count = 0
                 async for response in session.receive():
+                    chunk_count += 1
                     if response.data:
                         await websocket.send_bytes(response.data)
 
@@ -127,6 +133,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             "assistant_text": assistant_text,
                         }))
 
+                print(
+                    f"VOICE SESSION: Gemini Live oturumu kendiliginden kapandi "
+                    f"({chunk_count} chunk alindiktan sonra session.receive() bitti)"
+                )
+
             done, pending = await asyncio.wait(
                 [
                     asyncio.ensure_future(relay_client_to_gemini()),
@@ -142,8 +153,6 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                 exc = task.exception()
                 if exc:
                     print(f"VOICE SESSION TASK ERROR: {type(exc).__name__}: {exc}")
-                else:
-                    print("VOICE SESSION: bir taraf normal sekilde bitti (mikrofon akisi mi kesildi, Gemini oturumu mu kapandi?)")
 
     except WebSocketDisconnect as e:
         print(f"VOICE SESSION: istemci baglantiyi kesti (code={getattr(e, 'code', '?')})")
