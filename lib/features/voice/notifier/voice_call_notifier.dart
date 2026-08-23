@@ -36,6 +36,16 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   bool _muteMic = false;
   Timer? _unmuteTimer;
 
+  // Tum gorusme boyunca TEK bir surekli buffer stream'i yeniden kullanmak
+  // (surekli play() + addAudioDataStream) her zaman ILK turda calisiyor,
+  // ama 2. ve sonraki turlarda kararsizdi (sessiz kaliyor ya da SoLoud
+  // donuyordu - kullanici testinde defalarca dogrulandi). Bunun yerine
+  // HER TUR icin taze bir AudioSource olusturuyoruz - ilk turda hep
+  // calisan yolu HER tur icin tekrarliyoruz. Onceki turun source'u,
+  // yeni turun ilk ses parcasi geldiginde (lazy) dispose edilir - boylece
+  // hala hoparlorden calmakta olan kuyruk erken kesilmez.
+  bool _pendingNewSource = true;
+
   @override
   VoiceCallState build() {
     ref.onDispose(() {
@@ -67,18 +77,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         await SoLoud.instance.init();
       }
       _soloudReady = true;
-
-      _playbackSource = SoLoud.instance.setBufferStream(
-        sampleRate: 24000,
-        channels: Channels.mono,
-        format: BufferType.s16le,
-        bufferingType: BufferingType.preserved,
-        // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
-        // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
-        // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
-        bufferingTimeNeeds: 0.3,
-      );
-      await SoLoud.instance.play(_playbackSource!);
+      // Ses akisi (AudioSource) burada DEGIL, ilk ses parcasi geldiginde
+      // (_handleServerMessage icinde) olusturulur - bkz. _pendingNewSource.
+      _pendingNewSource = true;
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
       state = state.copyWith(status: VoiceCallStatus.error);
@@ -136,16 +137,47 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       _unmuteTimer?.cancel();
       _muteMic = true;
 
-      if (_playbackSource != null) {
-        try {
-          SoLoud.instance.addAudioDataStream(
-            _playbackSource!,
-            Uint8List.fromList(message),
+      try {
+        if (_pendingNewSource) {
+          // ONEMLI: bunu HEMEN, senkron olarak false yapiyoruz - yoksa
+          // arka arkaya hizli gelen iki ses parcasi (birbirini await ile
+          // beklemeden) ayni anda "yeni source lazim" sanip IKI source
+          // olusturabilir (re-entrancy). play()/disposeSource() bilerek
+          // await EDILMIYOR (unawaited) - addAudioDataStream, source
+          // nesnesi var olur olmaz (play() Future'i tamamlanmadan da)
+          // guvenle cagrilabiliyor, boylece bu callback hicbir zaman
+          // bir sonraki mesaj gelene kadar askida kalmiyor.
+          _pendingNewSource = false;
+          final oldSource = _playbackSource;
+          _playbackSource = SoLoud.instance.setBufferStream(
+            sampleRate: 24000,
+            channels: Channels.mono,
+            format: BufferType.s16le,
+            bufferingType: BufferingType.preserved,
+            // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
+            // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
+            // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
+            bufferingTimeNeeds: 0.3,
           );
-        } catch (e) {
-          debugPrint("addAudioDataStream hatasi: $e");
+          unawaited(SoLoud.instance.play(_playbackSource!));
+
+          if (oldSource != null) {
+            unawaited(
+              SoLoud.instance.disposeSource(oldSource).catchError((e) {
+                debugPrint("eski source dispose hatasi: $e");
+              }),
+            );
+          }
         }
+
+        SoLoud.instance.addAudioDataStream(
+          _playbackSource!,
+          Uint8List.fromList(message),
+        );
+      } catch (e) {
+        debugPrint("SoLoud playback hatasi: $e");
       }
+
       if (state.status != VoiceCallStatus.auraSpeaking) {
         state = state.copyWith(status: VoiceCallStatus.auraSpeaking);
       }
@@ -157,13 +189,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       final type = data["type"];
 
       if (type == "interrupted") {
+        // Aura'nin sozu genuinely kesildi - kuyrugun tamamini beklemeden
+        // HEMEN durduruyoruz (turn_complete'teki gibi dogal bitmesine
+        // izin vermiyoruz).
         if (_playbackSource != null) {
-          try {
-            SoLoud.instance.resetBufferStream(_playbackSource!);
-          } catch (e) {
-            debugPrint("resetBufferStream hatasi: $e");
-          }
+          unawaited(
+            SoLoud.instance.disposeSource(_playbackSource!).catchError((e) {
+              debugPrint("disposeSource (interrupted) hatasi: $e");
+            }),
+          );
+          _playbackSource = null;
         }
+        _pendingNewSource = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -189,6 +226,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           chatNotifier.addAssistantMessage(assistantText);
         }
 
+        // Bu turun source'unu hemen dispose ETMIYORUZ - hala hoparlorden
+        // calmakta olan kuyruk dogal sekilde bitsin. Bir sonraki turun
+        // ilk ses parcasi geldiginde lazy olarak serbest birakilacak
+        // (bkz. _pendingNewSource, _handleServerMessage).
+        _pendingNewSource = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -230,6 +272,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _unmuteTimer?.cancel();
     _unmuteTimer = null;
     _muteMic = false;
+    _pendingNewSource = true;
 
     await _micSubscription?.cancel();
     _micSubscription = null;
