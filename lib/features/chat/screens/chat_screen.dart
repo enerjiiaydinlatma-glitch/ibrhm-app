@@ -516,6 +516,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    // Kod sagligi taramasinda bulundu: _controller/_scrollController/_dio
+    // hic dispose/close edilmiyordu - kucuk ama gercek bir memory leak.
+    _controller.dispose();
+    _scrollController.dispose();
+    _dio.close();
     _audioPlayer.dispose();
     _localTts.stop();
     super.dispose();
