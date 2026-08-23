@@ -7,6 +7,7 @@ import "package:google_fonts/google_fonts.dart";
 import "package:speech_to_text/speech_to_text.dart" as stt;
 import "package:audioplayers/audioplayers.dart";
 import "package:image_picker/image_picker.dart";
+import "package:flutter_tts/flutter_tts.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
 import "../../voice/screens/voice_call_screen.dart";
@@ -26,6 +27,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Dio _dio = Dio();
+  final FlutterTts _localTts = FlutterTts();
+  bool _localTtsReady = false;
 
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -41,6 +44,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _initSpeech();
+    _initLocalTts();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final notifier = ref.read(chatProvider.notifier);
       notifier.setToken(widget.token);
@@ -73,6 +77,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .trim();
   }
 
+  Future<void> _initLocalTts() async {
+    try {
+      await _localTts.setLanguage("tr-TR");
+      await _localTts.setSpeechRate(0.48);
+      await _localTts.setPitch(1.0);
+      _localTtsReady = true;
+    } catch (e) {
+      debugPrint("Yerel TTS baslatma hatasi: $e");
+    }
+  }
+
+  /// Once ElevenLabs'i (daha dogal/karakterli ses) dener - kota
+  /// bitmisse ya da baska bir sebeple basarisiz olursa, Windows'un
+  /// kendi (ucretsiz, sinirsiz) sesine SESSIZCE duser. Boylece
+  /// seslendirme ozelligi ElevenLabs kotasindan bagimsiz hep calisir.
   Future<void> _speakWithElevenLabs(String text) async {
     final cleanText = _cleanForSpeech(text);
     if (cleanText.isEmpty) return;
@@ -89,7 +108,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
       }
     } catch (e) {
-      debugPrint("ElevenLabs TTS hatasi: $e");
+      debugPrint("ElevenLabs TTS hatasi (yerel sese dusuluyor): $e");
+      if (_localTtsReady) {
+        try {
+          await _localTts.stop();
+          await _localTts.speak(cleanText);
+        } catch (e2) {
+          debugPrint("Yerel TTS hatasi: $e2");
+        }
+      }
     }
   }
 
@@ -423,6 +450,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _speech.stop();
     _audioPlayer.dispose();
+    _localTts.stop();
     super.dispose();
   }
 
