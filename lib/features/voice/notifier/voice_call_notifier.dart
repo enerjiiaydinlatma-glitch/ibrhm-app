@@ -27,9 +27,19 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   bool _soloudReady = false;
   String? _token;
 
+  // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
+  // Aura'nin sesi mikrofona sizip Gemini'nin "kullanici konusuyor" sanip
+  // kendi kendini kesmesine (ve bu hizli kesinti dongusunun SoLoud'u
+  // kilitleyip tum uygulamayi dondurmesine) yol aciyordu. Aura konusurken
+  // mikrofonu sunucuya GONDERMEYEREK bu dongude kesilir - konusma hala
+  // dogal sirayla akar, sadece Aura'nin sozu bu sirada kesilemez.
+  bool _muteMic = false;
+  Timer? _unmuteTimer;
+
   @override
   VoiceCallState build() {
     ref.onDispose(() {
+      _unmuteTimer?.cancel();
       _micSubscription?.cancel();
       _channel?.sink.close();
       WakelockPlus.disable();
@@ -107,6 +117,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       );
 
       _micSubscription = micStream.listen((chunk) {
+        if (_muteMic) return;
         _channel?.sink.add(chunk);
       });
     } catch (e) {
@@ -120,6 +131,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
   void _handleServerMessage(dynamic message) {
     if (message is List<int>) {
+      // Aura'nin sesi hoparlorden cikmaya baslayacak - yanki dongusune
+      // girmemek icin mikrofonu hemen sustur (bkz. _muteMic aciklamasi).
+      _unmuteTimer?.cancel();
+      _muteMic = true;
+
       if (_playbackSource != null) {
         try {
           SoLoud.instance.addAudioDataStream(
@@ -148,6 +164,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             debugPrint("resetBufferStream hatasi: $e");
           }
         }
+        _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
           liveAssistantText: "",
@@ -172,6 +189,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           chatNotifier.addAssistantMessage(assistantText);
         }
 
+        _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
           liveUserText: "",
@@ -181,6 +199,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     } catch (_) {
       // sesle ilgisi olmayan/parse edilemeyen kontrol mesaji - yoksay
     }
+  }
+
+  /// Aura'nin turu bittikten sonra mikrofonu HEMEN degil, kisa bir
+  /// gecikmeyle acar - SoLoud tamponunda (bufferingTimeNeeds: 0.3s) hala
+  /// calinmakta olan son ses kuyrugunun hoparlorden tamamen bitmesini
+  /// bekleriz, yoksa o kuyruk da mikrofona sizip yeni bir yanki dongusu
+  /// baslatabilir.
+  void _scheduleUnmute() {
+    _unmuteTimer?.cancel();
+    _unmuteTimer = Timer(const Duration(milliseconds: 500), () {
+      _muteMic = false;
+    });
   }
 
   /// Hata sonrasi kullaniciyi ekrandan cikmaya zorlamadan tekrar
@@ -197,6 +227,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   Future<void> _cleanup() async {
+    _unmuteTimer?.cancel();
+    _unmuteTimer = null;
+    _muteMic = false;
+
     await _micSubscription?.cancel();
     _micSubscription = null;
     try {
