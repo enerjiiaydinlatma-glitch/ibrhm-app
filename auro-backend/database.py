@@ -2,6 +2,7 @@ import sqlite3
 import json
 import hashlib
 import secrets
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -160,7 +161,25 @@ def init_db():
 # --- AUTH ---
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    # Kod sagligi taramasinda bulundu: onceki hali salt'siz, tek turlu
+    # SHA-256'ydi - DB sizarsa hizli/GPU brute-force'a acikti. bcrypt
+    # (salt'li, yavas, ayarlanabilir maliyetli) kullaniyoruz artik.
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def _is_legacy_sha256_hash(stored_hash: str) -> bool:
+    """Eski (bcrypt oncesi) hash'ler duz 64 karakterlik hex SHA-256'ydi."""
+    return len(stored_hash) == 64 and all(c in "0123456789abcdef" for c in stored_hash.lower())
+
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    if _is_legacy_sha256_hash(stored_hash):
+        return hashlib.sha256(password.encode()).hexdigest() == stored_hash
+    try:
+        return bcrypt.checkpw(password.encode(), stored_hash.encode())
+    except (ValueError, TypeError):
+        return False
+
 
 def create_user(email: str, password: str, name: str = "") -> Optional[dict]:
     conn = get_db()
@@ -179,15 +198,33 @@ def create_user(email: str, password: str, name: str = "") -> Optional[dict]:
         return None
 
 def authenticate_user(email: str, password: str) -> Optional[dict]:
+    # bcrypt her cagrida farkli bir salt urettigi icin artik SQL
+    # WHERE'de dogrudan karsilastirma yapilamiyor - once email'e gore
+    # kullaniciyi cekip, sifreyi Python tarafinda dogruluyoruz.
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM users WHERE email = ? AND password_hash = ?",
-        (email.lower().strip(), hash_password(password))
-    )
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email.lower().strip(),))
     row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    user = dict(row)
+    if not _verify_password(password, user["password_hash"]):
+        conn.close()
+        return None
+
+    # Sessiz migrasyon: eski SHA-256 hash basariyla dogrulandiysa, simdi
+    # bcrypt ile yeniden yazip guvenligi kullanici fark etmeden artir.
+    if _is_legacy_sha256_hash(user["password_hash"]):
+        cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (hash_password(password), user["id"]),
+        )
+        conn.commit()
+
     conn.close()
-    return dict(row) if row else None
+    return user
 
 def create_session(user_id: int, days: int = 30) -> str:
     token = secrets.token_urlsafe(32)

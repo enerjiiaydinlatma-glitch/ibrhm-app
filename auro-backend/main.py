@@ -450,7 +450,13 @@ async def voice_endpoint(websocket: WebSocket):
 
 
 @app.post("/api/tts")
-def tts(request: TTSRequest):
+def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
+    # Kod sagligi taramasinda bulundu: bu endpoint hic kimlik dogrulamasi
+    # yapmiyordu - giris yapmamis herkes sunucunun ElevenLabs anahtariyla
+    # sinirsiz istek atip maliyet/kota tuketebilirdi. Diger tum
+    # endpoint'lerle ayni desene getirildi.
+    get_current_user(authorization)
+
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
@@ -481,9 +487,11 @@ def tts(request: TTSRequest):
         if r.status_code != 200:
             print(f"ELEVENLABS ERROR STATUS: {r.status_code}")
             print(f"ELEVENLABS ERROR BODY: {r.text}")
+            # Ham ElevenLabs hata govdesini (hesap/plan bilgisi icerebilir)
+            # istemciye sizdirmiyoruz - detay sadece sunucu logunda kalir.
             raise HTTPException(
                 status_code=502,
-                detail=f"ElevenLabs hatasi: {r.status_code} - {r.text}",
+                detail="Seslendirme şu an başarısız.",
             )
 
         return Response(
