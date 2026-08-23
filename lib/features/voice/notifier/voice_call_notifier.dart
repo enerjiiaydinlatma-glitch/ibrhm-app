@@ -69,6 +69,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   static const int _maxAutoRetries = 3;
   bool _reconnecting = false;
 
+  // Sunucu "limit_reached" gonderip baglantiyi kendi kapattiginda,
+  // hemen ardindan gelen onDone/onError'un OTOMATIK yeniden baglanmayi
+  // tetiklememesi icin - aksi halde ayni gunluk limite tekrar carpip
+  // sonsuz bir "baglan->reddedil" donguye girer.
+  bool _limitReached = false;
+
   // GERI ALINDI (bkz. asagidaki not): "her tur icin taze source" denemesi
   // teshis logunda KANITLANMIS sekilde play()'in senkron FFI on-yuzunde
   // kilitleniyordu (2. play() cagrisinda) - buyuk ihtimalle her turda
@@ -95,6 +101,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _voiceDebugLog("===== startCall() =====");
     _token = token;
     _autoRetryCount = 0;
+    _limitReached = false;
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
   }
@@ -218,7 +225,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
       final type = data["type"];
 
-      if (type == "interrupted") {
+      if (type == "limit_reached") {
+        _voiceDebugLog("limit_reached alindi: ${data["message"]}");
+        _limitReached = true;
+        state = state.copyWith(
+          status: VoiceCallStatus.error,
+          errorMessage: data["message"] as String?,
+        );
+      } else if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi");
         // Aura'nin sozu kesildi - hala tamponda bekleyen (henuz calinmamis)
         // sesi temizlemek icin resetBufferStream() kullaniyoruz (resmi
@@ -291,10 +305,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   /// dener. Gercekten baglanamiyor olma ihtimaline karsi (backend
   /// cokmus vb.) bir ust sinirdan sonra kullaniciya hata gosterilir.
   void _handleUnexpectedDisconnect() {
-    if (state.status == VoiceCallStatus.idle || _reconnecting) {
+    if (state.status == VoiceCallStatus.idle || _reconnecting || _limitReached) {
       // idle: kullanici endCall() ile kendisi kapatti - normal, bir sey
       // yapma. _reconnecting: onError+onDone ayni kopma icin iki kez
-      // tetiklenmis olabilir - ikinci tetiklemeyi yoksay.
+      // tetiklenmis olabilir - ikinci tetiklemeyi yoksay. _limitReached:
+      // sunucu gunluk limit yuzunden kapatti - otomatik yeniden
+      // baglanmak ayni reddi tekrar tetikler, anlamsiz.
       return;
     }
     if (_autoRetryCount >= _maxAutoRetries) {
@@ -330,6 +346,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   /// baglanmayi dener.
   Future<void> retry() async {
     _autoRetryCount = 0;
+    _limitReached = false;
     await _cleanup();
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();

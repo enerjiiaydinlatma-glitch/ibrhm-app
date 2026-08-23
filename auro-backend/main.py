@@ -32,6 +32,12 @@ VOICE_IDS = {
     "female": "iLcCq17FevxNYSk6Hgi7",
 }
 
+# Ucretsiz (free) tier gunluk kullanim limiti. 'pro' tier bundan muaf.
+# Rakip uygulama arastirmasina (Replika/Character.AI) ve kullanicinin
+# onayina dayanarak belirlendi.
+LIMIT_DAILY_MESSAGES = 30
+LIMIT_REACHED_REPLY = "Bugünkü ücretsiz mesaj hakkın doldu (30/30 mesaj). Yarın sıfırlanacak."
+
 client = genai.Client(api_key=api_key)
 database.init_db()
 aura_memory.init_memory_db()
@@ -357,6 +363,15 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     if mood:
         database.add_mood(user["id"], mood, context=request.message[:100])
     user_message_id = database.add_message(user["id"], "user", request.message)
+
+    # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
+    # Kullanicinin mesaji yine de kaydedildi (yukarida) - sadece pahali
+    # islemler (hafiza cikarimi, pattern analizi, AI cagrisi) atlaniyor.
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"], LIMIT_DAILY_MESSAGES
+    ):
+        return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
+
     aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)

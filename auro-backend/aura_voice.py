@@ -15,6 +15,7 @@ ayni havuzu besler.
 
 import asyncio
 import json
+import time
 
 from fastapi import WebSocket, WebSocketDisconnect
 from google import genai
@@ -24,6 +25,14 @@ import aura_brain
 import database
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
+
+# Ucretsiz (free) tier gunluk sesli goruşme limiti (saniye). 'pro' tier
+# bundan muaf. Rakip uygulama arastirmasina ve kullanicinin onayina
+# dayanarak belirlendi (10 dakika).
+VOICE_DAILY_LIMIT_SECONDS = 600
+VOICE_LIMIT_REACHED_MESSAGE = (
+    "Bugünkü ücretsiz sesli görüşme hakkın doldu (10 dakika). Yarın sıfırlanacak."
+)
 
 # aura_brain.build_system_instruction() yazili sohbet icin yazildi ve
 # "sahte bilinc/duygu iddia etme" kurali var - bu kural sesli goruşmede
@@ -53,6 +62,19 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     if not user:
         await websocket.close(code=4001)
         return
+
+    if (
+        user.get("tier") != "pro"
+        and database.get_voice_usage_seconds(user["id"]) >= VOICE_DAILY_LIMIT_SECONDS
+    ):
+        await websocket.send_text(json.dumps({
+            "type": "limit_reached",
+            "message": VOICE_LIMIT_REACHED_MESSAGE,
+        }))
+        await websocket.close(code=4003)
+        return
+
+    session_start_time = time.time()
 
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
@@ -250,6 +272,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     finally:
         # Baglanti zaten kapaniyor, burada kisa bir blok kabul edilebilir.
         persist_transcripts(*pop_transcripts())
+        # Gorusme nasil biterse bitsin (normal, hata, baglanti kopmasi)
+        # gecen sureyi gunluk kullanim sayacina ekle - free tier icin.
+        if user.get("tier") != "pro":
+            elapsed_seconds = int(time.time() - session_start_time)
+            database.add_voice_usage_seconds(user["id"], elapsed_seconds)
         try:
             await websocket.close()
         except Exception:

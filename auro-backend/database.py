@@ -52,6 +52,9 @@ def init_db():
     for migration in (
         "ALTER TABLE users ADD COLUMN tier TEXT DEFAULT 'free'",
         "ALTER TABLE users ADD COLUMN is_anonymous INTEGER DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN daily_message_count INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN daily_voice_seconds INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN usage_date TEXT DEFAULT ''",
     ):
         try:
             cursor.execute(migration)
@@ -255,6 +258,105 @@ def claim_account(user_id: int, email: str, password: str) -> bool:
         return False
     finally:
         conn.close()
+
+
+# --- KULLANIM LIMITI (free tier) ---
+
+def _today_str() -> str:
+    return datetime.now().date().isoformat()
+
+
+def _reset_usage_if_new_day(cursor, user_id: int, usage_date: str) -> bool:
+    """
+    Kaydedilen usage_date bugunden farkliysa (ya da hic yoksa),
+    sayaclari sifirlar ve bugunun tarihini yazar. Sifirlama olduysa
+    True doner - cagiran taraf yerel degiskenini de 0'a cekebilsin.
+    """
+    today = _today_str()
+    if usage_date != today:
+        cursor.execute(
+            "UPDATE users SET daily_message_count = 0, daily_voice_seconds = 0, usage_date = ? WHERE id = ?",
+            (today, user_id),
+        )
+        return True
+    return False
+
+
+def check_and_increment_message_usage(user_id: int, daily_limit: int = 30) -> bool:
+    """
+    Gunluk mesaj sayacini kontrol eder. Limit doluysa (ARTIRMADAN)
+    False doner - cagiran taraf Gemini/Groq'u cagirmadan, kullaniciya
+    "limit doldu" cevabi dondurmeli. Limit dolmadiysa sayaci 1 artirip
+    True doner.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT daily_message_count, usage_date FROM users WHERE id = ?",
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return True  # kullanici bulunamadiysa engelleme (guvenli varsayilan)
+
+    count = row["daily_message_count"]
+    if _reset_usage_if_new_day(cursor, user_id, row["usage_date"]):
+        count = 0
+
+    if count >= daily_limit:
+        conn.commit()
+        conn.close()
+        return False
+
+    cursor.execute(
+        "UPDATE users SET daily_message_count = daily_message_count + 1 WHERE id = ?",
+        (user_id,),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_voice_usage_seconds(user_id: int) -> int:
+    """Gun kontrolu yapar (gerekirse sifirlar) ve mevcut gunluk sesli
+    goruşme saniyesini doner."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT daily_voice_seconds, usage_date FROM users WHERE id = ?",
+        (user_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return 0
+
+    seconds = row["daily_voice_seconds"]
+    if _reset_usage_if_new_day(cursor, user_id, row["usage_date"]):
+        seconds = 0
+
+    conn.commit()
+    conn.close()
+    return seconds
+
+
+def add_voice_usage_seconds(user_id: int, seconds: int):
+    """Bir sesli goruşme bittiginde gecen sureyi gunluk sayaca ekler."""
+    if seconds <= 0:
+        return
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT usage_date FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row:
+        _reset_usage_if_new_day(cursor, user_id, row["usage_date"])
+    cursor.execute(
+        "UPDATE users SET daily_voice_seconds = daily_voice_seconds + ? WHERE id = ?",
+        (seconds, user_id),
+    )
+    conn.commit()
+    conn.close()
 
 
 # --- USER ---

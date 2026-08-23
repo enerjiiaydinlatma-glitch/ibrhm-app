@@ -74,8 +74,15 @@ class VoiceCallBar extends ConsumerWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              "Sesli görüşme • ${_statusText(callState.status)}",
+              // Limit/hata mesaji gibi spesifik bir aciklama varsa (orn.
+              // "gunluk sesli goruşme hakkin doldu") onu goster - yoksa
+              // genel durum metnini.
+              (isError && callState.errorMessage != null)
+                  ? callState.errorMessage!
+                  : "Sesli görüşme • ${_statusText(callState.status)}",
               style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (isError)
