@@ -249,7 +249,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (text.isNotEmpty)
               Padding(
                 padding: EdgeInsets.only(top: imageBytes != null ? 8 : 0, left: 10, right: 10),
-                child: Text(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
+                child: SelectableText(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
               ),
           ],
         ),
@@ -278,7 +278,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
           ),
-          child: Text(text, style: GoogleFonts.poppins(
+          child: SelectableText(text, style: GoogleFonts.poppins(
             color: Colors.white.withValues(alpha: 0.92), fontSize: 14, height: 1.5)),
         ),
       ),
@@ -530,29 +530,70 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildChatView(dynamic chatState) {
+    // Sesli goruşme sirasinda, turn_complete'i beklemeden akan canli
+    // altyaziyi da (varsa) mesaj listesinin en altina, normal baloncuk
+    // gibi ekliyoruz - boylece sesli konusma da yazili sohbetle AYNI
+    // ekranda, ayni bicimde goruluyor. turn_complete gelince bu gecici
+    // baloncuklar kaybolur, yerlerini kalici mesaj alir.
+    final callState = ref.watch(voiceCallProvider);
+    final showLiveUser = callState.isActive && callState.liveUserText.isNotEmpty;
+    final showLiveAssistant = callState.isActive && callState.liveAssistantText.isNotEmpty;
+
+    final extraCount = (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0) +
+        (showLiveUser ? 1 : 0) +
+        (showLiveAssistant ? 1 : 0);
+
     return chatState.messages.isEmpty && chatState.isLoading
         ? Center(child: CircularProgressIndicator(color: _indigoColor.withValues(alpha: 0.7)))
         : ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-            itemCount: chatState.messages.length +
-                (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0),
+            itemCount: chatState.messages.length + extraCount,
             itemBuilder: (context, index) {
-              if (index == chatState.messages.length) {
-                return Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: _buildTypingIndicator(),
+              if (index < chatState.messages.length) {
+                final message = chatState.messages[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Align(
+                    alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: _buildMessageBubble(message),
                   ),
                 );
               }
-              final message = chatState.messages[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Align(
-                  alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: _buildMessageBubble(message),
+
+              var extraIndex = index - chatState.messages.length;
+
+              if (showLiveUser) {
+                if (extraIndex == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildMessageBubble({"role": "user", "text": callState.liveUserText}),
+                    ),
+                  );
+                }
+                extraIndex -= 1;
+              }
+
+              if (showLiveAssistant) {
+                if (extraIndex == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _buildMessageBubble({"role": "assistant", "text": callState.liveAssistantText}),
+                    ),
+                  );
+                }
+                extraIndex -= 1;
+              }
+
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: _buildTypingIndicator(),
                 ),
               );
             },
