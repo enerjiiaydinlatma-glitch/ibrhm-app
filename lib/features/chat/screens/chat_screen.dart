@@ -4,7 +4,6 @@ import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
-import "package:speech_to_text/speech_to_text.dart" as stt;
 import "package:audioplayers/audioplayers.dart";
 import "package:image_picker/image_picker.dart";
 import "package:flutter_tts/flutter_tts.dart";
@@ -25,14 +24,11 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final stt.SpeechToText _speech = stt.SpeechToText();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Dio _dio = Dio();
   final FlutterTts _localTts = FlutterTts();
   bool _localTtsReady = false;
 
-  bool _isListening = false;
-  bool _speechAvailable = false;
   String _selectedVoice = "female";
   // "Hesabini Kaydet" ikonu SADECE kullanici hala anonimse gorunur -
   // ayarlar menusu degil, tek amacli kucuk bir aksiyon (bkz. plan).
@@ -47,7 +43,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _initSpeech();
     _initLocalTts();
     _checkAnonymousStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -162,18 +157,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onStatus: (status) {
-        if (status == "done" || status == "notListening") {
-          setState(() => _isListening = false);
-        }
-      },
-      onError: (error) => setState(() => _isListening = false),
-    );
-    setState(() {});
-  }
-
   String _cleanForSpeech(String text) {
     final emojiPattern = RegExp(
       r"[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}]",
@@ -248,30 +231,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         SnackBar(content: Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
       );
     }
-  }
-
-  void _toggleListening() async {
-    if (!_speechAvailable) {
-      await _initSpeech();
-      if (!_speechAvailable) return;
-    }
-    if (_isListening) {
-      await _speech.stop();
-      setState(() => _isListening = false);
-      return;
-    }
-    setState(() => _isListening = true);
-    await _speech.listen(
-      localeId: "tr_TR",
-      onResult: (result) {
-        setState(() {
-          _controller.text = result.recognizedWords;
-          _controller.selection = TextSelection.fromPosition(
-            TextPosition(offset: _controller.text.length),
-          );
-        });
-      },
-    );
   }
 
   void _scrollToBottom() {
@@ -468,27 +427,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: _toggleListening,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isListening ? Colors.red.withValues(alpha: 0.2) : _indigoColor.withValues(alpha: 0.15),
-                border: Border.all(
-                  color: _isListening ? Colors.red : _indigoColor.withValues(alpha: 0.4),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: _isListening ? Colors.red : _indigoColor,
-                size: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
             onTap: _pickAndAnalyzeImage,
             child: Container(
               width: 44, height: 44,
@@ -557,7 +495,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
-    _speech.stop();
     _audioPlayer.dispose();
     _localTts.stop();
     super.dispose();
