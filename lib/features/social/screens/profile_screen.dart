@@ -140,7 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             colors: [Color(0xFF6C63FF), Color(0xFF9C8FFF)],
                           ),
                           boxShadow: [
-                            BoxShadow(color: _indigo.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8)),
+                            BoxShadow(color: _indigo.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8)),
                           ],
                         ),
                         child: Center(
@@ -189,9 +189,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: _indigo.withOpacity(0.2),
+                                    color: _indigo.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: _indigo.withOpacity(0.4)),
+                                    border: Border.all(color: _indigo.withValues(alpha: 0.4)),
                                   ),
                                   child: _bioLoading
                                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _indigo))
@@ -206,7 +206,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   "Aura seni tanÄ±dÄ±kÃ§a burada seni anlatan Ã¶zgÃ¼n bir biyografi Ã¼retecek.",
                                   style: GoogleFonts.poppins(color: Colors.white24, fontSize: 13, fontStyle: FontStyle.italic),
                                 )
-                              : Text(_biography, style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.85), fontSize: 14, height: 1.6)),
+                              : Text(_biography, style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.85), fontSize: 14, height: 1.6)),
                         ],
                       ),
                     ),
@@ -225,7 +225,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
-                              BoxShadow(color: _indigo.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                              BoxShadow(color: _indigo.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
                             ],
                           ),
                           child: Center(
@@ -250,9 +250,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: child,
         ),
@@ -287,7 +287,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _selectedAvatar == i ? _indigo.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+                        color: _selectedAvatar == i ? _indigo.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05),
                         border: Border.all(color: _selectedAvatar == i ? _indigo : Colors.white12),
                       ),
                       child: Center(child: Text(_avatarEmojis[i], style: const TextStyle(fontSize: 28))),

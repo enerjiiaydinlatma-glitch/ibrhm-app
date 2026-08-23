@@ -297,7 +297,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomRight: Radius.circular(4),
           ),
           boxShadow: [
-            BoxShadow(color: _indigoColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: _indigoColor.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -336,17 +336,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           constraints: const BoxConstraints(maxWidth: 300),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07),
+            color: Colors.white.withValues(alpha: 0.07),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(4),
               topRight: Radius.circular(20),
               bottomLeft: Radius.circular(20),
               bottomRight: Radius.circular(20),
             ),
-            border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
           ),
           child: Text(text, style: GoogleFonts.poppins(
-            color: Colors.white.withOpacity(0.92), fontSize: 14, height: 1.5)),
+            color: Colors.white.withValues(alpha: 0.92), fontSize: 14, height: 1.5)),
         ),
       ),
     );
@@ -360,9 +360,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07),
+            color: Colors.white.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -382,7 +382,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 3),
         width: 7, height: 7,
         decoration: BoxDecoration(
-          color: _indigoColor.withOpacity(value),
+          color: _indigoColor.withValues(alpha: value),
           shape: BoxShape.circle,
         ),
       ),
@@ -393,7 +393,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0A1A).withOpacity(0.95),
+        color: const Color(0xFF0A0A1A).withValues(alpha: 0.95),
         border: const Border(top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5)),
       ),
       child: Row(
@@ -405,9 +405,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _isListening ? Colors.red.withOpacity(0.2) : _indigoColor.withOpacity(0.15),
+                color: _isListening ? Colors.red.withValues(alpha: 0.2) : _indigoColor.withValues(alpha: 0.15),
                 border: Border.all(
-                  color: _isListening ? Colors.red : _indigoColor.withOpacity(0.4),
+                  color: _isListening ? Colors.red : _indigoColor.withValues(alpha: 0.4),
                   width: 1,
                 ),
               ),
@@ -426,8 +426,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 width: 44, height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _indigoColor.withOpacity(0.15),
-                  border: Border.all(color: _indigoColor.withOpacity(0.4), width: 1),
+                  color: _indigoColor.withValues(alpha: 0.15),
+                  border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
                 ),
                 child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
               ),
@@ -446,8 +446,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 width: 44, height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _indigoColor.withOpacity(0.15),
-                  border: Border.all(color: _indigoColor.withOpacity(0.4), width: 1),
+                  color: _indigoColor.withValues(alpha: 0.15),
+                  border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
                 ),
                 child: Icon(Icons.call_outlined, color: _indigoColor, size: 20),
               ),
@@ -477,7 +477,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
-                  BoxShadow(color: _indigoColor.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                  BoxShadow(color: _indigoColor.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
                 ],
               ),
               child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -522,8 +522,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF12122A).withOpacity(0.85),
-                    const Color(0xFF0A0A1A).withOpacity(0.7),
+                    const Color(0xFF12122A).withValues(alpha: 0.85),
+                    const Color(0xFF0A0A1A).withValues(alpha: 0.7),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -619,7 +619,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildChatView(dynamic chatState) {
     return chatState.messages.isEmpty && chatState.isLoading
-        ? Center(child: CircularProgressIndicator(color: _indigoColor.withOpacity(0.7)))
+        ? Center(child: CircularProgressIndicator(color: _indigoColor.withValues(alpha: 0.7)))
         : ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
@@ -653,7 +653,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: _indigoColor.withOpacity(0.7)),
+            CircularProgressIndicator(color: _indigoColor.withValues(alpha: 0.7)),
             const SizedBox(height: 16),
             Text("Hikaye baÅŸlÄ±yor...",
               style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14)),

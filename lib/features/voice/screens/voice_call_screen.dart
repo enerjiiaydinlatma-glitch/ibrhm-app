@@ -46,7 +46,7 @@ class VoiceCallBar extends ConsumerWidget {
         color: const Color(0xFF12122A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isError ? Colors.redAccent.withOpacity(0.5) : _indigoColor.withOpacity(0.4),
+          color: isError ? Colors.redAccent.withValues(alpha: 0.5) : _indigoColor.withValues(alpha: 0.4),
           width: 1,
         ),
       ),

@@ -167,9 +167,9 @@ class _StoryScreenState extends State<StoryScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +180,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [_indigo, _indigo.withOpacity(0.6)]),
+                  gradient: LinearGradient(colors: [_indigo, _indigo.withValues(alpha: 0.6)]),
                 ),
                 child: Center(
                   child: Text(
@@ -194,7 +194,7 @@ class _StoryScreenState extends State<StoryScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(story["content"] ?? "", style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.5)),
+          Text(story["content"] ?? "", style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5)),
         ],
       ),
     );
@@ -215,7 +215,7 @@ class _StoryScreenState extends State<StoryScreen> {
             decoration: InputDecoration(
               hintText: "DÃ¼ÅŸÃ¼nceni veya Aura'nÄ±n bilge yorumunu paylaÅŸ...",
               hintStyle: GoogleFonts.poppins(color: Colors.white38),
-              fillColor: Colors.white.withOpacity(0.05),
+              fillColor: Colors.white.withValues(alpha: 0.05),
               filled: true,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
