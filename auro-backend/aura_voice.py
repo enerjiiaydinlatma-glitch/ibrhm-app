@@ -116,10 +116,26 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                         flush_transcripts()
                         await websocket.send_text(json.dumps({"type": "turn_complete"}))
 
-            await asyncio.gather(relay_client_to_gemini(), relay_gemini_to_client())
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.ensure_future(relay_client_to_gemini()),
+                    asyncio.ensure_future(relay_gemini_to_client()),
+                ],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-    except WebSocketDisconnect:
-        pass
+            for task in pending:
+                task.cancel()
+
+            for task in done:
+                exc = task.exception()
+                if exc:
+                    print(f"VOICE SESSION TASK ERROR: {type(exc).__name__}: {exc}")
+                else:
+                    print("VOICE SESSION: bir taraf normal sekilde bitti (mikrofon akisi mi kesildi, Gemini oturumu mu kapandi?)")
+
+    except WebSocketDisconnect as e:
+        print(f"VOICE SESSION: istemci baglantiyi kesti (code={getattr(e, 'code', '?')})")
     except Exception as e:
         print(f"VOICE SESSION ERROR: {type(e).__name__}: {e}")
     finally:

@@ -60,7 +60,10 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
         channels: Channels.mono,
         format: BufferType.s16le,
         bufferingType: BufferingType.preserved,
-        bufferingTimeNeeds: 0,
+        // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
+        // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
+        // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
+        bufferingTimeNeeds: 0.3,
       );
       await SoLoud.instance.play(_playbackSource!);
     } catch (e) {
@@ -155,6 +158,30 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     }
   }
 
+  /// Hata sonrasi kullaniciyi ekrandan cikmaya zorlamadan tekrar
+  /// baglanmayi dener - "konusma ekrani kaybolmasin" istegi.
+  Future<void> _retry() async {
+    await _micSubscription?.cancel();
+    _micSubscription = null;
+    try {
+      await _recorder.stop();
+    } catch (_) {}
+    try {
+      await _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+
+    if (_playbackSource != null && _soloudReady) {
+      try {
+        await SoLoud.instance.disposeSource(_playbackSource!);
+      } catch (_) {}
+      _playbackSource = null;
+    }
+
+    setState(() => _state = _CallState.connecting);
+    await _startCall();
+  }
+
   Future<void> _endCall() async {
     setState(() => _state = _CallState.ended);
 
@@ -242,17 +269,37 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
               style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14),
             ),
             const Spacer(flex: 3),
-            GestureDetector(
-              onTap: _endCall,
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_state == _CallState.error) ...[
+                  GestureDetector(
+                    onTap: _retry,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: _indigoColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.refresh, color: Colors.white, size: 28),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                ],
+                GestureDetector(
+                  onTap: _endCall,
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                  ),
                 ),
-                child: const Icon(Icons.call_end, color: Colors.white, size: 28),
-              ),
+              ],
             ),
             const SizedBox(height: 48),
           ],

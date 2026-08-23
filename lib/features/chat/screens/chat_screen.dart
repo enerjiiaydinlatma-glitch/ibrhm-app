@@ -431,6 +431,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
               ),
             ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => VoiceCallScreen(token: widget.token),
+                  ),
+                );
+              },
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _indigoColor.withOpacity(0.15),
+                  border: Border.all(color: _indigoColor.withOpacity(0.4), width: 1),
+                ),
+                child: Icon(Icons.call_outlined, color: _indigoColor, size: 20),
+              ),
+            ),
           ],
           const SizedBox(width: 10),
           Expanded(
@@ -551,17 +570,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
               onPressed: _showVoiceSelector,
               tooltip: "Ses SeÃ§",
-            ),
-            IconButton(
-              icon: const Icon(Icons.call_outlined, color: Colors.white70),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => VoiceCallScreen(token: widget.token),
-                  ),
-                );
-              },
-              tooltip: "Sesli GÃ¶rÃ¼ÅŸ",
             ),
           ],
         ],
