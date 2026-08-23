@@ -53,24 +53,33 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     user_transcript_parts: list[str] = []
     assistant_transcript_parts: list[str] = []
 
-    def flush_transcripts():
+    def pop_transcripts():
         """
-        Biriken transkriptleri hafizaya yazar VE geri doner - boylece
-        istemci ayni sozleri sohbet baloncugu olarak gosterebilir
-        (yazili/sesli mesajlar ayni akista birlesir).
+        Biriken transkriptleri sadece bellekten okuyup temizler - hicbir
+        bloklayici IO yapmaz. Ses relay dongusu (mikrofon akisi + Gemini
+        turlari) bunu bekleyerek asla duraklamamali.
         """
         user_text = "".join(user_transcript_parts).strip()
         assistant_text = "".join(assistant_transcript_parts).strip()
         user_transcript_parts.clear()
         assistant_transcript_parts.clear()
+        return user_text, assistant_text
 
+    def persist_transcripts(user_text: str, assistant_text: str):
+        """
+        DB'ye yazma + hafiza cikarimi (aura_brain.extract_memory_candidate
+        SENKRON/bloklayici bir HTTP istegi yapiyor - httpx.post, await
+        degil). Bunu asla ana relay dongusunun icinde CAGIRMA: Gemini
+        yavas/503 verdiginde tum event loop'u dondurup mikrofon akisini
+        ve bir sonraki turu kilitliyordu - "ilk turdan sonra kesiliyor"
+        hatasinin bir kismi buydu. Bu yuzden asyncio.to_thread ile ayri
+        bir thread'de, relay dongusunu HIC bloklamadan calistiriliyor.
+        """
         if user_text:
             msg_id = database.add_message(user["id"], "user", user_text)
             aura_brain.extract_memory_candidate(user["id"], user_text, msg_id)
         if assistant_text:
             database.add_message(user["id"], "assistant", assistant_text)
-
-        return user_text, assistant_text
 
     try:
         async with _client.aio.live.connect(model=VOICE_MODEL, config=config) as session:
@@ -139,12 +148,18 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             )
 
                         if server_content.turn_complete:
-                            user_text, assistant_text = flush_transcripts()
+                            user_text, assistant_text = pop_transcripts()
                             await websocket.send_text(json.dumps({
                                 "type": "turn_complete",
                                 "user_text": user_text,
                                 "assistant_text": assistant_text,
                             }))
+                            if user_text or assistant_text:
+                                asyncio.create_task(
+                                    asyncio.to_thread(
+                                        persist_transcripts, user_text, assistant_text
+                                    )
+                                )
 
                     if not got_any_content:
                         # Gemini tarafi gercekten kapandi (bos donus) - bu
@@ -176,7 +191,8 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     except Exception as e:
         print(f"VOICE SESSION ERROR: {type(e).__name__}: {e}")
     finally:
-        flush_transcripts()
+        # Baglanti zaten kapaniyor, burada kisa bir blok kabul edilebilir.
+        persist_transcripts(*pop_transcripts())
         try:
             await websocket.close()
         except Exception:
