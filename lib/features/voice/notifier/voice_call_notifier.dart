@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:convert";
+import "dart:io";
 
 import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -10,6 +11,29 @@ import "package:web_socket_channel/web_socket_channel.dart";
 
 import "../../chat/notifier/chat_notifier.dart";
 import "../models/voice_call_state.dart";
+
+/// GECICI TESHIS ARACI: donma anini yakalamak icin. Release build'de
+/// console gorunmuyor (debugPrint hicbir yere yazmiyor), o yuzden her
+/// riskli native cagridan HEMEN ONCE diske SENKRON, flush edilmis bir
+/// satir yaziyoruz - donma o cagrinin TAM ICINDE olsa bile, "cagriya
+/// girildi" satiri zaten diskte kalir. Boylece hangi cagrinin ortasinda
+/// kaldigini kesin olarak goruruz.
+final File _voiceDebugLogFile = File(
+  "${Directory.systemTemp.path}\\aura_voice_debug.log",
+);
+
+void _voiceDebugLog(String message) {
+  try {
+    _voiceDebugLogFile.writeAsStringSync(
+      "${DateTime.now().toIso8601String()} $message\n",
+      mode: FileMode.append,
+      flush: true,
+    );
+  } catch (_) {
+    // teshis araci basarisiz olursa sessizce yoksay - asla ana akisi
+    // etkilemesin.
+  }
+}
 
 /// Aura ile gercek zamanli, tam serbest (interrupt edilebilir) sesli
 /// gorusme. Chat ekranindan hicbir zaman ayrilmaz - bir Notifier olarak
@@ -58,6 +82,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   Future<void> startCall(String token) async {
+    _voiceDebugLog("===== startCall() =====");
     _token = token;
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
@@ -74,7 +99,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
     try {
       if (!SoLoud.instance.isInitialized) {
+        _voiceDebugLog("SoLoud.init() cagriliyor");
         await SoLoud.instance.init();
+        _voiceDebugLog("SoLoud.init() tamamlandi");
       }
       _soloudReady = true;
       // Ses akisi (AudioSource) burada DEGIL, ilk ses parcasi geldiginde
@@ -94,9 +121,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         _handleServerMessage,
         onError: (e) {
           debugPrint("Sesli baglanti hatasi: $e");
+          _voiceDebugLog("WS onError: $e");
           state = state.copyWith(status: VoiceCallStatus.error);
         },
         onDone: () {
+          _voiceDebugLog("WS onDone (status=${state.status})");
           if (state.status != VoiceCallStatus.idle) {
             state = state.copyWith(status: VoiceCallStatus.error);
           }
@@ -155,6 +184,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           // bitince zaten _cleanup()'taki SoLoud.instance.deinit() TUM
           // kaynaklari tek seferde (guvenli sekilde, motor kapanirken)
           // serbest birakiyor.
+          _voiceDebugLog("setBufferStream() cagriliyor (yeni tur)");
           _playbackSource = SoLoud.instance.setBufferStream(
             sampleRate: 24000,
             channels: Channels.mono,
@@ -165,7 +195,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
             bufferingTimeNeeds: 0.3,
           );
+          _voiceDebugLog("setBufferStream() tamamlandi, play() cagriliyor");
           unawaited(SoLoud.instance.play(_playbackSource!));
+          _voiceDebugLog("play() ateslendi (unawaited)");
         }
 
         SoLoud.instance.addAudioDataStream(
@@ -174,6 +206,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         );
       } catch (e) {
         debugPrint("SoLoud playback hatasi: $e");
+        _voiceDebugLog("SoLoud playback HATASI: $e");
       }
 
       if (state.status != VoiceCallStatus.auraSpeaking) {
@@ -187,6 +220,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       final type = data["type"];
 
       if (type == "interrupted") {
+        _voiceDebugLog("interrupted alindi");
         // Aura'nin sozu kesildi - yeni ses gelmeyecegi icin bu source'u
         // birakip bir sonraki turda taze bir tanesi olusturulacak.
         // disposeSource() BURADA CAGRILMIYOR - bkz. yukaridaki not
@@ -207,6 +241,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           state = state.copyWith(liveAssistantText: text);
         }
       } else if (type == "turn_complete") {
+        _voiceDebugLog("turn_complete alindi");
         final userText = (data["user_text"] as String?)?.trim();
         final assistantText = (data["assistant_text"] as String?)?.trim();
 
@@ -292,9 +327,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _playbackSource = null;
     if (_soloudReady) {
       try {
+        _voiceDebugLog("SoLoud.deinit() cagriliyor");
         SoLoud.instance.deinit();
+        _voiceDebugLog("SoLoud.deinit() tamamlandi");
       } catch (e) {
         debugPrint("SoLoud deinit hatasi: $e");
+        _voiceDebugLog("SoLoud.deinit() HATASI: $e");
       }
       _soloudReady = false;
     }
