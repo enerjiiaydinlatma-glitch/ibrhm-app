@@ -10,6 +10,7 @@ import "package:image_picker/image_picker.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
 import "../../voice/screens/voice_call_screen.dart";
+import "../../voice/notifier/voice_call_notifier.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -434,11 +435,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const SizedBox(width: 6),
             GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => VoiceCallScreen(token: widget.token),
-                  ),
-                );
+                final callState = ref.read(voiceCallProvider);
+                if (callState.isActive) {
+                  ref.read(voiceCallProvider.notifier).endCall();
+                } else {
+                  ref.read(voiceCallProvider.notifier).startCall(widget.token);
+                }
               },
               child: Container(
                 width: 44, height: 44,
@@ -582,22 +584,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: _storyMode
-                  ? _buildStoryView()
-                  : _buildChatView(chatState),
-            ),
-            if (!_storyMode && chatState.errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Text(
-                  chatState.errorMessage!,
-                  style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 12),
+            Column(
+              children: [
+                Expanded(
+                  child: _storyMode
+                      ? _buildStoryView()
+                      : _buildChatView(chatState),
                 ),
+                if (!_storyMode && chatState.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Text(
+                      chatState.errorMessage!,
+                      style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 12),
+                    ),
+                  ),
+                _buildInputBar(),
+              ],
+            ),
+            if (!_storyMode)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + kToolbarHeight + 4,
+                left: 0,
+                right: 0,
+                child: const VoiceCallBar(),
               ),
-            _buildInputBar(),
           ],
         ),
       ),
