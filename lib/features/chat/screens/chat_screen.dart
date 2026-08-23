@@ -12,6 +12,7 @@ import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
 import "../../voice/screens/voice_call_screen.dart";
 import "../../voice/notifier/voice_call_notifier.dart";
+import "../../../services/auth_service.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -33,6 +34,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isListening = false;
   bool _speechAvailable = false;
   String _selectedVoice = "female";
+  // "Hesabini Kaydet" ikonu SADECE kullanici hala anonimse gorunur -
+  // ayarlar menusu degil, tek amacli kucuk bir aksiyon (bkz. plan).
+  bool _isAnonymous = false;
 
   static const String _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const Color _bgColor = Color(0xFF0A0A1A);
@@ -45,12 +49,117 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _initSpeech();
     _initLocalTts();
+    _checkAnonymousStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final notifier = ref.read(chatProvider.notifier);
       notifier.setToken(widget.token);
       await notifier.loadHistory();
       await notifier.fetchGreeting();
     });
+  }
+
+  Future<void> _checkAnonymousStatus() async {
+    try {
+      final response = await _dio.get(
+        "$_backendUrl/api/auth/me",
+        options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
+      );
+      final data = response.data as Map;
+      if (mounted) {
+        setState(() {
+          _isAnonymous = (data["is_anonymous"] as int? ?? 1) == 1;
+        });
+      }
+    } catch (e) {
+      debugPrint("Anonim durum kontrolu hatasi: $e");
+    }
+  }
+
+  Future<void> _showClaimAccountDialog() async {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    String? errorText;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF12122A),
+              title: Text(
+                "Hesabını Kaydet",
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Bu bilgilerle başka bir cihazdan giriş yapıp hafızana ulaşabilirsin.",
+                    style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    style: const TextStyle(color: Colors.white),
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(hintText: "Email"),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordController,
+                    style: const TextStyle(color: Colors.white),
+                    obscureText: true,
+                    decoration: const InputDecoration(hintText: "Şifre (en az 6 karakter)"),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text("Vazgeç"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final email = emailController.text.trim();
+                    final password = passwordController.text.trim();
+                    if (email.isEmpty || password.length < 6) {
+                      setDialogState(() {
+                        errorText = "Geçerli bir email ve en az 6 karakter şifre gir.";
+                      });
+                      return;
+                    }
+                    try {
+                      await AuthService().claimAccount(widget.token, email, password);
+                      if (!dialogContext.mounted) return;
+                      Navigator.of(dialogContext).pop();
+                      if (!mounted) return;
+                      setState(() => _isAnonymous = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Hesabın kaydedildi.")),
+                      );
+                    } on DioException catch (e) {
+                      final detail = (e.response?.data is Map)
+                          ? (e.response?.data["detail"]?.toString() ?? "Bir hata oluştu.")
+                          : "Bir hata oluştu.";
+                      setDialogState(() => errorText = detail);
+                    } catch (e) {
+                      setDialogState(() => errorText = "Bir hata oluştu.");
+                    }
+                  },
+                  child: const Text("Kaydet"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _initSpeech() async {
@@ -512,6 +621,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
+          if (_isAnonymous)
+            IconButton(
+              icon: const Icon(Icons.cloud_outlined, color: Colors.white70),
+              onPressed: _showClaimAccountDialog,
+              tooltip: "Hesabını Kaydet",
+            ),
           IconButton(
             icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
             onPressed: _showVoiceSelector,

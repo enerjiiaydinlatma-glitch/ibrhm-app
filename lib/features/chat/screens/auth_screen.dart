@@ -32,6 +32,20 @@ class _AuthScreenState extends State<AuthScreen> {
           builder: (_) => ChatScreen(token: token),
         ),
       );
+    } on SessionKickedOutException {
+      if (!mounted) return;
+
+      // Bu cihazda daha once gecerli bir oturum vardi ama artik gecersiz
+      // (buyuk ihtimalle baska bir cihazdan giris yapildigi icin dustu -
+      // free tier: ayni anda tek cihaz kurali). Sessizce yeni bir anonim
+      // hesap ACMIYORUZ - kullanici gercek hesabina giris yapsin diye
+      // formu, aciklayici bir mesajla gosteriyoruz.
+      setState(() {
+        _autoLoginInProgress = false;
+        _isLogin = true;
+        _error =
+            'Başka bir cihazdan giriş yapıldığı için oturumun sona erdi. Tekrar giriş yap.';
+      });
     } catch (e) {
       if (!mounted) return;
 

@@ -186,6 +186,10 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class ClaimAccountRequest(BaseModel):
+    email: str
+    password: str
+
 class ChatRequest(BaseModel):
     message: str
 
@@ -248,8 +252,30 @@ def login(req: LoginRequest):
     user = database.authenticate_user(req.email, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Email veya sifre yanlis.")
+    # 'free' tier: ayni anda tek cihazda oturum kurali - yeni cihazdan
+    # giris, eski cihazin oturumunu dusurur. 'pro' tier bundan muaf
+    # (ayni anda birden fazla cihaz - bu Pro'ya ozgu bir avantaj).
+    if user.get("tier") != "pro":
+        database.enforce_single_session(user["id"])
     token = database.create_session(user["id"])
     return {"token": token, "user": _safe_user(user)}
+
+
+@app.post("/api/auth/claim")
+def claim_account(req: ClaimAccountRequest, authorization: Optional[str] = Header(None)):
+    """
+    Anonim (kullanicinin hic gormedigi, rastgele email/sifreyle
+    olusturulmus) hesabi, kullanicinin KENDI belirledigi gercek
+    email/sifreyle hatirlanabilir bir hesaba cevirir - ayni kullanici
+    satiri guncellenir, tum gecmis/hafiza korunur.
+    """
+    user = get_current_user(authorization)
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
+    success = database.claim_account(user["id"], req.email, req.password)
+    if not success:
+        raise HTTPException(status_code=409, detail="Bu email zaten kayitli.")
+    return _safe_user(database.get_user(user["id"]))
 
 
 @app.post("/api/auth/logout")

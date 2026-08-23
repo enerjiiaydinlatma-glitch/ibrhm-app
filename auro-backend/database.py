@@ -44,6 +44,20 @@ def init_db():
         )
     """)
 
+    # Mevcut (zaten var olan) users tablosuna sonradan eklenen sutunlar.
+    # SQLite "ALTER TABLE ... ADD COLUMN IF NOT EXISTS" desteklemiyor,
+    # bu yuzden dene/basarisiz-olursa-yoksay deseni kullaniliyor - tablo
+    # daha once olusturulmus (CREATE IF NOT EXISTS calismadi) durumlarda
+    # da sutunlarin var oldugundan emin olunuyor.
+    for migration in (
+        "ALTER TABLE users ADD COLUMN tier TEXT DEFAULT 'free'",
+        "ALTER TABLE users ADD COLUMN is_anonymous INTEGER DEFAULT 1",
+    ):
+        try:
+            cursor.execute(migration)
+        except sqlite3.OperationalError:
+            pass  # sutun zaten var
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -204,6 +218,43 @@ def delete_session(token: str):
     cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
     conn.commit()
     conn.close()
+
+
+def enforce_single_session(user_id: int):
+    """
+    Bu kullaniciya ait TUM oturumlari (diger cihazlar dahil) siler.
+    'free' tier kullanicilar icin yeni bir session olusturulmadan HEMEN
+    ONCE cagrilir - boylece yeni cihazdan giris, eski cihazin oturumunu
+    dusurur (ayni anda tek cihaz kurali). 'pro' tier icin cagrilmaz.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def claim_account(user_id: int, email: str, password: str) -> bool:
+    """
+    Anonim (rastgele email/sifreyle olusturulmus) bir hesabi, kullanicinin
+    KENDI belirledigi gercek email/sifreyle gercek, hatirlanabilir bir
+    hesaba cevirir. YENI bir kullanici satiri OLUSTURMAZ - ayni satir
+    guncellenir, boylece tum gecmis/hafiza korunur. Email baskasina
+    aitse (UNIQUE ihlali) False doner.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE users SET email = ?, password_hash = ?, is_anonymous = 0 WHERE id = ?",
+            (email.lower().strip(), hash_password(password), user_id),
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
 
 
 # --- USER ---

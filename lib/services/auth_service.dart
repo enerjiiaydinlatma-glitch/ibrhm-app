@@ -1,6 +1,16 @@
 ﻿import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Bu cihazda daha once gecerli bir oturum vardi ama artik gecersiz -
+/// buyuk ihtimalle kullanici baska bir cihazdan giris yaptigi icin
+/// (free tier: ayni anda tek cihaz kurali) bu cihazin oturumu dustu.
+/// Bu durumda SESSIZCE yeni bir anonim hesap ACILMAMALI (kullanici
+/// gercek/claim edilmis hesabini fark etmeden kaybeder) - bunun yerine
+/// giris formu, aciklayici bir mesajla gosterilmeli.
+class SessionKickedOutException implements Exception {
+  const SessionKickedOutException();
+}
+
 class AuthService {
   static const String _baseUrl =
       'https://aura-backend-production-bc9c.up.railway.app';
@@ -35,7 +45,12 @@ class AuthService {
         return existingToken;
       }
 
+      // ONEMLI: burada token VARDI ama artik gecersiz - bu, ilk kurulum
+      // durumundan (hic token yok) FARKLI. Sessizce yeni bir anonim
+      // hesap acmak, kullanicinin claim ettigi gercek hesabini fark
+      // etmeden kaybetmesine yol acar (bkz. SessionKickedOutException).
       await clearToken();
+      throw const SessionKickedOutException();
     }
 
     final stamp = DateTime.now().microsecondsSinceEpoch;
@@ -123,6 +138,30 @@ class AuthService {
         'email': email,
         'password': password,
       },
+    );
+
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Anonim (kullanicinin hic gormedigi) hesabi, kullanicinin kendi
+  /// belirledigi gercek email/sifreyle hatirlanabilir bir hesaba cevirir.
+  /// Ayni kullanici satiri guncellenir - tum gecmis/hafiza korunur.
+  Future<Map<String, dynamic>> claimAccount(
+    String token,
+    String email,
+    String password,
+  ) async {
+    final response = await _dio.post(
+      '/api/auth/claim',
+      data: {
+        'email': email,
+        'password': password,
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
     );
 
     return Map<String, dynamic>.from(response.data as Map);
