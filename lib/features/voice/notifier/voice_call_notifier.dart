@@ -60,6 +60,15 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   bool _muteMic = false;
   Timer? _unmuteTimer;
 
+  // Beklenmedik baglanti kopmasi (Gemini konjesyonu, gecici ag sorunu vb.)
+  // durumunda kullaniciyi elle "tekrar dene" tusuna basmaya zorlamadan
+  // OTOMATIK olarak yeniden baglanmayi dener. Gercekten baglanamiyor
+  // olma ihtimaline karsi (backend cokmus vb.) sonsuz donguye girmesin
+  // diye bir ust sinir var - o noktada kullaniciya hata gosterilir.
+  int _autoRetryCount = 0;
+  static const int _maxAutoRetries = 3;
+  bool _reconnecting = false;
+
   // GERI ALINDI (bkz. asagidaki not): "her tur icin taze source" denemesi
   // teshis logunda KANITLANMIS sekilde play()'in senkron FFI on-yuzunde
   // kilitleniyordu (2. play() cagrisinda) - buyuk ihtimalle her turda
@@ -85,6 +94,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   Future<void> startCall(String token) async {
     _voiceDebugLog("===== startCall() =====");
     _token = token;
+    _autoRetryCount = 0;
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
   }
@@ -138,13 +148,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         onError: (e) {
           debugPrint("Sesli baglanti hatasi: $e");
           _voiceDebugLog("WS onError: $e");
-          state = state.copyWith(status: VoiceCallStatus.error);
+          _handleUnexpectedDisconnect();
         },
         onDone: () {
           _voiceDebugLog("WS onDone (status=${state.status})");
-          if (state.status != VoiceCallStatus.idle) {
-            state = state.copyWith(status: VoiceCallStatus.error);
-          }
+          _handleUnexpectedDisconnect();
         },
       );
     } catch (e) {
@@ -176,6 +184,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   void _handleServerMessage(dynamic message) {
+    // Sunucudan gelen HERHANGI bir mesaj, baglantinin saglikli oldugunun
+    // kaniti - otomatik yeniden baglanma sayacini sifirla ki uzun bir
+    // gorusmede araya sikisan birkac ayri, gecici kopma toplam hakkı
+    // tuketmesin.
+    _autoRetryCount = 0;
+
     if (message is List<int>) {
       // Aura'nin sesi hoparlorden cikmaya baslayacak - yanki dongusune
       // girmemek icin mikrofonu hemen sustur (bkz. _muteMic aciklamasi).
@@ -271,9 +285,51 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     });
   }
 
+  /// Baglanti kullanicinin KENDI istegi disinda koptuysa (Gemini
+  /// konjesyonu, gecici ag sorunu vb.) kullaniciyi elle "tekrar dene"
+  /// tusuna basmaya zorlamadan birkac kez otomatik yeniden baglanmayi
+  /// dener. Gercekten baglanamiyor olma ihtimaline karsi (backend
+  /// cokmus vb.) bir ust sinirdan sonra kullaniciya hata gosterilir.
+  void _handleUnexpectedDisconnect() {
+    if (state.status == VoiceCallStatus.idle || _reconnecting) {
+      // idle: kullanici endCall() ile kendisi kapatti - normal, bir sey
+      // yapma. _reconnecting: onError+onDone ayni kopma icin iki kez
+      // tetiklenmis olabilir - ikinci tetiklemeyi yoksay.
+      return;
+    }
+    if (_autoRetryCount >= _maxAutoRetries) {
+      _voiceDebugLog(
+        "Otomatik yeniden baglanma siniri asildi ($_maxAutoRetries), hata gosteriliyor",
+      );
+      state = state.copyWith(status: VoiceCallStatus.error);
+      return;
+    }
+    _autoRetryCount++;
+    _voiceDebugLog(
+      "Beklenmedik kopma - otomatik yeniden baglaniliyor (deneme $_autoRetryCount/$_maxAutoRetries)",
+    );
+    _reconnecting = true;
+    state = state.copyWith(status: VoiceCallStatus.connecting);
+    unawaited(_reconnectAfterDelay());
+  }
+
+  Future<void> _reconnectAfterDelay() async {
+    await _cleanup();
+    await Future.delayed(const Duration(seconds: 1));
+    _reconnecting = false;
+    // Bekleme sirasinda kullanici endCall() ile gorusmeyi kendisi
+    // bitirmis olabilir (state idle'a donmustur) - bu durumda yeniden
+    // baglanmayi YENIDEN DIRILTME, sessizce vazgec.
+    if (state.status == VoiceCallStatus.idle) {
+      return;
+    }
+    await _connect();
+  }
+
   /// Hata sonrasi kullaniciyi ekrandan cikmaya zorlamadan tekrar
   /// baglanmayi dener.
   Future<void> retry() async {
+    _autoRetryCount = 0;
     await _cleanup();
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
