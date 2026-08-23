@@ -417,15 +417,25 @@ def get_messages(user_id: int, limit: int = 100) -> List[dict]:
     conn = get_db()
     cursor = conn.cursor()
 
+    # KRITIK DUZELTME: onceki hali "ORDER BY timestamp LIMIT ?" idi -
+    # DESC OLMADAN, yani her zaman kullanicinin en ESKI N mesajini
+    # donduruyordu. Kullanici toplam mesaj sayisi limit'i (100) gectiginde
+    # (free tier ile ~2 gunde oluyor), sohbet baglami/AI'ya giden gecmis
+    # sonsuza dek o eski mesajlarda donup kaliyordu - hicbir hata/log
+    # olmadan (kod sagligi taramasinda bulundu). Simdi en SON N mesaj
+    # DESC ile cekilip, cagiran taraflarin bekledigi kronolojik (eskiden
+    # yeniye) sira icin Python tarafinda ters cevriliyor. `id DESC` ikinci
+    # siralama olcutu, ayni saniyeye denk gelen mesajlarin ekleniş sirasini
+    # korur (timestamp tek basina ayirt edici olmayabilir).
     cursor.execute(
-        "SELECT * FROM messages WHERE user_id = ? ORDER BY timestamp LIMIT ?",
+        "SELECT * FROM messages WHERE user_id = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
         (user_id, limit)
     )
 
     rows = cursor.fetchall()
     conn.close()
 
-    return [dict(row) for row in rows]
+    return [dict(row) for row in reversed(rows)]
 
 
 def clear_messages(user_id: int):
