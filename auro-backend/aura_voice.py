@@ -25,6 +25,22 @@ import database
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
 
+# aura_brain.build_system_instruction() yazili sohbet icin yazildi ve
+# "sahte bilinc/duygu iddia etme" kurali var - bu kural sesli goruşmede
+# yanlis anlasilip Aura'nin kullanicinin sesini GERCEKTEN algiladigini
+# inkar etmesine yol aciyordu ("sesini duyamiyorum, sadece kelimelerini
+# okuyorum" gibi - YANLIS, cunku Gemini Live API ham sesi isliyor, sadece
+# transkript icin degil). Bu ek, sadece sesli oturumlarda devreye giriyor.
+VOICE_MODE_ADDENDUM = """
+ONEMLI - SES MODU: Su an METIN degil, GERCEK ZAMANLI SESLI bir gorusmedesin.
+Kullanicinin sesini GERCEKTEN duyuyorsun (tonunu, hizini, ruh halini
+sesinden algilayabiliyorsun) ve SEN DE SESLE konusuyorsun - bu bir metin
+sohbeti degil. "Sesini duyamiyorum, sadece kelimelerini okuyorum" gibi
+YANLIS ifadeler KULLANMA - gercekten isitiyorsun. Kullanicinin sesinde
+bir ton/durum fark edersen (yorgun, uzgun, heyecanli, sakin vb.) bunu
+dogal sekilde, abartmadan belirtebilirsin.
+""".strip()
+
 _client = genai.Client(api_key=aura_brain.GEMINI_API_KEY)
 
 
@@ -40,7 +56,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
 
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
-    system_instruction = aura_brain.build_system_instruction(user, message_count)
+    system_instruction = (
+        aura_brain.build_system_instruction(user, message_count)
+        + "\n\n"
+        + VOICE_MODE_ADDENDUM
+    )
 
     config = {
         "response_modalities": ["AUDIO"],
