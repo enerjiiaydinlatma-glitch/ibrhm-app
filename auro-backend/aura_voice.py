@@ -96,47 +96,64 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                         )
 
             async def relay_gemini_to_client():
-                chunk_count = 0
-                async for response in session.receive():
-                    chunk_count += 1
-                    if response.data:
-                        await websocket.send_bytes(response.data)
+                # ONEMLI: session.receive() SADECE TEK BIR TURU verir - SDK'nin
+                # kendi kodu turn_complete gelince donguyu bilerek kesiyor
+                # (google/genai/live.py: "if turn_complete: yield result; break").
+                # Bu yuzden disariya bir "while True" sarmak sart - yoksa ilk
+                # tur bitince bu coroutine normal sekilde biter, asyncio.wait
+                # diger tarafi (mikrofon akisini) iptal edip TUM oturumu
+                # kapatir. Once bu satir yoktu, tam da bu bug'i yasiyorduk:
+                # "selam" dedikten hemen sonra baglanti kesiliyordu.
+                total_chunks = 0
+                turn_number = 0
+                while True:
+                    turn_number += 1
+                    got_any_content = False
+                    async for response in session.receive():
+                        got_any_content = True
+                        total_chunks += 1
+                        if response.data:
+                            await websocket.send_bytes(response.data)
 
-                    server_content = response.server_content
-                    if not server_content:
-                        continue
+                        server_content = response.server_content
+                        if not server_content:
+                            continue
 
-                    if server_content.interrupted:
-                        await websocket.send_text(json.dumps({"type": "interrupted"}))
+                        if server_content.interrupted:
+                            await websocket.send_text(json.dumps({"type": "interrupted"}))
 
-                    if (
-                        server_content.input_transcription
-                        and server_content.input_transcription.text
-                    ):
-                        user_transcript_parts.append(
-                            server_content.input_transcription.text
+                        if (
+                            server_content.input_transcription
+                            and server_content.input_transcription.text
+                        ):
+                            user_transcript_parts.append(
+                                server_content.input_transcription.text
+                            )
+
+                        if (
+                            server_content.output_transcription
+                            and server_content.output_transcription.text
+                        ):
+                            assistant_transcript_parts.append(
+                                server_content.output_transcription.text
+                            )
+
+                        if server_content.turn_complete:
+                            user_text, assistant_text = flush_transcripts()
+                            await websocket.send_text(json.dumps({
+                                "type": "turn_complete",
+                                "user_text": user_text,
+                                "assistant_text": assistant_text,
+                            }))
+
+                    if not got_any_content:
+                        # Gemini tarafi gercekten kapandi (bos donus) - bu
+                        # sefer gercekten bitti, cikmak dogru.
+                        print(
+                            f"VOICE SESSION: Gemini Live oturumu kapandi "
+                            f"({turn_number}. tur, toplam {total_chunks} chunk sonrasi)"
                         )
-
-                    if (
-                        server_content.output_transcription
-                        and server_content.output_transcription.text
-                    ):
-                        assistant_transcript_parts.append(
-                            server_content.output_transcription.text
-                        )
-
-                    if server_content.turn_complete:
-                        user_text, assistant_text = flush_transcripts()
-                        await websocket.send_text(json.dumps({
-                            "type": "turn_complete",
-                            "user_text": user_text,
-                            "assistant_text": assistant_text,
-                        }))
-
-                print(
-                    f"VOICE SESSION: Gemini Live oturumu kendiliginden kapandi "
-                    f"({chunk_count} chunk alindiktan sonra session.receive() bitti)"
-                )
+                        break
 
             done, pending = await asyncio.wait(
                 [
