@@ -142,7 +142,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
       if (type == "interrupted") {
         if (_playbackSource != null) {
-          SoLoud.instance.resetBufferStream(_playbackSource!);
+          try {
+            SoLoud.instance.resetBufferStream(_playbackSource!);
+          } catch (e) {
+            debugPrint("resetBufferStream hatasi: $e");
+          }
         }
         state = state.copyWith(status: VoiceCallStatus.listening);
       } else if (type == "turn_complete") {
