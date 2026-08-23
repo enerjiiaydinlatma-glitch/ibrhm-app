@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
@@ -23,7 +24,32 @@ DB_PATH = os.path.join(DB_DIR, "aura.db")
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # database.py'deki ayni gerekce: ayni anda iki istek ayni satira
+    # yazmaya calisirsa SQLite'in ANINDA "database is locked" hatasi
+    # vermesini onlemek icin bir bekleme penceresi taniyoruz.
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
+
+
+@contextmanager
+def db_cursor(commit: bool = False):
+    """
+    database.py'deki db_cursor ile AYNI amac (kasitli olarak burada da
+    tekrarlandi - bu modul kendi baglantisini kendi yonetiyor, ortak bir
+    import'a bagimli olmasin diye). Kod sagligi taramasinda bulundu: bu
+    dosyadaki HER fonksiyon `conn = get_db(); ...; conn.close()`
+    deseniyle yaziliyordu - aralarinda bir exception olursa `conn.close()`
+    hic calismiyordu (baglanti sizintisi riski). Artik try/finally ile
+    HER durumda baglanti kapatiliyor. `commit=True` verilirse, blok
+    hatasiz bitince (normal return dahil) otomatik commit yapilir.
+    """
+    conn = get_db()
+    try:
+        yield conn
+        if commit:
+            conn.commit()
+    finally:
+        conn.close()
 
 
 def init_memory_db():
@@ -32,132 +58,129 @@ def init_memory_db():
     Mevcut Aura tablolarina dokunmaz.
     """
 
-    conn = get_db()
-    cursor = conn.cursor()
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
 
-    # --------------------------------------------------------
-    # LONG-TERM MEMORIES
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+        # LONG-TERM MEMORIES
+        # --------------------------------------------------------
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS memories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
 
-            category TEXT NOT NULL,
-            memory_key TEXT NOT NULL,
-            memory_value TEXT NOT NULL,
+                category TEXT NOT NULL,
+                memory_key TEXT NOT NULL,
+                memory_value TEXT NOT NULL,
 
-            confidence REAL DEFAULT 0.5,
-            importance REAL DEFAULT 0.5,
+                confidence REAL DEFAULT 0.5,
+                importance REAL DEFAULT 0.5,
 
-            source_message_id INTEGER,
+                source_message_id INTEGER,
 
-            status TEXT DEFAULT 'active',
+                status TEXT DEFAULT 'active',
 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_used_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP,
 
-            FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
         )
-        """
-    )
 
-    # --------------------------------------------------------
-    # MEMORY CANDIDATES
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+        # MEMORY CANDIDATES
+        # --------------------------------------------------------
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS memory_candidates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
 
-            category TEXT NOT NULL,
-            memory_key TEXT NOT NULL,
-            memory_value TEXT NOT NULL,
+                category TEXT NOT NULL,
+                memory_key TEXT NOT NULL,
+                memory_value TEXT NOT NULL,
 
-            confidence REAL DEFAULT 0.5,
+                confidence REAL DEFAULT 0.5,
 
-            source_message_id INTEGER,
+                source_message_id INTEGER,
 
-            status TEXT DEFAULT 'candidate',
+                status TEXT DEFAULT 'candidate',
 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-            FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
         )
-        """
-    )
 
-    # --------------------------------------------------------
-    # MEMORY EVENTS
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+        # MEMORY EVENTS
+        # --------------------------------------------------------
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS memory_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            user_id INTEGER NOT NULL,
-            memory_id INTEGER,
+                user_id INTEGER NOT NULL,
+                memory_id INTEGER,
 
-            event_type TEXT NOT NULL,
+                event_type TEXT NOT NULL,
 
-            event_data TEXT,
+                event_data TEXT,
 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (memory_id) REFERENCES memories(id)
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (memory_id) REFERENCES memories(id)
+            )
+            """
         )
-        """
-    )
 
-    # --------------------------------------------------------
-    # INDEXES
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+        # INDEXES
+        # --------------------------------------------------------
 
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_memories_user
-        ON memories(user_id)
-        """
-    )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memories_user
+            ON memories(user_id)
+            """
+        )
 
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_memories_status
-        ON memories(user_id, status)
-        """
-    )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memories_status
+            ON memories(user_id, status)
+            """
+        )
 
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_candidates_user
-        ON memory_candidates(user_id)
-        """
-    )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_candidates_user
+            ON memory_candidates(user_id)
+            """
+        )
 
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_candidates_status
-        ON memory_candidates(user_id, status)
-        """
-    )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_candidates_status
+            ON memory_candidates(user_id, status)
+            """
+        )
 
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_memory_events_user
-        ON memory_events(user_id)
-        """
-    )
-
-    conn.commit()
-    conn.close()
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memory_events_user
+            ON memory_events(user_id)
+            """
+        )
 
 
 # ============================================================
@@ -170,9 +193,6 @@ def add_memory_event(
     memory_id: Optional[int] = None,
     event_data: Optional[Dict[str, Any]] = None,
 ):
-    conn = get_db()
-    cursor = conn.cursor()
-
     data = None
 
     if event_data is not None:
@@ -181,27 +201,25 @@ def add_memory_event(
             ensure_ascii=False,
         )
 
-    cursor.execute(
-        """
-        INSERT INTO memory_events
-        (
-            user_id,
-            memory_id,
-            event_type,
-            event_data
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_events
+            (
+                user_id,
+                memory_id,
+                event_type,
+                event_data
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                memory_id,
+                event_type,
+                data,
+            ),
         )
-        VALUES (?, ?, ?, ?)
-        """,
-        (
-            user_id,
-            memory_id,
-            event_type,
-            data,
-        ),
-    )
-
-    conn.commit()
-    conn.close()
 
 
 # ============================================================
@@ -217,36 +235,31 @@ def add_candidate(
     source_message_id: Optional[int] = None,
 ) -> int:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO memory_candidates
-        (
-            user_id,
-            category,
-            memory_key,
-            memory_value,
-            confidence,
-            source_message_id
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO memory_candidates
+            (
+                user_id,
+                category,
+                memory_key,
+                memory_value,
+                confidence,
+                source_message_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                category,
+                memory_key,
+                memory_value,
+                confidence,
+                source_message_id,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            user_id,
-            category,
-            memory_key,
-            memory_value,
-            confidence,
-            source_message_id,
-        ),
-    )
-
-    candidate_id = cursor.lastrowid
-
-    conn.commit()
-    conn.close()
+        candidate_id = cursor.lastrowid
 
     return candidate_id
 
@@ -256,25 +269,22 @@ def get_candidates(
     status: str = "candidate",
 ) -> List[dict]:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM memory_candidates
-        WHERE user_id = ?
-        AND status = ?
-        ORDER BY updated_at DESC
-        """,
-        (
-            user_id,
-            status,
-        ),
-    )
-
-    rows = cursor.fetchall()
-    conn.close()
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM memory_candidates
+            WHERE user_id = ?
+            AND status = ?
+            ORDER BY updated_at DESC
+            """,
+            (
+                user_id,
+                status,
+            ),
+        )
+        rows = cursor.fetchall()
 
     return [dict(row) for row in rows]
 
@@ -293,38 +303,33 @@ def add_memory(
     source_message_id: Optional[int] = None,
 ) -> int:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO memories
-        (
-            user_id,
-            category,
-            memory_key,
-            memory_value,
-            confidence,
-            importance,
-            source_message_id
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO memories
+            (
+                user_id,
+                category,
+                memory_key,
+                memory_value,
+                confidence,
+                importance,
+                source_message_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                category,
+                memory_key,
+                memory_value,
+                confidence,
+                importance,
+                source_message_id,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            user_id,
-            category,
-            memory_key,
-            memory_value,
-            confidence,
-            importance,
-            source_message_id,
-        ),
-    )
-
-    memory_id = cursor.lastrowid
-
-    conn.commit()
-    conn.close()
+        memory_id = cursor.lastrowid
 
     add_memory_event(
         user_id=user_id,
@@ -344,25 +349,22 @@ def get_memories(
     status: str = "active",
 ) -> List[dict]:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM memories
-        WHERE user_id = ?
-        AND status = ?
-        ORDER BY importance DESC, updated_at DESC
-        """,
-        (
-            user_id,
-            status,
-        ),
-    )
-
-    rows = cursor.fetchall()
-    conn.close()
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM memories
+            WHERE user_id = ?
+            AND status = ?
+            ORDER BY importance DESC, updated_at DESC
+            """,
+            (
+                user_id,
+                status,
+            ),
+        )
+        rows = cursor.fetchall()
 
     return [dict(row) for row in rows]
 
@@ -377,27 +379,24 @@ def find_active_memory(
     var mi diye bakar (kucuk/buyuk harf duyarsiz). Upsert icin kullanilir.
     """
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM memories
-        WHERE user_id = ?
-        AND status = 'active'
-        AND category = ?
-        AND LOWER(memory_key) = LOWER(?)
-        """,
-        (
-            user_id,
-            category,
-            memory_key,
-        ),
-    )
-
-    row = cursor.fetchone()
-    conn.close()
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM memories
+            WHERE user_id = ?
+            AND status = 'active'
+            AND category = ?
+            AND LOWER(memory_key) = LOWER(?)
+            """,
+            (
+                user_id,
+                category,
+                memory_key,
+            ),
+        )
+        row = cursor.fetchone()
 
     return dict(row) if row else None
 
@@ -443,25 +442,21 @@ def get_memory(
     memory_id: int,
 ) -> Optional[dict]:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM memories
-        WHERE id = ?
-        AND user_id = ?
-        """,
-        (
-            memory_id,
-            user_id,
-        ),
-    )
-
-    row = cursor.fetchone()
-
-    conn.close()
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM memories
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (
+                memory_id,
+                user_id,
+            ),
+        )
+        row = cursor.fetchone()
 
     return dict(row) if row else None
 
@@ -507,23 +502,18 @@ def update_memory(
         ]
     )
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        f"""
-        UPDATE memories
-        SET {", ".join(fields)}
-        WHERE id = ?
-        AND user_id = ?
-        """,
-        values,
-    )
-
-    changed = cursor.rowcount > 0
-
-    conn.commit()
-    conn.close()
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            UPDATE memories
+            SET {", ".join(fields)}
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            values,
+        )
+        changed = cursor.rowcount > 0
 
     if changed:
         add_memory_event(
@@ -544,27 +534,22 @@ def forget_memory(
     memory_id: int,
 ) -> bool:
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        UPDATE memories
-        SET status = 'forgotten',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        AND user_id = ?
-        """,
-        (
-            memory_id,
-            user_id,
-        ),
-    )
-
-    changed = cursor.rowcount > 0
-
-    conn.commit()
-    conn.close()
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE memories
+            SET status = 'forgotten',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (
+                memory_id,
+                user_id,
+            ),
+        )
+        changed = cursor.rowcount > 0
 
     if changed:
         add_memory_event(
@@ -577,22 +562,17 @@ def forget_memory(
 
 
 def clear_memories(user_id: int):
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        UPDATE memories
-        SET status = 'forgotten',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = ?
-        AND status = 'active'
-        """,
-        (user_id,),
-    )
-
-    conn.commit()
-    conn.close()
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            """
+            UPDATE memories
+            SET status = 'forgotten',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = ?
+            AND status = 'active'
+            """,
+            (user_id,),
+        )
 
     add_memory_event(
         user_id=user_id,
@@ -645,24 +625,19 @@ def mark_memory_used(
     memory_id: int,
 ):
 
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        UPDATE memories
-        SET last_used_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        AND user_id = ?
-        """,
-        (
-            memory_id,
-            user_id,
-        ),
-    )
-
-    conn.commit()
-    conn.close()
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            """
+            UPDATE memories
+            SET last_used_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (
+                memory_id,
+                user_id,
+            ),
+        )
 
     add_memory_event(
         user_id=user_id,
