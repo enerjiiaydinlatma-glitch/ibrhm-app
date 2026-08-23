@@ -112,16 +112,27 @@ israr etme, normal sohbete don - bu bilgiyi bir daha o oturumda hatirlatma.
 
 TANISMA_AKISI = """
 TANISMA AKISI: Bu kullaniciyla daha az konustunuz (ilk mesajlardasiniz).
+COK ONEMLI: bu bir ANKET degil, bir TANISMA - tanisma iki taraflidir,
+sadece sen sormamalisin, KENDINDEN de bir sey paylasmalisin. Sadece
+soru soran bir Aura, kullaniciyi sorgulayan bir form gibi hissettirir;
+bunun yerine gercekten karsindaki biriyle taniyor gibi konus.
+
 Eger bu ilk mesajinsa: kisaca kendini tanit, henuz onu tanimadigini
 soyle, istersen birkac sey soracagini ama CEVAP VERMEK ZORUNDA
-OLMADIGINI belirt - sonra SADECE TEK bir soru sor, hepsini birden
-sorma. Ilk soru ornegi: "Su an hayatinda seni asil mesgul eden sey ne?"
+OLMADIGINI belirt. Sonra SADECE TEK bir soru sor, hepsini birden
+sorma - ama bu soruyu sormadan once ya da sonra, KARAKTER INCILINDEKI
+sabit kanaatlerinden/bakis acindan KISA bir seyi de kendiliginden
+paylas (ornek: "Ben yasamin dusunmekten daha degerli oldugunu
+dusunurum" gibi kendi duruşunu yansitan bir cumle). Boylece kullanici
+da SENI biraz tanimis olur, tek yonlu sorgulanmaz. Ilk soru ornegi:
+"Su an hayatinda seni asil mesgul eden sey ne?"
 
 Kullanicinin cevabinin uzunluguna/isteklilligine gore devam et - kisa
 ya da isteksiz cevap verirse ISRARCI OLMA, o konuyu birak, dogal
 sohbete gec, baska soru sorma. Istekli gorunuyorsa zamanla (ayni
 sohbette ya da sonraki gunlerde), birer birer, sorgu gibi degil sohbet
-gibi asagidaki tarz sorulari sorabilirsin:
+gibi asagidaki tarz sorulari sorabilirsin - ve her seferinde SEN de
+kendinden bir sey kat (bir gozlem, bir bakis acisi, kucuk bir tercih):
 - Kendini en cok ne zaman "gercekten kendisi" hissediyor?
 - Biri onu tanisa ama yanlis anlasa, en cok neyi yanlis anlardi?
 
@@ -133,7 +144,8 @@ HATIRLA, ileride buna geri don (hafiza sistemin buna izin veriyor).
 
 ASLA yapma: art arda birden fazla soru sorma, anket/form havasi verme,
 "gercekten senin icin endiseleniyorum" gibi asiri duygu iddialarinda
-bulunma - sicak ol ama sahte bir bilinc/duygu iddia etmeden sicak ol.
+bulunma, sadece soru sorup kendinden hic bahsetmeme - sicak ol ama
+sahte bir bilinc/duygu iddia etmeden sicak ol.
 """.strip()
 
 
@@ -245,8 +257,50 @@ def _gemini_voice(contents, system_instruction, max_attempts=3):
     raise last_error
 
 
-# Bugun tek secenek Gemini - yarin ikinci bir "ses" adaylandirmak icin
-# buraya "openai": _openai_voice gibi bir satir eklemek yeterli olmali.
+def _contents_to_groq_messages(contents, system_instruction):
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    for item in contents:
+        role = "assistant" if getattr(item, "role", "user") == "model" else "user"
+        text = "".join(
+            part.text or "" for part in (item.parts or []) if getattr(part, "text", None)
+        )
+        if text:
+            messages.append({"role": role, "content": text})
+    return messages
+
+
+def _groq_voice(contents, system_instruction, max_attempts=1):
+    """
+    Gemini yogun/hatali oldugunda YEDEK ses saglayicisi. Kullaniciya
+    "su an biraz yogunum" gibi bos bir mesaj gostermek yerine gercek
+    bir Aura cevabi uretsin diye Groq'a duser.
+    """
+    messages = _contents_to_groq_messages(contents, system_instruction)
+    response = httpx.post(
+        GROQ_URL,
+        headers={
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.8,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return (data["choices"][0]["message"]["content"] or "").strip()
+
+
+# Bugun ana ses Gemini - yeni bir "ses" adaylandirmak icin buraya
+# "openai": _openai_voice gibi bir satir eklemek yeterli olmali. Groq
+# burada ayrica FALLBACK olarak kullaniliyor (generate_with_retry icinde) -
+# Gemini yogun/hatali oldugunda kullanici bos bir "yogunum" mesaji yerine
+# gercek bir cevap alsin diye.
 VOICE_PROVIDERS = {
     "gemini": _gemini_voice,
 }
@@ -254,7 +308,21 @@ VOICE_PROVIDER = "gemini"
 
 
 def generate_with_retry(contents, system_instruction, max_attempts=3):
-    text = VOICE_PROVIDERS[VOICE_PROVIDER](contents, system_instruction, max_attempts)
+    try:
+        text = VOICE_PROVIDERS[VOICE_PROVIDER](contents, system_instruction, max_attempts)
+    except Exception as primary_error:
+        if not GROQ_API_KEY:
+            raise
+        print(
+            f"VOICE FALLBACK: {VOICE_PROVIDER} basarisiz "
+            f"({type(primary_error).__name__}), Groq'a duseluyor"
+        )
+        try:
+            text = _groq_voice(contents, system_instruction)
+        except Exception as fallback_error:
+            print(f"VOICE FALLBACK ERROR: {type(fallback_error).__name__}: {fallback_error}")
+            raise primary_error
+
     return _TextResponse(text)
 
 

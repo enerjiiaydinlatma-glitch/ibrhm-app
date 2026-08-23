@@ -31,11 +31,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _speechAvailable = false;
   String _selectedVoice = "female";
 
-  // Hikaye modu
-  bool _storyMode = false;
-  List<Map<String, String>> _storyHistory = [];
-  bool _storyLoading = false;
-
   static const String _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const Color _bgColor = Color(0xFF0A0A1A);
   static const Color _indigoColor = Color(0xFF6C63FF);
@@ -119,64 +114,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Future<void> _startStory() async {
-    setState(() {
-      _storyMode = true;
-      _storyHistory = [];
-      _storyLoading = true;
-    });
-
-    try {
-      final response = await _dio.post(
-        "$_backendUrl/api/story",
-        data: {"action": "", "history": []},
-      );
-      final text = response.data["continuation"] ?? "";
-      setState(() {
-        _storyHistory = [{"role": "assistant", "text": text}];
-        _storyLoading = false;
-      });
-      _speakWithElevenLabs(text);
-      _scrollToBottom();
-    } catch (e) {
-      setState(() => _storyLoading = false);
-    }
-  }
-
-  Future<void> _continueStory(String action) async {
-    if (action.trim().isEmpty) return;
-    setState(() {
-      _storyHistory.add({"role": "user", "text": action});
-      _storyLoading = true;
-    });
-
-    try {
-      final response = await _dio.post(
-        "$_backendUrl/api/story",
-        data: {
-          "action": action,
-          "history": _storyHistory.sublist(0, _storyHistory.length - 1),
-        },
-      );
-      final text = response.data["continuation"] ?? "";
-      setState(() {
-        _storyHistory.add({"role": "assistant", "text": text});
-        _storyLoading = false;
-      });
-      _speakWithElevenLabs(text);
-      _scrollToBottom();
-    } catch (e) {
-      setState(() => _storyLoading = false);
-    }
-  }
-
-  void _exitStory() {
-    setState(() {
-      _storyMode = false;
-      _storyHistory = [];
-    });
-  }
-
   void _toggleListening() async {
     if (!_speechAvailable) {
       await _initSpeech();
@@ -217,11 +154,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    if (_storyMode) {
-      _continueStory(text);
-    } else {
-      ref.read(chatProvider.notifier).sendMessage(text);
-    }
+    ref.read(chatProvider.notifier).sendMessage(text);
   }
 
   void _showVoiceSelector() {
@@ -418,48 +351,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           ),
-          if (!_storyMode) ...[
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: _pickAndAnalyzeImage,
-              child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _indigoColor.withValues(alpha: 0.15),
-                  border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
-                ),
-                child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: _pickAndAnalyzeImage,
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _indigoColor.withValues(alpha: 0.15),
+                border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
               ),
+              child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
             ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () {
-                final callState = ref.read(voiceCallProvider);
-                if (callState.isActive) {
-                  ref.read(voiceCallProvider.notifier).endCall();
-                } else {
-                  ref.read(voiceCallProvider.notifier).startCall(widget.token);
-                }
-              },
-              child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _indigoColor.withValues(alpha: 0.15),
-                  border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
-                ),
-                child: Icon(Icons.call_outlined, color: _indigoColor, size: 20),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              final callState = ref.read(voiceCallProvider);
+              if (callState.isActive) {
+                ref.read(voiceCallProvider.notifier).endCall();
+              } else {
+                ref.read(voiceCallProvider.notifier).startCall(widget.token);
+              }
+            },
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _indigoColor.withValues(alpha: 0.15),
+                border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
               ),
+              child: Icon(Icons.call_outlined, color: _indigoColor, size: 20),
             ),
-          ],
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _controller,
               style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: _storyMode ? "Hikayeyi yÃ¶nlendir..." : "Mesaj yaz...",
+              decoration: const InputDecoration(
+                hintText: "Mesaj yaz...",
               ),
               onSubmitted: (_) => _send(),
             ),
@@ -538,16 +469,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_storyMode)
-              const Icon(Icons.auto_stories, color: Color(0xFFFFD700), size: 16)
-            else
-              Container(
-                width: 8, height: 8,
-                decoration: const BoxDecoration(color: Color(0xFF00E676), shape: BoxShape.circle),
-              ),
+            Container(
+              width: 8, height: 8,
+              decoration: const BoxDecoration(color: Color(0xFF00E676), shape: BoxShape.circle),
+            ),
             const SizedBox(width: 8),
             Text(
-              _storyMode ? "Hikaye Modu" : "Aura",
+              "Aura",
               style: GoogleFonts.poppins(
                 color: Colors.white, fontSize: 20,
                 fontWeight: FontWeight.w600, letterSpacing: 1.5,
@@ -556,24 +484,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
-          if (_storyMode)
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white70),
-              onPressed: _exitStory,
-              tooltip: "Hikayeden Ã‡Ä±k",
-            )
-          else ...[
-            IconButton(
-              icon: const Icon(Icons.auto_stories_outlined, color: Colors.white70),
-              onPressed: _startStory,
-              tooltip: "Hikaye BaÅŸlat",
-            ),
-            IconButton(
-              icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
-              onPressed: _showVoiceSelector,
-              tooltip: "Ses SeÃ§",
-            ),
-          ],
+          IconButton(
+            icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
+            onPressed: _showVoiceSelector,
+            tooltip: "Ses Seç",
+          ),
         ],
       ),
       body: Container(
@@ -589,11 +504,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Column(
               children: [
                 Expanded(
-                  child: _storyMode
-                      ? _buildStoryView()
-                      : _buildChatView(chatState),
+                  child: _buildChatView(chatState),
                 ),
-                if (!_storyMode && chatState.errorMessage != null)
+                if (chatState.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     child: Text(
@@ -604,13 +517,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 _buildInputBar(),
               ],
             ),
-            if (!_storyMode)
-              Positioned(
-                top: MediaQuery.of(context).padding.top + kToolbarHeight + 4,
-                left: 0,
-                right: 0,
-                child: const VoiceCallBar(),
-              ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 4,
+              left: 0,
+              right: 0,
+              child: const VoiceCallBar(),
+            ),
           ],
         ),
       ),
@@ -647,45 +559,5 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           );
   }
 
-  Widget _buildStoryView() {
-    if (_storyLoading && _storyHistory.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: _indigoColor.withValues(alpha: 0.7)),
-            const SizedBox(height: 16),
-            Text("Hikaye baÅŸlÄ±yor...",
-              style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
-      itemCount: _storyHistory.length + (_storyLoading ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == _storyHistory.length) {
-          return Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: _buildTypingIndicator(),
-            ),
-          );
-        }
-        final msg = _storyHistory[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Align(
-            alignment: msg["role"] == "user" ? Alignment.centerRight : Alignment.centerLeft,
-            child: _buildMessageBubble(msg),
-          ),
-        );
-      },
-    );
-  }
 }
 
