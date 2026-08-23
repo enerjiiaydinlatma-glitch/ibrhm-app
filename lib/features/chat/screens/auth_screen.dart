@@ -22,10 +22,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _startAnonymousSession() async {
-    setState(() {
-      _loading = true;
-    });
-
     try {
       final token = await _authService.getOrCreateAnonymousToken();
 
@@ -40,7 +36,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       setState(() {
-        _loading = false;
+        _autoLoginInProgress = false;
         _error = 'Aura başlatılamadı.';
       });
     }
@@ -54,6 +50,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isLogin = true;
   bool _loading = false;
+  // Ilk acilista otomatik anonim giris denenirken TRUE - form hic
+  // gorunmez, sade bir yukleniyor ekrani gosterilir. Bu, _loading'den
+  // AYRI cunku _loading manuel giris/kayit gonderiminde de kullaniliyor
+  // (o sirada form gorunur kalmali, sadece buton spinner'a doner).
+  bool _autoLoginInProgress = true;
   String? _error;
 
   static const Color _bgColor = Color(0xFF0A0A1A);
@@ -154,6 +155,19 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Anonim oturum acilirken tam formu yanip sondurmek yerine sade bir
+    // yukleniyor ekrani gosteriyoruz - form sadece anonim giris
+    // basarisiz olursa (_error dolar, _autoLoginInProgress false olur)
+    // gorunur hale gelir.
+    if (_autoLoginInProgress) {
+      return Scaffold(
+        backgroundColor: _bgColor,
+        body: const Center(
+          child: CircularProgressIndicator(color: _indigoColor),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _bgColor,
       body: Container(
