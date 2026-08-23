@@ -68,6 +68,18 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         "input_audio_transcription": {},
         "output_audio_transcription": {},
         "speech_config": {"language_code": "tr-TR"},
+        # Masaustunde (kulaksiz, hoparlorle) Aura'nin kendi sesi mikrofona
+        # sizip "kullanici konusuyor" sanilip kendi kendini kesiyor olabilir
+        # (yanki/echo geri besleme). Hassasiyeti dusurup, konusma baslangicinin
+        # kesin sayilmasi icin daha uzun bir sure istiyoruz - boylece kisa/
+        # belirsiz sesler (yanki, oda gurultusu) yanlislikla "kesme" saymasin.
+        "realtime_input_config": {
+            "automatic_activity_detection": {
+                "start_of_speech_sensitivity": "START_SENSITIVITY_LOW",
+                "prefix_padding_ms": 300,
+                "silence_duration_ms": 500,
+            },
+        },
     }
 
     user_transcript_parts: list[str] = []
@@ -138,10 +150,12 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                 while True:
                     turn_number += 1
                     got_any_content = False
+                    turn_audio_chunks = 0
                     async for response in session.receive():
                         got_any_content = True
                         total_chunks += 1
                         if response.data:
+                            turn_audio_chunks += 1
                             await websocket.send_bytes(response.data)
 
                         server_content = response.server_content
@@ -149,6 +163,16 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             continue
 
                         if server_content.interrupted:
+                            # Teshis: bu genelde Aura'nin kendi sesi mikrofona
+                            # sizip (yanki) Gemini'nin "kullanici konusmaya
+                            # basladi" sanmasindan kaynaklanir. Kac ses parcasi
+                            # yayinlandiktan SONRA kesildigini loglayarak
+                            # bunun ne kadar erken/gec oldugunu goruyoruz.
+                            print(
+                                f"VOICE SESSION: INTERRUPTED sinyali geldi "
+                                f"({turn_number}. tur, bu turda {turn_audio_chunks} "
+                                f"ses parcasi yayinlanmisti)"
+                            )
                             await websocket.send_text(json.dumps({"type": "interrupted"}))
 
                         if (
