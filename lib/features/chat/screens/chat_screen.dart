@@ -25,7 +25,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final Dio _dio = Dio();
+  // Kod sagligi taramasinda bulundu: timeout YOKTU - /api/tts istegi
+  // askida kalirsa ElevenLabs->yerel TTS fallback'i HIC TETIKLENMEZ
+  // (fallback sadece istek HATA donerse calisiyor, sonsuza dek asili
+  // kalirsa degil).
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
   final FlutterTts _localTts = FlutterTts();
   bool _localTtsReady = false;
 
@@ -53,7 +62,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  Future<void> _checkAnonymousStatus() async {
+  Future<void> _checkAnonymousStatus({bool isRetry = false}) async {
     try {
       final response = await _dio.get(
         "$_backendUrl/api/auth/me",
@@ -67,6 +76,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } catch (e) {
       debugPrint("Anonim durum kontrolu hatasi: $e");
+      // Kod sagligi taramasinda bulundu: bu cagri sessizce basarisiz
+      // olursa "Hesabini Kaydet" ikonu HIC BIR ZAMAN gorunmuyordu -
+      // kullanici cihaz kaybi durumunda hesabini kurtarma firsatini
+      // fark etmeden kaybediyordu. Gecici bir ag sorunu ihtimaline
+      // karsi bir kez, kisa bir gecikmeyle tekrar deniyoruz.
+      if (!isRetry && mounted) {
+        await Future.delayed(const Duration(seconds: 3));
+        if (mounted) await _checkAnonymousStatus(isRetry: true);
+      }
     }
   }
 
@@ -191,7 +209,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final response = await _dio.post<List<int>>(
         "$_backendUrl/api/tts",
         data: {"text": cleanText, "voice": _selectedVoice},
-        options: Options(responseType: ResponseType.bytes),
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {"Authorization": "Bearer ${widget.token}"},
+        ),
       );
       if (response.data != null) {
         await _audioPlayer.stop();

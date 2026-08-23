@@ -76,7 +76,14 @@ class ChatNotifier extends Notifier<ChatState> {
         state = state.copyWith(isLoading: false);
       }
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      // Kod sagligi taramasinda bulundu: bu catch diger tum catch
+      // bloklarindan farkli olarak errorMessage set etmiyordu - agdan
+      // kaynakli bir hata olursa kullanici bomboş bir sohbet ekraniyla
+      // kaliyor, hicbir uyari gormuyordu.
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Karşılama mesajı alınamadı.',
+      );
     }
   }
 

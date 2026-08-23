@@ -14,7 +14,18 @@ class ChatRepositoryImpl implements ChatRepository {
     Dio? dio,
     this.baseUrl = 'https://aura-backend-production-bc9c.up.railway.app',
     required this.token,
-  }) : _dio = dio ?? Dio();
+  }) : _dio = dio ??
+            Dio(
+              // Kod sagligi taramasinda bulundu: timeout YOKTU - sunucu
+              // takilirsa istek sonsuza dek asili kalir, "yaziyor..."
+              // gostergesi hic kapanmaz, kullaniciya hicbir hata gorunmez.
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 15),
+                // AI cevabi (Gemini + Groq fallback + fotograf analizi)
+                // uzun surebiliyor, bu yuzden receiveTimeout comert tutuldu.
+                receiveTimeout: const Duration(seconds: 60),
+              ),
+            );
 
   Options get _authOptions => Options(
         headers: {
