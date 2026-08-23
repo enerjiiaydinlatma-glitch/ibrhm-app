@@ -60,15 +60,16 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   bool _muteMic = false;
   Timer? _unmuteTimer;
 
-  // Tum gorusme boyunca TEK bir surekli buffer stream'i yeniden kullanmak
-  // (surekli play() + addAudioDataStream) her zaman ILK turda calisiyor,
-  // ama 2. ve sonraki turlarda kararsizdi (sessiz kaliyor ya da SoLoud
-  // donuyordu - kullanici testinde defalarca dogrulandi). Bunun yerine
-  // HER TUR icin taze bir AudioSource olusturuyoruz - ilk turda hep
-  // calisan yolu HER tur icin tekrarliyoruz. Onceki turun source'u,
-  // yeni turun ilk ses parcasi geldiginde (lazy) dispose edilir - boylece
-  // hala hoparlorden calmakta olan kuyruk erken kesilmez.
-  bool _pendingNewSource = true;
+  // GERI ALINDI (bkz. asagidaki not): "her tur icin taze source" denemesi
+  // teshis logunda KANITLANMIS sekilde play()'in senkron FFI on-yuzunde
+  // kilitleniyordu (2. play() cagrisinda) - buyuk ihtimalle her turda
+  // BIRIKEN, hic dispose edilmeyen source'lar SoLoud'un native "aktif
+  // ses" limitine (maxActiveVoiceCountReached) carpiyordu. flutter_soloud
+  // kutuphanesinin KENDI resmi WebSocket ornegi
+  // (github.com/alnitak/flutter_soloud, example/lib/buffer_stream/websocket.dart)
+  // TEK bir AudioSource + TEK bir play() cagrisi kullanip yeni "tur"lari
+  // resetBufferStream() ile yonetiyor - asagidaki kod artik bu resmi
+  // deseni izliyor.
 
   @override
   VoiceCallState build() {
@@ -104,11 +105,26 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         _voiceDebugLog("SoLoud.init() tamamlandi");
       }
       _soloudReady = true;
-      // Ses akisi (AudioSource) burada DEGIL, ilk ses parcasi geldiginde
-      // (_handleServerMessage icinde) olusturulur - bkz. _pendingNewSource.
-      _pendingNewSource = true;
+
+      // Resmi flutter_soloud WebSocket ornegindeki desen: TEK bir
+      // AudioSource, TEK bir play() cagrisi - tum gorusme boyunca.
+      _voiceDebugLog("setBufferStream() cagriliyor (oturum basi)");
+      _playbackSource = SoLoud.instance.setBufferStream(
+        sampleRate: 24000,
+        channels: Channels.mono,
+        format: BufferType.s16le,
+        bufferingType: BufferingType.preserved,
+        // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
+        // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
+        // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
+        bufferingTimeNeeds: 0.3,
+      );
+      _voiceDebugLog("setBufferStream() tamamlandi, play() cagriliyor");
+      await SoLoud.instance.play(_playbackSource!);
+      _voiceDebugLog("play() tamamlandi");
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
+      _voiceDebugLog("SoLoud baslatma HATASI: $e");
       state = state.copyWith(status: VoiceCallStatus.error);
       return;
     }
@@ -167,43 +183,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       _muteMic = true;
 
       try {
-        if (_pendingNewSource) {
-          // ONEMLI: bunu HEMEN, senkron olarak false yapiyoruz - yoksa
-          // arka arkaya hizli gelen iki ses parcasi ayni anda "yeni
-          // source lazim" sanip IKI source olusturabilir (re-entrancy).
-          _pendingNewSource = false;
-          // Eski source'u BILEREK dispose ETMIYORUZ. disposeSource()'in
-          // ilk (senkron) kismi dogrudan native FFI cagrisi yapiyor -
-          // unawaited() bu senkron kismi ERTELEYEMEZ, sadece donen
-          // Future'i beklemekten vazgeciyor. Native motor o an "veri
-          // bekliyor" durumundaki (preserved buffering, hic
-          // setDataIsEnded cagrilmamis) bir kaynagi silmeye calismak,
-          // tam da UYGULAMANIN TAMAMEN DONMASINA yol acan senkron
-          // kilitlenmeydi (kullanici testinde defalarca dogrulandi).
-          // Bunun yerine gorusme boyunca eski source'lari birak - cagri
-          // bitince zaten _cleanup()'taki SoLoud.instance.deinit() TUM
-          // kaynaklari tek seferde (guvenli sekilde, motor kapanirken)
-          // serbest birakiyor.
-          _voiceDebugLog("setBufferStream() cagriliyor (yeni tur)");
-          _playbackSource = SoLoud.instance.setBufferStream(
-            sampleRate: 24000,
-            channels: Channels.mono,
-            format: BufferType.s16le,
-            bufferingType: BufferingType.preserved,
-            // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
-            // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
-            // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
-            bufferingTimeNeeds: 0.3,
+        if (_playbackSource != null) {
+          SoLoud.instance.addAudioDataStream(
+            _playbackSource!,
+            Uint8List.fromList(message),
           );
-          _voiceDebugLog("setBufferStream() tamamlandi, play() cagriliyor");
-          unawaited(SoLoud.instance.play(_playbackSource!));
-          _voiceDebugLog("play() ateslendi (unawaited)");
         }
-
-        SoLoud.instance.addAudioDataStream(
-          _playbackSource!,
-          Uint8List.fromList(message),
-        );
       } catch (e) {
         debugPrint("SoLoud playback hatasi: $e");
         _voiceDebugLog("SoLoud playback HATASI: $e");
@@ -221,12 +206,19 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
       if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi");
-        // Aura'nin sozu kesildi - yeni ses gelmeyecegi icin bu source'u
-        // birakip bir sonraki turda taze bir tanesi olusturulacak.
-        // disposeSource() BURADA CAGRILMIYOR - bkz. yukaridaki not
-        // (senkron FFI cagrisi UI'yi dondurebiliyordu).
-        _playbackSource = null;
-        _pendingNewSource = true;
+        // Aura'nin sozu kesildi - hala tamponda bekleyen (henuz calinmamis)
+        // sesi temizlemek icin resetBufferStream() kullaniyoruz (resmi
+        // ornekteki desen). Bu, disposeSource()'in aksine TAMAMEN SENKRON
+        // ve kaynagi yok etmiyor, sadece pozisyonunu sifirliyor - ayni
+        // source gorusme boyunca yasamaya devam ediyor.
+        if (_playbackSource != null) {
+          try {
+            SoLoud.instance.resetBufferStream(_playbackSource!);
+          } catch (e) {
+            debugPrint("resetBufferStream hatasi: $e");
+            _voiceDebugLog("resetBufferStream HATASI: $e");
+          }
+        }
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -253,11 +245,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           chatNotifier.addAssistantMessage(assistantText);
         }
 
-        // Bu turun source'unu hemen dispose ETMIYORUZ - hala hoparlorden
-        // calmakta olan kuyruk dogal sekilde bitsin. Bir sonraki turun
-        // ilk ses parcasi geldiginde lazy olarak serbest birakilacak
-        // (bkz. _pendingNewSource, _handleServerMessage).
-        _pendingNewSource = true;
+        // Ayni source gorusme boyunca yasamaya devam ediyor - bir sonraki
+        // turun sesi de dogrudan addAudioDataStream ile ayni akisa eklenir.
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -299,7 +288,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _unmuteTimer?.cancel();
     _unmuteTimer = null;
     _muteMic = false;
-    _pendingNewSource = true;
 
     await _micSubscription?.cancel();
     _micSubscription = null;
@@ -319,11 +307,16 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     // sonraki startCall() zaten `if (!isInitialized) init()` ile motoru
     // sifirdan baslatiyor - kucuk bir gecikme pahasina saglamlik kazaniyoruz.
     //
-    // NOT: burada AYRICA disposeSource() cagirmiyoruz - deinit() zaten
-    // TUM kaynaklari (disposeAllSound() ile, motoru kapatirken) tek
-    // seferde serbest birakiyor. Tekil disposeSource() cagrisi ayni
-    // riskli senkron FFI davranisini tasiyordu (bkz. _handleServerMessage
-    // notu) - burada da kaldirildi.
+    // Resmi ornekteki gibi: kapanistan once akisin bittigini isaretle
+    // (setDataIsEnded, tamamen senkron/hafif bir cagri - disposeSource
+    // gibi kaynak yok etmiyor). AYRICA disposeSource() cagirmiyoruz -
+    // deinit() zaten TUM kaynaklari (disposeAllSound() ile, motoru
+    // kapatirken) tek seferde serbest birakiyor.
+    if (_playbackSource != null) {
+      try {
+        SoLoud.instance.setDataIsEnded(_playbackSource!);
+      } catch (_) {}
+    }
     _playbackSource = null;
     if (_soloudReady) {
       try {
