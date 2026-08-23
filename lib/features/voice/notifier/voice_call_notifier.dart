@@ -208,11 +208,25 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _channel = null;
     await WakelockPlus.disable();
 
-    if (_playbackSource != null && _soloudReady) {
+    // Sadece kaynagi (source) degil, TUM SoLoud motorunu kapatiyoruz.
+    // Motoru acik birakip sadece source'u dispose etmek, ayni uygulama
+    // oturumunda IKINCI aramada native ses motorunun bozuk bir durumda
+    // kalip donmasina (tum pencerenin kilitlenmesine) yol aciyordu. Bir
+    // sonraki startCall() zaten `if (!isInitialized) init()` ile motoru
+    // sifirdan baslatiyor - kucuk bir gecikme pahasina saglamlik kazaniyoruz.
+    if (_soloudReady) {
+      if (_playbackSource != null) {
+        try {
+          await SoLoud.instance.disposeSource(_playbackSource!);
+        } catch (_) {}
+        _playbackSource = null;
+      }
       try {
-        await SoLoud.instance.disposeSource(_playbackSource!);
-      } catch (_) {}
-      _playbackSource = null;
+        SoLoud.instance.deinit();
+      } catch (e) {
+        debugPrint("SoLoud deinit hatasi: $e");
+      }
+      _soloudReady = false;
     }
   }
 }
