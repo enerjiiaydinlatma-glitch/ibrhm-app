@@ -1,5 +1,4 @@
 ﻿import os
-import re
 import time
 import httpx
 import aura_brain
@@ -23,7 +22,10 @@ load_dotenv()
 api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
 if not api_key:
     raise RuntimeError("GEMINI_API_KEY .env dosyasinda bulunamadi")
-print(f"DEBUG GEMINI_API_KEY: {api_key[:6]!r}...{api_key[-4:]!r} len={len(api_key)}")
+# Kod sagligi taramasinda bulundu: burada anahtarin ilk/son karakterlerini
+# ve uzunlugunu production loglarina yazan bir debug print vardi (401
+# hatasini teshis etmek icin eklenmisti, o sorun cozuldu) - gereksiz bir
+# bilgi sizintisi yuzeyiydi, kaldirildi.
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
 
@@ -46,7 +48,13 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    # Kod sagligi taramasinda bulundu: allow_origins=["*"] ile
+    # allow_credentials=True birlikte kullanmak tarayici spesifikasyonuna
+    # gore anlamsiz/gecersiz bir kombinasyon (credentialed istekler
+    # wildcard origin ile calismaz). Bu API tum kimlik dogrulamayi
+    # Authorization: Bearer header'i ile yapiyor (cookie kullanmiyor),
+    # yani allow_credentials'a hic ihtiyac yok.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -99,90 +107,6 @@ def detect_mood(text: str) -> str | None:
 
 
 
-def detect_memory_candidate(user_id: int, message: str):
-    """
-    Kullanici mesajinda kalici olabilecek basit bilgileri yakalar.
-    Ilk asamada kontrollu pattern tabanli sistem.
-    """
-
-    text = message.strip()
-
-    if not text:
-        return None
-
-    patterns = [
-        (
-            r"\bbenim adim\s+(.+)",
-            "identity",
-            "name",
-        ),
-        (
-            r"\badim\s+(.+)",
-            "identity",
-            "name",
-        ),
-        (
-            r"\bben\s+(.+)\s+seviyorum\b",
-            "preference",
-            "likes",
-        ),
-        (
-            r"\b(.+)\s+seviyorum\b",
-            "preference",
-            "likes",
-        ),
-        (
-            r"\bben\s+(.+)\s+sevmiyorum\b",
-            "preference",
-            "dislikes",
-        ),
-        (
-            r"\b(.+)\s+sevmiyorum\b",
-            "preference",
-            "dislikes",
-        ),
-        (
-            r"\bben\s+(.+)\s+istiyorum\b",
-            "goal",
-            "wants",
-        ),
-        (
-            r"\b(.+)\s+istiyorum\b",
-            "goal",
-            "wants",
-        ),
-    ]
-
-    for pattern, category, memory_key in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-
-        if not match:
-            continue
-
-        value = match.group(1).strip(" .,!?:;")
-
-        if len(value) < 2:
-            continue
-
-        if len(value) > 200:
-            continue
-
-        try:
-            candidate_id = aura_memory.add_candidate(
-                user_id=user_id,
-                category=category,
-                memory_key=memory_key,
-                memory_value=value,
-                confidence=0.70,
-            )
-
-            return candidate_id
-
-        except Exception as e:
-            print(f"MEMORY CANDIDATE ERROR: {e}")
-            return None
-
-    return None
 class RegisterRequest(BaseModel):
     email: str
     password: str
@@ -518,7 +442,11 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
             "Dogal, akici Aura uslubunda yaz. Paragraf olarak yaz."
         )
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            # Kod sagligi taramasinda bulundu: burada aura_brain.py'deki
+            # guncel modelden (gemini-3.7-flash) FARKLI, eski bir model
+            # adi ("gemini-3.6-flash") kullaniliyordu - tutarli hale
+            # getirildi.
+            model=aura_brain.MODEL_NAME,
             contents=[
                 types.Content(
                     role="user",
@@ -531,7 +459,11 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         )
         return {"analysis": response.text}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Ham exception mesaji (potansiyel ic yapilandirma bilgisi
+        # icerebilir) artik istemciye sizdirilmiyor - detay sadece
+        # sunucu logunda kaliyor.
+        print(f"ANALYZE ERROR: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="Fotoğraf analiz edilemedi.")
 
 
 @app.post("/api/story")
@@ -556,13 +488,14 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
             contents.append(types.Content(role="user", parts=[types.Part(text=request.action)]))
     try:
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model=aura_brain.MODEL_NAME,
             contents=contents,
             config=types.GenerateContentConfig(system_instruction=system),
         )
         return {"continuation": response.text}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"STORY ERROR: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="Hikaye devam ettirilemedi.")
 
 
 @app.post("/api/stories")
