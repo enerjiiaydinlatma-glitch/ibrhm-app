@@ -10,7 +10,10 @@ BASE_DIR = Path(__file__).resolve().parent
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "aura.db")
+# database.py ile ayni sozlesme: DB_DIR verilirse (Railway kalici disk)
+# oraya, yoksa proje klasorune (yerel gelistirme) yazilir.
+DB_DIR = os.getenv("DB_DIR", BASE_DIR)
+DB_PATH = os.path.join(DB_DIR, "aura.db")
 
 
 # ============================================================

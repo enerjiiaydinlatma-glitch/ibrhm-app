@@ -8,7 +8,11 @@ from typing import Optional, List, Dict, Any
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "aura.db")
+# DB_DIR ortam degiskeni verilirse (ornek: Railway'de kalici disk
+# baglantisi /data) veritabani oraya yazilir - aksi halde eskisi gibi
+# proje klasorune (yerel gelistirme icin degismiyor).
+DB_DIR = os.getenv("DB_DIR", BASE_DIR)
+DB_PATH = os.path.join(DB_DIR, "aura.db")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
