@@ -399,20 +399,38 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       } else if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi (chunk #$_audioChunkCounter)");
         _awaitingFirstChunkOfTurn = true;
-        // Aura'nin sozu kesildi - hala tamponda bekleyen (henuz calinmamis)
-        // sesi temizlemek icin resetBufferStream() kullaniyoruz (resmi
-        // ornekteki desen). Bu, disposeSource()'in aksine TAMAMEN SENKRON
-        // ve kaynagi yok etmiyor, sadece pozisyonunu sifirliyor - ayni
-        // source gorusme boyunca yasamaya devam ediyor.
+        // KRITIK BULUNAN 4. DONMA (teshis loguyla kanitlandi, ayni desenin
+        // dorduncu tekrari - bkz. play()/setDataIsEnded()/deinit()): log
+        // TAM OLARAK "resetBufferStream() cagriliyor" satirindan sonra
+        // kesildi, "tamamlandi" hic gelmedi. Tetikleyici: kullanici Aura'nin
+        // sozunu KESEREK konusmaya basladi, ve bu resetBufferStream() bir
+        // ONCEKI addAudioDataStream() cagrisindan sadece 49ms sonra
+        // geldi - motorun kendi ic ses-mixleme thread'i o veriyi hala
+        // islerken resetBufferStream() ayni kaynagin ic durumunu degistirmeye
+        // calisip kilitlenmis olmali. Onceki testlerde bu cagri hep guvenli
+        // gorunmustu (senkron ama "hafif" sayilmisti) - meger SADECE
+        // addAudioDataStream ile YAKIN ZAMANLI cagrildiginda risk varmis.
+        // FIX: play()/deinit() gibi TAMAMEN kaldirmak yerine (bu cagri hala
+        // gerekli - kesilen sozun kalintisini temizliyor), diger "riskli"
+        // cagrilarda oldugu gibi kucuk bir Timer ile erteleyip motorun o
+        // anki islemini bitirmesine firsat taniyoruz.
         if (_playbackSource != null) {
-          try {
-            _voiceDebugLog("resetBufferStream() cagriliyor");
-            SoLoud.instance.resetBufferStream(_playbackSource!);
-            _voiceDebugLog("resetBufferStream() tamamlandi");
-          } catch (e) {
-            debugPrint("resetBufferStream hatasi: $e");
-            _voiceDebugLog("resetBufferStream HATASI: $e");
-          }
+          final sourceAtInterrupt = _playbackSource!;
+          Timer(const Duration(milliseconds: 120), () {
+            if (_playbackSource != sourceAtInterrupt) {
+              // Bu sirada gorusme bitmis/yeniden baslamis olabilir -
+              // artik gecerli olmayan bir source'a dokunma.
+              return;
+            }
+            try {
+              _voiceDebugLog("resetBufferStream() cagriliyor (ertelenmis)");
+              SoLoud.instance.resetBufferStream(sourceAtInterrupt);
+              _voiceDebugLog("resetBufferStream() tamamlandi");
+            } catch (e) {
+              debugPrint("resetBufferStream hatasi: $e");
+              _voiceDebugLog("resetBufferStream HATASI: $e");
+            }
+          });
         }
         // resetBufferStream() calinmamis kuyrugu ve pozisyonu sifirladi -
         // bizim tur-suresi sayacimizi da esitliyoruz.
