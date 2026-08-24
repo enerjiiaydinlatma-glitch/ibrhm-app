@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ibrhm_app"
+    namespace = "com.auraapp.assistant"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +15,12 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ibrhm_app"
+        // NOT (2026-08-24): "com.example.*" varsayilan placeholder'di - Google
+        // Play bunu asla kabul etmez, ve bu deger Play Store'a ilk yayindan
+        // SONRA bir daha degistirilemez. Gecici olarak makul bir degere
+        // cekildi (com.auraapp.assistant) - gercek yayin oncesi kendi
+        // marka/domain kararinizla degistirebilirsiniz, henuz KESIN degil.
+        applicationId = "com.auraapp.assistant"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
