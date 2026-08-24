@@ -72,6 +72,19 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // sonsuz bir "baglan->reddedil" donguye girer.
   bool _limitReached = false;
 
+  // KRITIK BULUNAN BUG (teshis loguyla kanitlandi): endCall()/retry()
+  // _channel.sink.close()'u cagirdiginda, bu WebSocket'in onDone
+  // callback'ini tetikliyor - ama state HENUZ idle'a cevrilmemis
+  // oluyor (state ancak _cleanup() bittikten SONRA degisiyor). Bu
+  // yuzden _handleUnexpectedDisconnect() bunu "beklenmedik kopma"
+  // saniyor ve OTOMATIK YENIDEN BAGLANMAYI tetikleyip IKINCI, cakisan
+  // bir _cleanup() cagrisi baslatiyor - iki es zamanli cleanup ayni
+  // native SoLoud motoruna dokununca setDataIsEnded()/deinit() kilitlenip
+  // TUM UYGULAMAYI donduruyordu. Bu bayrak, KENDI kapatmamizi (endCall/
+  // retry) ayirt edip _handleUnexpectedDisconnect'in bu durumda hic
+  // calismamasini saglar.
+  bool _intentionalClose = false;
+
   // GERI ALINDI (bkz. asagidaki not): "her tur icin taze source" denemesi
   // teshis logunda KANITLANMIS sekilde play()'in senkron FFI on-yuzunde
   // kilitleniyordu (2. play() cagrisinda) - buyuk ihtimalle her turda
@@ -305,12 +318,22 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   /// dener. Gercekten baglanamiyor olma ihtimaline karsi (backend
   /// cokmus vb.) bir ust sinirdan sonra kullaniciya hata gosterilir.
   void _handleUnexpectedDisconnect() {
-    if (state.status == VoiceCallStatus.idle || _reconnecting || _limitReached) {
+    if (state.status == VoiceCallStatus.idle ||
+        _reconnecting ||
+        _limitReached ||
+        _intentionalClose) {
       // idle: kullanici endCall() ile kendisi kapatti - normal, bir sey
       // yapma. _reconnecting: onError+onDone ayni kopma icin iki kez
       // tetiklenmis olabilir - ikinci tetiklemeyi yoksay. _limitReached:
       // sunucu gunluk limit yuzunden kapatti - otomatik yeniden
-      // baglanmak ayni reddi tekrar tetikler, anlamsiz.
+      // baglanmak ayni reddi tekrar tetikler, anlamsiz. _intentionalClose:
+      // KRITIK - endCall()/retry() KENDI _channel.sink.close() cagrisi
+      // WS'nin onDone'unu tetikliyor, ama state HENUZ idle'a donmemis
+      // oluyor (cleanup bitmeden degismiyor) - bu bayrak olmadan bu,
+      // "beklenmedik kopma" saniIip IKINCI, cakisan bir _cleanup()
+      // baslatiyordu (iki es zamanli cleanup ayni native SoLoud motoruna
+      // dokununca kilitlenip TUM UYGULAMAYI donduruyordu - teshis
+      // loguyla kanitlandi).
       return;
     }
     if (_autoRetryCount >= _maxAutoRetries) {
@@ -341,14 +364,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   Future<void> retry() async {
     _autoRetryCount = 0;
     _limitReached = false;
+    _intentionalClose = true;
     await _cleanup();
+    _intentionalClose = false;
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
   }
 
   Future<void> endCall() async {
     _voiceDebugLog("===== endCall() cagrildi =====");
+    _intentionalClose = true;
     await _cleanup();
+    _intentionalClose = false;
     _voiceDebugLog("endCall() - _cleanup() tamamlandi");
     state = const VoiceCallState();
   }
