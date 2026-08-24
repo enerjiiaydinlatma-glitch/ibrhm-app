@@ -1,5 +1,6 @@
 ﻿import os
 import re
+import secrets
 import time
 import httpx
 import aura_brain
@@ -10,7 +11,7 @@ from collections import defaultdict, deque
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
@@ -29,6 +30,19 @@ if not api_key:
 # bilgi sizintisi yuzeyiydi, kaldirildi.
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
+
+# Basit bir toplu-istatistik paneli icin - reklam kampanyasi baslarken
+# kac kullanici geldigini, kacinin kaldigini GOREMEDIGIMIZ tespit
+# edildi ("kor harcama" riski, bkz. gece raporu). Yeni bir kullanici/rol
+# sistemi kurmak yerine, tek bir paylasilan anahtarla korunan salt-okunur
+# bir endpoint - ADMIN_KEY ortam degiskeni tanimli DEGILSE panel tamamen
+# devre disi (varsayilan olarak acik birakilmiyor).
+ADMIN_KEY = os.getenv("ADMIN_KEY", "").strip()
+
+
+def _check_admin_key(key: Optional[str]):
+    if not ADMIN_KEY or not key or not secrets.compare_digest(key, ADMIN_KEY):
+        raise HTTPException(status_code=404)
 
 VOICE_IDS = {
     "male": "9OXwpKJw7rW6WI0ORNzm",
@@ -657,3 +671,85 @@ def get_friends(authorization: Optional[str] = Header(None)):
 def get_friend_requests(authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
     return database.get_friend_requests(user["id"])
+
+
+@app.get("/api/admin/stats")
+def admin_stats(key: Optional[str] = None):
+    _check_admin_key(key)
+    return database.get_admin_stats()
+
+
+def _render_admin_dashboard(stats: dict) -> str:
+    def fmt_min(seconds: int) -> str:
+        return f"{seconds // 60} dk"
+
+    cards = [
+        ("Toplam kullanıcı", stats["total_users"], ""),
+        ("Bugün yeni kullanıcı", stats["new_users_today"], ""),
+        ("Son 7 gün yeni kullanıcı", stats["new_users_7d"], ""),
+        ("Bugün aktif kullanıcı", stats["active_users_today"], "en az 1 mesaj gönderdi"),
+        ("Kaydedilmiş hesap", stats["claimed_accounts"], f"{stats['anonymous_accounts']} hâlâ anonim"),
+        ("Pro kullanıcı", stats["pro_users"], ""),
+        ("Bugünkü mesaj sayısı", stats["messages_today"], f"toplam {stats['messages_total']}"),
+        ("Bugünkü sesli görüşme süresi", fmt_min(stats["voice_seconds_today"]), "tüm kullanıcılar toplamı"),
+        ("Bugün mesaj limitine ulaşan", stats["users_at_message_limit_today"], "free tier"),
+        ("Bugün sesli limite ulaşan", stats["users_at_voice_limit_today"], "free tier"),
+    ]
+    cards_html = "".join(
+        f"""<div class="card">
+              <div class="card-label">{label}</div>
+              <div class="card-value">{value}</div>
+              {f'<div class="card-sub">{sub}</div>' if sub else ''}
+            </div>"""
+        for label, value, sub in cards
+    )
+    return f"""<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aura - Panel</title>
+<style>
+  :root {{ color-scheme: dark; }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; padding: 40px 20px;
+    background: #0A0A1A;
+    background-image: linear-gradient(180deg, #0D0B2A 0%, #0A0A1A 100%);
+    color: #EDEAF7;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+  }}
+  h1 {{
+    font-size: 1.4rem; font-weight: 600; margin: 0 0 4px;
+    display: flex; align-items: center; gap: 10px;
+  }}
+  .dot {{ width: 8px; height: 8px; border-radius: 50%; background: #00E676; display: inline-block; }}
+  .subtitle {{ color: #8A84A8; font-size: 0.85rem; margin-bottom: 32px; }}
+  .grid {{
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px; max-width: 1000px;
+  }}
+  .card {{
+    background: #12122A; border: 1px solid #2A2A4A; border-radius: 14px;
+    padding: 20px;
+  }}
+  .card-label {{ font-size: 0.78rem; color: #8A84A8; margin-bottom: 8px; }}
+  .card-value {{ font-size: 1.9rem; font-weight: 600; color: #FFFFFF; font-variant-numeric: tabular-nums; }}
+  .card-sub {{ font-size: 0.75rem; color: #6C63FF; margin-top: 4px; }}
+  .refresh {{ color: #8A84A8; font-size: 0.75rem; margin-top: 32px; }}
+</style>
+</head>
+<body>
+  <h1><span class="dot"></span>Aura Panel</h1>
+  <div class="subtitle">Toplu istatistikler - tek kullanıcı verisi içermez</div>
+  <div class="grid">{cards_html}</div>
+  <div class="refresh">Sayfayı yenileyerek güncel veriyi görebilirsin.</div>
+</body>
+</html>"""
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(key: Optional[str] = None):
+    _check_admin_key(key)
+    stats = database.get_admin_stats()
+    return _render_admin_dashboard(stats)

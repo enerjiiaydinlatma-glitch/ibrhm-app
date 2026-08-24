@@ -651,3 +651,72 @@ def get_patterns(user_id: int, pattern_type: Optional[str] = None) -> List[dict]
             )
         rows = cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+# --- ANALITIK (2026-08-24, reklam kampanyasi sirasinda kullaniciya
+# hicbir gorunurluk olmadigi tespit edildi - yeni istemci-tarafi
+# olay izleme eklemek yerine, zaten var olan verilerden [users,
+# messages tablolari] anlamli toplu istatistikler cikariyoruz. Sifir
+# yeni bagimlilik, sifir yeni riskli client kodu.) ---
+
+def get_admin_stats() -> dict:
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+
+        def scalar(sql: str, params: tuple = ()) -> int:
+            cursor.execute(sql, params)
+            row = cursor.fetchone()
+            return (row[0] if row and row[0] is not None else 0)
+
+        total_users = scalar("SELECT COUNT(*) FROM users")
+        new_today = scalar(
+            "SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')"
+        )
+        new_7d = scalar(
+            "SELECT COUNT(*) FROM users WHERE created_at >= date('now', '-7 days')"
+        )
+        claimed = scalar("SELECT COUNT(*) FROM users WHERE is_anonymous = 0")
+        anonymous = scalar("SELECT COUNT(*) FROM users WHERE is_anonymous != 0")
+        pro_users = scalar("SELECT COUNT(*) FROM users WHERE tier = 'pro'")
+
+        messages_total = scalar("SELECT COUNT(*) FROM messages")
+        messages_today = scalar(
+            "SELECT COUNT(*) FROM messages WHERE date(timestamp) = date('now')"
+        )
+        active_users_today = scalar(
+            "SELECT COUNT(DISTINCT user_id) FROM messages WHERE date(timestamp) = date('now')"
+        )
+
+        # Bugunku kullanim sayaclari sadece usage_date=bugun olan
+        # kullanicilarda anlamli (baskalari henuz o gun hic kullanmamis
+        # ya da sayac dunku deger, ilk kullanimda otomatik sifirlanacak).
+        voice_seconds_today = scalar(
+            "SELECT SUM(daily_voice_seconds) FROM users WHERE usage_date = date('now')"
+        )
+        messages_counted_today = scalar(
+            "SELECT SUM(daily_message_count) FROM users WHERE usage_date = date('now')"
+        )
+        users_at_message_limit_today = scalar(
+            "SELECT COUNT(*) FROM users WHERE usage_date = date('now') "
+            "AND tier != 'pro' AND daily_message_count >= 30"
+        )
+        users_at_voice_limit_today = scalar(
+            "SELECT COUNT(*) FROM users WHERE usage_date = date('now') "
+            "AND tier != 'pro' AND daily_voice_seconds >= 600"
+        )
+
+    return {
+        "total_users": total_users,
+        "new_users_today": new_today,
+        "new_users_7d": new_7d,
+        "claimed_accounts": claimed,
+        "anonymous_accounts": anonymous,
+        "pro_users": pro_users,
+        "messages_total": messages_total,
+        "messages_today": messages_today,
+        "active_users_today": active_users_today,
+        "voice_seconds_today": voice_seconds_today,
+        "messages_counted_today": messages_counted_today,
+        "users_at_message_limit_today": users_at_message_limit_today,
+        "users_at_voice_limit_today": users_at_voice_limit_today,
+    }
