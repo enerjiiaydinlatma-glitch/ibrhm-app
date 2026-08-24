@@ -44,6 +44,19 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   WebSocketChannel? _channel;
   StreamSubscription<Uint8List>? _micSubscription;
   AudioSource? _playbackSource;
+  // play()'in dondurdugu "calma ornegi" - SoLoud dokumantasyonuna gore
+  // bu handle, akis DURMUS ya da "bitmis" sayilirsa dogal olarak
+  // GECERSIZ hale gelebiliyor (getIsValidVoiceHandle: "Returns false if
+  // it's been stopped or if it finished playing") - biz BufferingType.
+  // preserved kullandigimiz icin akisin asla "bitmemesini" bekliyorduk,
+  // ama pratikte turlar arasindaki bosluklarda handle gecersiz hale
+  // gelip yeni beslenen veri hic calinmiyor olabilir (kullanici raporu:
+  // ilk tur sesli, sonrakiler sessiz - veri basariyla akiyor ama ses
+  // duyulmuyor). Bu yuzden her ses parcasindan once handle'in hala
+  // gecerli olup olmadigini kontrol edip, degilse play()'i TEKRAR
+  // cagirip playback'i canlandiriyoruz.
+  SoundHandle? _playbackHandle;
+  bool _resumingPlayback = false;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -146,8 +159,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         bufferingTimeNeeds: 0.3,
       );
       _voiceDebugLog("play() cagriliyor");
-      await SoLoud.instance.play(_playbackSource!);
-      _voiceDebugLog("play() tamamlandi");
+      _playbackHandle = await SoLoud.instance.play(_playbackSource!);
+      _voiceDebugLog("play() tamamlandi (handle=$_playbackHandle)");
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
       _voiceDebugLog("baslatma HATASI: $e");
@@ -212,6 +225,35 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
       try {
         if (_playbackSource != null) {
+          // SoLoud dokumantasyonu: getIsValidVoiceHandle "Returns false
+          // if it's been stopped or if it finished playing." Yani
+          // BufferingType.preserved kullansak bile, turlar arasindaki
+          // bosluklarda handle dogal olarak "bitmis" sayilip gecersiz
+          // hale gelebiliyor - bu durumda addAudioDataStream veriyi
+          // basariyla arabellege eklese bile HICBIR SEY calinmiyor
+          // (kullanici raporu: ilk tur sesli, sonraki turlar veri akiyor
+          // ama sessiz). Her parcadan once handle'in hala gecerli olup
+          // olmadigini kontrol edip, degilse play()'i TEKRAR cagirip
+          // (unawaited - bu callback senkron kalmali, bkz. asagidaki
+          // _resumingPlayback bayragi re-entrancy koruması) playback'i
+          // canlandiriyoruz.
+          final handle = _playbackHandle;
+          if (!_resumingPlayback &&
+              (handle == null || !SoLoud.instance.getIsValidVoiceHandle(handle))) {
+            _resumingPlayback = true;
+            _voiceDebugLog("handle gecersiz - play() tekrar cagriliyor");
+            unawaited(
+              SoLoud.instance.play(_playbackSource!).then((newHandle) {
+                _playbackHandle = newHandle;
+                _resumingPlayback = false;
+                _voiceDebugLog("play() (resume) tamamlandi (handle=$newHandle)");
+              }).catchError((e) {
+                _resumingPlayback = false;
+                _voiceDebugLog("play() (resume) HATASI: $e");
+              }),
+            );
+          }
+
           _audioChunkCounter++;
           _voiceDebugLog("addAudioDataStream #$_audioChunkCounter cagriliyor");
           SoLoud.instance.addAudioDataStream(
@@ -426,6 +468,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     // kiyasla acik ara daha iyi, uygulama kapaninca isletim sistemi
     // zaten hepsini geri aliyor.
     _playbackSource = null;
+    _playbackHandle = null;
+    _resumingPlayback = false;
   }
 }
 
