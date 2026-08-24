@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 from google import genai
@@ -58,6 +59,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Aura'nin Flutter web derlemesi (2026-08-24, kullaniciya telefonundan
+# - Mac/Xcode gerektiren native iOS build yerine - bugun erisim vermek
+# icin eklendi). Onceden derlenip web_static/'e kopyalanmis statik
+# dosyalar - /app altinda ayni Railway servisinden sunuluyor, ayri bir
+# host/CORS derdi yok. html=True: eslesmeyen alt yollarda index.html'e
+# duser (Flutter'in kendi client-side yonlendirmesi icin SPA fallback).
+if os.path.isdir("web_static"):
+    app.mount("/app", StaticFiles(directory="web_static", html=True), name="web_app")
 
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 30
