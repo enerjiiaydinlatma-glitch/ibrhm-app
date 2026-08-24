@@ -57,11 +57,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // cagirip playback'i canlandiriyoruz.
   SoundHandle? _playbackHandle;
   bool _resumingPlayback = false;
-  // Her tur icin SADECE BIR KEZ unpause denemesi yapmak icin (bkz.
-  // _handleServerMessage'daki aciklama - her parcada denemek "kesik
-  // kesik ses"e yol aciyordu). turn_complete/interrupted'da true'ya
-  // donuyor ki BIR SONRAKI turun ilk parcasi yeniden bir deneme yapsin.
-  bool _turnNeedsResumeCheck = true;
+  // PAUSED durumu icin en fazla 300ms'de bir kontrol/unpause denemesi
+  // yapmak icin (throttle) - bkz. _handleServerMessage'daki aciklama.
+  DateTime? _lastResumeCheckTime;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -248,23 +246,31 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             // yeniden PAUSED buluyorduk, yani zorla erken uyandirmak
             // arabellegin (bufferingTimeNeeds: 0.3s) hic birikmeden
             // surekli tukenip yeniden duraklamasina yol aciyordu -
-            // dongusel bir kesinti. Cozum: turn basina SADECE BIR KEZ,
-            // kisa bir gecikmeyle (arabellek birikmesine firsat tanimak
-            // icin) unpause deniyoruz - bkz. _turnNeedsResumeCheck.
-            if (_turnNeedsResumeCheck) {
-              _turnNeedsResumeCheck = false;
-              Timer(const Duration(milliseconds: 350), () {
-                final h = _playbackHandle;
-                if (h == null) return;
-                try {
-                  if (SoLoud.instance.getPause(h)) {
-                    _voiceDebugLog("handle PAUSED (tur basi) - setPause(false) cagriliyor");
-                    SoLoud.instance.setPause(h, false);
-                  }
-                } catch (e) {
-                  _voiceDebugLog("getPause/setPause HATASI: $e");
+            // dongusel bir kesinti.
+            //
+            // TESHIS SONUCU 3: "turn basina sadece BIR KEZ" denemesi de
+            // yetersiz kaldi - bir sonraki testte 3. turda hic PAUSED
+            // tespiti olmadi ama yine ses gelmedi, yani duraklama TUR
+            // ICINDE de (sadece basinda degil) tekrar olusabiliyor.
+            // Cozum: ne her parcada, ne sadece turn basinda - en fazla
+            // 300ms'de BIR kontrol edilen (throttled) surekli bir kontrol.
+            // Bu, dongusel kesintiyi onlerken (300ms'den sik cagrilamaz)
+            // tur icinde herhangi bir noktada olusabilecek yeniden
+            // duraklamayi da yakalar.
+            final now = DateTime.now();
+            final dueForCheck = _lastResumeCheckTime == null ||
+                now.difference(_lastResumeCheckTime!) >
+                    const Duration(milliseconds: 300);
+            if (dueForCheck) {
+              _lastResumeCheckTime = now;
+              try {
+                if (SoLoud.instance.getPause(handle)) {
+                  _voiceDebugLog("handle PAUSED - setPause(false) cagriliyor");
+                  SoLoud.instance.setPause(handle, false);
                 }
-              });
+              } catch (e) {
+                _voiceDebugLog("getPause/setPause HATASI: $e");
+              }
             }
           } else if (!_resumingPlayback) {
             // Handle hic yoksa (beklenmedik durum) play()'i tekrar
@@ -329,7 +335,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             _voiceDebugLog("resetBufferStream HATASI: $e");
           }
         }
-        _turnNeedsResumeCheck = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -358,7 +363,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
         // Ayni source gorusme boyunca yasamaya devam ediyor - bir sonraki
         // turun sesi de dogrudan addAudioDataStream ile ayni akisa eklenir.
-        _turnNeedsResumeCheck = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -501,7 +505,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _playbackSource = null;
     _playbackHandle = null;
     _resumingPlayback = false;
-    _turnNeedsResumeCheck = true;
+    _lastResumeCheckTime = null;
   }
 }
 
