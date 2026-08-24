@@ -347,7 +347,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   Future<void> endCall() async {
+    _voiceDebugLog("===== endCall() cagrildi =====");
     await _cleanup();
+    _voiceDebugLog("endCall() - _cleanup() tamamlandi");
     state = const VoiceCallState();
   }
 
@@ -356,16 +358,28 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _unmuteTimer = null;
     _muteMic = false;
 
+    _voiceDebugLog("_micSubscription.cancel() cagriliyor");
     await _micSubscription?.cancel();
     _micSubscription = null;
+    _voiceDebugLog("_micSubscription.cancel() tamamlandi");
     try {
+      _voiceDebugLog("_recorder.stop() cagriliyor");
       await _recorder.stop();
-    } catch (_) {}
+      _voiceDebugLog("_recorder.stop() tamamlandi");
+    } catch (e) {
+      _voiceDebugLog("_recorder.stop() HATASI: $e");
+    }
     try {
+      _voiceDebugLog("_channel.sink.close() cagriliyor");
       await _channel?.sink.close();
-    } catch (_) {}
+      _voiceDebugLog("_channel.sink.close() tamamlandi");
+    } catch (e) {
+      _voiceDebugLog("_channel.sink.close() HATASI: $e");
+    }
     _channel = null;
+    _voiceDebugLog("WakelockPlus.disable() cagriliyor");
     await WakelockPlus.disable();
+    _voiceDebugLog("WakelockPlus.disable() tamamlandi");
 
     // Sadece kaynagi (source) degil, TUM SoLoud motorunu kapatiyoruz.
     // Motoru acik birakip sadece source'u dispose etmek, ayni uygulama
@@ -381,15 +395,22 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     // kapatirken) tek seferde serbest birakiyor.
     if (_playbackSource != null) {
       try {
+        _voiceDebugLog("setDataIsEnded() cagriliyor");
         SoLoud.instance.setDataIsEnded(_playbackSource!);
-      } catch (_) {}
+        _voiceDebugLog("setDataIsEnded() tamamlandi");
+      } catch (e) {
+        _voiceDebugLog("setDataIsEnded() HATASI: $e");
+      }
     }
     _playbackSource = null;
     if (_soloudReady) {
       try {
+        _voiceDebugLog("deinit() cagriliyor");
         SoLoud.instance.deinit();
+        _voiceDebugLog("deinit() tamamlandi");
       } catch (e) {
         debugPrint("SoLoud deinit hatasi: $e");
+        _voiceDebugLog("deinit() HATASI: $e");
       }
       _soloudReady = false;
     }
