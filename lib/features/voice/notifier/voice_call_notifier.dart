@@ -56,6 +56,16 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // sinyaline dayanan, tahmine degil kanita dayali bir tetikleyici.
   SoundHandle? _playbackHandle;
   bool _resumingPlayback = false;
+  // TESHIS (2026-08-24, onBuffering eklendikten SONRA): 2. turda ses
+  // sessiz kalirken teshis logu onBuffering'in HIC TETIKLENMEDIGINI
+  // gosterdi (yani motor "duraklatildi" bile demiyordu) - demek ki
+  // "paused" teorisi bu sefer yanlisti, handle muhtemelen dogrudan
+  // GECERSIZ/BITMIS hale geliyor. Her turun ILK ses parcasinda (bu
+  // bayrakla isaretlenen, chunk basina degil tur basina TEK SEFER)
+  // handle'in hala gecerli olup olmadigi kontrol ediliyor - gecersizse
+  // play() ile TAZE bir handle aliniyor (ayni source uzerinde), gecerli
+  // ama PAUSED ise setPause(false) deneniyor.
+  bool _awaitingFirstChunkOfTurn = true;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -124,6 +134,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _token = token;
     _autoRetryCount = 0;
     _limitReached = false;
+    _awaitingFirstChunkOfTurn = true;
     state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
   }
@@ -269,21 +280,57 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       try {
         if (_playbackSource != null) {
           final handle = _playbackHandle;
-          if (handle == null && !_resumingPlayback) {
-            // Handle hic yoksa (beklenmedik durum) play()'i tekrar
-            // cagirip bir tane olusturuyoruz.
-            _resumingPlayback = true;
-            _voiceDebugLog("handle yok - play() cagriliyor");
-            unawaited(
-              SoLoud.instance.play(_playbackSource!).then((newHandle) {
-                _playbackHandle = newHandle;
-                _resumingPlayback = false;
-                _voiceDebugLog("play() (resume) tamamlandi (handle=$newHandle)");
-              }).catchError((e) {
-                _resumingPlayback = false;
-                _voiceDebugLog("play() (resume) HATASI: $e");
-              }),
-            );
+
+          if ((_awaitingFirstChunkOfTurn || handle == null) &&
+              !_resumingPlayback) {
+            _awaitingFirstChunkOfTurn = false;
+            var needsFreshHandle = handle == null;
+            var needsUnpause = false;
+
+            if (handle != null) {
+              try {
+                final valid = SoLoud.instance.getIsValidVoiceHandle(handle);
+                _voiceDebugLog(
+                  "tur basi kontrol - handle=$handle valid=$valid",
+                );
+                if (!valid) {
+                  needsFreshHandle = true;
+                } else {
+                  final paused = SoLoud.instance.getPause(handle);
+                  _voiceDebugLog("tur basi kontrol - paused=$paused");
+                  needsUnpause = paused;
+                }
+              } catch (e) {
+                _voiceDebugLog("tur basi durum kontrolu HATASI: $e");
+              }
+            }
+
+            if (needsFreshHandle) {
+              // Handle ya hic yok, ya da gecersiz/bitmis - play()'i
+              // TEKRAR cagirip ayni source uzerinde TAZE bir handle
+              // aliniyor (source'un kendisi hic dispose edilmiyor).
+              _resumingPlayback = true;
+              _voiceDebugLog("handle yok/gecersiz - play() ile yenileniyor");
+              unawaited(
+                SoLoud.instance.play(_playbackSource!).then((newHandle) {
+                  _playbackHandle = newHandle;
+                  _resumingPlayback = false;
+                  _voiceDebugLog(
+                    "play() (yenileme) tamamlandi (handle=$newHandle)",
+                  );
+                }).catchError((e) {
+                  _resumingPlayback = false;
+                  _voiceDebugLog("play() (yenileme) HATASI: $e");
+                }),
+              );
+            } else if (needsUnpause && handle != null) {
+              try {
+                _voiceDebugLog("tur basi setPause(false) cagriliyor");
+                SoLoud.instance.setPause(handle, false);
+              } catch (e) {
+                _voiceDebugLog("tur basi setPause HATASI: $e");
+              }
+            }
           }
 
           _audioChunkCounter++;
@@ -317,6 +364,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         );
       } else if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi (chunk #$_audioChunkCounter)");
+        _awaitingFirstChunkOfTurn = true;
         // Aura'nin sozu kesildi - hala tamponda bekleyen (henuz calinmamis)
         // sesi temizlemek icin resetBufferStream() kullaniyoruz (resmi
         // ornekteki desen). Bu, disposeSource()'in aksine TAMAMEN SENKRON
@@ -347,6 +395,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         }
       } else if (type == "turn_complete") {
         _voiceDebugLog("turn_complete alindi (chunk #$_audioChunkCounter)");
+        _awaitingFirstChunkOfTurn = true;
         final userText = (data["user_text"] as String?)?.trim();
         final assistantText = (data["assistant_text"] as String?)?.trim();
 
@@ -502,6 +551,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _playbackSource = null;
     _playbackHandle = null;
     _resumingPlayback = false;
+    _awaitingFirstChunkOfTurn = true;
   }
 }
 
