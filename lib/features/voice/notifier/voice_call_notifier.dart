@@ -161,13 +161,42 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   Future<void> _connect() async {
-    final hasMicPermission = await _recorder.hasPermission();
+    // BULUNDU (2026-08-24, web/Safari testi): bu kontrol hicbir try/catch
+    // icinde degildi - Safari'nin mikrofon izin API'si masaustu
+    // tarayicilardan/Windows'tan farkli davranabiliyor (bazen throw
+    // ediyor, bazen sessizce false donuyor). Ayrica TUM hata dallarinda
+    // errorMessage hic set edilmiyordu - kullaniciya sadece jenerik
+    // "Baglanti sorunu" gorunuyordu, hangi adimin basarisiz oldugu
+    // (izin mi, ses motoru mu, sunucu mu, mikrofon akisi mi) hic
+    // belli olmuyordu. Artik her adim ayirt edilebilir bir mesaj birakiyor.
+    bool hasMicPermission;
+    try {
+      hasMicPermission = await _recorder.hasPermission();
+    } catch (e) {
+      _voiceDebugLog("hasPermission() HATASI: $e");
+      state = state.copyWith(
+        status: VoiceCallStatus.error,
+        errorMessage: "Mikrofon izni kontrol edilemedi: $e",
+      );
+      return;
+    }
     if (!hasMicPermission) {
-      state = state.copyWith(status: VoiceCallStatus.error);
+      _voiceDebugLog("mikrofon izni yok");
+      state = state.copyWith(
+        status: VoiceCallStatus.error,
+        errorMessage:
+            "Mikrofon izni verilmedi. Tarayıcı/telefon ayarlarından "
+            "mikrofon iznini kontrol et.",
+      );
       return;
     }
 
-    await WakelockPlus.enable();
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      // Ekranin acik kalmasi kritik degil - gorusmeyi bu yuzden iptal etme.
+      _voiceDebugLog("WakelockPlus.enable() HATASI (yoksayildi): $e");
+    }
 
     try {
       if (!SoLoud.instance.isInitialized) {
@@ -244,7 +273,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
       _voiceDebugLog("baslatma HATASI: $e");
-      state = state.copyWith(status: VoiceCallStatus.error);
+      state = state.copyWith(
+        status: VoiceCallStatus.error,
+        errorMessage: "Ses motoru başlatılamadı: $e",
+      );
       return;
     }
 
@@ -264,7 +296,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       );
     } catch (e) {
       debugPrint("WebSocket baglanti hatasi: $e");
-      state = state.copyWith(status: VoiceCallStatus.error);
+      state = state.copyWith(
+        status: VoiceCallStatus.error,
+        errorMessage: "Sunucuya bağlanılamadı: $e",
+      );
       return;
     }
 
@@ -283,7 +318,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       });
     } catch (e) {
       debugPrint("Mikrofon akis hatasi: $e");
-      state = state.copyWith(status: VoiceCallStatus.error);
+      state = state.copyWith(
+        status: VoiceCallStatus.error,
+        errorMessage: "Mikrofon akışı başlatılamadı: $e",
+      );
       return;
     }
 

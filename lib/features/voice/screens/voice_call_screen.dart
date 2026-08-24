@@ -81,7 +81,10 @@ class VoiceCallBar extends ConsumerWidget {
                   ? callState.errorMessage!
                   : "Sesli görüşme • ${_statusText(callState.status)}",
               style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
-              maxLines: 2,
+              // Teknik hata mesajlari (orn. web/Safari istisna metinleri)
+              // uzun olabiliyor - teshis icin okunabilir kalsin diye 2'den
+              // 4'e cikarildi.
+              maxLines: 4,
               overflow: TextOverflow.ellipsis,
             ),
           ),
