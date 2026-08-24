@@ -78,6 +78,25 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   Timer? _unmuteTimer;
   int _audioChunkCounter = 0;
 
+  // BULUNDU (2026-08-24, kullanici raporu + ekran goruntusu: bir "user"
+  // baloncugunda Aura'nin BIR ONCEKI cumlesi BIREBIR AYNI sekilde
+  // beliriyordu): eski sabit "turn_complete'ten 500ms sonra ac" mantigi
+  // YANLIS varsayima dayaliydi - Gemini turn_complete'i "tum sesi
+  // URETTIM" anlaminda gonderiyor, "hoparlorden CALINDI" degil. Veri
+  // agdan hizli gelip SoLoud tamponunda BIRIKMIS olabilir, hoparlorden
+  // fiziksel olarak calinmasi hala saniyeler surebilir - 500ms bu sure
+  // dolmadan mikrofonu aciyordu, Aura'nin kendi sesi mikrofona sizip
+  // Gemini'ye "yeni kullanici sesi" olarak gidiyor, Gemini de kendi
+  // soyledigi cumleyi bal gibi transkript ediyordu (TTS sesi net oldugu
+  // icin ASR'nin bunu dogru okumasi kolay - iste bu yuzden "user" mesaji
+  // Aura'nin cumlesiyle harfiyen ayniydi). Fix: sabit sure yerine
+  // SoLoud'un GERCEK calma pozisyonunu (getPosition) izleyip, o tura ait
+  // TUM ses verisi fiilen calininca mikrofonu aciyoruz - bkz.
+  // _scheduleUnmuteWhenPlaybackCatchesUp().
+  int _bufferedDurationMs = 0;
+  static const int _pcmBytesPerMs = 48; // 24000 Hz * 1 kanal * 2 bayt / 1000
+  Timer? _unmuteCheckTimer;
+
   // Beklenmedik baglanti kopmasi (Gemini konjesyonu, gecici ag sorunu vb.)
   // durumunda kullaniciyi elle "tekrar dene" tusuna basmaya zorlamadan
   // OTOMATIK olarak yeniden baglanmayi dener. Gercekten baglanamiyor
@@ -121,6 +140,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   VoiceCallState build() {
     ref.onDispose(() {
       _unmuteTimer?.cancel();
+      _unmuteCheckTimer?.cancel();
       _micSubscription?.cancel();
       _channel?.sink.close();
       WakelockPlus.disable();
@@ -131,6 +151,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   Future<void> startCall(String token) async {
     _voiceDebugLog("===== startCall() =====");
     _audioChunkCounter = 0;
+    _bufferedDurationMs = 0;
     _token = token;
     _autoRetryCount = 0;
     _limitReached = false;
@@ -275,7 +296,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       // Aura'nin sesi hoparlorden cikmaya baslayacak - yanki dongusune
       // girmemek icin mikrofonu hemen sustur (bkz. _muteMic aciklamasi).
       _unmuteTimer?.cancel();
+      _unmuteCheckTimer?.cancel();
       _muteMic = true;
+      _bufferedDurationMs += (message.length / _pcmBytesPerMs).round();
 
       try {
         if (_playbackSource != null) {
@@ -308,7 +331,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             if (needsFreshHandle) {
               // Handle ya hic yok, ya da gecersiz/bitmis - play()'i
               // TEKRAR cagirip ayni source uzerinde TAZE bir handle
-              // aliniyor (source'un kendisi hic dispose edilmiyor).
+              // aliniyor (source'un kendisi hic dispose edilmiyor). Yeni
+              // handle'in konumu (getPosition) 0'dan baslayacagi icin
+              // tur-suresi sayacimizi da esitliyoruz - aksi halde
+              // _scheduleUnmuteWhenPlaybackCatchesUp eski, artik gecersiz
+              // handle'a ait birikmis bir sureyle kiyaslayip mikrofonu
+              // gereksiz yere uzun sure kapali tutabilirdi.
+              _bufferedDurationMs = 0;
               _resumingPlayback = true;
               _voiceDebugLog("handle yok/gecersiz - play() ile yenileniyor");
               unawaited(
@@ -380,7 +409,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             _voiceDebugLog("resetBufferStream HATASI: $e");
           }
         }
-        _scheduleUnmute();
+        // resetBufferStream() calinmamis kuyrugu ve pozisyonu sifirladi -
+        // bizim tur-suresi sayacimizi da esitliyoruz.
+        _bufferedDurationMs = 0;
+        _scheduleUnmuteWhenPlaybackCatchesUp();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
           liveAssistantText: "",
@@ -409,7 +441,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
         // Ayni source gorusme boyunca yasamaya devam ediyor - bir sonraki
         // turun sesi de dogrudan addAudioDataStream ile ayni akisa eklenir.
-        _scheduleUnmute();
+        _scheduleUnmuteWhenPlaybackCatchesUp();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
           liveUserText: "",
@@ -421,16 +453,77 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     }
   }
 
-  /// Aura'nin turu bittikten sonra mikrofonu HEMEN degil, kisa bir
-  /// gecikmeyle acar - SoLoud tamponunda (bufferingTimeNeeds: 0.3s) hala
-  /// calinmakta olan son ses kuyrugunun hoparlorden tamamen bitmesini
-  /// bekleriz, yoksa o kuyruk da mikrofona sizip yeni bir yanki dongusu
-  /// baslatabilir.
+  /// ESKI YONTEM (artik sadece handle yokken / getPosition basarisiz
+  /// olunca YEDEK olarak kullaniliyor): sabit 500ms bekleyip mikrofonu
+  /// acar. Gercek kalan ses suresini bilmedigi icin (bkz.
+  /// _scheduleUnmuteWhenPlaybackCatchesUp) YANLIS pozitif/negatif
+  /// verebilir - o yuzden artik ana yol degil, sadece guvenlik agi.
   void _scheduleUnmute() {
     _unmuteTimer?.cancel();
     _unmuteTimer = Timer(const Duration(milliseconds: 500), () {
       _muteMic = false;
     });
+  }
+
+  /// Mikrofonu, Aura'nin sesi hoparlorden GERCEKTEN bitene kadar acmaz.
+  ///
+  /// KOK SEBEP (2026-08-24, kullanici raporu: bir "user" baloncugunda
+  /// Aura'nin bir onceki cumlesi harfiyen tekrar ediyordu): turn_complete
+  /// sadece "Gemini tum sesi URETTI" demek, "hoparlorden CALINDI" degil.
+  /// Ag + SoLoud tamponu veriyi gercek zamanin ONUNDE alabiliyor - yani
+  /// turn_complete geldiginde hala saniyelerce calinmamis ses kuyrukta
+  /// olabilir. Sabit bir gecikme (eski _scheduleUnmute) bunu bilemez.
+  ///
+  /// Bunun yerine, bu tur icin EKLENEN toplam ses suresini (_bufferedDurationMs,
+  /// 24kHz/mono/s16le PCM byte sayisindan hesaplaniyor) SoLoud'un GERCEK
+  /// calma pozisyonuyla (getPosition, BufferingType.preserved icin
+  /// gecerli konum bilgisi verir) karsilastirip, ikisi esitlenene (kuyruk
+  /// fiilen tukenene) kadar kisa araliklarla tekrar tekrar kontrol eder.
+  /// Donanim/OS ses mikser gecikmesi icin kucuk bir ek pay birakilir.
+  /// getPosition basarisiz olursa ya da handle yoksa, sonsuza kadar
+  /// mikrofonu kapali birakmamak icin eski sabit-sureli yonteme duser.
+  void _scheduleUnmuteWhenPlaybackCatchesUp() {
+    _unmuteTimer?.cancel();
+    _unmuteCheckTimer?.cancel();
+
+    final handle = _playbackHandle;
+    if (handle == null) {
+      _voiceDebugLog("unmute-check: handle yok, eski sabit sureye donuluyor");
+      _scheduleUnmute();
+      return;
+    }
+
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
+
+    void check() {
+      int remainingMs;
+      try {
+        final positionMs = SoLoud.instance.getPosition(handle).inMilliseconds;
+        remainingMs = _bufferedDurationMs - positionMs;
+      } catch (e) {
+        _voiceDebugLog("unmute-check getPosition HATASI, mikrofon aciliyor: $e");
+        _muteMic = false;
+        return;
+      }
+
+      if (remainingMs <= 150 || DateTime.now().isAfter(deadline)) {
+        _voiceDebugLog(
+          "unmute-check: kuyruk tukendi (kalan=${remainingMs}ms) - "
+          "mikrofon aciliyor",
+        );
+        _muteMic = false;
+        return;
+      }
+
+      _unmuteCheckTimer = Timer(
+        Duration(milliseconds: remainingMs.clamp(50, 400)),
+        check,
+      );
+    }
+
+    // Aura'nin sesinin hoparlorden fiziksel olarak CIKMASI icin (donanim/
+    // OS mixer gecikmesi) ilk kontrolden once kucuk bir pay birakiyoruz.
+    _unmuteCheckTimer = Timer(const Duration(milliseconds: 150), check);
   }
 
   /// Baglanti kullanicinin KENDI istegi disinda koptuysa (Gemini
@@ -504,7 +597,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   Future<void> _cleanup() async {
     _unmuteTimer?.cancel();
     _unmuteTimer = null;
+    _unmuteCheckTimer?.cancel();
+    _unmuteCheckTimer = null;
     _muteMic = false;
+    _bufferedDurationMs = 0;
 
     _voiceDebugLog("_micSubscription.cancel() cagriliyor");
     await _micSubscription?.cancel();
