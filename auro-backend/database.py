@@ -537,12 +537,22 @@ def send_friend_request(user_id: int, friend_email: str) -> bool:
     return True
 
 
-def accept_friend_request(friendship_id: int):
+def accept_friend_request(friendship_id: int, caller_user_id: int) -> bool:
+    """
+    GUVENLIK TARAMASI BULGUSU (IDOR): daha once caller'in bu istegin
+    ALICISI (friend_user_id) olup olmadigi HIC kontrol edilmiyordu -
+    istegi GONDEREN kullanici da (friendship_id'yi bilerek/tahmin ederek)
+    kendi istegini kendisi onaylayabiliyordu, bu da hedef kullanicinin
+    onayi olmadan onun 'arkadasa ozel' hikayelerine erisim kazandiriyordu.
+    Artik sadece caller GERCEKTEN o istegin alicisiysa satir guncelleniyor.
+    """
     with db_cursor(commit=True) as conn:
-        conn.execute(
-            "UPDATE friends SET status = 'accepted' WHERE id = ?",
-            (friendship_id,)
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE friends SET status = 'accepted' WHERE id = ? AND friend_user_id = ?",
+            (friendship_id, caller_user_id)
         )
+        return cursor.rowcount > 0
 
 
 def get_friends(user_id: int) -> List[dict]:

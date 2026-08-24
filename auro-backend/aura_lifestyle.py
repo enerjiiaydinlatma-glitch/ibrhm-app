@@ -61,7 +61,15 @@ def get_weather_nudge(user: dict) -> str:
                 "longitude": lon,
                 "current": "temperature_2m,weather_code",
             },
-            timeout=5,
+            # GUVENLIK TARAMASI BULGUSU: bu senkron cagri her /api/chat
+            # isteginde (weather_enabled acikken) FastAPI'nin sinirli
+            # worker thread pool'undan bir thread'i isgal ediyor - 5sn
+            # cok uzundu, reklam trafigiyle es zamanli istek sayisi
+            # artinca thread pool'u tuketip ILGISIZ isteklerin (login,
+            # profil vb.) de yavaslamasina/timeout olmasina yol acabilirdi.
+            # 2sn'ye dusuruldu - Open-Meteo normalde cok daha hizli yanit
+            # veriyor, yavassa nudge'i atlamak thread'i kilitlemekten iyi.
+            timeout=2,
         )
         response.raise_for_status()
         current = response.json().get("current", {})

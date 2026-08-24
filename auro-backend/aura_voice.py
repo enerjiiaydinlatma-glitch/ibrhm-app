@@ -52,6 +52,17 @@ dogal sekilde, abartmadan belirtebilirsin.
 
 _client = genai.Client(api_key=aura_brain.GEMINI_API_KEY)
 
+# GUVENLIK TARAMASI BULGUSU (2026-08-24, reklam kampanyasi oncesi son
+# tarama): gunluk sesli limiti SADECE baglanti anda kontrol ediliyordu -
+# bir kez baglanip HIC KAPATMAYAN (ya da hatali/kotu niyetli) bir istemci
+# 600sn siniri asip saatlerce Gemini Live'in en pahali cagrisini
+# tuketebiliyordu, ustelik AYNI kullanici birden fazla ES ZAMANLI
+# baglanti acip (her biri baglanti aninda "0/600sn kullanilmis" gorup)
+# limiti kat kat asabiliyordu. Bu process-ici (tek Railway instance
+# varsayimiyla) basit bir es zamanlilik korumasi - free tier kullanicilar
+# ayni anda sadece BIR sesli oturum acabiliyor.
+_active_voice_users: set[int] = set()
+
 
 async def handle_voice_session(websocket: WebSocket) -> None:
     await websocket.accept()
@@ -63,13 +74,24 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         await websocket.close(code=4001)
         return
 
-    if (
-        user.get("tier") != "pro"
-        and database.get_voice_usage_seconds(user["id"]) >= VOICE_DAILY_LIMIT_SECONDS
-    ):
+    free_tier = user.get("tier") != "pro"
+    already_used_seconds = database.get_voice_usage_seconds(user["id"]) if free_tier else 0
+
+    if free_tier and already_used_seconds >= VOICE_DAILY_LIMIT_SECONDS:
         await websocket.send_text(json.dumps({
             "type": "limit_reached",
             "message": VOICE_LIMIT_REACHED_MESSAGE,
+        }))
+        await websocket.close(code=4003)
+        return
+
+    if free_tier and user["id"] in _active_voice_users:
+        # Ayni kullanicidan ikinci, es zamanli bir sesli baglanti - kabul
+        # etmiyoruz (aksi halde limit kontrolu ikisinde de "0'dan
+        # basliyor" gorunup limiti katlayarak asardi).
+        await websocket.send_text(json.dumps({
+            "type": "limit_reached",
+            "message": "Zaten açık bir sesli görüşmen var. Önce onu kapat.",
         }))
         await websocket.close(code=4003)
         return
@@ -135,6 +157,13 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         if assistant_text:
             database.add_message(user["id"], "assistant", assistant_text)
 
+    # Es zamanlilik rezervasyonu, artik gercekten baglanmaya calismadan
+    # HEMEN once yapiliyor - bundan sonrasi zaten mevcut try/finally
+    # tarafindan korunuyor (finally'de mutlaka geri dusuruluyor), yani
+    # rezervasyon hicbir zaman "sahipsiz" kalamaz.
+    if free_tier:
+        _active_voice_users.add(user["id"])
+
     try:
         async with _client.aio.live.connect(model=VOICE_MODEL, config=config) as session:
 
@@ -170,6 +199,26 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                 total_chunks = 0
                 turn_number = 0
                 while True:
+                    # GUVENLIK TARAMASI BULGUSU: daha once limit SADECE
+                    # baglanti aninda kontrol ediliyordu - bu oturum ne
+                    # kadar uzarsa uzasin bir daha hic kontrol edilmiyordu.
+                    # Her yeni tur basinda (mid-sentence degil, dogal tur
+                    # sinirinda) o ana kadarki toplam kullanimi (bugun
+                    # onceden kullanilan + bu oturumda gecen sure) tekrar
+                    # kontrol edip, asildiysa oturumu duzgunce kapatiyoruz.
+                    if free_tier:
+                        elapsed_this_session = time.time() - session_start_time
+                        if already_used_seconds + elapsed_this_session >= VOICE_DAILY_LIMIT_SECONDS:
+                            print(
+                                f"VOICE SESSION: gunluk sesli limit oturum "
+                                f"SIRASINDA asildi (user={user['id']}, "
+                                f"{turn_number}. tur), kapatiliyor"
+                            )
+                            await websocket.send_text(json.dumps({
+                                "type": "limit_reached",
+                                "message": VOICE_LIMIT_REACHED_MESSAGE,
+                            }))
+                            return
                     turn_number += 1
                     got_any_content = False
                     turn_audio_chunks = 0
@@ -277,6 +326,10 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         if user.get("tier") != "pro":
             elapsed_seconds = int(time.time() - session_start_time)
             database.add_voice_usage_seconds(user["id"], elapsed_seconds)
+            # Es zamanlilik korumasi icin eklenmisti (bkz. yukarida) -
+            # oturum nasil biterse bitsin mutlaka geri dusuruluyor, yoksa
+            # bu kullanici bir daha HICBIR sesli gorusme baslatamazdi.
+            _active_voice_users.discard(user["id"])
         try:
             await websocket.close()
         except Exception:

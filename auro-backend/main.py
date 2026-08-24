@@ -210,6 +210,19 @@ def claim_account(req: ClaimAccountRequest, authorization: Optional[str] = Heade
     satiri guncellenir, tum gecmis/hafiza korunur.
     """
     user = get_current_user(authorization)
+    # GUVENLIK TARAMASI BULGUSU: bu endpoint mevcut sifre dogrulanmadan
+    # dogrudan email+sifre DEGISTIRIYORDU - hesap zaten claim edilmisse
+    # (is_anonymous=0) bile tekrar cagirilabiliyordu. Sizmis/paylasilmis
+    # bir session token'i (or. ortak cihaz), gercek sahibi fark etmeden
+    # hesabi KALICI olarak ele gecirip kilitleyebilirdi. Gercek bir
+    # "sifre degistir" akisi (mevcut sifreyi dogrulayan) henuz yok - o
+    # gelene kadar zaten claim edilmis hesaplarda bu endpoint'i tamamen
+    # kapatiyoruz.
+    if user.get("is_anonymous") == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Bu hesap zaten kaydedilmiş. Şifre değiştirmek için giriş ekranını kullan.",
+        )
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
     success = database.claim_account(user["id"], req.email, req.password)
@@ -285,6 +298,14 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
     past_messages = database.get_messages(user["id"])
     if past_messages:
         return {"reply": None}
+    # GUVENLIK TARAMASI BULGUSU: bu endpoint gunluk mesaj limitinden
+    # muafti - DELETE /api/history (limitsiz) ile birlikte dongude
+    # cagirilirsa sinirsiz ucretsiz Gemini cagrisi uretilebiliyordu.
+    # Diger AI-uretim endpoint'leriyle ayni limite tabi tutuldu.
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"], LIMIT_DAILY_MESSAGES
+    ):
+        return {"reply": None}
     reply_text = aura_brain.generate_onboarding_opening(user)
     database.add_message(user["id"], "assistant", reply_text)
     return {"reply": reply_text}
@@ -321,7 +342,13 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     try:
         response = aura_brain.generate_with_retry(contents, aura_brain.build_system_instruction(user, message_count))
         reply_text = response.text
-    except genai_errors.ServerError:
+    except (genai_errors.ServerError, genai_errors.ClientError):
+        # GUVENLIK TARAMASI BULGUSU: sadece ServerError (5xx) yakalaniyordu
+        # - Gemini'nin KENDI kota/rate-limit hatasi (429, ClientError'in
+        # bir alt sinifi degil KARDESI - google/genai/errors.py) reklam
+        # trafigiyle GEMINI_API_KEY kotasi zorlanirsa gerceklesebilir ve
+        # (Groq fallback de basarisiz olursa) yakalanmadan ciplak 500
+        # olarak kullaniciya sizardi.
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
     reply_text = aura_brain.sanitize_reply(reply_text, message_count)
     database.add_message(user["id"], "assistant", reply_text)
@@ -339,6 +366,16 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
     "user",
     request.message
 )
+    # GUVENLIK TARAMASI BULGUSU: /api/chat'in aksine bu endpoint gunluk
+    # mesaj limitine HIC tabi degildi - Flutter istemcisi bunu cagirmiyor
+    # (dead code) ama endpoint canli oldugu icin URL'yi bilen herkes
+    # sinirsiz ucretsiz Gemini cagrisi uretebiliyordu. Ayni limit eklendi.
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"], LIMIT_DAILY_MESSAGES
+    ):
+        def limit_reached_generator():
+            yield LIMIT_REACHED_REPLY
+        return StreamingResponse(limit_reached_generator(), media_type="text/plain; charset=utf-8")
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
@@ -359,7 +396,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
                 if chunk.text:
                     collected.append(chunk.text)
                     yield chunk.text
-        except genai_errors.ServerError:
+        except (genai_errors.ServerError, genai_errors.ClientError):
             if not collected:
                 fallback = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
                 collected.append(fallback)
@@ -390,6 +427,15 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
     # sinirsiz istek atip maliyet/kota tuketebilirdi. Diger tum
     # endpoint'lerle ayni desene getirildi.
     get_current_user(authorization)
+
+    # GUVENLIK TARAMASI BULGUSU: metin uzunluguna hicbir sinir yoktu -
+    # ElevenLabs karakter basina ucretlendiriyor, tek bir cok uzun metin
+    # (veya tekrarlanan cagrilar) beklenmedik maliyete yol acabilirdi.
+    if len(request.text) > 2000:
+        raise HTTPException(
+            status_code=400,
+            detail="Seslendirilecek metin çok uzun (en fazla 2000 karakter).",
+        )
 
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -442,7 +488,14 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
 
 @app.post("/api/analyze")
 def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
+    user = get_current_user(authorization)
+    # GUVENLIK TARAMASI BULGUSU: bu endpoint (goruntu analizi - en pahali
+    # cagri turlerinden biri) HICBIR gunluk limite tabi degildi. Diger
+    # AI-uretim endpoint'leriyle ayni limite tabi tutuldu.
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"], LIMIT_DAILY_MESSAGES
+    ):
+        raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
     try:
         image_bytes = base64.b64decode(request.image_base64)
         prompt = (
@@ -478,7 +531,14 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
 
 @app.post("/api/story")
 def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
+    user = get_current_user(authorization)
+    # GUVENLIK TARAMASI BULGUSU: hikaye modu da HICBIR gunluk limite tabi
+    # degildi, ustelik client'in gonderdigi 'history' listesi sinirsiz
+    # buyuklukte olabiliyordu (her cagrida Gemini'ye tekrar gonderiliyor).
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"], LIMIT_DAILY_MESSAGES
+    ):
+        raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
     system = (
         "Sen Aura'sin, yetenekli bir hikaye anlaticinsin. "
         "Kullanici ile interaktif hikaye yaratiyorsunuz. "
@@ -491,7 +551,10 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
         contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
     else:
         contents = []
-        for msg in request.history:
+        # Client'in gonderdigi history sinirsiz buyuklukte olabilirdi -
+        # son MAX_HISTORY_MESSAGES kadarina kirpiliyor (diger tum
+        # gecmis kullanimlarindaki desenle tutarli).
+        for msg in request.history[-MAX_HISTORY_MESSAGES:]:
             role = "model" if msg.get("role") == "assistant" else "user"
             contents.append(types.Content(role=role, parts=[types.Part(text=msg.get("text", ""))]))
         if request.action:
@@ -532,8 +595,10 @@ def friend_request(req: FriendRequest, authorization: Optional[str] = Header(Non
 
 @app.post("/api/friends/{friendship_id}/accept")
 def accept_friend(friendship_id: int, authorization: Optional[str] = Header(None)):
-    get_current_user(authorization)
-    database.accept_friend_request(friendship_id)
+    user = get_current_user(authorization)
+    ok = database.accept_friend_request(friendship_id, user["id"])
+    if not ok:
+        raise HTTPException(status_code=404, detail="Arkadaşlık isteği bulunamadı.")
     return {"status": "arkadas kabul edildi"}
 
 
