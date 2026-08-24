@@ -1,5 +1,6 @@
 import "dart:async";
 import "dart:convert";
+import "dart:io";
 
 import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -10,6 +11,25 @@ import "package:web_socket_channel/web_socket_channel.dart";
 
 import "../../chat/notifier/chat_notifier.dart";
 import "../models/voice_call_state.dart";
+
+/// GECICI TESHIS ARACI (2. kez eklendi - donma tekrarladi). Release
+/// build'de console gorunmuyor, o yuzden her riskli native cagridan
+/// HEMEN ONCE diske senkron, flush edilmis bir satir yaziyoruz - donma
+/// o cagrinin TAM ICINDE olsa bile "cagriya girildi" satiri diskte kalir.
+/// Bu sefer addAudioDataStream de dahil (once bunu loglamamistik).
+final File _voiceDebugLogFile = File(
+  "${Directory.systemTemp.path}\\aura_voice_debug.log",
+);
+
+void _voiceDebugLog(String message) {
+  try {
+    _voiceDebugLogFile.writeAsStringSync(
+      "${DateTime.now().toIso8601String()} $message\n",
+      mode: FileMode.append,
+      flush: true,
+    );
+  } catch (_) {}
+}
 
 /// Aura ile gercek zamanli, tam serbest (interrupt edilebilir) sesli
 /// gorusme. Chat ekranindan hicbir zaman ayrilmaz - bir Notifier olarak
@@ -35,6 +55,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // dogal sirayla akar, sadece Aura'nin sozu bu sirada kesilemez.
   bool _muteMic = false;
   Timer? _unmuteTimer;
+  int _audioChunkCounter = 0;
 
   // Beklenmedik baglanti kopmasi (Gemini konjesyonu, gecici ag sorunu vb.)
   // durumunda kullaniciyi elle "tekrar dene" tusuna basmaya zorlamadan
@@ -74,6 +95,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   }
 
   Future<void> startCall(String token) async {
+    _voiceDebugLog("===== startCall() =====");
+    _audioChunkCounter = 0;
     _token = token;
     _autoRetryCount = 0;
     _limitReached = false;
@@ -92,12 +115,15 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
     try {
       if (!SoLoud.instance.isInitialized) {
+        _voiceDebugLog("init() cagriliyor");
         await SoLoud.instance.init();
+        _voiceDebugLog("init() tamamlandi");
       }
       _soloudReady = true;
 
       // Resmi flutter_soloud WebSocket ornegindeki desen: TEK bir
       // AudioSource, TEK bir play() cagrisi - tum gorusme boyunca.
+      _voiceDebugLog("setBufferStream() cagriliyor");
       _playbackSource = SoLoud.instance.setBufferStream(
         sampleRate: 24000,
         channels: Channels.mono,
@@ -108,9 +134,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
         bufferingTimeNeeds: 0.3,
       );
+      _voiceDebugLog("play() cagriliyor");
       await SoLoud.instance.play(_playbackSource!);
+      _voiceDebugLog("play() tamamlandi");
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
+      _voiceDebugLog("baslatma HATASI: $e");
       state = state.copyWith(status: VoiceCallStatus.error);
       return;
     }
@@ -172,13 +201,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
       try {
         if (_playbackSource != null) {
+          _audioChunkCounter++;
+          _voiceDebugLog("addAudioDataStream #$_audioChunkCounter cagriliyor");
           SoLoud.instance.addAudioDataStream(
             _playbackSource!,
             Uint8List.fromList(message),
           );
+          _voiceDebugLog("addAudioDataStream #$_audioChunkCounter tamamlandi");
         }
       } catch (e) {
         debugPrint("SoLoud playback hatasi: $e");
+        _voiceDebugLog("addAudioDataStream HATASI: $e");
       }
 
       if (state.status != VoiceCallStatus.auraSpeaking) {
@@ -198,6 +231,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           errorMessage: data["message"] as String?,
         );
       } else if (type == "interrupted") {
+        _voiceDebugLog("interrupted alindi (chunk #$_audioChunkCounter)");
         // Aura'nin sozu kesildi - hala tamponda bekleyen (henuz calinmamis)
         // sesi temizlemek icin resetBufferStream() kullaniyoruz (resmi
         // ornekteki desen). Bu, disposeSource()'in aksine TAMAMEN SENKRON
@@ -205,9 +239,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         // source gorusme boyunca yasamaya devam ediyor.
         if (_playbackSource != null) {
           try {
+            _voiceDebugLog("resetBufferStream() cagriliyor");
             SoLoud.instance.resetBufferStream(_playbackSource!);
+            _voiceDebugLog("resetBufferStream() tamamlandi");
           } catch (e) {
             debugPrint("resetBufferStream hatasi: $e");
+            _voiceDebugLog("resetBufferStream HATASI: $e");
           }
         }
         _scheduleUnmute();
@@ -224,6 +261,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           state = state.copyWith(liveAssistantText: text);
         }
       } else if (type == "turn_complete") {
+        _voiceDebugLog("turn_complete alindi (chunk #$_audioChunkCounter)");
         final userText = (data["user_text"] as String?)?.trim();
         final assistantText = (data["assistant_text"] as String?)?.trim();
 
