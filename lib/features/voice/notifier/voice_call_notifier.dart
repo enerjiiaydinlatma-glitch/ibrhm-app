@@ -415,20 +415,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     // sonraki startCall() zaten `if (!isInitialized) init()` ile motoru
     // sifirdan baslatiyor - kucuk bir gecikme pahasina saglamlik kazaniyoruz.
     //
-    // Resmi ornekteki gibi: kapanistan once akisin bittigini isaretle
-    // (setDataIsEnded, tamamen senkron/hafif bir cagri - disposeSource
-    // gibi kaynak yok etmiyor). AYRICA disposeSource() cagirmiyoruz -
-    // deinit() zaten TUM kaynaklari (disposeAllSound() ile, motoru
-    // kapatirken) tek seferde serbest birakiyor.
-    if (_playbackSource != null) {
-      try {
-        _voiceDebugLog("setDataIsEnded() cagriliyor");
-        SoLoud.instance.setDataIsEnded(_playbackSource!);
-        _voiceDebugLog("setDataIsEnded() tamamlandi");
-      } catch (e) {
-        _voiceDebugLog("setDataIsEnded() HATASI: $e");
-      }
-    }
+    // KRITIK BULUNAN 2. BUG (teshis loguyla kanitlandi): setDataIsEnded()
+    // - "hafif/senkron, kaynak yok etmiyor" diye guvenli sanilmisti - ama
+    // TEK BASINA, hicbir re-entrancy olmadan bile, dogrudan senkron FFI
+    // cagrisi (play()/disposeSource() ile AYNI risk deseni) UI thread'ini
+    // kilitleyebiliyordu. Bu cagriya zaten ihtiyacimiz yok: hemen altta
+    // cagirdigimiz deinit() TUM kaynaklari (disposeAllSound() ile) zaten
+    // zorla serbest birakiyor - setDataIsEnded() sadece "duzgun/kademeli"
+    // bir kapanis icin ekstra bir nezaketti, artik kaldirildi.
     _playbackSource = null;
     if (_soloudReady) {
       try {
