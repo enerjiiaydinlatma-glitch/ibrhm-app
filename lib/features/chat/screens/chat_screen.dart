@@ -541,6 +541,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    // BULUNDU: canli altyazi metni (liveUserText/liveAssistantText)
+    // partial_transcript geldikce GERCEKTEN aninda guncelleniyordu, ama
+    // ekran hic asagi kaymiyordu - sadece chatProvider degisince (yani
+    // turn_complete ile KALICI mesaj eklendiginde) yukaridaki listener
+    // kaydirma yapiyordu. Sonuc: kullanici metnin akmadigini, hepsinin
+    // tur bitince BIRDEN goründugunu saniyordu - aslinda akiyordu ama
+    // ekranin disinda (kaydirilmamis alanda) akiyordu. Sesli goruşme
+    // sirasinda canli metin degistikce de asagi kaydiriyoruz.
+    ref.listen(voiceCallProvider, (previous, next) {
+      if (next.liveUserText != previous?.liveUserText ||
+          next.liveAssistantText != previous?.liveAssistantText) {
+        _scrollToBottom();
+      }
+    });
+
     return Scaffold(
       backgroundColor: _bgColor,
       extendBodyBehindAppBar: true,
