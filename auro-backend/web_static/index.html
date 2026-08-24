@@ -42,5 +42,14 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <!--
+    flutter_soloud web icin zorunlu (paketin kendi README'si: "Especially
+    for web use, please look at the setup guide docs"). Bu iki script
+    olmadan SoLoud.instance.init() web'de "Null check operator used on a
+    null value" hatasi veriyor - WASM/JS glue kodu hic yuklenmiyor.
+    (2026-08-24, iPhone/Safari testinde bulundu.)
+  -->
+  <script src="assets/packages/flutter_soloud/web/libflutter_soloud_plugin.js" defer></script>
+  <script src="assets/packages/flutter_soloud/web/init_module.dart.js" defer></script>
 </body>
 </html>
