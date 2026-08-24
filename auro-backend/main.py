@@ -1,4 +1,5 @@
 ﻿import os
+import re
 import time
 import httpx
 import aura_brain
@@ -11,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from google import genai
 from google.genai import types
@@ -91,6 +92,14 @@ async def rate_limiter(request: Request, call_next):
     if len(log) >= RATE_LIMIT_MAX_REQUESTS:
         raise HTTPException(status_code=429, detail="Cok fazla istek gonderdin.")
     log.append(now)
+    # GUVENLIK TARAMASI BULGUSU: bosalan (artik aktif istegi kalmayan)
+    # IP kayitlari sozlukten hic silinmiyordu - surec omru boyunca
+    # SADECE BUYUYEN, hic kucalmayen bir sozluk (yavas bellek sizintisi).
+    # Pahali bir taramayi HER istekte degil, sozluk belirli bir esigi
+    # gectiginde yapiyoruz.
+    if len(request_log) > 5000:
+        for ip in [ip for ip, l in request_log.items() if not l]:
+            del request_log[ip]
     return await call_next(request)
 
 
@@ -122,54 +131,78 @@ def detect_mood(text: str) -> str | None:
 
 
 
+# GUVENLIK TARAMASI BULGUSU: hicbir request modelinde alan uzunlugu
+# siniri yoktu - kotu niyetli/hatali bir istemci coook uzun metin/liste
+# gonderip Gemini/ElevenLabs maliyetini sisirebilir ya da worker
+# bellegini gereksiz yere tuketebilirdi. FastAPI/pydantic bu limitleri
+# asan istekleri handler'a hic girmeden 422 ile reddediyor.
+# GUVENLIK TARAMASI BULGUSU: email formatina hicbir dogrulama yoktu -
+# tamamen gecersiz string'ler bile hesap olarak kaydedilebiliyordu.
+# email-validator paketi kurulu degil (yeni bagimlilik eklemek riskli,
+# gece boyunca gozetimsiz deploy ediliyor) - basit ama yeterli bir regex.
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _validate_email_format(v: str) -> str:
+    v = v.strip().lower()
+    if not _EMAIL_PATTERN.match(v):
+        raise ValueError("Geçersiz email formatı.")
+    return v
+
+
 class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    name: str = ""
+    email: str = Field(max_length=255)
+    password: str = Field(max_length=200)
+    name: str = Field(default="", max_length=100)
+
+    _validate_email = field_validator("email")(_validate_email_format)
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=255)
+    password: str = Field(max_length=200)
 
 class ClaimAccountRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=255)
+    password: str = Field(max_length=200)
+
+    _validate_email = field_validator("email")(_validate_email_format)
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(max_length=4000)
 
 class TTSRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=2000)
     voice: str = "female"
 
 class AnalyzeRequest(BaseModel):
-    image_base64: str
+    # ~15MB base64 - tipik bir fotografi rahatca kapsar, sinirsizi engeller.
+    image_base64: str = Field(max_length=15_000_000)
     mime_type: str = "image/jpeg"
 
 class StoryRequest(BaseModel):
-    action: str = ""
-    history: list[dict] = []
+    action: str = Field(default="", max_length=2000)
+    history: list[dict] = Field(default=[], max_length=100)
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=100)
     warmth: Optional[str] = None
     formality: Optional[str] = None
     humor: Optional[str] = None
     directness: Optional[str] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(default=None, max_length=2000)
     location_lat: Optional[float] = None
     location_lon: Optional[float] = None
-    location_city: Optional[str] = None
+    location_city: Optional[str] = Field(default=None, max_length=200)
     weather_enabled: Optional[bool] = None
     activity_enabled: Optional[bool] = None
     mood_tracking_enabled: Optional[bool] = None
 
 class FriendRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=255)
 
 class StoryCreate(BaseModel):
-    content: str
-    image_url: str = ""
+    content: str = Field(max_length=2000)
+    image_url: str = Field(default="", max_length=2000)
 
 
 def _safe_user(user: dict) -> dict:

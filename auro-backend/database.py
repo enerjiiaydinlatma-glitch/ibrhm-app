@@ -144,6 +144,16 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
+        # GUVENLIK TARAMASI BULGUSU: send_friend_request'teki INSERT OR
+        # IGNORE hicbir seyi gercekten "ignore" etmiyordu - (user_id,
+        # friend_user_id) uzerinde UNIQUE kisitlama olmadigi icin ayni
+        # istek tekrar tekrar gonderilince sinirsiz coklanan satir
+        # olusuyordu (DB sismesi + IDOR spam yuzeyi). Mevcut veride
+        # coklanan satir olmadigi dogrulanip guvenle eklendi.
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_unique_pair
+            ON friends(user_id, friend_user_id)
+        """)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS stories (
