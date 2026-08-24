@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/memory_item.dart';
 import '../notifier/memory_notifier.dart';
+import '../models/profile.dart';
 import '../notifier/profile_notifier.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -46,7 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ..load();
   }
 
-  void _fillFromProfile(profile) {
+  void _fillFromProfile(UserProfile profile) {
     if (_initialized) return;
     _nameController.text = profile.name ?? '';
     _notesController.text = profile.notes;

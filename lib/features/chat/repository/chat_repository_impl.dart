@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 
 import '../models/message.dart';
@@ -57,35 +55,6 @@ class ChatRepositoryImpl implements ChatRepository {
         throw Exception('Oturum süreniz sona ermiş.');
       }
 
-      throw Exception('Aura\'ya şu an ulaşılamıyor.');
-    }
-  }
-
-  @override
-  Stream<String> sendMessageStream(String text) async* {
-    try {
-      final response = await _dio.post<ResponseBody>(
-        '$baseUrl/api/chat/stream',
-        data: {
-          'message': text,
-        },
-        options: Options(
-          responseType: ResponseType.stream,
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-
-      final stream = response.data!.stream;
-
-      await for (final chunk in stream) {
-        yield utf8.decode(
-          chunk,
-          allowMalformed: true,
-        );
-      }
-    } on DioException catch (_) {
       throw Exception('Aura\'ya şu an ulaşılamıyor.');
     }
   }

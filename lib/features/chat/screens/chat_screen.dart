@@ -199,9 +199,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Once ElevenLabs'i (daha dogal/karakterli ses) dener - kota
-  /// bitmisse ya da baska bir sebeple basarisiz olursa, Windows'un
-  /// kendi (ucretsiz, sinirsiz) sesine SESSIZCE duser. Boylece
-  /// seslendirme ozelligi ElevenLabs kotasindan bagimsiz hep calisir.
+  /// bitmisse ya da baska bir sebeple basarisiz olursa, platformun
+  /// kendi (ucretsiz, sinirsiz) sesine (FlutterTts - Windows/Android/
+  /// web, hepsinde calisiyor) SESSIZCE duser. Boylece seslendirme
+  /// ozelligi ElevenLabs kotasindan bagimsiz hep calisir. NOT: web/
+  /// Safari'de Web Speech API'nin ses secenekleri masaustune gore
+  /// daha tutarsiz olabilir - henuz web'de ozel test edilmedi.
   Future<void> _speakWithElevenLabs(String text) async {
     final cleanText = _cleanForSpeech(text);
     if (cleanText.isEmpty) return;
@@ -427,7 +430,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       tween: Tween(begin: 0.4, end: 1.0),
       duration: Duration(milliseconds: 600 + index * 200),
       curve: Curves.easeInOut,
-      builder: (_, value, __) => Container(
+      builder: (_, value, _) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 3),
         width: 7, height: 7,
         decoration: BoxDecoration(

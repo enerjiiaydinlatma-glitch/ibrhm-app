@@ -1,5 +1,4 @@
-﻿import "dart:ui";
-import "package:dio/dio.dart";
+﻿import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:google_fonts/google_fonts.dart";
 
@@ -15,7 +14,8 @@ class StoryScreen extends StatefulWidget {
 class _StoryScreenState extends State<StoryScreen> {
   final _dio = Dio();
   final _contentController = TextEditingController();
-  static const _baseUrl = "http://127.0.0.1:8000";
+  // bkz. friends_screen.dart'taki ayni not - localhost'tan production'a cekildi.
+  static const _baseUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const _indigo = Color(0xFF6C63FF);
   static const _bg = Color(0xFF0A0A1A);
   List<dynamic> _feed = [];
@@ -78,6 +78,10 @@ class _StoryScreenState extends State<StoryScreen> {
         data: {"content": content, "image_url": ""},
         options: _auth,
       );
+      // BULUNDU (kod sagligi taramasi): await sonrasi widget agactan
+      // kaldirilmis olabilir - mounted kontrolu olmadan context/setState
+      // kullanmak framework assertion hatasina yol acabilir.
+      if (!mounted) return;
       _contentController.clear();
       setState(() {
         _selectedTab = 0;
@@ -85,7 +89,7 @@ class _StoryScreenState extends State<StoryScreen> {
       });
       _loadFeed();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Story paylaÅŸÄ±ldÄ±!", style: GoogleFonts.poppins()), backgroundColor: _indigo),
+        SnackBar(content: Text("Story paylaşıldı!", style: GoogleFonts.poppins()), backgroundColor: _indigo),
       );
     } catch (_) {
       setState(() => _sharing = false);

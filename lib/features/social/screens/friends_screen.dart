@@ -1,5 +1,4 @@
-﻿import "dart:ui";
-import "package:dio/dio.dart";
+﻿import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:google_fonts/google_fonts.dart";
 
@@ -17,8 +16,13 @@ class _FriendsScreenState extends State<FriendsScreen>
   final _dio = Dio();
   final _searchController = TextEditingController();
 
+  // BULUNDU (kod sagligi taramasi): localhost'a sabitlenmisti - bu ekran
+  // henuz hicbir yerden erisilmiyor (nav baglantisi yok) ama biri
+  // ileride baglarsa ilk denemede %100 basarisiz olurdu, web'de ayrica
+  // mixed-content ihlali de olurdu. Diger tum repository'lerle ayni
+  // production adresine cekildi.
   static const _baseUrl =
-      "http://127.0.0.1:8000";
+      "https://aura-backend-production-bc9c.up.railway.app";
 
   static const _indigo = Color(0xFF6C63FF);
   static const _bg = Color(0xFF0A0A1A);
@@ -109,7 +113,19 @@ class _FriendsScreenState extends State<FriendsScreen>
       );
 
       _loadData();
-    } catch (e) {}
+    } catch (e) {
+      // BULUNDU (kod sagligi taramasi): hata tamamen yutuluyordu -
+      // istek basarisiz olsa (agdan da, IDOR duzeltmesiyle artik
+      // gelebilecek 404'ten de) kullaniciya sifir geri bildirim
+      // gidiyordu, buton hicbir sey yapmamis gibi goruniyordu.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("İstek kabul edilemedi", style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override

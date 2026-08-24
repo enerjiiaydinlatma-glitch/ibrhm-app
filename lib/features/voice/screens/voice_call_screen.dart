@@ -59,7 +59,7 @@ class VoiceCallBar extends ConsumerWidget {
             tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOut,
-            builder: (_, scale, __) => Transform.scale(
+            builder: (_, scale, _) => Transform.scale(
               scale: scale,
               child: Container(
                 width: 10,

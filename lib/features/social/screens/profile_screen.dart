@@ -17,7 +17,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _nameController = TextEditingController();
   final _dio = Dio();
-  static const _baseUrl = "http://127.0.0.1:8000";
+  // bkz. friends_screen.dart'taki ayni not - localhost'tan production'a cekildi.
+  static const _baseUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const _indigo = Color(0xFF6C63FF);
   static const _bg = Color(0xFF0A0A1A);
 
@@ -56,13 +57,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         data: {"name": _nameController.text.trim()},
         options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
       );
+      // BULUNDU (kod sagligi taramasi): await sonrasi widget agactan
+      // kaldirilmis olabilir - mounted kontrolu olmadan context kullanmak
+      // framework assertion hatasina yol acabilir.
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Profil kaydedildi", style: GoogleFonts.poppins()),
           backgroundColor: _indigo,
         ),
       );
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Profil kaydedilemedi", style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _generateBiography() async {
@@ -76,12 +89,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         },
         options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
       );
+      if (!mounted) return;
       setState(() {
         _biography = r.data["reply"] ?? "";
         _bioLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() => _bioLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Biyografi oluşturulamadı", style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
