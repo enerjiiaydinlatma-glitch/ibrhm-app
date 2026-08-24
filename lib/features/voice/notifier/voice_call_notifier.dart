@@ -234,14 +234,19 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             // degil, BufferingType.preserved'in "arabellek tukenince
             // duraklat, yeterli veri gelince otomatik devam et" davranisi
             // pratikte otomatik devam ETMIYOR OLMASI - handle sessizce
-            // PAUSED durumda kalip oyle kaliyor. Cozum: her parcadan
-            // once acikca setPause(false) cagirip (getPause kontrolu
-            // olmadan, kosulsuz - idempotent ve ucuz bir cagri) playback'i
-            // zorla devam ettiriyoruz.
+            // PAUSED durumda kalip oyle kaliyor.
+            //
+            // ONEMLI: setPause(false)'u KOSULSUZ (her parcada) cagirmak
+            // sesi "kesik kesik" yaptigi icin (kullanici raporu) once
+            // getPause() ile GERCEKTEN duraklatilmis mi diye kontrol
+            // ediyoruz, sadece o zaman setPause(false) cagriliyor.
             try {
-              SoLoud.instance.setPause(handle, false);
+              if (SoLoud.instance.getPause(handle)) {
+                _voiceDebugLog("handle PAUSED - setPause(false) cagriliyor");
+                SoLoud.instance.setPause(handle, false);
+              }
             } catch (e) {
-              _voiceDebugLog("setPause(false) HATASI: $e");
+              _voiceDebugLog("getPause/setPause HATASI: $e");
             }
           } else if (!_resumingPlayback) {
             // Handle hic yoksa (beklenmedik durum) play()'i tekrar
