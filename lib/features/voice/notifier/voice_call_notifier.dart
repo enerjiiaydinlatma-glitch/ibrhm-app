@@ -57,6 +57,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // cagirip playback'i canlandiriyoruz.
   SoundHandle? _playbackHandle;
   bool _resumingPlayback = false;
+  // Her tur icin SADECE BIR KEZ unpause denemesi yapmak icin (bkz.
+  // _handleServerMessage'daki aciklama - her parcada denemek "kesik
+  // kesik ses"e yol aciyordu). turn_complete/interrupted'da true'ya
+  // donuyor ki BIR SONRAKI turun ilk parcasi yeniden bir deneme yapsin.
+  bool _turnNeedsResumeCheck = true;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -227,26 +232,39 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         if (_playbackSource != null) {
           final handle = _playbackHandle;
           if (handle != null) {
-            // TESHIS SONUCU: getIsValidVoiceHandle HER ZAMAN true
-            // donuyordu (handle "gecersiz" hic olmuyor) - ama SoLoud
-            // dokumantasyonu "valid" tanimini "playing VEYA PAUSED"
-            // olarak yapiyor. Yani asil sorun handle'in GECERSIZ olmasi
-            // degil, BufferingType.preserved'in "arabellek tukenince
-            // duraklat, yeterli veri gelince otomatik devam et" davranisi
-            // pratikte otomatik devam ETMIYOR OLMASI - handle sessizce
-            // PAUSED durumda kalip oyle kaliyor.
+            // TESHIS SONUCU 1: getIsValidVoiceHandle HER ZAMAN true
+            // donuyordu (handle "gecersiz" hic olmuyor) - SoLoud
+            // dokumantasyonu "valid"i "playing VEYA PAUSED" olarak
+            // taniyor. Asil sorun handle'in GECERSIZ olmasi degil,
+            // BufferingType.preserved'in "arabellek tukenince
+            // duraklat, yeterli veri gelince otomatik devam et"
+            // davranisinin (SADECE ilk play() cagrisinda dogal olarak
+            // isliyor - turn 1 hep sorunsuzdu) turlar arasi boslukta
+            // olusan PAUSED durumdan OTOMATIK cikmamasi.
             //
-            // ONEMLI: setPause(false)'u KOSULSUZ (her parcada) cagirmak
-            // sesi "kesik kesik" yaptigi icin (kullanici raporu) once
-            // getPause() ile GERCEKTEN duraklatilmis mi diye kontrol
-            // ediyoruz, sadece o zaman setPause(false) cagriliyor.
-            try {
-              if (SoLoud.instance.getPause(handle)) {
-                _voiceDebugLog("handle PAUSED - setPause(false) cagriliyor");
-                SoLoud.instance.setPause(handle, false);
-              }
-            } catch (e) {
-              _voiceDebugLog("getPause/setPause HATASI: $e");
+            // TESHIS SONUCU 2: setPause(false)'u HER parcada kosulsuz
+            // cagirmak "kesik kesik ses"e yol acti - log kanitladi: 2.
+            // turda HER TEK addAudioDataStream'den hemen sonra handle
+            // yeniden PAUSED buluyorduk, yani zorla erken uyandirmak
+            // arabellegin (bufferingTimeNeeds: 0.3s) hic birikmeden
+            // surekli tukenip yeniden duraklamasina yol aciyordu -
+            // dongusel bir kesinti. Cozum: turn basina SADECE BIR KEZ,
+            // kisa bir gecikmeyle (arabellek birikmesine firsat tanimak
+            // icin) unpause deniyoruz - bkz. _turnNeedsResumeCheck.
+            if (_turnNeedsResumeCheck) {
+              _turnNeedsResumeCheck = false;
+              Timer(const Duration(milliseconds: 350), () {
+                final h = _playbackHandle;
+                if (h == null) return;
+                try {
+                  if (SoLoud.instance.getPause(h)) {
+                    _voiceDebugLog("handle PAUSED (tur basi) - setPause(false) cagriliyor");
+                    SoLoud.instance.setPause(h, false);
+                  }
+                } catch (e) {
+                  _voiceDebugLog("getPause/setPause HATASI: $e");
+                }
+              });
             }
           } else if (!_resumingPlayback) {
             // Handle hic yoksa (beklenmedik durum) play()'i tekrar
@@ -311,6 +329,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
             _voiceDebugLog("resetBufferStream HATASI: $e");
           }
         }
+        _turnNeedsResumeCheck = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -339,6 +358,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
         // Ayni source gorusme boyunca yasamaya devam ediyor - bir sonraki
         // turun sesi de dogrudan addAudioDataStream ile ayni akisa eklenir.
+        _turnNeedsResumeCheck = true;
         _scheduleUnmute();
         state = state.copyWith(
           status: VoiceCallStatus.listening,
@@ -481,6 +501,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _playbackSource = null;
     _playbackHandle = null;
     _resumingPlayback = false;
+    _turnNeedsResumeCheck = true;
   }
 }
 
