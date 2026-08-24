@@ -515,6 +515,25 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         return;
       }
 
+      // BULUNDU (2026-08-24, log kaniti: bu dongu 15sn tavana kadar HICBIR
+      // SEY yapmadan bekleyip "sure doldu" diye zorla acmisti - o turun
+      // geri kalaninda ses hic gelmemisti): kalan sure > 0 oldugu halde
+      // motor sessizce PAUSED'a dusup pozisyonu HIC ILERLETMIYOR olabilir
+      // (onBuffering tetiklenmeden, tur ortasinda). Eskiden bu dongu SADECE
+      // pozisyonu izleyip pasif bekliyordu - artik her kontrolde PAUSED
+      // durumunu da denetleyip gerekirse AKTIF olarak devam ettiriyor.
+      try {
+        if (SoLoud.instance.getPause(handle)) {
+          _voiceDebugLog(
+            "unmute-check: handle PAUSED bulundu (kalan=${remainingMs}ms) "
+            "- setPause(false) cagriliyor",
+          );
+          SoLoud.instance.setPause(handle, false);
+        }
+      } catch (e) {
+        _voiceDebugLog("unmute-check getPause/setPause HATASI: $e");
+      }
+
       _unmuteCheckTimer = Timer(
         Duration(milliseconds: remainingMs.clamp(50, 400)),
         check,
