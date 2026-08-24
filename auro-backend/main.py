@@ -15,7 +15,6 @@ from pydantic import BaseModel
 from typing import Optional
 from google import genai
 from google.genai import types
-from google.genai import errors as genai_errors
 import database
 
 load_dotenv()
@@ -41,7 +40,13 @@ VOICE_IDS = {
 LIMIT_DAILY_MESSAGES = 30
 LIMIT_REACHED_REPLY = "Bugünkü ücretsiz mesaj hakkın doldu (30/30 mesaj). Yarın sıfırlanacak."
 
-client = genai.Client(api_key=api_key)
+# bkz. aura_brain.py'deki ayni degisiklik - generate_content() zaman
+# asimi olmadan sonsuza kadar asili kalabiliyordu, production'da
+# dogrulandi.
+client = genai.Client(
+    api_key=api_key,
+    http_options=types.HttpOptions(timeout=20000),
+)
 database.init_db()
 aura_memory.init_memory_db()
 app = FastAPI()
@@ -342,13 +347,17 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     try:
         response = aura_brain.generate_with_retry(contents, aura_brain.build_system_instruction(user, message_count))
         reply_text = response.text
-    except (genai_errors.ServerError, genai_errors.ClientError):
-        # GUVENLIK TARAMASI BULGUSU: sadece ServerError (5xx) yakalaniyordu
-        # - Gemini'nin KENDI kota/rate-limit hatasi (429, ClientError'in
-        # bir alt sinifi degil KARDESI - google/genai/errors.py) reklam
-        # trafigiyle GEMINI_API_KEY kotasi zorlanirsa gerceklesebilir ve
-        # (Groq fallback de basarisiz olursa) yakalanmadan ciplak 500
-        # olarak kullaniciya sizardi.
+    except Exception as e:
+        # GUVENLIK TARAMASI BULGUSU + CANLIDA DOGRULANAN DONMA: once
+        # sadece ServerError (5xx) yakalaniyordu. Sonra generate_content'e
+        # zaman asimi eklendi (bkz. aura_brain.py, _client tanimi) - ama
+        # zaman asimi httpx.TimeoutException firlatiyor, bu genai_errors
+        # hiyerarsisinden DEGIL, yakalanmiyordu. generate_with_retry zaten
+        # Groq'a dusuyor ama Groq da basarisiz olursa ORIJINAL hata (hangi
+        # turden olursa olsun) geri firlatiliyor - o yuzden burada artik
+        # genis yakalıyoruz: bu, kullaniciya HER ZAMAN zarif bir cevap
+        # donmesini, ciplak 500'un asla sizmamasini garantiliyor.
+        print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
     reply_text = aura_brain.sanitize_reply(reply_text, message_count)
     database.add_message(user["id"], "assistant", reply_text)
@@ -396,7 +405,10 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
                 if chunk.text:
                     collected.append(chunk.text)
                     yield chunk.text
-        except (genai_errors.ServerError, genai_errors.ClientError):
+        except Exception as e:
+            # bkz. /api/chat'teki ayni bulgu - genis yakalama, ciplak
+            # 500/kesik akis yerine her zaman zarif bir dusus saglar.
+            print(f"CHAT STREAM ERROR: {type(e).__name__}: {e}")
             if not collected:
                 fallback = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
                 collected.append(fallback)

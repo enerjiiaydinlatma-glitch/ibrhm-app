@@ -39,7 +39,22 @@ MODEL_NAME = "gemini-3.7-flash"
 GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-_client = genai.Client(api_key=GEMINI_API_KEY)
+# KRITIK BULUNAN CANLI SORUN (2026-08-24, reklam kampanyasi oncesi son
+# taramada tesadufen yakalandi): generate_content() cagrisinda HICBIR
+# zaman asimi yoktu - Gemini tarafinda bir yavaslama/kota baskisi
+# oldugunda istek TAMAMEN ASILI KALIYORDU (production'da bizzat test
+# edilip dogrulandi: /api/chat 30+ saniye hicbir yanit vermeden takildi,
+# ne basari ne hata). Bu, FastAPI'nin sinirli worker thread pool'unu
+# sonsuza kadar isgal edebilirdi - reklam trafigiyle es zamanli birkac
+# boyle istek TUM uygulamayi (ilgisiz endpoint'ler dahil) kilitleyebilirdi.
+# 20 saniyelik bir ust sinir kondu - bu sureyi asan cagri artik
+# ClientError/timeout firlatir, mevcut except bloklari (bkz. main.py)
+# bunu yakalayip kullaniciya "su an biraz yogunum" gibi zarif bir cevap
+# donduruyor, worker'i sonsuza kadar kilitlemiyor.
+_client = genai.Client(
+    api_key=GEMINI_API_KEY,
+    http_options=types.HttpOptions(timeout=20000),
+)
 
 FAMILIARITY_THRESHOLD = 40
 MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
