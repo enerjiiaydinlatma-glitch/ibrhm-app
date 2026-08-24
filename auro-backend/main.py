@@ -45,7 +45,7 @@ LIMIT_REACHED_REPLY = "Bugünkü ücretsiz mesaj hakkın doldu (30/30 mesaj). Ya
 # dogrulandi.
 client = genai.Client(
     api_key=api_key,
-    http_options=types.HttpOptions(timeout=20000),
+    http_options=types.HttpOptions(timeout=12000),
 )
 database.init_db()
 aura_memory.init_memory_db()

@@ -47,13 +47,18 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # ne basari ne hata). Bu, FastAPI'nin sinirli worker thread pool'unu
 # sonsuza kadar isgal edebilirdi - reklam trafigiyle es zamanli birkac
 # boyle istek TUM uygulamayi (ilgisiz endpoint'ler dahil) kilitleyebilirdi.
-# 20 saniyelik bir ust sinir kondu - bu sureyi asan cagri artik
-# ClientError/timeout firlatir, mevcut except bloklari (bkz. main.py)
-# bunu yakalayip kullaniciya "su an biraz yogunum" gibi zarif bir cevap
-# donduruyor, worker'i sonsuza kadar kilitlemiyor.
+# 12 saniyelik bir ust sinir kondu (Gemini'nin KENDI API'si "minimum
+# allowed deadline 10s" diyor, altina inilemiyor - test edilerek
+# dogrulandi). Bu sureyi asan cagri artik ServerError(504 DEADLINE_EXCEEDED)
+# firlatir, mevcut except bloklari (bkz. main.py) bunu yakalayip
+# kullaniciya "su an biraz yogunum" gibi zarif bir cevap donduruyor,
+# worker'i sonsuza kadar kilitlemiyor. NOT: generate_with_retry varsayilan
+# olarak bunu tekrar dener (asagida max_attempts=2'ye dusuruldu, DAHA
+# ONCE 3'tu) - her deneme bu sureyi tekrar tuketebilir, o yuzden deneme
+# sayisi da onemli (bkz. generate_with_retry).
 _client = genai.Client(
     api_key=GEMINI_API_KEY,
-    http_options=types.HttpOptions(timeout=20000),
+    http_options=types.HttpOptions(timeout=12000),
 )
 
 FAMILIARITY_THRESHOLD = 40
@@ -322,7 +327,14 @@ VOICE_PROVIDERS = {
 VOICE_PROVIDER = "gemini"
 
 
-def generate_with_retry(contents, system_instruction, max_attempts=3):
+def generate_with_retry(contents, system_instruction, max_attempts=2):
+    # BULUNDU (2026-08-24, production'da bizzat test edilip dogrulandi):
+    # max_attempts DAHA ONCE 3'tu - Gemini yavasladiginda (bugun oldugu
+    # gibi) her deneme kendi 12sn'lik zaman asimini tuketiyor, ARADA
+    # Groq'a hic dusmeden 3x12sn+backoff (~40sn+) harcaniyordu. Oysa
+    # Groq fallback'in butun amaci TAM OLARAK bu senaryoyu HIZLI
+    # atlatmakti. 2'ye dusuruldu - Gemini'ye bir sans daha (tek seferlik
+    # blip'ler icin) verilip, hala basarisizsa cabucak Groq'a gecilir.
     try:
         text = VOICE_PROVIDERS[VOICE_PROVIDER](contents, system_instruction, max_attempts)
     except Exception as primary_error:
