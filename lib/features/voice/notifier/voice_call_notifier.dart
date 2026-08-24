@@ -74,6 +74,29 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   // kilitleyip tum uygulamayi dondurmesine) yol aciyordu. Aura konusurken
   // mikrofonu sunucuya GONDERMEYEREK bu dongude kesilir - konusma hala
   // dogal sirayla akar, sadece Aura'nin sozu bu sirada kesilemez.
+  //
+  // BULUNDU (2026-08-24, kullanicinin "sozunu kesemiyorum" sikayeti
+  // sonrasi arastirma): `record` paketinin RecordConfig'inde zaten
+  // `echoCancel`/`autoGain`/`noiseSuppress` alanlari var ve bunlar
+  // platform-native yanki iptaline BAGLI (web: getUserMedia
+  // echoCancellation constraint'i; Android: AcousticEchoCanceler/
+  // NoiseSuppressor/AutomaticGainControl ses efektleri; iOS: AVAudioSession
+  // - ucu paket kaynagindan dogrulandi) - biz bunlari HIC ACMAMIŞTIK
+  // (varsayilan false). Bu platformlarda GERCEK donanim/OS yanki iptali
+  // varken, kendi kaba "konusurken mikrofonu tamamen kapat" cozumumuze
+  // hic gerek yok VE bu tam olarak "sozunu kesememe" sikayetinin sebebiydi.
+  // Windows'ta (record_windows kaynaginda AEC/ses efekti bulunamadi -
+  // dogrulandi) hala gercek bir donanim AEC'i yok, o platformda eski
+  // (guvenli ama kesintisiz) tam-susturma davranisi KORUNUYOR.
+  bool get _hasNativeEchoCancellation {
+    if (kIsWeb) return true;
+    try {
+      return Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+    } catch (_) {
+      return false;
+    }
+  }
+
   bool _muteMic = false;
   Timer? _unmuteTimer;
   int _audioChunkCounter = 0;
@@ -305,10 +328,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
     try {
       final micStream = await _recorder.startStream(
-        const RecordConfig(
+        RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
           numChannels: 1,
+          // BULUNDU: bu ucu daha once hic acilmamisti (varsayilan false) -
+          // web/Android/iOS'ta platform-native yanki iptalini/otomatik
+          // kazanci/gurultu bastirmayi etkinlestiriyor (bkz. _muteMic
+          // aciklamasi, kaynak dogrulandi). Windows'ta desteklenmiyor,
+          // zararsizca yoksayilir.
+          echoCancel: true,
+          autoGain: true,
+          noiseSuppress: true,
         ),
       );
 
@@ -336,11 +367,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _autoRetryCount = 0;
 
     if (message is List<int>) {
-      // Aura'nin sesi hoparlorden cikmaya baslayacak - yanki dongusune
-      // girmemek icin mikrofonu hemen sustur (bkz. _muteMic aciklamasi).
+      // Aura'nin sesi hoparlorden cikmaya baslayacak. Gercek donanim/OS
+      // yanki iptali OLAN platformlarda (bkz. _hasNativeEchoCancellation)
+      // mikrofonu HIC susturmuyoruz - boylece kullanici Aura'nin sozunu
+      // GERCEKTEN kesebiliyor (sunucu zaten "interrupted" sinyalini
+      // isliyor, bkz. asagida). AEC'siz platformlarda (Windows) eski
+      // guvenli tam-susturma davranisi korunuyor.
       _unmuteTimer?.cancel();
       _unmuteCheckTimer?.cancel();
-      _muteMic = true;
+      if (!_hasNativeEchoCancellation) {
+        _muteMic = true;
+      }
       _bufferedDurationMs += (message.length / _pcmBytesPerMs).round();
 
       try {
