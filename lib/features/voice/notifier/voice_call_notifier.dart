@@ -186,8 +186,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         bufferingType: BufferingType.preserved,
         // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
         // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
-        // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
-        bufferingTimeNeeds: 0.3,
+        // hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
+        // 0.3s'den 0.5s'ye cikarildi (2026-08-24, kullanici raporu:
+        // "ses bazi yerlerde takili kaliyor, kekeleme gibi") - ag+SoLoud
+        // tamponu bazen gercek zamana cok az bir payla yetisiyor, tampon
+        // payini biraz buyutmek bu kisa takilmalari azaltmali. Gecikme
+        // maliyeti kucuk (0.2s ek), degistirmeye deger.
+        bufferingTimeNeeds: 0.5,
         // BULUNDU (paket kaynagi + resmi ornek incelendi, bkz. pub cache
         // flutter_soloud-3.5.4/example/lib/buffer_stream/websocket.dart):
         // motorun KENDISI, tampon tukenip otomatik duraklattiginda VE
