@@ -225,23 +225,29 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
       try {
         if (_playbackSource != null) {
-          // SoLoud dokumantasyonu: getIsValidVoiceHandle "Returns false
-          // if it's been stopped or if it finished playing." Yani
-          // BufferingType.preserved kullansak bile, turlar arasindaki
-          // bosluklarda handle dogal olarak "bitmis" sayilip gecersiz
-          // hale gelebiliyor - bu durumda addAudioDataStream veriyi
-          // basariyla arabellege eklese bile HICBIR SEY calinmiyor
-          // (kullanici raporu: ilk tur sesli, sonraki turlar veri akiyor
-          // ama sessiz). Her parcadan once handle'in hala gecerli olup
-          // olmadigini kontrol edip, degilse play()'i TEKRAR cagirip
-          // (unawaited - bu callback senkron kalmali, bkz. asagidaki
-          // _resumingPlayback bayragi re-entrancy koruması) playback'i
-          // canlandiriyoruz.
           final handle = _playbackHandle;
-          if (!_resumingPlayback &&
-              (handle == null || !SoLoud.instance.getIsValidVoiceHandle(handle))) {
+          if (handle != null) {
+            // TESHIS SONUCU: getIsValidVoiceHandle HER ZAMAN true
+            // donuyordu (handle "gecersiz" hic olmuyor) - ama SoLoud
+            // dokumantasyonu "valid" tanimini "playing VEYA PAUSED"
+            // olarak yapiyor. Yani asil sorun handle'in GECERSIZ olmasi
+            // degil, BufferingType.preserved'in "arabellek tukenince
+            // duraklat, yeterli veri gelince otomatik devam et" davranisi
+            // pratikte otomatik devam ETMIYOR OLMASI - handle sessizce
+            // PAUSED durumda kalip oyle kaliyor. Cozum: her parcadan
+            // once acikca setPause(false) cagirip (getPause kontrolu
+            // olmadan, kosulsuz - idempotent ve ucuz bir cagri) playback'i
+            // zorla devam ettiriyoruz.
+            try {
+              SoLoud.instance.setPause(handle, false);
+            } catch (e) {
+              _voiceDebugLog("setPause(false) HATASI: $e");
+            }
+          } else if (!_resumingPlayback) {
+            // Handle hic yoksa (beklenmedik durum) play()'i tekrar
+            // cagirip bir tane olusturuyoruz.
             _resumingPlayback = true;
-            _voiceDebugLog("handle gecersiz - play() tekrar cagriliyor");
+            _voiceDebugLog("handle yok - play() cagriliyor");
             unawaited(
               SoLoud.instance.play(_playbackSource!).then((newHandle) {
                 _playbackHandle = newHandle;
