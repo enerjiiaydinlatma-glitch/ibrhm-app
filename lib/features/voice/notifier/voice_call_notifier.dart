@@ -44,22 +44,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   WebSocketChannel? _channel;
   StreamSubscription<Uint8List>? _micSubscription;
   AudioSource? _playbackSource;
-  // play()'in dondurdugu "calma ornegi" - SoLoud dokumantasyonuna gore
-  // bu handle, akis DURMUS ya da "bitmis" sayilirsa dogal olarak
-  // GECERSIZ hale gelebiliyor (getIsValidVoiceHandle: "Returns false if
-  // it's been stopped or if it finished playing") - biz BufferingType.
-  // preserved kullandigimiz icin akisin asla "bitmemesini" bekliyorduk,
-  // ama pratikte turlar arasindaki bosluklarda handle gecersiz hale
-  // gelip yeni beslenen veri hic calinmiyor olabilir (kullanici raporu:
-  // ilk tur sesli, sonrakiler sessiz - veri basariyla akiyor ama ses
-  // duyulmuyor). Bu yuzden her ses parcasindan once handle'in hala
-  // gecerli olup olmadigini kontrol edip, degilse play()'i TEKRAR
-  // cagirip playback'i canlandiriyoruz.
+  // play()'in dondurdugu "calma ornegi". Kullanici raporu: ilk tur hep
+  // sesli, sonraki turlarda veri hatasiz akiyor ama ses duyulmuyordu.
+  // Once getIsValidVoiceHandle ile kontrol denendi ama HER ZAMAN true
+  // donuyordu (dokumana gore "valid" hem "playing" hem "paused"
+  // sayiliyor - handle "gecersiz" olmuyordu, sadece PAUSED takiliyordu).
+  // Sonrasinda elle getPause/setPause polling denendi (once her parcada,
+  // sonra throttled) ama ikisi de ya kesik ses ya eksik tespit
+  // uretiyordu. Kok cozum artik setBufferStream'in resmi `onBuffering`
+  // callback'i (bkz. _connect()) - motorun KENDI "tamponluyorum"
+  // sinyaline dayanan, tahmine degil kanita dayali bir tetikleyici.
   SoundHandle? _playbackHandle;
   bool _resumingPlayback = false;
-  // PAUSED durumu icin en fazla 300ms'de bir kontrol/unpause denemesi
-  // yapmak icin (throttle) - bkz. _handleServerMessage'daki aciklama.
-  DateTime? _lastResumeCheckTime;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -160,6 +156,50 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
         // (0.3s) hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
         bufferingTimeNeeds: 0.3,
+        // BULUNDU (paket kaynagi + resmi ornek incelendi, bkz. pub cache
+        // flutter_soloud-3.5.4/example/lib/buffer_stream/websocket.dart):
+        // motorun KENDISI, tampon tukenip otomatik duraklattiginda VE
+        // yeterli veri birikip otomatik devam ettirdiginde bu callback'i
+        // cagiriyor - resmi ornek elle getPause/setPause polling'i HIC
+        // YAPMIYOR, sadece bu sinyali dinliyor. Bizim onceki "her parcada
+        // veya throttled 300ms'de bir kontrol et" yaklasimimiz TAHMINE
+        // dayaliydi; bu ise motorun "su an tamponluyorum" dedigi GERCEK
+        // ani yakalar - hem daha az gereksiz cagri (dusuk kesinti riski)
+        // hem kesin teshis (log, bir sonraki testte auto-resume'un
+        // gercekten calisip calismadigini kesin gosterecek).
+        onBuffering: (isBuffering, handle, time) {
+          _voiceDebugLog(
+            "onBuffering: isBuffering=$isBuffering handle=$handle time=$time",
+          );
+          if (!isBuffering) return;
+          // Motor tamponlamaya basladi (tampon tukendi, muhtemelen turlar
+          // arasi bosluk). Dokumantasyona gore bufferingTimeNeeds (0.3s)
+          // kadar YENI veri birikince motor KENDISI devam ettirmeli - ama
+          // onceki testlerde bu otomatik devam etme GUVENILIR calismadi.
+          // Guvenlik agi: bufferingTimeNeeds'den biraz fazla bir sure
+          // sonra hala duraklamis mi diye TEK SEFER kontrol edip, oyleyse
+          // elle devam ettiriyoruz. NOT: bunu onBuffering callback'inin
+          // ICINDE SENKRON yapmiyoruz - motor muhtemelen bu callback'i
+          // kendi ic isleminin ORTASINDA cagiriyor, bu oturumda senkron
+          // native cagrilarin motor mesguken kilitlenebildigini defalarca
+          // kanitladik (play/disposeSource/setDataIsEnded/deinit) - o
+          // yuzden Timer ile erteleyip motorun o anki islemini bitirmesine
+          // firsat taniyoruz.
+          Timer(const Duration(milliseconds: 400), () {
+            final h = _playbackHandle;
+            if (h == null) return;
+            try {
+              if (SoLoud.instance.getPause(h)) {
+                _voiceDebugLog(
+                  "onBuffering guvenlik agi: hala PAUSED, setPause(false)",
+                );
+                SoLoud.instance.setPause(h, false);
+              }
+            } catch (e) {
+              _voiceDebugLog("onBuffering guvenlik agi HATASI: $e");
+            }
+          });
+        },
       );
       _voiceDebugLog("play() cagriliyor");
       _playbackHandle = await SoLoud.instance.play(_playbackSource!);
@@ -229,50 +269,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       try {
         if (_playbackSource != null) {
           final handle = _playbackHandle;
-          if (handle != null) {
-            // TESHIS SONUCU 1: getIsValidVoiceHandle HER ZAMAN true
-            // donuyordu (handle "gecersiz" hic olmuyor) - SoLoud
-            // dokumantasyonu "valid"i "playing VEYA PAUSED" olarak
-            // taniyor. Asil sorun handle'in GECERSIZ olmasi degil,
-            // BufferingType.preserved'in "arabellek tukenince
-            // duraklat, yeterli veri gelince otomatik devam et"
-            // davranisinin (SADECE ilk play() cagrisinda dogal olarak
-            // isliyor - turn 1 hep sorunsuzdu) turlar arasi boslukta
-            // olusan PAUSED durumdan OTOMATIK cikmamasi.
-            //
-            // TESHIS SONUCU 2: setPause(false)'u HER parcada kosulsuz
-            // cagirmak "kesik kesik ses"e yol acti - log kanitladi: 2.
-            // turda HER TEK addAudioDataStream'den hemen sonra handle
-            // yeniden PAUSED buluyorduk, yani zorla erken uyandirmak
-            // arabellegin (bufferingTimeNeeds: 0.3s) hic birikmeden
-            // surekli tukenip yeniden duraklamasina yol aciyordu -
-            // dongusel bir kesinti.
-            //
-            // TESHIS SONUCU 3: "turn basina sadece BIR KEZ" denemesi de
-            // yetersiz kaldi - bir sonraki testte 3. turda hic PAUSED
-            // tespiti olmadi ama yine ses gelmedi, yani duraklama TUR
-            // ICINDE de (sadece basinda degil) tekrar olusabiliyor.
-            // Cozum: ne her parcada, ne sadece turn basinda - en fazla
-            // 300ms'de BIR kontrol edilen (throttled) surekli bir kontrol.
-            // Bu, dongusel kesintiyi onlerken (300ms'den sik cagrilamaz)
-            // tur icinde herhangi bir noktada olusabilecek yeniden
-            // duraklamayi da yakalar.
-            final now = DateTime.now();
-            final dueForCheck = _lastResumeCheckTime == null ||
-                now.difference(_lastResumeCheckTime!) >
-                    const Duration(milliseconds: 300);
-            if (dueForCheck) {
-              _lastResumeCheckTime = now;
-              try {
-                if (SoLoud.instance.getPause(handle)) {
-                  _voiceDebugLog("handle PAUSED - setPause(false) cagriliyor");
-                  SoLoud.instance.setPause(handle, false);
-                }
-              } catch (e) {
-                _voiceDebugLog("getPause/setPause HATASI: $e");
-              }
-            }
-          } else if (!_resumingPlayback) {
+          if (handle == null && !_resumingPlayback) {
             // Handle hic yoksa (beklenmedik durum) play()'i tekrar
             // cagirip bir tane olusturuyoruz.
             _resumingPlayback = true;
@@ -505,7 +502,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     _playbackSource = null;
     _playbackHandle = null;
     _resumingPlayback = false;
-    _lastResumeCheckTime = null;
   }
 }
 
