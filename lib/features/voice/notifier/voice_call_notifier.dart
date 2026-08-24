@@ -44,7 +44,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
   WebSocketChannel? _channel;
   StreamSubscription<Uint8List>? _micSubscription;
   AudioSource? _playbackSource;
-  bool _soloudReady = false;
   String? _token;
 
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
@@ -132,7 +131,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         await SoLoud.instance.init();
         _voiceDebugLog("init() tamamlandi");
       }
-      _soloudReady = true;
 
       // Resmi flutter_soloud WebSocket ornegindeki desen: TEK bir
       // AudioSource, TEK bir play() cagrisi - tum gorusme boyunca.
@@ -408,33 +406,26 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
     await WakelockPlus.disable();
     _voiceDebugLog("WakelockPlus.disable() tamamlandi");
 
-    // Sadece kaynagi (source) degil, TUM SoLoud motorunu kapatiyoruz.
-    // Motoru acik birakip sadece source'u dispose etmek, ayni uygulama
-    // oturumunda IKINCI aramada native ses motorunun bozuk bir durumda
-    // kalip donmasina (tum pencerenin kilitlenmesine) yol aciyordu. Bir
-    // sonraki startCall() zaten `if (!isInitialized) init()` ile motoru
-    // sifirdan baslatiyor - kucuk bir gecikme pahasina saglamlik kazaniyoruz.
+    // KRITIK BULUNAN 3. BUG (teshis loguyla kanitlandi, ayni desenin
+    // ucuncu tekrari): setDataIsEnded()'i kaldirdiktan sonra bu sefer
+    // deinit() TEK BASINA (yine hicbir re-entrancy olmadan) kilitlendi.
+    // Artik net: play()/disposeSource()/setDataIsEnded()/deinit() - bu
+    // motoru "durdurmaya/temizlemeye" calisan HER senkron native cagri,
+    // motor o an bu source'u AKTIF calarken/mixlerken kilitlenme riski
+    // tasiyor (kullanici konusma SIRASINDA kapatma tusuna basiyor).
     //
-    // KRITIK BULUNAN 2. BUG (teshis loguyla kanitlandi): setDataIsEnded()
-    // - "hafif/senkron, kaynak yok etmiyor" diye guvenli sanilmisti - ama
-    // TEK BASINA, hicbir re-entrancy olmadan bile, dogrudan senkron FFI
-    // cagrisi (play()/disposeSource() ile AYNI risk deseni) UI thread'ini
-    // kilitleyebiliyordu. Bu cagriya zaten ihtiyacimiz yok: hemen altta
-    // cagirdigimiz deinit() TUM kaynaklari (disposeAllSound() ile) zaten
-    // zorla serbest birakiyor - setDataIsEnded() sadece "duzgun/kademeli"
-    // bir kapanis icin ekstra bir nezaketti, artik kaldirildi.
+    // FIX: artik HICBIR durdurma/temizleme cagrisi yapmiyoruz. SoLoud
+    // motoru bir kez baslatildiktan sonra UYGULAMA SURESI BOYUNCA acik
+    // kaliyor (deinit() bir daha hic cagrilmiyor), eski source'u da
+    // sadece referanstan dusuruyoruz (dispose etmeden). Bir sonraki
+    // startCall() zaten `if (!isInitialized) init()` ile bunu atlayip
+    // sadece taze bir setBufferStream()+play() olusturuyor - bu ikisi
+    // TUM testlerde hic kilitlenmedi (sadece "durdurma" cagrilari
+    // kilitleniyordu). Odun: her arama, bir onceki aramanin kucuk ses
+    // arabellegini bellekte birakiyor (kucuk bir sizinti) - donmaya
+    // kiyasla acik ara daha iyi, uygulama kapaninca isletim sistemi
+    // zaten hepsini geri aliyor.
     _playbackSource = null;
-    if (_soloudReady) {
-      try {
-        _voiceDebugLog("deinit() cagriliyor");
-        SoLoud.instance.deinit();
-        _voiceDebugLog("deinit() tamamlandi");
-      } catch (e) {
-        debugPrint("SoLoud deinit hatasi: $e");
-        _voiceDebugLog("deinit() HATASI: $e");
-      }
-      _soloudReady = false;
-    }
   }
 }
 
