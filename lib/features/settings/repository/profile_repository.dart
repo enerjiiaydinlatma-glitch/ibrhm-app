@@ -22,7 +22,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
     Dio? dio,
     this.baseUrl = 'https://aura-backend-production-bc9c.up.railway.app',
     required this.token,
-  }) : _dio = dio ?? Dio();
+  }) : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 20),
+            ));
 
   Options get _authOptions => Options(
         headers: {

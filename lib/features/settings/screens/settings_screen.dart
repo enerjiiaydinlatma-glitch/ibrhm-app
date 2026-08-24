@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/memory_item.dart';
 import '../notifier/memory_notifier.dart';
 import '../models/profile.dart';
 import '../notifier/profile_notifier.dart';
+import '../../../services/auth_service.dart';
+import '../../chat/screens/auth_screen.dart';
 
+/// Ayarlar ekrani - kullanicinin "ayarlara hicbir erisimi yok" bulgusuna
+/// karsi eklendi (2026-08-24). Onceden vardi ama hicbir yerden
+/// ulasilamiyordu (nav baglantisi yoktu) ve uygulamanin geri kalaniyla
+/// hic uyumsuz varsayilan (acik/beyaz) Material temasindaydi - artik
+/// chat_screen.dart ile ayni koyu/indigo kimlige getirildi ve AppBar'a
+/// bir giris noktasi eklendi.
 class SettingsScreen extends ConsumerStatefulWidget {
   final String token;
   const SettingsScreen({super.key, required this.token});
@@ -14,6 +23,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static const _bgColor = Color(0xFF0A0A1A);
+  static const _cardColor = Color(0xFF12122A);
+  static const _indigoColor = Color(0xFF6C63FF);
+  static const _borderColor = Color(0xFF2A2A4A);
+
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
   String _warmth = 'sicak';
@@ -21,11 +35,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _humor = 'orta';
   String _directness = 'dengeli';
   bool _initialized = false;
+  bool _loggingOut = false;
 
   static const warmthOptions = ['mesafeli', 'dengeli', 'sicak'];
   static const formalityOptions = ['resmi', 'dengeli', 'samimi'];
   static const humorOptions = ['dusuk', 'orta', 'yuksek'];
   static const directnessOptions = ['yumusak', 'dengeli', 'dogrudan'];
+
+  // Backend'deki LIMIT_DAILY_MESSAGES/VOICE_DAILY_LIMIT_SECONDS ile
+  // ayni deger - sunucu bu sayilari ayrica bir API ile yayinlamiyor,
+  // bu yuzden burada eslenik olarak tutuluyor (degisirse ikisi de
+  // guncellenmeli).
+  static const int _freeMessageLimit = 30;
+  static const int _freeVoiceSecondsLimit = 600;
 
   static const _categoryLabels = {
     'identity': 'Kimlik',
@@ -70,7 +92,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           notes: _notesController.text.trim(),
         );
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ayarlar kaydedildi')),
+      SnackBar(content: Text('Ayarlar kaydedildi', style: GoogleFonts.poppins())),
     );
   }
 
@@ -79,14 +101,181 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(memoryNotifierProvider.notifier).delete(memory.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${memory.memoryValue}" unutuldu')),
+        SnackBar(content: Text('"${memory.memoryValue}" unutuldu', style: GoogleFonts.poppins())),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silinemedi, tekrar dene')),
+        SnackBar(content: Text('Silinemedi, tekrar dene', style: GoogleFonts.poppins())),
       );
     }
+  }
+
+  Future<void> _logout() async {
+    setState(() => _loggingOut = true);
+    try {
+      await AuthService().logout(widget.token);
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Çıkış yap', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+        content: Text(
+          'Hesabın kaydedilmediyse (anonimse) bu cihazdan çıktığında geçmişine bir daha erişemeyebilirsin.',
+          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Vazgeç', style: GoogleFonts.poppins(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Çıkış yap', style: GoogleFonts.poppins(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _logout();
+  }
+
+  InputDecoration _fieldDecoration(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+      hintStyle: GoogleFonts.poppins(color: Colors.white30, fontSize: 13),
+      filled: true,
+      fillColor: _bgColor,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _indigoColor),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(
+          text,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.white),
+        ),
+      );
+
+  Widget _card({required Widget child}) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _borderColor),
+        ),
+        child: child,
+      );
+
+  Widget _buildUsageSection(UserProfile profile) {
+    final isPro = profile.tier == 'pro';
+    if (isPro) {
+      return _card(
+        child: Row(
+          children: [
+            const Icon(Icons.workspace_premium_outlined, color: Color(0xFFFFC857)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Pro hesap - günlük kullanım sınırın yok.',
+                style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final msgLeft = (_freeMessageLimit - profile.dailyMessageCount).clamp(0, _freeMessageLimit);
+    final voiceLeftSec = (_freeVoiceSecondsLimit - profile.dailyVoiceSeconds).clamp(0, _freeVoiceSecondsLimit);
+    final msgRatio = profile.dailyMessageCount / _freeMessageLimit;
+    final voiceRatio = profile.dailyVoiceSeconds / _freeVoiceSecondsLimit;
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Bugünkü ücretsiz kullanım',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white),
+                ),
+              ),
+              Text('yarın sıfırlanır', style: GoogleFonts.poppins(fontSize: 11, color: Colors.white38)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _usageRow('Mesaj', profile.dailyMessageCount, _freeMessageLimit, msgRatio, '$msgLeft mesaj kaldı'),
+          const SizedBox(height: 12),
+          _usageRow(
+            'Sesli görüşme',
+            profile.dailyVoiceSeconds ~/ 60,
+            _freeVoiceSecondsLimit ~/ 60,
+            voiceRatio,
+            '${(voiceLeftSec / 60).ceil()} dk kaldı',
+            unit: 'dk',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _usageRow(String label, int used, int max, double ratio, String remainingText, {String unit = ''}) {
+    final clampedRatio = ratio.clamp(0.0, 1.0);
+    final barColor = clampedRatio > 0.85 ? Colors.redAccent : _indigoColor;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70)),
+            ),
+            Text(
+              '$used$unit / $max$unit',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70, fontFeatures: const [FontFeature.tabularFigures()]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: clampedRatio,
+            minHeight: 6,
+            backgroundColor: _bgColor,
+            valueColor: AlwaysStoppedAnimation(barColor),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(remainingText, style: GoogleFonts.poppins(fontSize: 11, color: Colors.white38)),
+      ],
+    );
   }
 
   Widget _buildDropdown(
@@ -96,12 +285,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     void Function(String) onChanged,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Expanded(child: Text(label)),
+          Expanded(
+            child: Text(label, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
+          ),
           DropdownButton<String>(
             value: value,
+            dropdownColor: _cardColor,
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+            underline: Container(height: 1, color: _borderColor),
             items: options
                 .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                 .toList(),
@@ -120,44 +314,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Hafızam',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 4),
-        const Text(
+        _sectionTitle('Hafızam'),
+        Text(
           'Aura senin hakkında bunları hatırlıyor. İstemediğini silebilirsin.',
-          style: TextStyle(fontSize: 12, color: Colors.white54),
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.white54),
         ),
         const SizedBox(height: 12),
         memoriesAsync.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: CircularProgressIndicator(color: _indigoColor)),
           ),
-          error: (err, st) => Text('Hafıza yüklenemedi: $err'),
+          error: (err, st) => Text('Hafıza yüklenemedi: $err', style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
           data: (memories) {
             if (memories.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   'Henüz hiçbir şey hatırlamıyor.',
-                  style: TextStyle(color: Colors.white54),
+                  style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
                 ),
               );
             }
             return Column(
               children: memories.map((memory) {
-                final label = _categoryLabels[memory.category] ??
-                    memory.category;
-                return Card(
+                final label = _categoryLabels[memory.category] ?? memory.category;
+                return Container(
                   margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _bgColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _borderColor),
+                  ),
                   child: ListTile(
                     dense: true,
-                    title: Text(memory.memoryValue),
-                    subtitle: Text(label),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(memory.memoryValue, style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
+                    subtitle: Text(label, style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11)),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
                       tooltip: 'Unut',
                       onPressed: () => _deleteMemory(memory),
                     ),
@@ -176,13 +372,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profileAsync = ref.watch(profileNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Aura Ayarlari')),
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: _bgColor,
+        elevation: 0,
+        title: Text('Ayarlar', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, st) => Center(child: Text('Hata: $err')),
+        loading: () => const Center(child: CircularProgressIndicator(color: _indigoColor)),
+        error: (err, st) => Center(
+          child: Text('Hata: $err', style: GoogleFonts.poppins(color: Colors.white54)),
+        ),
         data: (profile) {
           if (profile == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: _indigoColor));
           }
           _fillFromProfile(profile);
           return SingleChildScrollView(
@@ -190,77 +394,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Kisisel Bilgiler',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Adin',
-                    border: OutlineInputBorder(),
+                _buildUsageSection(profile),
+                const SizedBox(height: 24),
+                _sectionTitle('Kişisel Bilgiler'),
+                _card(
+                  child: TextField(
+                    controller: _nameController,
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+                    decoration: _fieldDecoration('Adın'),
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Aura Nasil Davransin',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                _buildDropdown(
-                  'Sicaklik',
-                  _warmth,
-                  warmthOptions,
-                  (v) => _warmth = v,
-                ),
-                _buildDropdown(
-                  'Resmiyet',
-                  _formality,
-                  formalityOptions,
-                  (v) => _formality = v,
-                ),
-                _buildDropdown(
-                  'Mizah',
-                  _humor,
-                  humorOptions,
-                  (v) => _humor = v,
-                ),
-                _buildDropdown(
-                  'Dogrudanlik',
-                  _directness,
-                  directnessOptions,
-                  (v) => _directness = v,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Serbest Talimat',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _notesController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText:
-                        'Ornek: Beni sakaci bul ama is konularinda ciddi ol.',
-                    border: OutlineInputBorder(),
+                _sectionTitle('Aura Nasıl Davransın'),
+                _card(
+                  child: Column(
+                    children: [
+                      _buildDropdown('Sıcaklık', _warmth, warmthOptions, (v) => _warmth = v),
+                      _buildDropdown('Resmiyet', _formality, formalityOptions, (v) => _formality = v),
+                      _buildDropdown('Mizah', _humor, humorOptions, (v) => _humor = v),
+                      _buildDropdown('Doğrudanlık', _directness, directnessOptions, (v) => _directness = v),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
+                _sectionTitle('Serbest Talimat'),
+                _card(
+                  child: TextField(
+                    controller: _notesController,
+                    maxLines: 4,
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+                    decoration: _fieldDecoration(
+                      '',
+                      hint: 'Örnek: Beni şakacı bul ama iş konularında ciddi ol.',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _save,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Kaydet'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _indigoColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Text('Kaydet', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 32),
-                const Divider(),
-                const SizedBox(height: 16),
                 _buildMemorySection(),
+                const SizedBox(height: 32),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _loggingOut ? null : _confirmLogout,
+                    icon: _loggingOut
+                        ? const SizedBox(
+                            width: 14, height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+                          )
+                        : const Icon(Icons.logout, size: 18, color: Colors.white38),
+                    label: Text('Çıkış yap', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           );

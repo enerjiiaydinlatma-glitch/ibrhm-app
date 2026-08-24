@@ -6,6 +6,12 @@
   final String humor;
   final String directness;
   final String notes;
+  // BULUNDU (kullanici istegi): kullanici gunluk kullanim limitini
+  // ancak duvara carpinca ogreniyordu - artik ayarlar ekraninda
+  // seffaf sekilde gosteriliyor, "guven vermeli" geri bildirimine gore.
+  final String tier;
+  final int dailyMessageCount;
+  final int dailyVoiceSeconds;
 
   UserProfile({
     required this.id,
@@ -15,6 +21,9 @@
     required this.humor,
     required this.directness,
     required this.notes,
+    this.tier = 'free',
+    this.dailyMessageCount = 0,
+    this.dailyVoiceSeconds = 0,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -26,6 +35,9 @@
       humor: json['humor'] ?? 'orta',
       directness: json['directness'] ?? 'dengeli',
       notes: json['notes'] ?? '',
+      tier: json['tier'] ?? 'free',
+      dailyMessageCount: json['daily_message_count'] ?? 0,
+      dailyVoiceSeconds: json['daily_voice_seconds'] ?? 0,
     );
   }
 
@@ -45,6 +57,9 @@
       humor: humor ?? this.humor,
       directness: directness ?? this.directness,
       notes: notes ?? this.notes,
+      tier: tier,
+      dailyMessageCount: dailyMessageCount,
+      dailyVoiceSeconds: dailyVoiceSeconds,
     );
   }
 }

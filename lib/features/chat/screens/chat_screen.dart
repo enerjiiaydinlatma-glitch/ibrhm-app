@@ -7,10 +7,12 @@ import "package:google_fonts/google_fonts.dart";
 import "package:audioplayers/audioplayers.dart";
 import "package:image_picker/image_picker.dart";
 import "package:flutter_tts/flutter_tts.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
 import "../../voice/screens/voice_call_screen.dart";
 import "../../voice/notifier/voice_call_notifier.dart";
+import "../../settings/screens/settings_screen.dart";
 import "../../../services/auth_service.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -85,6 +87,56 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         await Future.delayed(const Duration(seconds: 3));
         if (mounted) await _checkAnonymousStatus(isRetry: true);
       }
+    }
+  }
+
+  // BULUNDU (kullanici istegi): kullanici cagri tusuna basinca hicbir
+  // aciklama olmadan aniden mikrofon izni istegi cikiyordu - bu ozellikle
+  // ilk kullanimda guven kirici olabilir. Artik SADECE ilk seferde (bir
+  // SharedPreferences bayragiyla takip edilen) kisa bir aciklama
+  // gosterilip ONDAN SONRA gercek izin istegi tetikleniyor. Sonraki
+  // aramalar bu adimi hic gormeden dogrudan baslar.
+  static const _voiceIntroShownKey = "voice_intro_shown";
+
+  Future<void> _startVoiceCallWithPriming() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadyShown = prefs.getBool(_voiceIntroShownKey) ?? false;
+    if (alreadyShown) {
+      ref.read(voiceCallProvider.notifier).startCall(widget.token);
+      return;
+    }
+    if (!mounted) return;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF12122A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.mic_none_outlined, color: _indigoColor),
+            const SizedBox(width: 10),
+            Text("Sesli görüşme", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: Text(
+          "Aura ile gerçek zamanlı konuşmak üzeresin. Şimdi telefonun/tarayıcın mikrofon izni isteyecek - onaylarsan konuşmaya hemen başlayabilirsin.",
+          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text("Vazgeç", style: GoogleFonts.poppins(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text("Devam et", style: GoogleFonts.poppins(color: _indigoColor, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    await prefs.setBool(_voiceIntroShownKey, true);
+    if (proceed == true) {
+      ref.read(voiceCallProvider.notifier).startCall(widget.token);
     }
   }
 
@@ -469,7 +521,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               if (callState.isActive) {
                 ref.read(voiceCallProvider.notifier).endCall();
               } else {
-                ref.read(voiceCallProvider.notifier).startCall(widget.token);
+                _startVoiceCallWithPriming();
               }
             },
             child: Container(
@@ -612,6 +664,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
             onPressed: _showVoiceSelector,
             tooltip: "Ses Seç",
+          ),
+          // BULUNDU (kullanici istegi): profil/hafiza yonetimi, gunluk
+          // kullanim gorunurlugu ve cikis yapmaya HICBIR erisim yoktu -
+          // "menusuz, organik" felsefeye sadik, tek bir dislaiye tikla
+          // ayarlar ekranina goturen giris noktasi.
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+            tooltip: "Ayarlar",
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SettingsScreen(token: widget.token)),
+              );
+            },
           ),
         ],
       ),
