@@ -213,6 +213,16 @@ BOS_EMPATI_YASAGI = (
 )
 
 
+# BULUNDU (2026-08-25, 4 AI analizinin evrim onerisi): onceden sadece
+# IKI asama vardi (ilk mesajlar / sonrasi) - uzun sureli, cok konusmus
+# kullanicilar icin ucuncu bir "derin bag" asamasi yoktu. Bu esik,
+# ORUNTU FARKINDALIGI mekanizmasindan (zaten var, arka planda calisiyor)
+# AYRI bir sey - o "bir celiski fark ettim" ani icin, bu ise GENEL
+# konusma tarzinin (aciklama yapmadan, kisaltilmis, guvenli) zamanla
+# nasil degistigi icin.
+DEEP_BOND_THRESHOLD = 300
+
+
 def get_familiarity_note(message_count: int) -> str:
     if message_count < FAMILIARITY_THRESHOLD:
         return (
@@ -220,9 +230,17 @@ def get_familiarity_note(message_count: int) -> str:
             "dostum, kanka, patron, abi, reis, kral. "
             "Kullanicinin adini biliyorsan onu kullan, bilmiyorsan hitapsiz baslat."
         )
+    if message_count < DEEP_BOND_THRESHOLD:
+        return (
+            "Artik kullaniciyla bir sohbet gecmisiniz var. "
+            "Dogal geldigi olculude samimi olabilirsin."
+        )
     return (
-        "Artik kullaniciyla bir sohbet gecmisiniz var. "
-        "Dogal geldigi olculude samimi olabilirsin."
+        "DERIN BAG ASAMASI: Bu kullaniciyla artik uzun bir gecmisiniz "
+        "var - fazla aciklama yapmana, arka plan vermene gerek yok, "
+        "kisa ve guvenli konusabilirsin, sanki cumleyi bitirmeden "
+        "anlasilacagini bilir gibi. Yine de sicakligini kaybetme - "
+        "kisalik sogukluk demek degil, yakinlik demek."
     )
 
 
