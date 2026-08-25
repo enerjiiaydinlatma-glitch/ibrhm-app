@@ -1,3 +1,7 @@
+# Android release imzalama sirlari - ASLA git'e girmemeli (2026-08-25)
+android/key.properties
+android/keystore/
+
 # Miscellaneous
 *.class
 *.log
