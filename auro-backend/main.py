@@ -11,10 +11,10 @@ from collections import defaultdict, deque
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response, HTMLResponse
+from fastapi.responses import StreamingResponse, Response, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Literal, Optional
 from google import genai
 from google.genai import types
 import database
@@ -41,7 +41,17 @@ ADMIN_KEY = os.getenv("ADMIN_KEY", "").strip()
 
 
 def _check_admin_key(key: Optional[str]):
-    if not ADMIN_KEY or not key or not secrets.compare_digest(key, ADMIN_KEY):
+    # GECE DENETIMI BULGUSU: secrets.compare_digest ASCII-disi karakter
+    # gelirse TypeError firlatiyor (yakalanmiyordu) - "?key=yanlis" 404
+    # donerken "?key=şifre" (Turkce karakter) 500 donuyordu. Bu, ayrimin
+    # KENDISI bir "endpoint var, anahtar formatinla ilgili bir sorun var"
+    # sinyali oluyordu - tam da 404'un gizlemeye calistigi bilgiyi
+    # sizdiriyordu. Artik hersey TypeError/ValueError dahil 404'e dusuyor.
+    try:
+        valid = bool(ADMIN_KEY) and bool(key) and secrets.compare_digest(key, ADMIN_KEY)
+    except (TypeError, ValueError):
+        valid = False
+    if not valid:
         raise HTTPException(status_code=404)
 
 VOICE_IDS = {
@@ -104,6 +114,19 @@ request_log = defaultdict(deque)
 MAX_HISTORY_MESSAGES = 20
 
 
+@app.get("/api/_debug_ip")
+def _debug_ip(request: Request):
+    """
+    GECICI - Railway'in X-Forwarded-For'u gercekte nasil ilettigini
+    dogrulamak icin (gece denetimi bulgusu: rate limiter IP sahteciligine
+    acikti). Dogrulama sonrasi bu endpoint SILINECEK.
+    """
+    return {
+        "raw_xff": request.headers.get("x-forwarded-for"),
+        "client_host_after_uvicorn_mutation": request.client.host if request.client else None,
+    }
+
+
 @app.middleware("http")
 async def rate_limiter(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
@@ -112,17 +135,60 @@ async def rate_limiter(request: Request, call_next):
     while log and now - log[0] > RATE_LIMIT_WINDOW:
         log.popleft()
     if len(log) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(status_code=429, detail="Cok fazla istek gonderdin.")
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Cok fazla istek gonderdin."},
+        )
     log.append(now)
     # GUVENLIK TARAMASI BULGUSU: bosalan (artik aktif istegi kalmayan)
     # IP kayitlari sozlukten hic silinmiyordu - surec omru boyunca
     # SADECE BUYUYEN, hic kucalmayen bir sozluk (yavas bellek sizintisi).
     # Pahali bir taramayi HER istekte degil, sozluk belirli bir esigi
     # gectiginde yapiyoruz.
+    # GECE DENETIMI BULGUSU: bu sweep SADECE bos deque'leri siliyordu -
+    # ama bir IP SADECE BIR KEZ istek atip bir daha hic gelmezse, kendi
+    # deque'i (yukaridaki "while" sadece o IP TEKRAR geldiginde calisir)
+    # tek bir eleman ile SONSUZA KADAR "bos degil" kalirdi - IP sahteciligi
+    # yapan biri her istekte YENI bir sahte IP kullanarak bu sweep'i tam
+    # etkisiz birakabilirdi. Artik "en son ne zaman istek geldi" kontrolu
+    # yapiyoruz - pencereden eski olan HER kayit siliniyor, bos olsun
+    # olmasin.
     if len(request_log) > 5000:
-        for ip in [ip for ip, l in request_log.items() if not l]:
+        for ip in [
+            ip for ip, l in request_log.items()
+            if not l or now - l[-1] > RATE_LIMIT_WINDOW
+        ]:
             del request_log[ip]
     return await call_next(request)
+
+
+# GECE DENETIMI BULGUSU: /api/auth/login'in TEK savunmasi yukaridaki
+# spoofable IP rate limiter'di - hesap basina bir kilitleme yoktu.
+# request_log ile ayni desen (bellek ici deque), ama e-posta anahtarli -
+# IP sahtekarligindan tamamen bagimsiz.
+LOGIN_LOCKOUT_WINDOW = 300  # 5 dakika
+LOGIN_LOCKOUT_MAX_ATTEMPTS = 5
+_failed_login_attempts: dict[str, deque] = defaultdict(deque)
+
+
+def _check_login_lockout(email: str):
+    now = time.time()
+    log = _failed_login_attempts[email.strip().lower()]
+    while log and now - log[0] > LOGIN_LOCKOUT_WINDOW:
+        log.popleft()
+    if len(log) >= LOGIN_LOCKOUT_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Çok fazla başarısız giriş denemesi. Birkaç dakika sonra tekrar dene.",
+        )
+
+
+def _record_failed_login(email: str):
+    _failed_login_attempts[email.strip().lower()].append(time.time())
+
+
+def _clear_failed_login(email: str):
+    _failed_login_attempts.pop(email.strip().lower(), None)
 
 
 def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
@@ -172,12 +238,38 @@ def _validate_email_format(v: str) -> str:
     return v
 
 
+# GECE DENETIMI BULGUSU: bcrypt (5.x) 72 BAYTTAN uzun sifrelerde
+# sessizce kesmek yerine ValueError firlatiyor - RegisterRequest.password
+# 200 KARAKTERE kadar izin veriyordu (bayt degil), ve Turkce karakterler
+# (ş, ğ, ı, ü) UTF-8'de 2 bayt tuttugu icin 40 karakterlik bir Turkce
+# sifre bile 72 bayti asabiliyordu. Sonuc: kayit/claim sirasinda
+# hash_password() icinde yakalanmamis bir ValueError, kullaniciya ham
+# "Internal Server Error" olarak donuyordu. Simdi bunu ACIKCA, anlasilir
+# bir mesajla, hashlemeye hic girmeden reddediyoruz.
+def _validate_password_byte_length(v: str) -> str:
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError(
+            "Şifre çok uzun (en fazla 72 bayt olabilir - Türkçe karakterler "
+            "2 bayt sayılır, yaklaşık 60-70 karakter civarında kalın)."
+        )
+    return v
+
+
 class RegisterRequest(BaseModel):
     email: str = Field(max_length=255)
     password: str = Field(max_length=200)
     name: str = Field(default="", max_length=100)
+    # GECE DENETIMI BULGUSU: hem gercek kayit formu hem de istemcinin
+    # kendi olusturdugu anonim hesaplar AYNI /api/auth/register ucunu
+    # kullaniyor - sunucu bunlari ayirt edemiyordu, bu yuzden
+    # is_anonymous her zaman 1 (varsayilan) kaliyor, /api/auth/claim'in
+    # "zaten claim edilmis hesabi tekrar claim etmeyi engelle" korumasi
+    # HICBIR gercek kayit icin devreye girmiyordu. Istemci artik bunu
+    # ACIKCA bildiriyor - varsayilan False (yani "gercek kayit").
+    is_anonymous_bootstrap: bool = False
 
     _validate_email = field_validator("email")(_validate_email_format)
+    _validate_password = field_validator("password")(_validate_password_byte_length)
 
 class LoginRequest(BaseModel):
     email: str = Field(max_length=255)
@@ -188,6 +280,7 @@ class ClaimAccountRequest(BaseModel):
     password: str = Field(max_length=200)
 
     _validate_email = field_validator("email")(_validate_email_format)
+    _validate_password = field_validator("password")(_validate_password_byte_length)
 
 class ChatRequest(BaseModel):
     message: str = Field(max_length=4000)
@@ -199,18 +292,42 @@ class TTSRequest(BaseModel):
 class AnalyzeRequest(BaseModel):
     # ~15MB base64 - tipik bir fotografi rahatca kapsar, sinirsizi engeller.
     image_base64: str = Field(max_length=15_000_000)
-    mime_type: str = "image/jpeg"
+    # GECE DENETIMI BULGUSU: mime_type dogrulamasizdi, dogrudan Gemini'ye
+    # gecilen types.Blob'a gidiyordu - hem anlamsiz/kotu niyetli bir deger
+    # gonderilebiliyordu hem de bu alanin kendine ait bir uzunluk siniri
+    # yoktu (image_base64 disinda). Sadece fiilen desteklenen goruntu
+    # turlerine sabitlendi.
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
+
+# GECE DENETIMI BULGUSU: history onceden list[dict] idi - liste UZUNLUGU
+# sinirliydi (max_length=100) ama HER OGENIN kendi icerigi (ozellikle
+# 'text') sinirsizdi - client 100 oge x birer MB gonderip tek bir
+# istekte Gemini'ye onlarca MB baglam yollatabilirdi (usage sayaci yine
+# de sadece 1 hak tuketirdi). Tipli bir alt model, hem boyutu hem
+# 'role' degerini (rastgele string yerine sadece iki gecerli deger)
+# sinirliyor.
+class StoryHistoryItem(BaseModel):
+    role: Literal["user", "assistant"] = "user"
+    text: str = Field(default="", max_length=4000)
 
 class StoryRequest(BaseModel):
     action: str = Field(default="", max_length=2000)
-    history: list[dict] = Field(default=[], max_length=100)
+    history: list[StoryHistoryItem] = Field(default=[], max_length=100)
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
-    warmth: Optional[str] = None
-    formality: Optional[str] = None
-    humor: Optional[str] = None
-    directness: Optional[str] = None
+    # GECE DENETIMI BULGUSU: bu dort alan onceki guvenlik taramasinda
+    # unutulmustu - sinirsiz serbest metin olarak kabul edilip DOGRUDAN
+    # sistem talimatina eklenirdi (aura_brain.py). Bunlar zaten Flutter
+    # tarafinda sabit bir acilir menuden geliyor (settings_screen.dart'taki
+    # warmthOptions/formalityOptions/humorOptions/directnessOptions) - o
+    # yuzden serbest metin yerine tam da o sabit kumeyi kabul eden bir
+    # Literal, hem kalici bir prompt-enjeksiyonu deposu olma riskini hem
+    # de sessizce yoksayilan yazim hatalarini ayni anda kapatiyor.
+    warmth: Optional[Literal["mesafeli", "dengeli", "sicak"]] = None
+    formality: Optional[Literal["resmi", "dengeli", "samimi"]] = None
+    humor: Optional[Literal["dusuk", "orta", "yuksek"]] = None
+    directness: Optional[Literal["yumusak", "dengeli", "dogrudan"]] = None
     notes: Optional[str] = Field(default=None, max_length=2000)
     location_lat: Optional[float] = None
     location_lon: Optional[float] = None
@@ -232,7 +349,9 @@ def root():
 def register(req: RegisterRequest):
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
-    user = database.create_user(req.email, req.password, req.name)
+    user = database.create_user(
+        req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap
+    )
     if not user:
         raise HTTPException(status_code=409, detail="Bu email zaten kayitli.")
     token = database.create_session(user["id"])
@@ -241,9 +360,17 @@ def register(req: RegisterRequest):
 
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
+    # GECE DENETIMI BULGUSU: girisin TEK savunmasi, spoofable oldugu
+    # bulunan IP-bazli rate limiter'di - hesap basina hicbir
+    # basarisiz-deneme sayaci/kilitlemesi yoktu. Bu, IP'den BAGIMSIZ,
+    # dogrudan HESABA bagli ikinci bir katman - X-Forwarded-For
+    # sahteciligiyle bile atlatilamaz.
+    _check_login_lockout(req.email)
     user = database.authenticate_user(req.email, req.password)
     if not user:
+        _record_failed_login(req.email)
         raise HTTPException(status_code=401, detail="Email veya sifre yanlis.")
+    _clear_failed_login(req.email)
     # 'free' tier: ayni anda tek cihazda oturum kurali - yeni cihazdan
     # giris, eski cihazin oturumunu dusurur. 'pro' tier bundan muaf
     # (ayni anda birden fazla cihaz - bu Pro'ya ozgu bir avantaj).
@@ -280,6 +407,10 @@ def claim_account(req: ClaimAccountRequest, authorization: Optional[str] = Heade
     success = database.claim_account(user["id"], req.email, req.password)
     if not success:
         raise HTTPException(status_code=409, detail="Bu email zaten kayitli.")
+    # Kimlik bilgileri degisti - bu istegi yapan cihaz haric TUM eski
+    # oturumlari iptal ediyoruz (bkz. revoke_other_sessions).
+    current_token = authorization.replace("Bearer ", "") if authorization else ""
+    database.revoke_other_sessions(user["id"], current_token)
     return _safe_user(database.get_user(user["id"]))
 
 
@@ -394,6 +525,15 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     try:
         response = aura_brain.generate_with_retry(contents, aura_brain.build_system_instruction(user, message_count))
         reply_text = response.text
+        if not reply_text:
+            # GECE DENETIMI BULGUSU: Gemini bir yaniti guvenlik/recitation
+            # gibi bir nedenle engellediginde .text None DONER - bu bir
+            # exception DEGIL, o yuzden asagidaki except bloguna hic
+            # dusmuyordu. None, sanitize_reply()'a (NICKNAME_PATTERN.sub
+            # None ile cagrilinca TypeError) ya da dogrudan
+            # database.add_message'a (bos/null bir asistan mesaji)
+            # sizabiliyordu. Bunu da "yanit alinamadi" sayiyoruz.
+            raise ValueError("Gemini bos/engellenmis bir yanit dondu")
     except Exception as e:
         # GUVENLIK TARAMASI BULGUSU + CANLIDA DOGRULANAN DONMA: once
         # sadece ServerError (5xx) yakalaniyordu. Sonra generate_content'e
@@ -406,7 +546,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         # donmesini, ciplak 500'un asla sizmamasini garantiliyor.
         print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
-    reply_text = aura_brain.sanitize_reply(reply_text, message_count)
+    reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
     database.add_message(user["id"], "assistant", reply_text)
     return {"reply": reply_text}
 
@@ -485,7 +625,22 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
     # yapmiyordu - giris yapmamis herkes sunucunun ElevenLabs anahtariyla
     # sinirsiz istek atip maliyet/kota tuketebilirdi. Diger tum
     # endpoint'lerle ayni desene getirildi.
-    get_current_user(authorization)
+    user = get_current_user(authorization)
+
+    # GECE DENETIMI BULGUSU: /api/tts, diger TUM AI-uretim uclarinin
+    # aksine (chat/analyze/story) HICBIR gunluk kullanim limitine tabi
+    # degildi - ElevenLabs karakter basina ucretlendirdigi icin, giris
+    # yapmis herhangi bir kullanici sinirsiz TTS cagrisi atip hesap
+    # basina maliyeti sinirsiz artirabilirdi. Ayni gunluk mesaj sayacini
+    # paylasarak (ayri bir "tts_count" sutunu eklemeden) diger uclarla
+    # tutarli bir ust sinir kondu.
+    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
+        user["id"]
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail=LIMIT_REACHED_REPLY,
+        )
 
     # GUVENLIK TARAMASI BULGUSU: metin uzunluguna hicbir sinir yoktu -
     # ElevenLabs karakter basina ucretlendiriyor, tek bir cok uzun metin
@@ -542,6 +697,16 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
         raise HTTPException(
             status_code=504,
             detail="ElevenLabs zaman asimi",
+        )
+    except httpx.HTTPError as e:
+        # GECE DENETIMI BULGUSU: sadece TimeoutException yakalaniyordu -
+        # DNS/baglanti reddi/TLS gibi diger AG hatalari (httpx.ConnectError,
+        # ReadError, RemoteProtocolError vb.) yakalanmadan kullaniciya ham
+        # "Internal Server Error" olarak sizardi.
+        print(f"ELEVENLABS AG HATASI: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail="Seslendirme şu an başarısız.",
         )
 
 
@@ -615,20 +780,20 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
         "Hikaye Turkce. Her bolumun sonunda kullaniciyi yonlendirmeye davet et. "
         "Kahraman sen olsun - ikinci sahis anlati."
     )
-    if not request.history and not request.action:
-        prompt = "Gizemli, surukleyici bir sahneyle bir hikaye baslat. Ikinci sahis anlatimiyla yaz."
-        contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
-    else:
-        contents = []
-        # Client'in gonderdigi history sinirsiz buyuklukte olabilirdi -
-        # son MAX_HISTORY_MESSAGES kadarina kirpiliyor (diger tum
-        # gecmis kullanimlarindaki desenle tutarli).
-        for msg in request.history[-MAX_HISTORY_MESSAGES:]:
-            role = "model" if msg.get("role") == "assistant" else "user"
-            contents.append(types.Content(role=role, parts=[types.Part(text=msg.get("text", ""))]))
-        if request.action:
-            contents.append(types.Content(role="user", parts=[types.Part(text=request.action)]))
     try:
+        if not request.history and not request.action:
+            prompt = "Gizemli, surukleyici bir sahneyle bir hikaye baslat. Ikinci sahis anlatimiyla yaz."
+            contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
+        else:
+            contents = []
+            # Client'in gonderdigi history sinirsiz buyuklukte olabilirdi -
+            # son MAX_HISTORY_MESSAGES kadarina kirpiliyor (diger tum
+            # gecmis kullanimlarindaki desenle tutarli).
+            for msg in request.history[-MAX_HISTORY_MESSAGES:]:
+                role = "model" if msg.role == "assistant" else "user"
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg.text)]))
+            if request.action:
+                contents.append(types.Content(role="user", parts=[types.Part(text=request.action)]))
         response = client.models.generate_content(
             model=aura_brain.MODEL_NAME,
             contents=contents,
@@ -652,8 +817,14 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
 
 
 @app.get("/api/admin/stats")
-def admin_stats(key: Optional[str] = None):
-    _check_admin_key(key)
+def admin_stats(key: Optional[str] = None, x_admin_key: Optional[str] = Header(None)):
+    # GECE DENETIMI BULGUSU: anahtar sadece URL query string'inde
+    # gonderilebiliyordu - bu, Railway/uvicorn erisim loglarina, tarayici
+    # gecmisine ve Referer basligina sizabilir. Header artik tercih
+    # ediliyor (script/curl kullanimi icin); /admin HTML panosu tarayici
+    # navigasyonuyla acildigindan (ozel header eklenemez) query string
+    # orada hala tek pratik yol - bu yuzden SADECE bu API ucunda ekledik.
+    _check_admin_key(x_admin_key or key)
     return database.get_admin_stats()
 
 

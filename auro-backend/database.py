@@ -25,6 +25,15 @@ def get_db():
     # firlatiyordu. 5 saniyelik bir bekleme penceresi, kisa sureli
     # cakismalarin sessizce (retry ile) cozulmesini saglar.
     conn.execute("PRAGMA busy_timeout = 5000")
+    # GECE DENETIMI BULGUSU: varsayilan rollback-journal modunda TEK bir
+    # yazici TUM okuyuculari kilitliyor - yogun trafikte "database is
+    # locked" hatalarinin busy_timeout'u bile asma riski vardi. WAL
+    # modunda okuyucular yazma sirasinda bloklanmiyor (SQLite'in kendi
+    # onerdigi, es zamanlilik icin standart ayar). Bu PRAGMA veritabani
+    # DOSYASININ kendisinde kalici olarak saklanir - bir kez calismasi
+    # yeterli, ama idempotent oldugu icin her baglantida calistirmak
+    # zararsiz.
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -195,6 +204,32 @@ def init_db():
             )
         """)
 
+        # GECE DENETIMI BULGUSU: init_db() suraya kadar sadece
+        # idx_friends_unique_pair'i olusturuyordu - en cok buyuyecek ve
+        # en sik WHERE user_id=? ile sorgulanacak tablolarin (messages,
+        # mood_logs, sessions, user_patterns) HICBIR indeksi yoktu. Az
+        # sayida kullanicida fark etmez ama veri buyudukce her sorgu
+        # tam tablo taramasina donerdi. Ekleme maliyeti dusuk, simdiden
+        # eklemek gelecekteki bir performans sorununu onceden onluyor.
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_messages_user_ts "
+            "ON messages(user_id, timestamp DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_mood_logs_user_ts "
+            "ON mood_logs(user_id, timestamp DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_user "
+            "ON sessions(user_id)"
+        )
+        # sessions.token zaten UNIQUE NOT NULL - SQLite bunun icin otomatik
+        # bir indeks olusturuyor, ayrica bir tane daha eklemek gereksiz.
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_user_patterns_user "
+            "ON user_patterns(user_id)"
+        )
+
 
 # --- AUTH ---
 
@@ -219,13 +254,23 @@ def _verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 
-def create_user(email: str, password: str, name: str = "") -> Optional[dict]:
+def create_user(
+    email: str, password: str, name: str = "", is_anonymous: bool = False
+) -> Optional[dict]:
+    # GECE DENETIMI BULGUSU: is_anonymous ONCEDEN hic verilmiyordu, bu
+    # yuzden semanin varsayilani (1) her zaman gecerli oluyordu - GERCEK
+    # kayitlar bile "anonim/henuz claim edilmemis" sayiliyordu, ve
+    # /api/auth/claim'deki "zaten claim edilmis hesabi tekrar claim
+    # etmeyi engelle" korumasi (main.py) hicbir gercek kayit icin
+    # devreye girmiyordu. Cagiran taraf (main.py) artik istemcinin
+    # ACIKCA bildirdigi is_anonymous_bootstrap degerini buraya tasiyor.
     try:
         with db_cursor(commit=True) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-                (email.lower().strip(), hash_password(password), name)
+                "INSERT INTO users (email, password_hash, name, is_anonymous) "
+                "VALUES (?, ?, ?, ?)",
+                (email.lower().strip(), hash_password(password), name, int(is_anonymous))
             )
             user_id = cursor.lastrowid
         return get_user(user_id)
@@ -297,6 +342,23 @@ def enforce_single_session(user_id: int):
     """
     with db_cursor(commit=True) as conn:
         conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
+def revoke_other_sessions(user_id: int, keep_token: str):
+    """
+    GECE DENETIMI BULGUSU: claim_account (kimlik degistirme) daha once
+    HICBIR oturumu iptal etmiyordu - sizmis/calinmis eski bir token,
+    kullanici sifresini/emailini degistirdikten SONRA bile calismaya
+    devam ederdi (standart "sifreni degistir, saldirgan disari atilsin"
+    beklentisinin tam tersi). Bu, DEGISTIRMEYI yapan cagrida kullanilan
+    token (keep_token) haric TUMUNU siler - kullanici kendi cihazindan
+    atilmaz, ama diger tum eski oturumlar gecersiz olur.
+    """
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "DELETE FROM sessions WHERE user_id = ? AND token != ?",
+            (user_id, keep_token),
+        )
 
 
 def claim_account(user_id: int, email: str, password: str) -> bool:

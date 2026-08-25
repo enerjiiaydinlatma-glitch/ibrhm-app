@@ -1,4 +1,7 @@
-﻿import 'package:dio/dio.dart';
+﻿import 'dart:convert';
+import 'dart:math';
+
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Bu cihazda daha once gecerli bir oturum vardi ama artik gecersiz -
@@ -53,14 +56,25 @@ class AuthService {
       throw const SessionKickedOutException();
     }
 
+    // GECE DENETIMI BULGUSU (2026-08-25): sifre daha once 'Aura_$stamp!'
+    // idi - AYNI stamp e-postada da acikca goruluyordu (anonymous_$stamp@...),
+    // yani sifre e-postadan DOGRUDAN hesaplanabiliyordu. E-posta gizli
+    // degil - kayit istegiyle birlikte agdan gecer, sunucu loglarinda
+    // gorunebilir - bu yuzden e-postayi bilen HERKES sifreyi de bilirdi,
+    // yani anonim hesaplarin gercek bir sifre korumasi yoktu (kullanicinin
+    // TUM sohbet gecmisini/hafizasini okuyabilirdi). Artik sifre,
+    // e-postadan tamamen BAGIMSIZ, kriptografik olarak guvenli rastgele
+    // bir dizi.
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final email = 'anonymous_$stamp@aura.local';
-    final password = 'Aura_$stamp!';
+    final randomBytes = List<int>.generate(24, (_) => Random.secure().nextInt(256));
+    final password = 'Aura_${base64UrlEncode(randomBytes)}!';
 
     final result = await register(
       email,
       password,
       'Aura Kullanıcısı',
+      isAnonymousBootstrap: true,
     );
 
     final token = result['token']?.toString();
@@ -111,17 +125,28 @@ class AuthService {
     }
   }
 
+  // GECE DENETIMI BULGUSU (2026-08-25): hem gercek kayit formu hem de
+  // otomatik anonim hesap olusturma AYNI /api/auth/register ucunu
+  // kullaniyor - sunucu bunlari birbirinden ayiramiyordu, bu yuzden
+  // sunucu tarafinda daha once eklenen "hesap zaten claim edilmisse
+  // /api/auth/claim'i reddet" korumasi HICBIR gercek kayit icin devreye
+  // girmiyordu (hepsi varsayilan is_anonymous=1 ile olusuyordu).
+  // isAnonymousBootstrap BILEREK acik geciriliyor - varsayilani false,
+  // yani "gercek kayit" sayiliyor; SADECE getOrCreateAnonymousToken()
+  // bunu true gecirir.
   Future<Map<String, dynamic>> register(
     String email,
     String password,
-    String name,
-  ) async {
+    String name, {
+    bool isAnonymousBootstrap = false,
+  }) async {
     final response = await _dio.post(
       '/api/auth/register',
       data: {
         'email': email,
         'password': password,
         'name': name,
+        'is_anonymous_bootstrap': isAnonymousBootstrap,
       },
     );
 

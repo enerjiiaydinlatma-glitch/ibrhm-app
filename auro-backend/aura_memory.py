@@ -1,14 +1,9 @@
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-
-
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent
-import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # database.py ile ayni sozlesme: DB_DIR verilirse (Railway kalici disk)
@@ -28,6 +23,10 @@ def get_db():
     # yazmaya calisirsa SQLite'in ANINDA "database is locked" hatasi
     # vermesini onlemek icin bir bekleme penceresi taniyoruz.
     conn.execute("PRAGMA busy_timeout = 5000")
+    # database.py'deki ayni gerekce: WAL modu yazicilarin okuyuculari
+    # kilitlemesini onluyor - dosya duzeyinde kalici bir ayar, hangi
+    # modulun once baglandigindan bagimsiz her ikisinde de aciyoruz.
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -181,6 +180,34 @@ def init_memory_db():
             ON memory_events(user_id)
             """
         )
+
+        # GECE DENETIMI BULGUSU: promote_candidate_to_memory'nin upsert
+        # mantigi (once find_active_memory ile oku, sonra ayri bir
+        # baglantida yaz) DOGRU ama bunu zorlayan bir DB kisitlamasi
+        # yoktu - iki neredeyse es zamanli cagri (cift-tiklama, iki
+        # cihaz, ya da bugun erken bulunan coklu-bilgi cikarimi) ayni
+        # (user_id, category, memory_key) icin ikisi de "aktif kayit
+        # yok" gorup ikisi de INSERT yapabilirdi. find_active_memory
+        # LOWER(memory_key) ile karsilastirdigi icin indeks de AYNI
+        # normalize edilmis ifadeyi kullanmali. Bugunun erken saatlerinde
+        # bulunan "Zeytin/Pamuk" coklanma hatasi TAM OLARAK bu sinifa
+        # giriyordu - artik DB seviyesinde de engelleniyor.
+        try:
+            cursor.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_active_unique
+                ON memories(user_id, category, LOWER(memory_key))
+                WHERE status = 'active'
+                """
+            )
+        except sqlite3.IntegrityError as e:
+            # Mevcut veride ZATEN coklanan aktif kayit varsa indeks
+            # olusturulamaz - veriyi SESSIZCE silmek/birlestirmek yerine
+            # bunu acikca logluyoruz (elle temizlik gerekiyor demektir).
+            print(
+                f"UYARI: idx_memories_active_unique olusturulamadi - "
+                f"muhtemelen zaten coklanan aktif hafiza kaydi var: {e}"
+            )
 
 
 # ============================================================
@@ -347,8 +374,15 @@ def add_memory(
 def get_memories(
     user_id: int,
     status: str = "active",
+    limit: int = 300,
 ) -> List[dict]:
-
+    # GECE DENETIMI BULGUSU: bu sorgunun HICBIR LIMIT'i yoktu - her
+    # sohbet/sesli turunda (aura_brain.py, aura_lifestyle.py uzerinden)
+    # cagriliyor, sonucun sadece ilk 20-40'i kullanilip gerisi atiliyordu.
+    # Bugun cok az kullanicida fark etmez ama bir kullanici zamanla
+    # binlerce hafiza biriktirirse her mesaj TUM satirlari cekip
+    # Python'da atardi. 300 - gercekci hicbir kullanim senaryosunu
+    # kesmeyecek kadar cömert, ama sinirsizligi ortadan kaldiriyor.
     with db_cursor() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -358,10 +392,12 @@ def get_memories(
             WHERE user_id = ?
             AND status = ?
             ORDER BY importance DESC, updated_at DESC
+            LIMIT ?
             """,
             (
                 user_id,
                 status,
+                limit,
             ),
         )
         rows = cursor.fetchall()
