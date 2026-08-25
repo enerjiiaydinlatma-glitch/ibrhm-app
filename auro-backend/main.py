@@ -114,19 +114,17 @@ request_log = defaultdict(deque)
 MAX_HISTORY_MESSAGES = 20
 
 
-@app.get("/api/_debug_ip")
-def _debug_ip(request: Request):
-    """
-    GECICI - Railway'in X-Forwarded-For'u gercekte nasil ilettigini
-    dogrulamak icin (gece denetimi bulgusu: rate limiter IP sahteciligine
-    acikti). Dogrulama sonrasi bu endpoint SILINECEK.
-    """
-    return {
-        "raw_xff": request.headers.get("x-forwarded-for"),
-        "client_host_after_uvicorn_mutation": request.client.host if request.client else None,
-    }
-
-
+# GECE DENETIMI BULGUSU + CANLIDA DOGRULANDI (2026-08-25): once "Procfile
+# --forwarded-allow-ips='*' oldugu icin X-Forwarded-For istemci tarafindan
+# sahtelenip rate limiter atlatilabilir" diye supheleniliyordu. Gercek
+# istegi GECICI bir /api/_debug_ip ucuyla test ettik: Railway'in kendi
+# edge'i, istemcinin gonderdigi X-Forwarded-For'u TAMAMEN YOK SAYIP
+# KENDI gozlemledigi gercek IP'yi zincirin BASINA yaziyor (denendi:
+# "X-Forwarded-For: 1.2.3.4" ve "9.9.9.9, 1.2.3.4" gonderildi, ikisinde
+# de sahte deger hic gorunmedi, gercek IP degismedi). Yani
+# request.client.host (uvicorn --proxy-headers ile bunun ilk parcasindan
+# turetiyor) GUVENILIR - bu deployment'ta IP sahteciligi ile bu limiti
+# atlatmak MUMKUN DEGIL. Asagidaki mantik bilerek DEGISTIRILMEDI.
 @app.middleware("http")
 async def rate_limiter(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
