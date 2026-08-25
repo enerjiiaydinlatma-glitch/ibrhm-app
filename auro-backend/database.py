@@ -531,99 +531,10 @@ def get_mood_summary(user_id: int) -> dict:
     return {row['mood']: row['count'] for row in rows}
 
 
-# --- FRIENDS ---
-
-def send_friend_request(user_id: int, friend_email: str) -> bool:
-    friend = get_user_by_email(friend_email)
-    if not friend:
-        return False
-    with db_cursor(commit=True) as conn:
-        conn.execute(
-            """INSERT OR IGNORE INTO friends
-               (user_id, friend_user_id, friend_name, friend_email, status)
-               VALUES (?, ?, ?, ?, 'pending')""",
-            (user_id, friend['id'], friend.get('name', ''), friend_email)
-        )
-    return True
-
-
-def accept_friend_request(friendship_id: int, caller_user_id: int) -> bool:
-    """
-    GUVENLIK TARAMASI BULGUSU (IDOR): daha once caller'in bu istegin
-    ALICISI (friend_user_id) olup olmadigi HIC kontrol edilmiyordu -
-    istegi GONDEREN kullanici da (friendship_id'yi bilerek/tahmin ederek)
-    kendi istegini kendisi onaylayabiliyordu, bu da hedef kullanicinin
-    onayi olmadan onun 'arkadasa ozel' hikayelerine erisim kazandiriyordu.
-    Artik sadece caller GERCEKTEN o istegin alicisiysa satir guncelleniyor.
-    """
-    with db_cursor(commit=True) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE friends SET status = 'accepted' WHERE id = ? AND friend_user_id = ?",
-            (friendship_id, caller_user_id)
-        )
-        return cursor.rowcount > 0
-
-
-def get_friends(user_id: int) -> List[dict]:
-    with db_cursor() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM friends WHERE user_id = ? AND status = 'accepted'",
-            (user_id,)
-        )
-        rows = cursor.fetchall()
-    return [dict(row) for row in rows]
-
-
-def get_friend_requests(user_id: int) -> List[dict]:
-    with db_cursor() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """SELECT f.*, u.name as sender_name, u.email as sender_email
-               FROM friends f JOIN users u ON f.user_id = u.id
-               WHERE f.friend_user_id = ? AND f.status = 'pending'""",
-            (user_id,)
-        )
-        rows = cursor.fetchall()
-    return [dict(row) for row in rows]
-
-
-# --- STORIES ---
-
-def add_story(user_id: int, content: str, image_url: str = "", hours: int = 24) -> dict:
-    expires_at = datetime.now() + timedelta(hours=hours)
-    with db_cursor(commit=True) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO stories (user_id, content, image_url, expires_at) VALUES (?, ?, ?, ?)",
-            (user_id, content, image_url, expires_at)
-        )
-        story_id = cursor.lastrowid
-    return get_story(story_id)
-
-
-def get_story(story_id: int) -> dict:
-    with db_cursor() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM stories WHERE id = ?", (story_id,))
-        row = cursor.fetchone()
-    return dict(row) if row else {}
-
-
-def get_friend_stories(user_id: int) -> List[dict]:
-    with db_cursor() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """SELECT s.*, u.name as author_name FROM stories s
-               JOIN users u ON s.user_id = u.id
-               JOIN friends f ON (f.friend_user_id = s.user_id AND f.user_id = ?)
-               WHERE s.expires_at > datetime('now') AND f.status = 'accepted'
-               ORDER BY s.created_at DESC""",
-            (user_id,)
-        )
-        rows = cursor.fetchall()
-    return [dict(row) for row in rows]
+# Sosyal katman (arkadas + story feed) fonksiyonlari BILEREK kaldirildi
+# (2026-08-25) - bkz. main.py'deki ayni not. Tablolar (friends, stories)
+# veri kaybini onlemek icin veritabani semasinda kaldi ama hicbir
+# endpoint artik onlara dokunmuyor - erisilemez, zararsiz.
 
 
 # --- PATTERNS ---

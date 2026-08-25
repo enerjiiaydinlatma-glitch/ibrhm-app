@@ -211,14 +211,6 @@ class ProfileUpdate(BaseModel):
     activity_enabled: Optional[bool] = None
     mood_tracking_enabled: Optional[bool] = None
 
-class FriendRequest(BaseModel):
-    email: str = Field(max_length=255)
-
-class StoryCreate(BaseModel):
-    content: str = Field(max_length=2000)
-    image_url: str = Field(default="", max_length=2000)
-
-
 def _safe_user(user: dict) -> dict:
     return {k: v for k, v in user.items() if k != "password_hash"}
 
@@ -630,47 +622,15 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=500, detail="Hikaye devam ettirilemedi.")
 
 
-@app.post("/api/stories")
-def create_story(req: StoryCreate, authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    story = database.add_story(user["id"], req.content, req.image_url)
-    return story
-
-
-@app.get("/api/stories/feed")
-def get_story_feed(authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    return database.get_friend_stories(user["id"])
-
-
-@app.post("/api/friends/request")
-def friend_request(req: FriendRequest, authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    success = database.send_friend_request(user["id"], req.email)
-    if not success:
-        raise HTTPException(status_code=404, detail="Bu emailde kullanici bulunamadi.")
-    return {"status": "istek gonderildi"}
-
-
-@app.post("/api/friends/{friendship_id}/accept")
-def accept_friend(friendship_id: int, authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    ok = database.accept_friend_request(friendship_id, user["id"])
-    if not ok:
-        raise HTTPException(status_code=404, detail="Arkadaşlık isteği bulunamadı.")
-    return {"status": "arkadas kabul edildi"}
-
-
-@app.get("/api/friends")
-def get_friends(authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    return database.get_friends(user["id"])
-
-
-@app.get("/api/friends/requests")
-def get_friend_requests(authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    return database.get_friend_requests(user["id"])
+# Sosyal katman (arkadas + story feed) BILEREK kaldirildi (2026-08-25):
+# hem bagimsiz 4 farkli AI analizi hem kendi kod taramamiz ayni sonuca
+# vardi - bu ekranlar zaten uygulamadan hicbir yerden erisilemiyordu
+# (nav baglantisi yoktu), ve kisisel/mahrem bir asistan urununde sosyal
+# medya tarzi bir "feed" konsepti deger onerisiyle celisiyor. Tek
+# gelistiricinin kaynaklari cekirdege (hafiza/proaktiflik) gitmeli.
+# Eski route'lar: POST /api/stories, GET /api/stories/feed,
+# POST /api/friends/request, POST /api/friends/{id}/accept,
+# GET /api/friends, GET /api/friends/requests - git gecmisinde duruyor.
 
 
 @app.get("/api/admin/stats")
