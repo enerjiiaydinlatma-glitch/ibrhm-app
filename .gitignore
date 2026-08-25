@@ -57,6 +57,13 @@ auro-backend/.env
 auro-backend/aura.db
 auro-backend/aura.db
 
+# council-backend (Sign Council yayin orkestratoru - ayri .env/state)
+council-backend/__pycache__/
+council-backend/episodes/__pycache__/
+council-backend/output/
+council-backend/client_secret.json
+council-backend/youtube_token.json
+
 _safe_backup_*/
 *.backup
 diff_*.txt
