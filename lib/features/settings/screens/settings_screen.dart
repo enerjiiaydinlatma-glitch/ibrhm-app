@@ -49,14 +49,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const int _freeMessageLimit = 30;
   static const int _freeVoiceSecondsLimit = 600;
 
+  // NOT: bu kategoriler bir LLM'in serbest metinden urettigi degerler -
+  // sabit bir enum degil, o yuzden bu liste HICBIR ZAMAN tam olamaz.
+  // Bilinen tum varyantlari (Turkce+Ingilizce, hem cikarim promptunun
+  // kendi ornekleri hem gercek testlerde gorulenler) burada topluyoruz;
+  // eslesmeyenler icin asagidaki _prettifyCategory() devreye giriyor.
   static const _categoryLabels = {
+    'isim': 'İsim',
     'identity': 'Kimlik',
-    'preference': 'Tercihler',
+    'yer': 'Yaşadığı Yer',
+    'location': 'Yaşadığı Yer',
+    'meslek': 'Meslek',
+    'work': 'Meslek',
+    'job': 'Meslek',
     'hobiler': 'Hobiler',
     'hobby': 'Hobiler',
+    'hobbies': 'Hobiler',
+    'ilgi_alanlari': 'İlgi Alanları',
+    'interests': 'İlgi Alanları',
+    'hedefler': 'Hedefler',
     'goals': 'Hedefler',
-    'work': 'Meslek',
+    'goal': 'Hedefler',
+    'tercihler': 'Tercihler',
+    'preference': 'Tercihler',
+    'preferences': 'Tercihler',
+    'projeler': 'Projeler',
+    'important_projects': 'Projeler',
+    'projects': 'Projeler',
+    'planlar': 'Planlar',
+    'plans': 'Planlar',
+    'upcoming_event': 'Yaklaşan Gündem',
+    'gundem': 'Yaklaşan Gündem',
+    'korkular': 'Korkular',
+    'iletisim_tercihleri': 'İletişim Tercihleri',
+    'communication_preferences': 'İletişim Tercihleri',
+    'routine': 'Rutin',
+    'rutin': 'Rutin',
+    'evcil_hayvan': 'Evcil Hayvan',
+    'pet': 'Evcil Hayvan',
+    'pet_info': 'Evcil Hayvan',
+    'en_buyuk_korku': 'Korkular',
+    'fear': 'Korkular',
+    'pattern_insight': 'Fark Edilen Örüntü',
   };
+
+  /// Yukaridaki sabit listede olmayan (LLM'in uretebilecegi herhangi bir)
+  /// kategori icin ham "important_projects" yerine en azindan okunabilir
+  /// bir gorunum: alt cizgileri bosluga cevirip her kelimeyi buyuk harfle
+  /// baslatiyoruz. Mukemmel Turkce ceviri degil ama ham anahtardan iyi.
+  static String _prettifyCategory(String raw) {
+    if (raw.isEmpty) return raw;
+    return raw
+        .split(RegExp(r'[_\s]+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
 
   @override
   void initState() {
@@ -338,7 +386,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             }
             return Column(
               children: memories.map((memory) {
-                final label = _categoryLabels[memory.category] ?? memory.category;
+                final label = _categoryLabels[memory.category.toLowerCase()] ??
+                    _prettifyCategory(memory.category);
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

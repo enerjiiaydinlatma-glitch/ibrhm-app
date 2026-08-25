@@ -1,11 +1,11 @@
 {
-    "name": "ibrhm_app",
-    "short_name": "ibrhm_app",
+    "name": "Aura - Kişisel Yapay Zeka Asistanı",
+    "short_name": "Aura",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0f1016",
+    "theme_color": "#5b4fd6",
+    "description": "Aura - kişisel yapay zeka asistanın.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

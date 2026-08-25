@@ -492,21 +492,28 @@ Bir mesajda BIRDEN FAZLA ayri bilgi olabilir (ornek: hem en buyuk korkusunu
 hem de evcil hayvaninin adini tek cumlede soyleyebilir) - boyle durumda
 HEPSINI ayri ayri yakala, sadece birini secip digerini atlama.
 
-Ornekler:
-- kullanicinin adi
-- yasadigi yer
-- meslegi
-- hobileri
-- ilgi alanlari
-- hedefleri
-- tercihleri
-- onemli projeleri
-- uzun vadeli planlari
-- iletisim veya cevap tercihleri
+Ornekler (CATEGORY her zaman bu Turkce anahtarlardan biri OLMALI - Ingilizce
+kategori adi UYDURMA, asagidakilerden birine en yakin olani sec):
+- kullanicinin adi -> CATEGORY: isim
+- yasadigi yer -> CATEGORY: yer
+- meslegi -> CATEGORY: meslek
+- hobileri -> CATEGORY: hobiler
+- ilgi alanlari -> CATEGORY: ilgi_alanlari
+- hedefleri -> CATEGORY: hedefler
+- tercihleri -> CATEGORY: tercihler
+- onemli projeleri -> CATEGORY: projeler
+- uzun vadeli planlari -> CATEGORY: planlar
+- iletisim veya cevap tercihleri -> CATEGORY: iletisim_tercihleri
 - rutinleri/aliskanliklari (ornek: her sabah kahve icmesi, aksam yuruyus
-  yapmasi) -> CATEGORY: routine
+  yapmasi) -> CATEGORY: rutin
 - yaklasan bir gundemi (ornek: yarinki toplantisi, sinavi, randevusu)
-  -> CATEGORY: upcoming_event
+  -> CATEGORY: gundem
+- evcil hayvani -> CATEGORY: evcil_hayvan
+- korkulari -> CATEGORY: korkular
+- yukaridaki listeye hic uymayan, ama yine de degerli bir bilgi ise:
+  kisa (1-2 kelime), Turkce, kucuk harf, alt cizgiyle ayrilmis YENI bir
+  kategori adi uydurabilirsin - ama ONCE yukaridaki listeye bakip
+  UYAN VARSA ONU KULLAN, gereksiz yeni kategori COGALTMA.
 
 Anlik duygu, gecici durum, selamlasma veya tek seferlik olaylari hafizaya alma.
 
