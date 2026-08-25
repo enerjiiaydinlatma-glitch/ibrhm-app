@@ -495,9 +495,14 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
 @app.post("/api/chat")
 def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    mood = detect_mood(request.message)
-    if mood:
-        database.add_mood(user["id"], mood, context=request.message[:100])
+    # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
+    # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
+    # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
+    # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
+    if user.get("mood_tracking_enabled", 1):
+        mood = detect_mood(request.message)
+        if mood:
+            database.add_mood(user["id"], mood, context=request.message[:100])
     user_message_id = database.add_message(user["id"], "user", request.message)
 
     # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
@@ -552,9 +557,14 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
 @app.post("/api/chat/stream")
 def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    mood = detect_mood(request.message)
-    if mood:
-        database.add_mood(user["id"], mood, context=request.message[:100])
+    # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
+    # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
+    # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
+    # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
+    if user.get("mood_tracking_enabled", 1):
+        mood = detect_mood(request.message)
+        if mood:
+            database.add_mood(user["id"], mood, context=request.message[:100])
     message_id = database.add_message(
     user["id"],
     "user",
