@@ -76,7 +76,18 @@ YENI soyledigini mutlaka dinleyip cevapladiktan sonra. Sesin/uslubun
 pasif, ozur diler gibi degil - sicak ama kendinden emin ve net olsun.
 """.strip()
 
-_client = genai.Client(api_key=aura_brain.GEMINI_API_KEY)
+# DERINLESTIRILMIS TARAMA BULGUSU (2026-08-25): aura_brain.py ve main.py'deki
+# Gemini istemcileri (metin sohbet) 12sn zaman asimiyla korunuyordu, ama BU
+# istemci (canli ses BAGLANTISI icin) ayni korumadan YOKSUNDU - Gemini Live'in
+# kendisi baglanma asamasinda (henuz oturum bile kurulmadan) askida kalirsa,
+# handle_voice_session'daki `async with _client.aio.live.connect(...)` satiri
+# hicbir zaman asimi olmadan sonsuza dek beklerdi (oturum ICI donma zaten
+# VOICE_TURN_IDLE_TIMEOUT_SECONDS ile ayri korunuyor - bu, BAGLANMA asamasi
+# icin). Diger iki istemciyle tutarli olsun diye ayni sinir kondu.
+_client = genai.Client(
+    api_key=aura_brain.GEMINI_API_KEY,
+    http_options=types.HttpOptions(timeout=12000),
+)
 
 # GUVENLIK TARAMASI BULGUSU (2026-08-24, reklam kampanyasi oncesi son
 # tarama): gunluk sesli limiti SADECE baglanti anda kontrol ediliyordu -
