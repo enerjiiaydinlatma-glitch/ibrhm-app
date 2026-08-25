@@ -89,6 +89,14 @@ app.add_middleware(
 if os.path.isdir("web_static"):
     app.mount("/app", StaticFiles(directory="web_static", html=True), name="web_app")
 
+# Android APK'yi Play Store'a girmeden telefondan dogrudan indirebilmek
+# icin (2026-08-25). Hassas bir sey icermiyor - istemci uygulama hicbir
+# API anahtari tasimiyor, hepsi sunucu tarafinda (Gemini/Groq/ElevenLabs
+# anahtarlari sadece bu backend'de). html=False: burada bir SPA yok,
+# sadece duz dosya indirme.
+if os.path.isdir("downloads"):
+    app.mount("/downloads", StaticFiles(directory="downloads", html=False), name="downloads")
+
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 30
 request_log = defaultdict(deque)
