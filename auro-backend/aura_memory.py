@@ -329,6 +329,14 @@ def add_memory(
     importance: float = 0.5,
     source_message_id: Optional[int] = None,
 ) -> int:
+    # KENDI KENDINI INCELEME BULGUSU: bugun eklenen tekillik indeksi
+    # SQL'in LOWER()'ina dayaniyor - bu ASCII-disi karakterlerde (Turkce
+    # ı/İ/I/i) dogru calismiyor (sqlite LOWER('İSİM') -> 'İsİm', 'i'
+    # olmuyor). "isik_tercihi" ile "Işık_Tercihi" farkli string sayilip
+    # tekillik hic yakalamayabilirdi. Python'un kendi .lower()'i (Unicode
+    # farkindaligi SQL'den daha iyi, tek istisna İ/I/ı ozel harfleri) ile
+    # DEPOLAMA aninda normalize ederek bu riski buyuk olcude azaltiyoruz.
+    memory_key = memory_key.strip().lower()
 
     with db_cursor(commit=True) as conn:
         cursor = conn.cursor()
@@ -413,7 +421,14 @@ def find_active_memory(
     """
     Ayni kullanici+kategori+anahtar icin zaten aktif bir hafiza kaydi
     var mi diye bakar (kucuk/buyuk harf duyarsiz). Upsert icin kullanilir.
+
+    NOT: karsilastirma degerini Python'un .lower()'i ile normalize edip
+    gonderiyoruz (SQL'in kendi LOWER()'i ASCII-disi/Turkce karakterlerde
+    guvenilir degil) - SQL tarafindaki LOWER(memory_key) sadece ekstra
+    bir guvenlik agi, artik zaten depolama aninda kucuk harfe cevrilmis
+    degerlerle karsilastiriyor.
     """
+    memory_key = memory_key.strip().lower()
 
     with db_cursor() as conn:
         cursor = conn.cursor()
@@ -424,7 +439,7 @@ def find_active_memory(
             WHERE user_id = ?
             AND status = 'active'
             AND category = ?
-            AND LOWER(memory_key) = LOWER(?)
+            AND LOWER(memory_key) = ?
             """,
             (
                 user_id,
@@ -462,15 +477,37 @@ def promote_candidate_to_memory(
         )
         return existing["id"]
 
-    return add_memory(
-        user_id=user_id,
-        category=category,
-        memory_key=memory_key,
-        memory_value=memory_value,
-        confidence=confidence,
-        importance=confidence,
-        source_message_id=source_message_id,
-    )
+    try:
+        return add_memory(
+            user_id=user_id,
+            category=category,
+            memory_key=memory_key,
+            memory_value=memory_value,
+            confidence=confidence,
+            importance=confidence,
+            source_message_id=source_message_id,
+        )
+    except sqlite3.IntegrityError:
+        # KENDI KENDINI INCELEME BULGUSU: bugun eklenen kismi UNIQUE
+        # indeks (user_id, category, LOWER(memory_key), status='active')
+        # TAM DA burada, find_active_memory ile add_memory arasindaki
+        # yarista (iki neredeyse es zamanli cagri, ayni yeni bilgiyi
+        # ayni anda hafizaya tasimaya calisirsa) tetiklenebilir. Onceden
+        # bu exception yakalanmiyordu - extract_memory_candidate'teki
+        # cagiran fonksiyona kadar cikip TUM turun geri kalan bloklarini
+        # (coklu-bilgi cikariminda ayni mesajdaki diger bilgiler dahil)
+        # sessizce iptal ediyordu. Artik: rakip istek zaten kaydetmis
+        # demektir - o kaydi bulup GUNCELLEYEREK devam ediyoruz.
+        existing = find_active_memory(user_id, category, memory_key)
+        if existing:
+            update_memory(
+                user_id=user_id,
+                memory_id=existing["id"],
+                memory_value=memory_value,
+                confidence=confidence,
+            )
+            return existing["id"]
+        raise
 
 
 def get_memory(

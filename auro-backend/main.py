@@ -164,8 +164,16 @@ async def rate_limiter(request: Request, call_next):
 # spoofable IP rate limiter'di - hesap basina bir kilitleme yoktu.
 # request_log ile ayni desen (bellek ici deque), ama e-posta anahtarli -
 # IP sahtekarligindan tamamen bagimsiz.
+#
+# KENDI KENDINI INCELEME BULGUSU: ilk hali (5 deneme/5dk) iki yeni sorun
+# aciyordu: (1) request_log ile AYNI sinifta bir sizinti - bu sozluk de
+# HICBIR ZAMAN kucalmiyordu (bos/eski deque'ler asla silinmiyordu), (2)
+# esik cok dusuktu - bir saldirganin, KURBANIN dogru sifresini hicbir
+# zaman denemeden, sirf 5 yanlis sifre gonderip kurbani KENDI hesabindan
+# kilitlemesi (hedefe yonelik DoS) cok kolaydi. Esik yukseltildi (10) ve
+# ayni sweep deseni eklendi.
 LOGIN_LOCKOUT_WINDOW = 300  # 5 dakika
-LOGIN_LOCKOUT_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_MAX_ATTEMPTS = 10
 _failed_login_attempts: dict[str, deque] = defaultdict(deque)
 
 
@@ -179,6 +187,13 @@ def _check_login_lockout(email: str):
             status_code=429,
             detail="Çok fazla başarısız giriş denemesi. Birkaç dakika sonra tekrar dene.",
         )
+    # request_log'daki AYNI sizinti deseni - periyodik temizlik.
+    if len(_failed_login_attempts) > 5000:
+        for e in [
+            e for e, l in _failed_login_attempts.items()
+            if not l or now - l[-1] > LOGIN_LOCKOUT_WINDOW
+        ]:
+            del _failed_login_attempts[e]
 
 
 def _record_failed_login(email: str):
@@ -214,6 +229,27 @@ def detect_mood(text: str) -> str | None:
         if any(kw in lowered for kw in keywords):
             return mood
     return None
+
+
+# KENDI KENDINI INCELEME BULGUSU (gece guvenlik denetimi): aura_brain.py'ye
+# eklenen KRIZ_MUDAHALE_KURALI, gunluk mesaj limitini ZATEN dolduran bir
+# kullaniciya HIC ULASAMAZ - /api/chat, model hic cagrilmadan LIMIT_REACHED_REPLY
+# ("Bugünkü ücretsiz mesaj hakkın doldu") donduruyor. Yani en kritik anda
+# (kriz ifadesi + gunun 31. mesaji) kullaniciya bir odeme duvari gosterilirdi.
+# Kapsamli bir siniflandirici degil - bilerek DAR ve GUCLU ifadelere
+# sinirli (yanlis pozitif = normal bir sohbette limit atlanmasi, kabul
+# edilebilir bir maliyet; yanlis negatif = gercek bir krizin gozden
+# kacmasi, kabul EDILEMEZ bir risk - o yuzden esik dusuk tutuldu).
+_CRISIS_KEYWORDS = [
+    "intihar", "kendime zarar", "kendimi oldur", "yasamak istemiyorum",
+    "olmek istiyorum", "yasamaya deger", "hayatima son", "bitirmek istiyorum",
+    "artik dayanamiyorum", "yasayasim yok", "olsem daha iyi",
+]
+
+
+def _is_crisis_message(text: str) -> bool:
+    lowered = text.lower()
+    return any(kw in lowered for kw in _CRISIS_KEYWORDS)
 
 
 
@@ -263,8 +299,19 @@ class RegisterRequest(BaseModel):
     # is_anonymous her zaman 1 (varsayilan) kaliyor, /api/auth/claim'in
     # "zaten claim edilmis hesabi tekrar claim etmeyi engelle" korumasi
     # HICBIR gercek kayit icin devreye girmiyordu. Istemci artik bunu
-    # ACIKCA bildiriyor - varsayilan False (yani "gercek kayit").
-    is_anonymous_bootstrap: bool = False
+    # ACIKCA bildiriyor.
+    #
+    # IKINCI GECE DENETIMI BULGUSU (kendi kendimi inceleme): varsayilani
+    # ONCE False yapmistim ("gercek kayit" varsayimi) - ama bu, HENUZ
+    # GUNCELLENMEMIS eski istemcilerin (bu alani hic gondermeyen) olusturdugu
+    # anonim hesaplari YANLISLIKLA "gercek/claim edilemez" isaretleyip
+    # KALICI olarak claim edilemez hale getiriyordu - yani bir aciği
+    # kapatirken BASKA bir aciği (anonim hesaplarin sonsuza dek kilitlenmesi)
+    # aciyordum. Varsayilan artik True (guvenli taraf: "hala anonim/claim
+    # edilebilir" varsay) - gercek kayit formu (auth_screen.dart) artik
+    # BILEREK False gonderiyor, ATIF eksikligi hep eski davranisa
+    # (anonim/claim edilebilir) duser, YENI bir kirilma yaratmaz.
+    is_anonymous_bootstrap: bool = True
 
     _validate_email = field_validator("email")(_validate_email_format)
     _validate_password = field_validator("password")(_validate_password_byte_length)
@@ -443,7 +490,15 @@ def update_profile(update: ProfileUpdate, authorization: Optional[str] = Header(
 @app.get("/api/memories")
 def get_memories(authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    return aura_memory.get_memories(user["id"])
+    # KENDI KENDINI INCELEME BULGUSU: get_memories()'e bugun eklenen
+    # varsayilan limit=300, prompt-olusturma cagiranlari (aura_brain.py,
+    # aura_lifestyle.py) icin dogruydu ama BU uc, kullanicinin "hafizami
+    # sil" ekranini besleyen TEK kaynak - 300'un altinda kalan, dusuk
+    # onemli hafizalar listeden dusup SILINEMEZ hale gelirdi (ekranda
+    # hic gorunmezler). Kullaniciya gosterilen liste icin cok daha
+    # comert bir ust sinir kullaniyoruz - gercekci hicbir kullanici
+    # buraya yaklasmaz, ama "silinemeyen hafiza" riskini ortadan kaldirir.
+    return aura_memory.get_memories(user["id"], limit=5000)
 
 
 @app.delete("/api/memories/{memory_id}")
@@ -508,8 +563,21 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
     # Kullanicinin mesaji yine de kaydedildi (yukarida) - sadece pahali
     # islemler (hafiza cikarimi, pattern analizi, AI cagrisi) atlaniyor.
-    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
-        user["id"], LIMIT_DAILY_MESSAGES
+    #
+    # KENDI KENDINI INCELEME BULGUSU: bugun eklenen KRIZ_MUDAHALE_KURALI
+    # bu limite carpip Gemini/Groq hic cagrilmadan LIMIT_REACHED_REPLY
+    # donen bir kullaniciya HICBIR ZAMAN ulasamazdi - yani en onemli anda
+    # (kriz ifadesi + gunun 31. mesaji) kullaniciya bir odeme duvari
+    # gosterilirdi. Acik bir kriz ifadesi tespit edilirse limit BILEREK
+    # atlaniyor - bir kac ekstra ucretsiz Gemini cagrisi, gozden kacan
+    # bir krizden cok daha ucuz bir bedel.
+    is_crisis = _is_crisis_message(request.message)
+    if (
+        not is_crisis
+        and user.get("tier") != "pro"
+        and not database.check_and_increment_message_usage(
+            user["id"], LIMIT_DAILY_MESSAGES
+        )
     ):
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
 
@@ -635,21 +703,6 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
     # endpoint'lerle ayni desene getirildi.
     user = get_current_user(authorization)
 
-    # GECE DENETIMI BULGUSU: /api/tts, diger TUM AI-uretim uclarinin
-    # aksine (chat/analyze/story) HICBIR gunluk kullanim limitine tabi
-    # degildi - ElevenLabs karakter basina ucretlendirdigi icin, giris
-    # yapmis herhangi bir kullanici sinirsiz TTS cagrisi atip hesap
-    # basina maliyeti sinirsiz artirabilirdi. Ayni gunluk mesaj sayacini
-    # paylasarak (ayri bir "tts_count" sutunu eklemeden) diger uclarla
-    # tutarli bir ust sinir kondu.
-    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
-        user["id"]
-    ):
-        raise HTTPException(
-            status_code=429,
-            detail=LIMIT_REACHED_REPLY,
-        )
-
     # GUVENLIK TARAMASI BULGUSU: metin uzunluguna hicbir sinir yoktu -
     # ElevenLabs karakter basina ucretlendiriyor, tek bir cok uzun metin
     # (veya tekrarlanan cagrilar) beklenmedik maliyete yol acabilirdi.
@@ -657,6 +710,25 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
         raise HTTPException(
             status_code=400,
             detail="Seslendirilecek metin çok uzun (en fazla 2000 karakter).",
+        )
+
+    # GECE DENETIMI BULGUSU: /api/tts, diger TUM AI-uretim uclarinin
+    # aksine (chat/analyze/story) HICBIR gunluk kullanim limitine tabi
+    # degildi.
+    #
+    # KENDI KENDINI INCELEME BULGUSU: ilk fix (gunluk MESAJ sayacini
+    # paylasmak) YENI bir sorun aciyordu - istemci Aura'nin HER cevabini
+    # otomatik seslendirdigi icin, bu ayni turda hem /api/chat hem
+    # /api/tts sayaci artirip ucretsiz kullanicinin 30 mesajlik gunluk
+    # hakkini fiilen 15'e dusuruyordu (kullanici "0 mesaj kaldi" gorup
+    # neden oldugunu anlamazdi). Artik ayri, karakter-tabanli kendi
+    # bütçesi var - sohbet hakkina hic dokunmuyor.
+    if user.get("tier") != "pro" and not database.check_and_increment_tts_usage(
+        user["id"], len(request.text)
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Bugünkü ücretsiz seslendirme hakkın doldu. Yarın sıfırlanacak.",
         )
 
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])

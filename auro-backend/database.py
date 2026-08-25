@@ -96,11 +96,29 @@ def init_db():
             "ALTER TABLE users ADD COLUMN daily_message_count INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN daily_voice_seconds INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN usage_date TEXT DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN daily_tts_chars INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(migration)
             except sqlite3.OperationalError:
                 pass  # sutun zaten var
+
+        # KENDI KENDINI INCELEME BULGUSU: is_anonymous'u dogru yazmaya
+        # baslamak (create_user artik is_anonymous_bootstrap'i isliyor)
+        # SADECE BUNDAN SONRAKI kayitlari kapsar - bu satir olmadan,
+        # bu duzeltmeden ONCE olusmus TUM gercek hesaplar (muhtemelen
+        # mevcut kullanicilarin tamami) hala is_anonymous=1 ile kalir
+        # ve /api/auth/claim'in hesap-devralma korumasi ONLAR icin HALA
+        # devreye girmez - tam da kapatmaya calistigimiz aciğin kendisi.
+        # Anonim hesaplarin e-posta deseni sabit ve tahmin edilebilir
+        # (anonymous_<stamp>@aura.local) - bu desene UYMAYAN, hala
+        # is_anonymous=1 olan HER satir aslinda gercek bir kayittir, tek
+        # seferlik (ama idempotent - tekrar calistirmak zararsiz) bir
+        # geriye-donuk duzeltmeyle isaretliyoruz.
+        cursor.execute(
+            "UPDATE users SET is_anonymous = 0 "
+            "WHERE is_anonymous = 1 AND email NOT LIKE 'anonymous\\_%@aura.local' ESCAPE '\\'"
+        )
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
@@ -395,7 +413,8 @@ def _reset_usage_if_new_day(cursor, user_id: int, usage_date: str) -> bool:
     today = _today_str()
     if usage_date != today:
         cursor.execute(
-            "UPDATE users SET daily_message_count = 0, daily_voice_seconds = 0, usage_date = ? WHERE id = ?",
+            "UPDATE users SET daily_message_count = 0, daily_voice_seconds = 0, "
+            "daily_tts_chars = 0, usage_date = ? WHERE id = ?",
             (today, user_id),
         )
         return True
@@ -441,6 +460,39 @@ def check_and_increment_message_usage(user_id: int, daily_limit: int = 30) -> bo
             "UPDATE users SET daily_message_count = daily_message_count + 1 "
             "WHERE id = ? AND daily_message_count < ?",
             (user_id, daily_limit),
+        )
+        return cursor.rowcount > 0
+
+
+def check_and_increment_tts_usage(user_id: int, char_count: int, daily_limit: int = 8000) -> bool:
+    """
+    KENDI KENDINI INCELEME BULGUSU: /api/tts once GUNLUK MESAJ sayacini
+    paylasiyordu - ama istemci Aura'nin HER cevabini otomatik seslendirdigi
+    icin (chat_screen.dart), bu ucretsiz kullanicinin 30 mesajlik gunluk
+    hakkini fiilen 15'e dusuruyordu (her tur hem /api/chat hem /api/tts
+    sayaci artiriyordu). ElevenLabs zaten KARAKTER basina ucretlendiriyor,
+    o yuzden ayri, karakter-tabanli kendi bütçesi daha dogru bir sinir -
+    ne sohbet hakkini paylasip yaniltici sekilde azaltiyor, ne de
+    sinirsiz kaliyor. 8000 karakter ~ gunde 30 orta uzunlukta cevabı
+    seslendirmeye kabaca denk (mesaj limitiyle ayni buyuklukte, ayri
+    bir havuzdan).
+    """
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT daily_tts_chars, usage_date FROM users WHERE id = ?",
+            (user_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return True  # kullanici bulunamadiysa engelleme (guvenli varsayilan)
+
+        _reset_usage_if_new_day(cursor, user_id, row["usage_date"])
+
+        cursor.execute(
+            "UPDATE users SET daily_tts_chars = daily_tts_chars + ? "
+            "WHERE id = ? AND daily_tts_chars + ? <= ?",
+            (char_count, user_id, char_count, daily_limit),
         )
         return cursor.rowcount > 0
 
