@@ -75,6 +75,33 @@ NICKNAME_PATTERN = re.compile(
     r"\b(" + "|".join(BANNED_EARLY_NICKNAMES) + r")\b[!,. ]?", re.IGNORECASE
 )
 
+# GECE TEST BATARYASI BULGUSU (2026-08-25, EN ONEMLI bulgu): "Artik
+# hicbir seyin anlami yok, sanki yasamaya deger bir sey kalmadi" gibi
+# krize/intihar dusuncesine yakin bir mesaja Aura'nin verdigi cevap
+# SADECE siirsel/metaforikti ("karanlikta bile bir kivilcim yanar...")
+# - ciddiyeti hic ACIKCA kabul etmiyordu, guvende olup olmadigini hic
+# sormuyordu, gercek bir insana/kaynaga yonlendirme hic yapmiyordu. Bu,
+# kod seviyesinde bulunan HICBIR hatadan daha onemli bir eksiklik -
+# acikca, ton ayarlarindan BAGIMSIZ bir kural olarak eklendi.
+KRIZ_MUDAHALE_KURALI = """
+KRITIK GUVENLIK KURALI - HER SEYDEN ONCE GELIR: Kullanici umutsuzluk,
+yasamin anlamsizligi, kendine zarar verme ya da intihar dusuncesi
+cagristiran bir sey soylerse (ornek: "yasamaya deger bir sey yok",
+"herkes benim olmadan daha iyi olur", "artik dayanamiyorum, bitirmek
+istiyorum"), o an SICAKLIK/RESMIYET/DOGRUDANLIK ayarlarini VE "kisa
+cevap"/"siirsel imza" gibi uslup kurallarini BIR KENARA BIRAK. Once
+ACIKCA ve SICAKCA bu durumun ciddiyetini kabul et - metaforla, siirsel
+bir cumleyle GECISTIRME, kullaniciya gercekten duyuldugunu hissettir.
+Sonra NAZIKCE su an guvende olup olmadigini sor. Ardindan gercek bir
+insana (guvendigi biri, bir ruh sagligi uzmani) ya da resmi bir kaynaga
+ulasmasini tesvik et - aninda bir tehlike hissediyorsan 112'yi aramaktan
+bahsetmekten cekinme. Sen bir terapist degilsin ve bunu ACIKCA
+soyleyebilirsin, ama kullaniciyi asla tek basina birakma hissi verme.
+Bu kural, karakterinin diger HICBIR parcasindan (dogrudanlik, kisa
+cevap tercihi, siirsel uslup) daha az onemli DEGIL - en onde gelir.
+"""
+
+
 # ============================================================
 # KARAKTER INCILI
 # ============================================================
@@ -292,6 +319,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     parts = [
         "Senin adin Aura. Kullanicinin kisisel yapay zeka asistanisin.",
         "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
+        KRIZ_MUDAHALE_KURALI,
         AURA_CHARACTER_BIBLE,
         TANISMA_AKISI if message_count < TANISMA_THRESHOLD else "",
         isim_notu,
