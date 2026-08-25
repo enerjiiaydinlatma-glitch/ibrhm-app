@@ -70,6 +70,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   bool _awaitingFirstChunkOfTurn = true;
   String? _token;
 
+  // Uzun gorusme destegi: sunucudan "reconnect_needed" (Gemini Live'in
+  // ~15dk sinirina yaklastigini haber veren GoAway) sinyali gelince
+  // buraya yazilir, bir sonraki _connect() cagrisinda WS URL'ine eklenip
+  // TUKETILIR (sonra null'a doner) - boylece Gemini tarafinda konusma
+  // baglami mumkun oldugunca korunarak sorunsuzca yeniden baglanilir.
+  String? _pendingResumptionHandle;
+
   // Yanki koruma: donanim AEC'i olmadan (kulaksiz/hoparlorle kullanimda)
   // Aura'nin sesi mikrofona sizip Gemini'nin "kullanici konusuyor" sanip
   // kendi kendini kesmesine (ve bu hizli kesinti dongusunun SoLoud'u
@@ -364,7 +371,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       return;
     }
 
-    final uri = Uri.parse("$_wsBase/api/voice?token=$_token");
+    final resumptionHandle = _pendingResumptionHandle;
+    _pendingResumptionHandle = null;
+    final handleQuery = resumptionHandle != null
+        ? "&resumption_handle=${Uri.encodeQueryComponent(resumptionHandle)}"
+        : "";
+    final uri = Uri.parse("$_wsBase/api/voice?token=$_token$handleQuery");
 
     try {
       _channel = WebSocketChannel.connect(uri);
@@ -548,6 +560,30 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
           status: VoiceCallStatus.error,
           errorMessage: data["message"] as String?,
         );
+      } else if (type == "idle_timeout") {
+        // Kullanici uzun sure sessiz kaldi, sunucu gorusmeyi kendisi
+        // nazikce sonlandirdi. Bu bir hata degil - _limitReached'i
+        // (otomatik yeniden baglanmayi ENGELLEMEK icin, gunluk limitle
+        // AYNI mekanizmayi kullanarak) BILEREK set ediyoruz: kullanici
+        // zaten konusmuyordu, hemen yeniden baglanip sessizce beklemenin
+        // bir anlami yok.
+        _limitReached = true;
+        _voiceDebugLog("sunucudan idle_timeout sinyali: ${data["message"]}");
+        state = state.copyWith(
+          status: VoiceCallStatus.error,
+          errorMessage: data["message"] as String?,
+        );
+      } else if (type == "reconnect_needed") {
+        // Gemini Live'in ~15dk oturum sinirina yaklasildi (GoAway).
+        // Kullaniciya "hata" gibi gostermeden, elimizdeki devam-etme
+        // tokeniyle SORUNSUZCA yeniden baglaniyoruz - bu _autoRetryCount'u
+        // ARTIRMIYOR (bir basarisizlik degil, dogal bir oturum tazelemesi).
+        _pendingResumptionHandle = data["resumption_handle"] as String?;
+        _voiceDebugLog(
+          "sunucudan reconnect_needed sinyali (uzun gorusme tazeleniyor, "
+          "handle mevcut=${_pendingResumptionHandle != null})",
+        );
+        unawaited(_reconnectForSessionRefresh());
       } else if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi (chunk #$_audioChunkCounter)");
         _awaitingFirstChunkOfTurn = true;
@@ -764,6 +800,25 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     if (state.status == VoiceCallStatus.idle) {
       return;
     }
+    await _connect();
+  }
+
+  /// Sunucunun "reconnect_needed" (GoAway/uzun gorusme tazeleme) sinyali
+  /// sonrasi cagrilir. _reconnectAfterDelay'den FARKLI: bir hata/kopma
+  /// degil, Gemini Live'in kendi oturum omrunun dogal bir parcasi - bu
+  /// yuzden _autoRetryCount'u artirmiyor, gecikme beklemeden hemen
+  /// yeniden baglaniyor (_pendingResumptionHandle zaten set edilmis
+  /// olmali, _connect() bunu WS URL'ine ekleyip tuketecek).
+  Future<void> _reconnectForSessionRefresh() async {
+    _intentionalClose = true;
+    await _cleanup();
+    _intentionalClose = false;
+    if (state.status == VoiceCallStatus.idle) {
+      // Kullanici bu sirada endCall() ile gorusmeyi kendisi bitirmis
+      // olabilir - yeniden canlandirmiyoruz.
+      return;
+    }
+    state = state.copyWith(status: VoiceCallStatus.connecting);
     await _connect();
   }
 
