@@ -461,7 +461,13 @@ Asagidaki kullanici mesajini Aura'nin uzun vadeli hafizasi icin analiz et.
 Kullanici mesaji:
 {message}
 
+Kullanicinin ONCEDEN kayitli hafiza bilgileri (varsa):
+{existing_memories}
+
 Sadece uzun vadede kullanici hakkinda anlamli olabilecek bilgilerle ilgilen.
+Bir mesajda BIRDEN FAZLA ayri bilgi olabilir (ornek: hem en buyuk korkusunu
+hem de evcil hayvaninin adini tek cumlede soyleyebilir) - boyle durumda
+HEPSINI ayri ayri yakala, sadece birini secip digerini atlama.
 
 Ornekler:
 - kullanicinin adi
@@ -481,10 +487,20 @@ Ornekler:
 
 Anlik duygu, gecici durum, selamlasma veya tek seferlik olaylari hafizaya alma.
 
+COK ONEMLI - GUNCELLEME/DUZELTME KURALI: Eger kullanicinin mesaji yukaridaki
+"onceden kayitli hafiza bilgileri" listesindeki bir kaydi DUZELTIYOR veya
+GUNCELLIYORSA (ornek: "aslinda kedimin adi Pamuk, Zeytin degil demistim"),
+o kaydin CATEGORY ve KEY degerini TAM OLARAK, harfi harfine, listede
+yazdigi gibi kullan. Ayni bilginin guncellemesi icin YENI/FARKLI bir
+CATEGORY veya KEY UYDURMA - listedeki eslesen kaydin kimligini koru, sadece
+VALUE'yu yeni bilgiyle degistir.
+
 Eger hafizaya alinmaya deger bir bilgi YOKSA tam olarak:
 NONE
 
-Eger VARSA SADECE su formatta cevap ver (KEY ve VALUE her zaman Turkce olsun):
+Eger VARSA, HER bilgi icin asagidaki formatta bir blok yaz (KEY ve VALUE her
+zaman Turkce olsun). Birden fazla bilgi varsa bloklari tek basina bir
+satirda duran "---" ile ayir:
 
 CATEGORY: kategori
 KEY: anahtar
@@ -537,18 +553,51 @@ BACKGROUND_PROVIDERS = {
 BACKGROUND_PROVIDER = "groq" if GROQ_API_KEY else "gemini"
 
 
+def _format_existing_memories_for_prompt(user_id: int) -> str:
+    """
+    Cikarim promptuna, kullanicinin halihazirda kayitli hafiza
+    kayitlarinin CATEGORY/KEY/VALUE'sunu ozetleyerek verir. Boylece
+    ayni gercek-dunya bilgisi (ornek: kedinin adi) her cagrida farkli
+    bir CATEGORY/KEY uydurulup yinelenen/celisen bir kayit olarak degil,
+    var olan kaydin GUNCELLEMESI olarak isaretlenebilir.
+    """
+
+    try:
+        existing = aura_memory.get_memories(user_id)
+    except Exception:
+        existing = []
+
+    if not existing:
+        return "(henuz hafizada kayitli bilgi yok)"
+
+    lines = []
+    for m in existing[:40]:
+        category = m.get("category", "")
+        memory_key = m.get("memory_key", "")
+        memory_value = m.get("memory_value", "")
+        if not memory_value:
+            continue
+        lines.append(f"- CATEGORY: {category} | KEY: {memory_key} | VALUE: {memory_value}")
+
+    return "\n".join(lines) if lines else "(henuz hafizada kayitli bilgi yok)"
+
+
 def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
     """
-    Kullanici mesajinda uzun vadeli hafizaya deger bir bilgi varsa
-    memory_candidates tablosuna aday olarak kaydeder ve yeterince
-    guvenilirse dogrudan aktif hafizaya tasir.
+    Kullanici mesajinda uzun vadeli hafizaya deger bir veya birden
+    fazla bilgi varsa memory_candidates tablosuna aday olarak kaydeder
+    ve yeterince guvenilirse dogrudan aktif hafizaya tasir.
 
     Bu cikarim islemi kasitli olarak Gemini disinda bir saglayicidan
     (Groq) gecirilir - kullaniciya cevap veren "ses" ile arka planda
     calisan "ajan" gercekten farkli modeller olsun diye.
     """
 
-    prompt = _MEMORY_EXTRACTION_PROMPT.format(message=message)
+    existing_memories = _format_existing_memories_for_prompt(user_id)
+    prompt = _MEMORY_EXTRACTION_PROMPT.format(
+        message=message,
+        existing_memories=existing_memories,
+    )
 
     try:
         text = BACKGROUND_PROVIDERS[BACKGROUND_PROVIDER](prompt)
@@ -556,47 +605,58 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
         if not text or text.upper() == "NONE":
             return None
 
-        data = {}
+        # Ayni cevapta birden fazla bilgi bloğu tek basina bir satirda
+        # duran "---" ile ayrilmis olabilir.
+        blocks = re.split(r"\n\s*-{3,}\s*\n", text.strip())
 
-        for line in text.splitlines():
-            if ":" not in line:
+        saved = []
+
+        for block in blocks:
+            data = {}
+
+            for line in block.splitlines():
+                if ":" not in line:
+                    continue
+
+                key, value = line.split(":", 1)
+                data[key.strip().upper()] = value.strip()
+
+            category = data.get("CATEGORY")
+            memory_key = data.get("KEY")
+            memory_value = data.get("VALUE")
+
+            if not category or not memory_key or not memory_value:
                 continue
 
-            key, value = line.split(":", 1)
-            data[key.strip().upper()] = value.strip()
+            try:
+                confidence = float(data.get("CONFIDENCE", "0.5"))
+            except ValueError:
+                confidence = 0.5
 
-        category = data.get("CATEGORY")
-        memory_key = data.get("KEY")
-        memory_value = data.get("VALUE")
+            confidence = max(0.0, min(1.0, confidence))
 
-        if not category or not memory_key or not memory_value:
-            return None
+            if confidence >= MEMORY_AUTO_PROMOTE_THRESHOLD:
+                aura_memory.promote_candidate_to_memory(
+                    user_id=user_id,
+                    category=category,
+                    memory_key=memory_key,
+                    memory_value=memory_value,
+                    confidence=confidence,
+                    source_message_id=source_message_id,
+                )
 
-        try:
-            confidence = float(data.get("CONFIDENCE", "0.5"))
-        except ValueError:
-            confidence = 0.5
-
-        confidence = max(0.0, min(1.0, confidence))
-
-        if confidence >= MEMORY_AUTO_PROMOTE_THRESHOLD:
-            aura_memory.promote_candidate_to_memory(
-                user_id=user_id,
-                category=category,
-                memory_key=memory_key,
-                memory_value=memory_value,
-                confidence=confidence,
-                source_message_id=source_message_id,
+            saved.append(
+                aura_memory.add_candidate(
+                    user_id=user_id,
+                    category=category,
+                    memory_key=memory_key,
+                    memory_value=memory_value,
+                    confidence=confidence,
+                    source_message_id=source_message_id,
+                )
             )
 
-        return aura_memory.add_candidate(
-            user_id=user_id,
-            category=category,
-            memory_key=memory_key,
-            memory_value=memory_value,
-            confidence=confidence,
-            source_message_id=source_message_id,
-        )
+        return saved or None
 
     except Exception as e:
         print(f"MEMORY CANDIDATE ERROR: {e}")
