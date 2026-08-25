@@ -291,7 +291,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
         },
       );
       _voiceDebugLog("play() cagriliyor");
-      _playbackHandle = await SoLoud.instance.play(_playbackSource!);
+      // flutter_soloud 4.x'te play() artik SENKRON (SoundHandle donuyor,
+      // Future<SoundHandle> degil) - 4.1.4/4.1.7 degisiklik gunlugune gore
+      // bu, motorun kendi mutex'i tutulurken callback tetiklenmesinden
+      // kaynaklanan "wedged engine"/deinit() takilma sinifi hatalarin kok
+      // duzeltmesinin bir parcasi. await kaldirildi (artik gereksiz).
+      _playbackHandle = SoLoud.instance.play(_playbackSource!);
       _voiceDebugLog("play() tamamlandi (handle=$_playbackHandle)");
     } catch (e) {
       debugPrint("SoLoud baslatma hatasi: $e");
@@ -420,18 +425,20 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
               _bufferedDurationMs = 0;
               _resumingPlayback = true;
               _voiceDebugLog("handle yok/gecersiz - play() ile yenileniyor");
-              unawaited(
-                SoLoud.instance.play(_playbackSource!).then((newHandle) {
-                  _playbackHandle = newHandle;
-                  _resumingPlayback = false;
-                  _voiceDebugLog(
-                    "play() (yenileme) tamamlandi (handle=$newHandle)",
-                  );
-                }).catchError((e) {
-                  _resumingPlayback = false;
-                  _voiceDebugLog("play() (yenileme) HATASI: $e");
-                }),
-              );
+              // flutter_soloud 4.x'te play() artik senkron - eskiden
+              // Future donduugu icin unawaited(...then/catchError...) ile
+              // sarilmisti, artik duz bir try/catch yeterli.
+              try {
+                final newHandle = SoLoud.instance.play(_playbackSource!);
+                _playbackHandle = newHandle;
+                _resumingPlayback = false;
+                _voiceDebugLog(
+                  "play() (yenileme) tamamlandi (handle=$newHandle)",
+                );
+              } catch (e) {
+                _resumingPlayback = false;
+                _voiceDebugLog("play() (yenileme) HATASI: $e");
+              }
             } else if (needsUnpause && handle != null) {
               try {
                 _voiceDebugLog("tur basi setPause(false) cagriliyor");
