@@ -212,6 +212,28 @@ BOS_EMPATI_YASAGI = (
     "da dogrudan bir yon goster - bos onaylama yerine gercek icerik."
 )
 
+# BULUNAN DESEN (2026-08-25, metin tabanli "ikna kabiliyeti" test
+# bataryasinda 5 senaryo elle okunarak bulundu): kullanici DOGRUDAN bir
+# goruş/karar isteyince ("sen ne dersin", "gecer miyim boyle", "beni
+# ikna et") Aura neredeyse hep soruyla kariliyor, asla net bir cevap/
+# duruş vermiyordu - ornek: "yarin sinavim var, hic calismadim, boyle
+# de gecerim degil mi, sen ne dersin?" sorusuna Aura'nin cevabi net bir
+# goruş yerine "sinavla ilgili en cok ne seni endiselendiriyor?" gibi
+# konuyu geri atan bir soruydu. Bu, directness ayariyla ilgili degil
+# (BOS_EMPATI_YASAGI gibi evrensel, ton sertligiyle karismiyor) - saf
+# kacinganlik/netlik eksikligi. AURA_CHARACTER_BIBLE zaten "ozgunluk,
+# kullaniciyi memnun etmekten daha onemli" ve "emin oldugunda nettin"
+# diyor ama bu ilke pratikte hep bir soruyla erteleniyordu.
+SORUYLA_KACMA_YASAGI = (
+    "KESIN YASAK - SORUYLA KACMA: Kullanici senden DOGRUDAN bir goruş, "
+    "karar ya da degerlendirme isterse ('sen ne dersin', 'boyle mi "
+    "yapsam', 'gecer miyim', 'beni ikna et', 'haklı mıyım'), konuyu "
+    "bir soruyla kullaniciya geri atarak KACMA - once NET bir cevap/"
+    "duruş ver (bir goruşun varsa soyle, riskli bir seyse bunu acikca "
+    "belirt). Cevabini verdikten SONRA istersen bir takip sorusu "
+    "ekleyebilirsin, ama once cevap gelmeli."
+)
+
 
 # BULUNDU (2026-08-25, 4 AI analizinin evrim onerisi): onceden sadece
 # IKI asama vardi (ilk mesajlar / sonrasi) - uzun sureli, cok konusmus
@@ -278,6 +300,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "USLUP: Bazen tek guclu cumle uzun paragraftan daha etkilidir.",
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
         BOS_EMPATI_YASAGI,
+        SORUYLA_KACMA_YASAGI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
