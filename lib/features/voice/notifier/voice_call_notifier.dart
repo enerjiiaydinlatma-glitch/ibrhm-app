@@ -202,8 +202,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   @override
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    // KOD INCELEMESI BULGUSU (2026-08-25): "connecting" durumu BILEREK
+    // haric tutuldu. _connect() icindeki mikrofon izni istegi (OS'in
+    // kendi izin dialogu) uygulamayi GECICI olarak "paused" durumuna
+    // sokuyor - bu, kullanicinin gercekten uzaklastigi bir arka-plana-
+    // alma degil. "connecting" aktif sayilirsa, HERKESIN ilk sesli
+    // aramasi (izin dialogu acilir acilmaz) yanlislikla "arka plana
+    // alindi" denip iptal ediliyordu.
     final isActiveCall =
-        state.status == VoiceCallStatus.connecting ||
         state.status == VoiceCallStatus.listening ||
         state.status == VoiceCallStatus.auraSpeaking;
     if (!isActiveCall) {
@@ -223,6 +229,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   /// yerine kullaniciya NEDEN bittigini soyleyen bir hata mesaji birakir
   /// - uygulamaya geri donduğunde "neden kesildi?" diye sormasin diye.
   Future<void> _endCallDueToBackground() async {
+    // KOD INCELEMESI BULGUSU (2026-08-25): _cleanup() icindeki
+    // _channel.sink.close() cagrisinin onDone/onError callback'i HEMEN
+    // degil, event loop'un SONRAKI bir turunda tetikleniyor - o ana
+    // kadar _intentionalClose zaten false'a donmus oluyordu, bu yuzden
+    // _handleUnexpectedDisconnect butun guard'lari gecip bu KASITLI
+    // sonlandirmayi "beklenmedik kopma" sanip OTOMATIK YENIDEN
+    // BAGLANIYORDU - arka plana alinmis/kilitli telefonda mikrofonu
+    // ve ucretli Gemini oturumunu sessizce yeniden aciyordu. _limitReached
+    // (idle_timeout ile ayni desen) bu geciken onDone'un otomatik
+    // yeniden baglanmasini KESIN olarak engelliyor.
+    _limitReached = true;
     _intentionalClose = true;
     await _cleanup();
     _intentionalClose = false;
@@ -546,6 +563,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
           status: VoiceCallStatus.error,
           errorMessage: data["message"] as String?,
         );
+        // KOD INCELEMESI BULGUSU (2026-08-25): sunucu kendi tarafini
+        // zaten kapatiyor, ama _limitReached=true oldugu icin
+        // _handleUnexpectedDisconnect'in onDone/onError'da yapacagi
+        // guard erken return ediyor - yani mikrofon/soket/wakelock'u
+        // BURADA BIZ temizlemezsek hicbir zaman temizlenmiyorlardi
+        // (mikrofon acik kaliyor, kapali sink'e yazmaya devam edip
+        // sessiz hatalar uretiyordu).
+        unawaited(_cleanup());
       } else if (type == "error") {
         // Sunucu tarafinda Gemini Live bir turda tikanip kaldiginda
         // (gercek kullanici kanitiyla bulundu: mikrofon aciktan, ikinci
@@ -573,6 +598,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
           status: VoiceCallStatus.error,
           errorMessage: data["message"] as String?,
         );
+        // limit_reached ile ayni sebep: _limitReached=true oldugundan
+        // _handleUnexpectedDisconnect erken donuyor, temizligi burada
+        // biz yapmazsak mikrofon/soket acik kaliyordu.
+        unawaited(_cleanup());
       } else if (type == "reconnect_needed") {
         // Gemini Live'in ~15dk oturum sinirina yaklasildi (GoAway).
         // Kullaniciya "hata" gibi gostermeden, elimizdeki devam-etme
@@ -815,7 +844,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     _intentionalClose = false;
     if (state.status == VoiceCallStatus.idle) {
       // Kullanici bu sirada endCall() ile gorusmeyi kendisi bitirmis
-      // olabilir - yeniden canlandirmiyoruz.
+      // olabilir - yeniden canlandirmiyoruz. KOD INCELEMESI BULGUSU:
+      // _pendingResumptionHandle burada temizlenmezse, dakikalar sonra
+      // kullanici TAMAMEN YENI/ILGISIZ bir gorusme baslattiginda bu eski
+      // (belki artik geçersiz) handle o yeni gorusmeye sessizce
+      // tasinabiliyordu.
+      _pendingResumptionHandle = null;
       return;
     }
     state = state.copyWith(status: VoiceCallStatus.connecting);
@@ -839,6 +873,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     _intentionalClose = true;
     await _cleanup();
     _intentionalClose = false;
+    // Kullanici gorusmeyi bilerek bitiriyor - bu ana kadar birikmis
+    // (henuz tuketilmemis) bir devam-etme tokeni varsa, bir sonraki
+    // TAMAMEN YENI gorusmeye sizmasin diye burada da temizliyoruz.
+    _pendingResumptionHandle = null;
     _voiceDebugLog("endCall() - _cleanup() tamamlandi");
     state = const VoiceCallState();
   }

@@ -26,6 +26,12 @@ import database
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
 
+# Gemini Live'a baglanma (websocket el sikismasi) icin ust sinir. Bkz.
+# handle_voice_session'daki asyncio.wait_for(live_ctx.__aenter__(), ...) -
+# _client'in http_options.timeout'u BU asamayi korumuyor (SDK live.py'si
+# buna hic bakmiyor), o yuzden ayri, elle bir sinir gerekiyordu.
+VOICE_CONNECT_TIMEOUT_SECONDS = 15
+
 # KRITIK BULUNAN CANLI-SES DONMASI (2026-08-25, kullanici kanitiyla):
 # ilk tur sorunsuz calisiyor, ama Gemini Live API'nin kendisi ara sira
 # hic yanit vermeden askida kaliyor (AYNI ANDA metin sohbette de
@@ -90,14 +96,15 @@ YENI soyledigini mutlaka dinleyip cevapladiktan sonra. Sesin/uslubun
 pasif, ozur diler gibi degil - sicak ama kendinden emin ve net olsun.
 """.strip()
 
-# DERINLESTIRILMIS TARAMA BULGUSU (2026-08-25): aura_brain.py ve main.py'deki
-# Gemini istemcileri (metin sohbet) 12sn zaman asimiyla korunuyordu, ama BU
-# istemci (canli ses BAGLANTISI icin) ayni korumadan YOKSUNDU - Gemini Live'in
-# kendisi baglanma asamasinda (henuz oturum bile kurulmadan) askida kalirsa,
-# handle_voice_session'daki `async with _client.aio.live.connect(...)` satiri
-# hicbir zaman asimi olmadan sonsuza dek beklerdi (oturum ICI donma zaten
-# VOICE_TURN_IDLE_TIMEOUT_SECONDS ile ayri korunuyor - bu, BAGLANMA asamasi
-# icin). Diger iki istemciyle tutarli olsun diye ayni sinir kondu.
+# NOT (2026-08-25, DUZELTILDI): burada http_options=HttpOptions(timeout=...)
+# eklemistik, aura_brain.py/main.py'deki metin istemcileriyle tutarli olsun
+# diye - ama kod incelemesinde bulundu ki bu, .aio.live.connect() icin
+# HICBIR ISE YARAMIYOR (google-genai SDK'sinin live.py'si ws_connect()
+# cagrisinda http_options.timeout'a hic bakmiyor, sadece REST/httpx
+# yollari icin gecerli). Baglanma asamasinin gercek koruyucusu artik
+# VOICE_CONNECT_TIMEOUT_SECONDS + handle_voice_session'daki elle
+# asyncio.wait_for(live_ctx.__aenter__(), ...) cagrisi - bu satirdaki
+# http_options SADECE bir varsayilan, fonksiyonel bir etkisi yok.
 _client = genai.Client(
     api_key=aura_brain.GEMINI_API_KEY,
     http_options=types.HttpOptions(timeout=12000),
@@ -232,9 +239,39 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     if free_tier:
         _active_voice_users.add(user["id"])
 
+    # KOD INCELEMESI BULGUSU (2026-08-25): _client'a eklenen
+    # http_options=HttpOptions(timeout=...) bu satiri HIC KORUMUYOR -
+    # google-genai SDK'sinin live.py'si ws_connect() cagrisinda
+    # http_options.timeout'a hic bakmiyor (sadece REST/httpx yollari
+    # icin gecerli). Yani Gemini Live'in websocket el sikismasi askida
+    # kalirsa bu "duzeltilmis" gibi gorunen satir GERCEKTE sonsuza dek
+    # beklerdi. Gercek koruma: live.connect()'in __aenter__()'ini
+    # (baglanma anini) asyncio.wait_for ile sariyoruz - `async with`
+    # yerine elle __aenter__/__aexit__ kullanmamizin tek sebebi bu (asagidaki
+    # mevcut govdenin girinti seviyesini degistirmeden ekleyebilmek icin).
+    live_ctx = _client.aio.live.connect(model=VOICE_MODEL, config=config)
     try:
-        async with _client.aio.live.connect(model=VOICE_MODEL, config=config) as session:
+        session = await asyncio.wait_for(
+            live_ctx.__aenter__(), timeout=VOICE_CONNECT_TIMEOUT_SECONDS
+        )
+    except (asyncio.TimeoutError, Exception) as e:
+        print(
+            f"VOICE SESSION: Gemini Live baglantisi {VOICE_CONNECT_TIMEOUT_SECONDS}sn "
+            f"icinde kurulamadi ({type(e).__name__}: {e})"
+        )
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "Aura'ya şu anda bağlanılamadı. Lütfen tekrar dener misin?",
+        }))
+        if free_tier:
+            _active_voice_users.discard(user["id"])
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+        return
 
+    try:
             async def relay_client_to_gemini():
                 while True:
                     message = await websocket.receive()
@@ -288,23 +325,35 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             }))
                             return
                     turn_number += 1
+                    # got_any_content: "uretici HICBIR SEY verdi mi" (bkz.
+                    # asagida dongu sonu - Gemini'nin gercekten kapanip
+                    # kapanmadigini anlamak icin). got_real_content: SADECE
+                    # ses/transkript/tur-tamamlandi gibi GERCEK icerik icin -
+                    # timeout esigini ve idle/stall ayrimini BUNA gore
+                    # yapiyoruz. Bu ikisi KASITLI olarak ayri: session_resumption_update
+                    # (session_resumption acildigi icin artik periyodik geliyor)
+                    # ve go_away gibi "defter tutma" mesajlari got_any_content'i
+                    # true yapar ama got_real_content'i YAPMAZ - aksi halde bir
+                    # devam-etme tokeni sessizce dusunen bir kullaniciyi 60sn'lik
+                    # sabir suresinden 20sn'lik "askida kaldi" suresine dusurur
+                    # (kod incelemesinde bulundu).
                     got_any_content = False
+                    got_real_content = False
                     turn_audio_chunks = 0
                     turn_iterator = session.receive()
-                    timed_out = False
-                    idle_ended = False
-                    reconnect_needed = False
+                    # None | "timed_out" | "idle_ended" | "reconnect_needed"
+                    exit_reason = None
                     while True:
-                        # Bu turda HENUZ hicbir sey gelmediyse (kullanici
-                        # dusunuyor/sessiz olabilir) uzun esik, birazdan
-                        # bir sey geldiyse (aniden durdu - suphesiz bir
-                        # askida kalma) kisa esik kullaniyoruz. Ayni
-                        # __anext__() cagrisi retry EDILMIYOR - her deneme
-                        # TEK bir wait_for ile TEK bir sonuc uretiyor, bu
-                        # yuzden asyncio iptal/retry guvenligi sorunu yok.
+                        # Bu turda HENUZ gercek icerik gelmediyse (kullanici
+                        # dusunuyor/sessiz olabilir) uzun esik, geldiyse
+                        # (sonra aniden durdu - suphesiz bir askida kalma)
+                        # kisa esik kullaniyoruz. Ayni __anext__() cagrisi
+                        # retry EDILMIYOR - her deneme TEK bir wait_for ile
+                        # TEK bir sonuc uretiyor, bu yuzden asyncio iptal/
+                        # retry guvenligi sorunu yok.
                         current_timeout = (
                             VOICE_TURN_IDLE_TIMEOUT_SECONDS
-                            if got_any_content
+                            if got_real_content
                             else VOICE_IDLE_NO_CONTENT_TIMEOUT_SECONDS
                         )
                         try:
@@ -315,7 +364,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                         except StopAsyncIteration:
                             break
                         except asyncio.TimeoutError:
-                            if not got_any_content:
+                            if not got_real_content:
                                 # IDLE: kullanici uzun suredir hicbir sey
                                 # soylemedi - bir hata degil, nazik bir
                                 # sonlandirma. Otomatik yeniden baglanmayi
@@ -324,7 +373,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                 print(
                                     f"VOICE SESSION: {turn_number}. tur - "
                                     f"{current_timeout}sn boyunca hicbir "
-                                    f"etkilesim olmadi - gorusme bosta "
+                                    f"gercek etkilesim olmadi - gorusme bosta "
                                     f"kaldigi icin sonlandiriliyor"
                                 )
                                 await websocket.send_text(json.dumps({
@@ -334,13 +383,13 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                         "görüşme sonlandırıldı."
                                     ),
                                 }))
-                                idle_ended = True
+                                exit_reason = "idle_ended"
                                 break
-                            # STALL: tur zaten baslamisti (en az bir parca
-                            # gelmisti), sonra aniden durdu - Gemini Live
-                            # askida kalmis olabilir. Sonsuza kadar
-                            # beklemek yerine oturumu duzgunce sonlandirip
-                            # kullaniciya durustce haber veriyoruz.
+                            # STALL: tur zaten baslamisti (en az bir gercek
+                            # icerik parcasi gelmisti), sonra aniden durdu -
+                            # Gemini Live askida kalmis olabilir. Sonsuza
+                            # kadar beklemek yerine oturumu duzgunce
+                            # sonlandirip kullaniciya durustce haber veriyoruz.
                             print(
                                 f"VOICE SESSION: {turn_number}. tur - Gemini'den "
                                 f"{current_timeout}sn boyunca HICBIR "
@@ -356,20 +405,88 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                     "kapatıp tekrar dener misin?"
                                 ),
                             }))
-                            timed_out = True
+                            exit_reason = "timed_out"
                             break
 
                         got_any_content = True
                         total_chunks += 1
-                        if response.data:
-                            turn_audio_chunks += 1
-                            await websocket.send_bytes(response.data)
 
                         if response.session_resumption_update:
                             update = response.session_resumption_update
                             if update.resumable and update.new_handle:
                                 nonlocal current_resumption_handle
                                 current_resumption_handle = update.new_handle
+
+                        if response.data:
+                            turn_audio_chunks += 1
+                            got_real_content = True
+                            await websocket.send_bytes(response.data)
+
+                        # server_content'i go_away'den ONCE isliyoruz - Gemini
+                        # bir GoAway'i, o turun son turn_complete/transkript
+                        # icerigiyle AYNI ya da ARDISIK bir mesajda gonderebilir;
+                        # go_away'i gorur gormez hemen break edersek o
+                        # turn_complete istemciye hic ulasmayabilirdi (kod
+                        # incelemesinde bulundu).
+                        server_content = response.server_content
+                        if server_content:
+                            got_real_content = True
+
+                        if server_content and server_content.interrupted:
+                            # Teshis: bu genelde Aura'nin kendi sesi mikrofona
+                            # sizip (yanki) Gemini'nin "kullanici konusmaya
+                            # basladi" sanmasindan kaynaklanir. Kac ses parcasi
+                            # yayinlandiktan SONRA kesildigini loglayarak
+                            # bunun ne kadar erken/gec oldugunu goruyoruz.
+                            print(
+                                f"VOICE SESSION: INTERRUPTED sinyali geldi "
+                                f"({turn_number}. tur, bu turda {turn_audio_chunks} "
+                                f"ses parcasi yayinlanmisti)"
+                            )
+                            await websocket.send_text(json.dumps({"type": "interrupted"}))
+
+                        if server_content and (
+                            server_content.input_transcription
+                            and server_content.input_transcription.text
+                        ):
+                            user_transcript_parts.append(
+                                server_content.input_transcription.text
+                            )
+                            # Canli altyazi: tur bitmeden, parca geldikce
+                            # o ana kadar birikeni gonder - istemci turn_complete'i
+                            # beklemeden kelime kelime metni gosterebilsin.
+                            await websocket.send_text(json.dumps({
+                                "type": "partial_transcript",
+                                "role": "user",
+                                "text": "".join(user_transcript_parts).strip(),
+                            }))
+
+                        if server_content and (
+                            server_content.output_transcription
+                            and server_content.output_transcription.text
+                        ):
+                            assistant_transcript_parts.append(
+                                server_content.output_transcription.text
+                            )
+                            await websocket.send_text(json.dumps({
+                                "type": "partial_transcript",
+                                "role": "assistant",
+                                "text": "".join(assistant_transcript_parts).strip(),
+                            }))
+
+                        if server_content and server_content.turn_complete:
+                            user_text, assistant_text = pop_transcripts()
+                            await websocket.send_text(json.dumps({
+                                "type": "turn_complete",
+                                "user_text": user_text,
+                                "assistant_text": assistant_text,
+                            }))
+                            if user_text or assistant_text:
+                                asyncio.create_task(
+                                    asyncio.to_thread(
+                                        persist_transcripts, user_text, assistant_text
+                                    )
+                                )
 
                         if response.go_away:
                             # Gemini Live, ~15dk'lik ses-only oturum sinirina
@@ -378,7 +495,9 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                             # devam-etme tokeniyle sorunsuzca yeniden
                             # baglanabilsin diye istemciye acikca sinyal
                             # veriyoruz - bu bir hata degil, dogal bir
-                            # oturum tazelemesi.
+                            # oturum tazelemesi. server_content (turn_complete
+                            # dahil) yukarida ZATEN islendi, o yuzden ayni
+                            # mesaja binmis bir turn_complete kaybolmuyor.
                             print(
                                 f"VOICE SESSION: GoAway alindi "
                                 f"(time_left={response.go_away.time_left}, "
@@ -395,70 +514,10 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                     "tazeleniyor, bir saniye..."
                                 ),
                             }))
-                            reconnect_needed = True
+                            exit_reason = "reconnect_needed"
                             break
 
-                        server_content = response.server_content
-                        if not server_content:
-                            continue
-
-                        if server_content.interrupted:
-                            # Teshis: bu genelde Aura'nin kendi sesi mikrofona
-                            # sizip (yanki) Gemini'nin "kullanici konusmaya
-                            # basladi" sanmasindan kaynaklanir. Kac ses parcasi
-                            # yayinlandiktan SONRA kesildigini loglayarak
-                            # bunun ne kadar erken/gec oldugunu goruyoruz.
-                            print(
-                                f"VOICE SESSION: INTERRUPTED sinyali geldi "
-                                f"({turn_number}. tur, bu turda {turn_audio_chunks} "
-                                f"ses parcasi yayinlanmisti)"
-                            )
-                            await websocket.send_text(json.dumps({"type": "interrupted"}))
-
-                        if (
-                            server_content.input_transcription
-                            and server_content.input_transcription.text
-                        ):
-                            user_transcript_parts.append(
-                                server_content.input_transcription.text
-                            )
-                            # Canli altyazi: tur bitmeden, parca geldikce
-                            # o ana kadar birikeni gonder - istemci turn_complete'i
-                            # beklemeden kelime kelime metni gosterebilsin.
-                            await websocket.send_text(json.dumps({
-                                "type": "partial_transcript",
-                                "role": "user",
-                                "text": "".join(user_transcript_parts).strip(),
-                            }))
-
-                        if (
-                            server_content.output_transcription
-                            and server_content.output_transcription.text
-                        ):
-                            assistant_transcript_parts.append(
-                                server_content.output_transcription.text
-                            )
-                            await websocket.send_text(json.dumps({
-                                "type": "partial_transcript",
-                                "role": "assistant",
-                                "text": "".join(assistant_transcript_parts).strip(),
-                            }))
-
-                        if server_content.turn_complete:
-                            user_text, assistant_text = pop_transcripts()
-                            await websocket.send_text(json.dumps({
-                                "type": "turn_complete",
-                                "user_text": user_text,
-                                "assistant_text": assistant_text,
-                            }))
-                            if user_text or assistant_text:
-                                asyncio.create_task(
-                                    asyncio.to_thread(
-                                        persist_transcripts, user_text, assistant_text
-                                    )
-                                )
-
-                    if timed_out or idle_ended or reconnect_needed:
+                    if exit_reason:
                         # Ilgili sinyal istemciye zaten yollandi (yukarida) -
                         # oturumu burada sonlandiriyoruz, "Gemini kapandi"
                         # mesajiyla karistirmamak icin ayri donuyoruz.
@@ -494,19 +553,26 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     except Exception as e:
         print(f"VOICE SESSION ERROR: {type(e).__name__}: {e}")
     finally:
-        # Baglanti zaten kapaniyor, burada kisa bir blok kabul edilebilir.
-        persist_transcripts(*pop_transcripts())
-        # Gorusme nasil biterse bitsin (normal, hata, baglanti kopmasi)
-        # gecen sureyi gunluk kullanim sayacina ekle.
-        # ANALITIK BULGUSU (2026-08-25, admin panosunu ilk kez gercekten
-        # okurken fark edildi): bu satir onceden SADECE free tier icin
-        # calisiyordu (limit kontrolu sadece onlar icin gerekli oldugu
-        # icin) - ama bu, admin panosundaki "voice_seconds_today" toplamini
-        # PRO kullanicilar icin (en degerli segment!) hep 0 gostermesine
-        # yol aciyordu, cunku sayac hic yazilmiyordu. Limit kontrolu hala
-        # sadece free tier'a bakiyor (asagida), ama sayaci ARTIK herkes
-        # icin yaziyoruz - boylece admin panosu gercek toplam sesli
-        # kullanimini (pro dahil) gosterebiliyor.
+        # `async with` yerine elle __aenter__ kullandigimiz icin (bkz.
+        # yukarida, baglanma asamasini asyncio.wait_for ile sarabilmek
+        # icin) esiti olan __aexit__'i de burada elle cagirmamiz sart -
+        # yoksa Gemini Live oturumu/websocket'i hic kapanmaz.
+        try:
+            await live_ctx.__aexit__(None, None, None)
+        except Exception as e:
+            print(f"VOICE SESSION: live_ctx.__aexit__ HATASI: {e}")
+
+        # KOD INCELEMESI BULGUSU (2026-08-25): _active_voice_users.discard()
+        # buradan SONRAKI persist_transcripts() cagrisindan (senkron DB
+        # yazma + hafiza cikarimi icin senkron bir Groq HTTP istegi icerir)
+        # SONRA calisiyordu - yani es zamanlilik rezervasyonu, mantiksal
+        # olarak hicbir ilgisi olmayan bu yavas islem bitene kadar
+        # gereksiz yere elde tutuluyordu. Bu, tam da GoAway/reconnect_needed
+        # sonrasi istemcinin HEMEN yeniden baglanmaya calistigi an onemli:
+        # yeni baglanti bu eski rezervasyon hala dusmeden gelirse "zaten
+        # acik bir gorusmen var" diye YANLISLIKLA reddedilebiliyordu. Artik
+        # rezervasyon/sayac guncellemesi ONCE, yavas transkript yazma
+        # islemi SONRA yapiliyor.
         elapsed_seconds = int(time.time() - session_start_time)
         database.add_voice_usage_seconds(user["id"], elapsed_seconds)
         if user.get("tier") != "pro":
@@ -514,6 +580,10 @@ async def handle_voice_session(websocket: WebSocket) -> None:
             # oturum nasil biterse bitsin mutlaka geri dusuruluyor, yoksa
             # bu kullanici bir daha HICBIR sesli gorusme baslatamazdi.
             _active_voice_users.discard(user["id"])
+
+        # Baglanti zaten kapaniyor, burada kisa bir blok kabul edilebilir.
+        persist_transcripts(*pop_transcripts())
+
         try:
             await websocket.close()
         except Exception:

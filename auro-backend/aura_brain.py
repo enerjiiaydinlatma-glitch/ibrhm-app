@@ -492,8 +492,17 @@ Bir mesajda BIRDEN FAZLA ayri bilgi olabilir (ornek: hem en buyuk korkusunu
 hem de evcil hayvaninin adini tek cumlede soyleyebilir) - boyle durumda
 HEPSINI ayri ayri yakala, sadece birini secip digerini atlama.
 
-Ornekler (CATEGORY her zaman bu Turkce anahtarlardan biri OLMALI - Ingilizce
-kategori adi UYDURMA, asagidakilerden birine en yakin olani sec):
+Ornekler (CATEGORY her zaman bu anahtarlardan biri OLMALI - listede
+OLMAYAN yeni bir Ingilizce kategori adi UYDURMA, asagidakilerden birine
+en yakin olani sec):
+NOT: 'routine' ve 'upcoming_event' BILEREK Ingilizce - aura_lifestyle.py
+(ROUTINE_CATEGORY, UPCOMING_EVENT_CATEGORY) bu TAM STRING'LERLE eslesme
+arayarak rutin hatirlatmasi/gundem takibi yapiyor. Bunlari "rutin"/
+"gundem" gibi Turkce yapmak o eslesmeyi kirar ve ozelligi tamamen
+bozar (2026-08-25'te tam bu hata yapilip geri alindi - kod incelemesinde
+bulundu). Kullaniciya GORUNEN etiket zaten Flutter tarafinda
+(_categoryLabels) Turkce'ye cevriliyor, o yuzden bu iki deger burada
+Ingilizce KALMALI.
 - kullanicinin adi -> CATEGORY: isim
 - yasadigi yer -> CATEGORY: yer
 - meslegi -> CATEGORY: meslek
@@ -505,9 +514,9 @@ kategori adi UYDURMA, asagidakilerden birine en yakin olani sec):
 - uzun vadeli planlari -> CATEGORY: planlar
 - iletisim veya cevap tercihleri -> CATEGORY: iletisim_tercihleri
 - rutinleri/aliskanliklari (ornek: her sabah kahve icmesi, aksam yuruyus
-  yapmasi) -> CATEGORY: rutin
+  yapmasi) -> CATEGORY: routine
 - yaklasan bir gundemi (ornek: yarinki toplantisi, sinavi, randevusu)
-  -> CATEGORY: gundem
+  -> CATEGORY: upcoming_event
 - evcil hayvani -> CATEGORY: evcil_hayvan
 - korkulari -> CATEGORY: korkular
 - yukaridaki listeye hic uymayan, ama yine de degerli bir bilgi ise:
@@ -643,13 +652,32 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
 
         for block in blocks:
             data = {}
+            malformed = False
 
             for line in block.splitlines():
                 if ":" not in line:
                     continue
 
                 key, value = line.split(":", 1)
-                data[key.strip().upper()] = value.strip()
+                field = key.strip().upper()
+                if field in data:
+                    # KOD INCELEMESI BULGUSU (2026-08-25): "---" ayraci
+                    # sadece yumusak bir talimat, model bazen unutuyor/
+                    # kesiyor. Ayni blokta CATEGORY/KEY/VALUE gibi bir
+                    # alan IKINCI KEZ gorulursek, bu aslinda iki farkli
+                    # bilginin birlesmis oldugunun kanitidir (ornek:
+                    # birinci bilginin VALUE'su, ikinci bilginin
+                    # CATEGORY/KEY'iyle eslesip yanlis bir kayit
+                    # olusturabilirdi). Once sessizce ustune yazip
+                    # devam etmek yerine, TUM BLOGU malformed sayip
+                    # atliyoruz - yanlis-ama-gecerli-gorunen bir kayit
+                    # kaydetmektense hicbir sey kaydetmemek daha guvenli.
+                    malformed = True
+                    break
+                data[field] = value.strip()
+
+            if malformed:
+                continue
 
             category = data.get("CATEGORY")
             memory_key = data.get("KEY")
