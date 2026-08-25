@@ -397,10 +397,19 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         # Baglanti zaten kapaniyor, burada kisa bir blok kabul edilebilir.
         persist_transcripts(*pop_transcripts())
         # Gorusme nasil biterse bitsin (normal, hata, baglanti kopmasi)
-        # gecen sureyi gunluk kullanim sayacina ekle - free tier icin.
+        # gecen sureyi gunluk kullanim sayacina ekle.
+        # ANALITIK BULGUSU (2026-08-25, admin panosunu ilk kez gercekten
+        # okurken fark edildi): bu satir onceden SADECE free tier icin
+        # calisiyordu (limit kontrolu sadece onlar icin gerekli oldugu
+        # icin) - ama bu, admin panosundaki "voice_seconds_today" toplamini
+        # PRO kullanicilar icin (en degerli segment!) hep 0 gostermesine
+        # yol aciyordu, cunku sayac hic yazilmiyordu. Limit kontrolu hala
+        # sadece free tier'a bakiyor (asagida), ama sayaci ARTIK herkes
+        # icin yaziyoruz - boylece admin panosu gercek toplam sesli
+        # kullanimini (pro dahil) gosterebiliyor.
+        elapsed_seconds = int(time.time() - session_start_time)
+        database.add_voice_usage_seconds(user["id"], elapsed_seconds)
         if user.get("tier") != "pro":
-            elapsed_seconds = int(time.time() - session_start_time)
-            database.add_voice_usage_seconds(user["id"], elapsed_seconds)
             # Es zamanlilik korumasi icin eklenmisti (bkz. yukarida) -
             # oturum nasil biterse bitsin mutlaka geri dusuruluyor, yoksa
             # bu kullanici bir daha HICBIR sesli gorusme baslatamazdi.
