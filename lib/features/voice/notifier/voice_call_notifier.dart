@@ -471,6 +471,20 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
           status: VoiceCallStatus.error,
           errorMessage: data["message"] as String?,
         );
+      } else if (type == "error") {
+        // Sunucu tarafinda Gemini Live bir turda tikanip kaldiginda
+        // (gercek kullanici kanitiyla bulundu: mikrofon aciktan, ikinci
+        // soru sorulunca hicbir yanit gelmeden oturum askida kaliyordu)
+        // backend artik sessizce sonsuza dek beklemek yerine oturumu
+        // kapatip bu sinyali yolluyor. _limitReached'i BILEREK set etmiyoruz
+        // - bu, gunluk limit gibi kalici degil GECICI bir Gemini sorunu,
+        // bu yuzden asagidaki _handleUnexpectedDisconnect kendi otomatik
+        // yeniden baglanma mantigini (birkac deneme) calistirabilsin.
+        _voiceDebugLog("sunucudan error sinyali: ${data["message"]}");
+        state = state.copyWith(
+          status: VoiceCallStatus.error,
+          errorMessage: data["message"] as String?,
+        );
       } else if (type == "interrupted") {
         _voiceDebugLog("interrupted alindi (chunk #$_audioChunkCounter)");
         _awaitingFirstChunkOfTurn = true;

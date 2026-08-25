@@ -26,6 +26,22 @@ import database
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
 
+# KRITIK BULUNAN CANLI-SES DONMASI (2026-08-25, kullanici kanitiyla):
+# ilk tur sorunsuz calisiyor, ama Gemini Live API'nin kendisi ara sira
+# hic yanit vermeden askida kaliyor (AYNI ANDA metin sohbette de
+# "VOICE FALLBACK: gemini basarisiz (ServerError)" gorulmustu - Gemini
+# tarafinda genel bir gecici sorun). Metin sohbette bu Groq fallback'i
+# ile cozulmustu (bkz. aura_brain.generate_with_retry), ama canli sesin
+# Groq karsiligi yok ve ONCEDEN session.receive() icin HICBIR zaman
+# asimi yoktu - Gemini sessiz kalinca istemci mikrofonu acik beklerken
+# sunucu sonsuza kadar bekliyordu, hicbir hata/sinyal donmuyordu.
+# Bu sabit, bir turun herhangi bir ANINDA (ilk parcadan itibaren) ardisik
+# iki veri arasinda gecebilecek AZAMI bos sureyi sinirlar - TUM turun
+# suresini degil (basarili bir turda son ses parcasiyla turn_complete
+# arasinda ~13sn'ye kadar dogal bir bosluk gorulmustu, bu yuzden turun
+# TAMAMINA degil, ardisik iki olay arasina zaman asimi konuyor).
+VOICE_TURN_IDLE_TIMEOUT_SECONDS = 20
+
 # Ucretsiz (free) tier gunluk sesli goruşme limiti (saniye). 'pro' tier
 # bundan muaf. Rakip uygulama arastirmasina ve kullanicinin onayina
 # dayanarak belirlendi (10 dakika).
@@ -232,7 +248,39 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                     turn_number += 1
                     got_any_content = False
                     turn_audio_chunks = 0
-                    async for response in session.receive():
+                    turn_iterator = session.receive()
+                    timed_out = False
+                    while True:
+                        try:
+                            response = await asyncio.wait_for(
+                                turn_iterator.__anext__(),
+                                timeout=VOICE_TURN_IDLE_TIMEOUT_SECONDS,
+                            )
+                        except StopAsyncIteration:
+                            break
+                        except asyncio.TimeoutError:
+                            # Gemini Live askida kalmis: bu turda daha once
+                            # hic ya da bir sure hicbir yeni veri gelmedi.
+                            # Sonsuza kadar beklemek yerine oturumu duzgunce
+                            # sonlandirip kullaniciya durustce haber veriyoruz.
+                            print(
+                                f"VOICE SESSION: {turn_number}. tur - Gemini'den "
+                                f"{VOICE_TURN_IDLE_TIMEOUT_SECONDS}sn boyunca HICBIR "
+                                f"yeni veri gelmedi (muhtemelen Gemini Live askida "
+                                f"kaldi), bu tura kadar {turn_audio_chunks} ses "
+                                f"parcasi gelmisti - oturum sonlandiriliyor"
+                            )
+                            await websocket.send_text(json.dumps({
+                                "type": "error",
+                                "message": (
+                                    "Aura şu anda cevap veremedi (bağlantıda "
+                                    "gecici bir sorun olabilir). Görüşmeyi "
+                                    "kapatıp tekrar dener misin?"
+                                ),
+                            }))
+                            timed_out = True
+                            break
+
                         got_any_content = True
                         total_chunks += 1
                         if response.data:
@@ -298,6 +346,12 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                         persist_transcripts, user_text, assistant_text
                                     )
                                 )
+
+                    if timed_out:
+                        # Hata mesaji istemciye zaten yollandi (yukarida) -
+                        # oturumu burada sonlandiriyoruz, "Gemini kapandi"
+                        # mesajiyla karistirmamak icin ayri donuyoruz.
+                        return
 
                     if not got_any_content:
                         # Gemini tarafi gercekten kapandi (bos donus) - bu
