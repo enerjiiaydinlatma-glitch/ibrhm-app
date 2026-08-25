@@ -571,7 +571,17 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
                 )
             ],
         )
-        return {"analysis": response.text}
+        analysis_text = response.text
+        # BULUNDU (2026-08-25, 4 AI'ya sorulan derinlemesine analiz):
+        # bu analiz sonucu SADECE kullaniciya donduruluyordu, hicbir
+        # yere kaydedilmiyordu - Aura ertesi gun bu fotografi hic
+        # hatirlamiyordu ("hafizaya akmiyorsa teknik olarak cop").
+        # Normal sohbet mesajlariyla ayni tabloya (messages) yaziyoruz -
+        # boylece bir sonraki /api/chat cagrisinin gecmis baglaminda
+        # bu da yer aliyor, Aura bir daha sorulunca hatirlayabiliyor.
+        database.add_message(user["id"], "user", "[Bir fotoğraf paylaştı]")
+        database.add_message(user["id"], "assistant", analysis_text)
+        return {"analysis": analysis_text}
     except Exception as e:
         # Ham exception mesaji (potansiyel ic yapilandirma bilgisi
         # icerebilir) artik istemciye sizdirilmiyor - detay sadece

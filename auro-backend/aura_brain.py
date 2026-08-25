@@ -169,6 +169,50 @@ sahte bir bilinc/duygu iddia etmeden sicak ol.
 """.strip()
 
 
+# BULUNDU (2026-08-25, 4 bagimsiz AI'ya sorulan derinlemesine analiz +
+# kendi kod incelememiz): "Dogrudanlik: dogrudan." gibi cIplak bir sifat
+# eklemek modele somut bir DAVRANIS vermiyor - "bir modele 'manyetik ol'
+# demek onu manyetik yapmaz" (analiz ozeti). Kullanicinin ayarladigi
+# directness seviyesine gore GERCEKTEN farkli, somut davranis kurallari
+# donduruyoruz - herkese zorlanan tek bir sert ton yerine, kullanicinin
+# KENDI sectigi seviyeye gore gercek bir karakter degisikligi.
+def get_directness_instruction(directness: str) -> str:
+    if directness == "dogrudan":
+        return (
+            "DOGRUDANLIK - KESKIN: Once teselli etmek yerine once teshis "
+            "koy, sonra somut bir aksiyon soyle. 'Cok yorgunum' gibi bir "
+            "sikayete once 'ne kadar zor' deme - dogrudan 'ne yapman "
+            "gerektigini' soyle. Kullanici kendini tekrar eden bir "
+            "bahane/oruntu sergiliyorsa (hafizanda varsa) bunu yuzune "
+            "vurmaktan cekinme, ama asagilamadan - net ve kisa ol. Fazla "
+            "aciklama yapma, kestirmeden git."
+        )
+    if directness == "yumusak":
+        return (
+            "DOGRUDANLIK - YUMUSAK: Once duygusunu gordugunu hissettir, "
+            "sonra nazikce bir yon goster. Sabirli ol, aceleci teshis "
+            "koyma, kullaniciya kendi hizinda konusma alani birak."
+        )
+    return (
+        "DOGRUDANLIK - DENGELI: Duyguyu gormezden gelme ama orada da "
+        "kalma - kisa bir gecisle konuyu ilerlet, hem sicak hem net ol."
+    )
+
+
+# BULUNDU (ayni analiz): "seni cok iyi anliyorum" tarzi bos empati
+# cumleleri hicbir sey soylemiyor, herhangi bir AI'dan cikabilir - ton
+# fark etmeksizin (sert ya da yumusak) bu spesifik klise HER ZAMAN
+# yasak, cunku somut bir sey vaat etmeden "anliyormus gibi yapma"
+# hissi veriyor. En yuksek etki/efor orani olan degisiklik buydu.
+BOS_EMPATI_YASAGI = (
+    "KESIN YASAK - BOS EMPATI: 'Seni cok iyi anliyorum', 'Bu cok zor "
+    "olmali', 'Yaninda oldugumu bilmeni isterim' gibi hicbir somut sey "
+    "soylemeyen, herhangi bir yerden cikabilecek empati klise cumleleri "
+    "KURMA. Bunun yerine ya somut bir gozlem yap, ya bir soru sor, ya "
+    "da dogrudan bir yon goster - bos onaylama yerine gercek icerik."
+)
+
+
 def get_familiarity_note(message_count: int) -> str:
     if message_count < FAMILIARITY_THRESHOLD:
         return (
@@ -215,6 +259,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma.",
         "USLUP: Bazen tek guclu cumle uzun paragraftan daha etkilidir.",
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
+        BOS_EMPATI_YASAGI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
@@ -222,7 +267,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Sicaklik: " + str(user.get("warmth", "sicak")) + ".",
         "Resmiyet: " + str(user.get("formality", "samimi")) + ".",
         "Mizah: " + str(user.get("humor", "orta")) + ".",
-        "Dogrudanlik: " + str(user.get("directness", "dengeli")) + ".",
+        get_directness_instruction(str(user.get("directness", "dengeli"))),
         "TON UYUMU: Kullanicinin mesajindaki tonu oku ve ona dogal sekilde karsilik ver.",
         "Notlar: " + str(user.get("notes", "yok")) + ".",
         context,
