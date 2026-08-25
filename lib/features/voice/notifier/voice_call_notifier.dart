@@ -3,6 +3,7 @@ import "dart:convert";
 import "dart:io";
 
 import "package:flutter/foundation.dart";
+import "package:flutter/widgets.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_soloud/flutter_soloud.dart";
 import "package:record/record.dart";
@@ -37,7 +38,8 @@ void _voiceDebugLog(String message) {
 /// eder. Konusulan sozler turn_complete ile birlikte donen transkript
 /// uzerinden chatProvider'a (ayni mesaj listesine) ekleniyor - yazili ve
 /// sesli mesajlar tek bir akista birlesiyor.
-class VoiceCallNotifier extends Notifier<VoiceCallState> {
+class VoiceCallNotifier extends Notifier<VoiceCallState>
+    with WidgetsBindingObserver {
   static const _wsBase = "wss://aura-backend-production-bc9c.up.railway.app";
 
   final AudioRecorder _recorder = AudioRecorder();
@@ -161,7 +163,22 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
 
   @override
   VoiceCallState build() {
+    // BULUNDU (2026-08-25, kullanici kaniti: iPhone/Safari'de gorusme
+    // 3-4. turda sessizce kesildi). Railway sunucu loglari o oturumu
+    // TAMAMEN SAGLIKLI gosteriyordu (6 tur, dogru interrupted sinyalleri)
+    // - baglanti ISTEMCI tarafindan koptu (kod 1005, "abnormal closure").
+    // Bu, sunucu tarafinda bugun duzelttigimiz Gemini-askida-kalma
+    // sinifindan FARKLI bir sorun: telefon ekrani kilitlenince/Safari
+    // sekme arka plana alininca (ya da hucresel/wifi gecisinde) uzun
+    // omurlu WebSocket baglantisi OS/tarayici tarafindan sessizce
+    // kesiliyor olabilir - uygulamanin bundan hicbir haberi yoktu.
+    // Fix: uygulama arka plana alinirsa (AppLifecycleState.paused/hidden)
+    // aktif bir gorusmeyi KENDIMIZ, acikca ve anlasilir bir mesajla
+    // sonlandiriyoruz - zombi bir baglantinin sessizce olup gitmesini
+    // beklemek yerine.
+    WidgetsBinding.instance.addObserver(this);
     ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
       _unmuteTimer?.cancel();
       _unmuteCheckTimer?.cancel();
       _micSubscription?.cancel();
@@ -169,6 +186,45 @@ class VoiceCallNotifier extends Notifier<VoiceCallState> {
       WakelockPlus.disable();
     });
     return const VoiceCallState();
+  }
+
+  // Kasitli: taban sinifin parametre adi "state", ama Riverpod'un kendi
+  // Notifier.state getter/setter'iyla (bu sinifta her yerde kullanilan)
+  // karisir - yeniden adlandirmak lint'i susturur ama gercek bir
+  // belirsizlik/hata riski yaratirdi.
+  @override
+  // ignore: avoid_renaming_method_parameters
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    final isActiveCall =
+        state.status == VoiceCallStatus.connecting ||
+        state.status == VoiceCallStatus.listening ||
+        state.status == VoiceCallStatus.auraSpeaking;
+    if (!isActiveCall) {
+      return;
+    }
+    if (lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.hidden) {
+      _voiceDebugLog(
+        "uygulama arka plana alindi ($lifecycleState) - aktif gorusme "
+        "sonlandiriliyor",
+      );
+      unawaited(_endCallDueToBackground());
+    }
+  }
+
+  /// endCall() gibi temizler, ama state'i sessizce idle'a dondurmek
+  /// yerine kullaniciya NEDEN bittigini soyleyen bir hata mesaji birakir
+  /// - uygulamaya geri donduğunde "neden kesildi?" diye sormasin diye.
+  Future<void> _endCallDueToBackground() async {
+    _intentionalClose = true;
+    await _cleanup();
+    _intentionalClose = false;
+    state = state.copyWith(
+      status: VoiceCallStatus.error,
+      errorMessage:
+          "Görüşme, uygulama arka plana alındığı için sonlandırıldı. "
+          "Tekrar aramak için dokun.",
+    );
   }
 
   Future<void> startCall(String token) async {
