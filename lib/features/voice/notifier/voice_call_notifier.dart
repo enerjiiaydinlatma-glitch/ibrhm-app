@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:convert";
 import "dart:io";
+import "dart:math";
 
 import "package:flutter/foundation.dart";
 import "package:flutter/widgets.dart";
@@ -12,6 +13,7 @@ import "package:web_socket_channel/web_socket_channel.dart";
 
 import "../../chat/notifier/chat_notifier.dart";
 import "../models/voice_call_state.dart";
+import "mic_level_notifier.dart";
 
 /// GECICI TESHIS ARACI (2. kez eklendi - donma tekrarladi). Release
 /// build'de console gorunmuyor, o yuzden her riskli native cagridan
@@ -30,6 +32,26 @@ void _voiceDebugLog(String message) {
       flush: true,
     );
   } catch (_) {}
+}
+
+/// Ham PCM16 (little-endian, mono) ses parcasindan 0.0-1.0 arasi bir
+/// ses seviyesi hesaplar (RMS - root-mean-square). 3000 bolen degeri
+/// keyfi degil - normal konusma sesinin PCM16'daki tipik RMS araligina
+/// gore secildi (tam 32768 max genlige gore normalize edilseydi normal
+/// konusma neredeyse hic gorunmezdi).
+double _computeMicLevel(List<int> pcm16Bytes) {
+  if (pcm16Bytes.length < 2) return 0.0;
+  int sumSquares = 0;
+  int sampleCount = 0;
+  for (var i = 0; i + 1 < pcm16Bytes.length; i += 2) {
+    var sample = pcm16Bytes[i] | (pcm16Bytes[i + 1] << 8);
+    if (sample >= 32768) sample -= 65536;
+    sumSquares += sample * sample;
+    sampleCount++;
+  }
+  if (sampleCount == 0) return 0.0;
+  final rms = sqrt(sumSquares / sampleCount);
+  return (rms / 3000).clamp(0.0, 1.0);
 }
 
 /// Aura ile gercek zamanli, tam serbest (interrupt edilebilir) sesli
@@ -436,6 +458,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       _micSubscription = micStream.listen((chunk) {
         if (_muteMic) return;
         _channel?.sink.add(chunk);
+        // Kullanici istegi (2026-08-26): sesli gorusme ekrani "sade"ydi -
+        // artik ufak bir dalga gostergesi var. BILEREK ayri, hafif bir
+        // provider'a yaziliyor (bkz. mic_level_notifier.dart) - ana
+        // durumun (voiceCallProvider) icine konsaydi, chat_screen.dart'in
+        // TUM mesaj listesi saniyede ~10 kez yeniden cizilirdi.
+        ref.read(micLevelProvider.notifier).update(_computeMicLevel(chunk));
       });
     } catch (e) {
       debugPrint("Mikrofon akis hatasi: $e");
@@ -893,6 +921,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     await _micSubscription?.cancel();
     _micSubscription = null;
     _voiceDebugLog("_micSubscription.cancel() tamamlandi");
+    ref.read(micLevelProvider.notifier).update(0.0);
     try {
       _voiceDebugLog("_recorder.stop() cagriliyor");
       await _recorder.stop();

@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
 
 import "../models/voice_call_state.dart";
+import "../notifier/mic_level_notifier.dart";
 import "../notifier/voice_call_notifier.dart";
 
 /// Chat ekraninin ustune gomulu, kucuk sesli-gorusme durum cubugu.
@@ -55,22 +56,31 @@ class VoiceCallBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            builder: (_, scale, _) => Transform.scale(
-              scale: scale,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isError ? Colors.redAccent : _indigoColor,
+          // Kullanici istegi (2026-08-26): sesli gorusme ekrani "sade"ydi -
+          // sabit tek bir nokta yerine, kullanici konusurken GERCEKTEN
+          // mikrofon seviyesine tepki veren kucuk bir dalga gostergesi.
+          // Aura konusurken (mikrofon susturulmus/pasif) eski nabiz
+          // animasyonuna donuluyor - o durumda gosterecek gercek bir
+          // girdi sinyali yok.
+          if (callState.status == VoiceCallStatus.listening)
+            const _MicLevelBars()
+          else
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              builder: (_, scale, _) => Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isError ? Colors.redAccent : _indigoColor,
+                  ),
                 ),
               ),
             ),
-          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -100,6 +110,46 @@ class VoiceCallBar extends ConsumerWidget {
             onPressed: () => ref.read(voiceCallProvider.notifier).endCall(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 4 cubuktan olusan minik bir ses-seviye gostergesi. micLevelProvider
+/// SADECE bu widget'i besliyor (bkz. mic_level_notifier.dart) - VoiceCallBar
+/// zaten voiceCallProvider'i izliyor, bu ikinci watch onunla CAKISMIYOR,
+/// sadece bu kucuk alt agac saniyede ~10 kez yeniden ciziliyor - tum
+/// sohbet listesi degil.
+class _MicLevelBars extends ConsumerWidget {
+  const _MicLevelBars();
+
+  static const _indigoColor = Color(0xFF6C63FF);
+  // Her cubugun gecmis genlige tepki agirligi - ortadaki cubuklar daha
+  // duyarli, kenardakiler daha yumusak tepki verir (gercek bir
+  // ekolayzir gorunumu icin).
+  static const List<double> _sensitivity = [0.6, 1.0, 1.0, 0.6];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final level = ref.watch(micLevelProvider);
+    return SizedBox(
+      width: 22,
+      height: 16,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(4, (i) {
+          final barLevel = (level * _sensitivity[i]).clamp(0.0, 1.0);
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            width: 3,
+            height: 4.0 + barLevel * 12,
+            decoration: BoxDecoration(
+              color: _indigoColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }),
       ),
     );
   }

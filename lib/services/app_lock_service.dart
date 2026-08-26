@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Uygulama kilidi: PIN + (varsa) biyometrik. Kullanici istegi uzerine
 /// eklendi (2026-08-26) - "kilitli sozler/kelimeler" gizlilik istegindeki
@@ -104,5 +105,24 @@ class AppLockService {
     } catch (_) {
       return false;
     }
+  }
+
+  // BULUNDU (2026-08-26): ilk "Aura 2.0" planinda "bildirim kamuflaji"
+  // v1 kapsamindaydi ama hic uygulanmamisti - o zaman hic bildirim
+  // altyapisi yoktu. Simdi hatirlatma bildirimleri (reminder_service.dart)
+  // var, o yuzden bu sozu simdi tutuyoruz: kilit ekraninda hatirlatmanin
+  // GERCEK icerigi yerine notr bir metin gosterme secenegi. Hassas
+  // olmadigi icin (sadece bir goruntuleme tercihi) secure_storage yerine
+  // sade SharedPreferences yeterli.
+  static const _kHideNotificationPreviewsKey = 'aura_hide_notification_previews';
+
+  Future<bool> hideNotificationPreviews() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kHideNotificationPreviewsKey) ?? false;
+  }
+
+  Future<void> setHideNotificationPreviews(bool hide) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kHideNotificationPreviewsKey, hide);
   }
 }

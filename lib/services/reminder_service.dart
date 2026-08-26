@@ -3,6 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'app_lock_service.dart';
+
 /// Kullanici istegi (2026-08-26): "haftaya persembe maca gidecegim,
 /// bilet almam lazim, hatirlatma alarmi olabilir mi?" - backend tarafi
 /// (aura_reminders.py) mesajlardan tarih+hazirlik cikarip /api/reminders
@@ -106,11 +108,21 @@ class ReminderService {
       windows: WindowsNotificationDetails(),
     );
 
+    // "Bildirim kamuflaji" (2026-08-26) - ilk konsept planinda soz verilip
+    // o zaman bildirim altyapisi hic olmadigi icin yapilamamisti. Kilit
+    // ekraninda kim gorurse gorsun diye, istege bagli olarak GERCEK icerik
+    // yerine notr bir metin gosteriliyor - hatirlatma yine backend'de/
+    // uygulama icinde tam haliyle duruyor, sadece bildirimin GORUNUMU
+    // degisiyor.
+    final hidePreview = await AppLockService.instance.hideNotificationPreviews();
+    final title = hidePreview ? 'Aura' : 'Aura hatırlatıyor';
+    final body = hidePreview ? 'Bir hatırlatman var, uygulamayı aç.' : description;
+
     try {
       await _plugin.zonedSchedule(
         id: id,
-        title: 'Aura hatırlatıyor',
-        body: description,
+        title: title,
+        body: body,
         scheduledDate: effective,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

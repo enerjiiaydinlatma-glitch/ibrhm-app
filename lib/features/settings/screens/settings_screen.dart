@@ -43,6 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _lockEnabled = false;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
+  bool _hideNotificationPreviews = false;
 
   // Backend'deki LIMIT_DAILY_MESSAGES/VOICE_DAILY_LIMIT_SECONDS ile
   // ayni deger - sunucu bu sayilari ayrica bir API ile yayinlamiyor,
@@ -132,12 +133,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final lockEnabled = await AppLockService.instance.isLockEnabled();
     final biometricAvailable = await AppLockService.instance.isBiometricAvailable();
     final biometricEnabled = await AppLockService.instance.isBiometricEnabled();
+    final hidePreviews = await AppLockService.instance.hideNotificationPreviews();
     if (!mounted) return;
     setState(() {
       _lockEnabled = lockEnabled;
       _biometricAvailable = biometricAvailable;
       _biometricEnabled = biometricEnabled;
+      _hideNotificationPreviews = hidePreviews;
     });
+  }
+
+  Future<void> _toggleHideNotificationPreviews(bool hide) async {
+    await AppLockService.instance.setHideNotificationPreviews(hide);
+    if (mounted) setState(() => _hideNotificationPreviews = hide);
   }
 
   Future<void> _toggleLock(bool enable) async {
@@ -467,6 +475,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
                 value: _lockEnabled,
                 onChanged: _toggleLock,
+              ),
+              const Divider(color: _borderColor, height: 1),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: _indigoColor,
+                title: Text('Bildirim önizlemesini gizle',
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
+                subtitle: Text('Kilit ekranında hatırlatma içeriği yerine "Aura" yazsın',
+                    style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
+                value: _hideNotificationPreviews,
+                onChanged: _toggleHideNotificationPreviews,
               ),
               if (_lockEnabled) ...[
                 const Divider(color: _borderColor, height: 1),
