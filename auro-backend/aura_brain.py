@@ -447,14 +447,30 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
 
 
 # ============================================================
-# SAGLAYICI KAYDI (provider router)
+# SAGLAYICI KAYDI (provider router) - "AURA BEYIN, MODELLER AJAN" ILKESI
 # ============================================================
-# Aura'nin kullaniciya verdigi tek "ses" (VOICE_PROVIDER) ile arka planda
+# BULUNDU (2026-08-26, kullanici acikca dogrulanmasini istedi): dosyanin
+# en tepesindeki niyet zaten buydu ("kullaniciya gorunen tek sey Aura
+# olmali") ama asagidaki isimlendirme bunu bozuyordu - TEXT_PROVIDER
+# (Aura'nin karaktere burunup METIN uretmesi) yerine "VOICE_PROVIDER"
+# deniyordu, bu da aura_voice.py'deki GERCEK sesli-gorusme sistemiyle
+# karisiyordu - sanki ikisi ayni sey gibi okunuyordu, degiller. Isimler
+# duzeltildi, hicbir davranis degismedi.
+#
+# Aura'nin kullaniciya verdigi tek "ses" (TEXT_PROVIDER) ile arka planda
 # calisan "ajan" (BACKGROUND_PROVIDER) burada birbirinden ayrilir. Yeni bir
 # saglayici (OpenAI, Claude, ...) eklemek icin: asagidaki gibi bir adapter
-# fonksiyonu yaz, sozluge ekle, VOICE_PROVIDER/BACKGROUND_PROVIDER'i
+# fonksiyonu yaz, sozluge ekle, TEXT_PROVIDER/BACKGROUND_PROVIDER'i
 # guncelle - main.py ve geri kalan kod hicbir zaman hangi saglayicinin
-# calistigini bilmez, hep ayni arayuzu (metin -> metin) gorur.
+# calistigini bilmez, hep ayni arayuzu (metin -> metin) gorur (_TextResponse).
+#
+# DURUST SINIR: bu esdeger-ajan ilkesi SADECE metin uretimi icin tam
+# gecerli. Gercek zamanli SESLI gorusme (aura_voice.py, Gemini Live) icin
+# ayni anlamda bir yedek ajan YOK - Groq'un Gemini Live'a esdeger, dusuk
+# gecikmeli, cift yonlu bir ses API'si yok. Gemini Live cokerse sesli
+# gorusme "su an baglanilamiyor" diyip biter, arka planda baska bir
+# "ajan" devralamiyor. Bu bilinen, cozulmemis bir asimetri - yazili
+# sohbetteki dayaniklilik sesli gorusmede yok.
 
 
 class _TextResponse:
@@ -465,7 +481,7 @@ class _TextResponse:
         self.text = text
 
 
-def _gemini_voice(contents, system_instruction, max_attempts=3):
+def _gemini_text(contents, system_instruction, max_attempts=3):
     last_error = None
 
     for attempt in range(max_attempts):
@@ -505,11 +521,11 @@ def _contents_to_groq_messages(contents, system_instruction):
     return messages
 
 
-def _groq_voice(contents, system_instruction, max_attempts=1):
+def _groq_text(contents, system_instruction, max_attempts=1):
     """
-    Gemini yogun/hatali oldugunda YEDEK ses saglayicisi. Kullaniciya
-    "su an biraz yogunum" gibi bos bir mesaj gostermek yerine gercek
-    bir Aura cevabi uretsin diye Groq'a duser.
+    Gemini yogun/hatali oldugunda devreye giren YEDEK metin ajani.
+    Kullaniciya "su an biraz yogunum" gibi bos bir mesaj gostermek
+    yerine gercek bir Aura cevabi uretsin diye Groq'a duser.
     """
     messages = _contents_to_groq_messages(contents, system_instruction)
     response = httpx.post(
@@ -535,10 +551,10 @@ def _groq_voice(contents, system_instruction, max_attempts=1):
 # burada ayrica FALLBACK olarak kullaniliyor (generate_with_retry icinde) -
 # Gemini yogun/hatali oldugunda kullanici bos bir "yogunum" mesaji yerine
 # gercek bir cevap alsin diye.
-VOICE_PROVIDERS = {
-    "gemini": _gemini_voice,
+TEXT_PROVIDERS = {
+    "gemini": _gemini_text,
 }
-VOICE_PROVIDER = "gemini"
+TEXT_PROVIDER = "gemini"
 
 
 def generate_with_retry(contents, system_instruction, max_attempts=2):
@@ -550,24 +566,32 @@ def generate_with_retry(contents, system_instruction, max_attempts=2):
     # atlatmakti. 2'ye dusuruldu - Gemini'ye bir sans daha (tek seferlik
     # blip'ler icin) verilip, hala basarisizsa cabucak Groq'a gecilir.
     try:
-        text = VOICE_PROVIDERS[VOICE_PROVIDER](contents, system_instruction, max_attempts)
+        text = TEXT_PROVIDERS[TEXT_PROVIDER](contents, system_instruction, max_attempts)
     except Exception as primary_error:
         if not GROQ_API_KEY:
             raise
         print(
-            f"VOICE FALLBACK: {VOICE_PROVIDER} basarisiz "
+            f"TEXT FALLBACK: {TEXT_PROVIDER} basarisiz "
             f"({type(primary_error).__name__}), Groq'a duseluyor"
         )
         try:
-            text = _groq_voice(contents, system_instruction)
+            text = _groq_text(contents, system_instruction)
         except Exception as fallback_error:
-            print(f"VOICE FALLBACK ERROR: {type(fallback_error).__name__}: {fallback_error}")
+            print(f"TEXT FALLBACK ERROR: {type(fallback_error).__name__}: {fallback_error}")
             raise primary_error
 
     return _TextResponse(text)
 
 
 def generate_stream(contents, system_instruction):
+    # BULUNDU (kod incelemesi, "Aura beyin/ajan" denetimi): bu fonksiyon
+    # provider soyutlamasini (TEXT_PROVIDERS) atlayip Gemini'yi DOGRUDAN
+    # cagiriyor - Groq'a dusemiyor, generate_with_retry'nin aksine. BILEREK
+    # duzeltilmedi: akan (streaming) bir Groq adaptoru yazmak (chunk chunk
+    # veri donen bir arayuz) gercek is gerektirir, ve tek cagiran
+    # /api/chat/stream zaten dogrulanmis DEAD CODE (Flutter istemcisi bunu
+    # hic cagirmiyor) - gercek kullaniciyi etkilemeyen bir yola bu emegi
+    # harcamak yerine, asimetriyi burada acikca not dusmek tercih edildi.
     return _client.models.generate_content_stream(
         model=MODEL_NAME,
         contents=contents,
