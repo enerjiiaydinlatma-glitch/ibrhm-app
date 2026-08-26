@@ -15,6 +15,7 @@ import "../../voice/notifier/voice_call_notifier.dart";
 import "../../settings/screens/settings_screen.dart";
 import "../../../services/auth_service.dart";
 import "../../../services/reminder_service.dart";
+import "../widgets/sky_background.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -702,14 +703,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0A0A1A), Color(0xFF0D0B2A), Color(0xFF0A0A1A)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+      body: SkyBackground(
         child: Stack(
           children: [
             Column(
