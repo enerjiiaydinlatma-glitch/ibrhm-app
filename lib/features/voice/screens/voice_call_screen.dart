@@ -1,7 +1,16 @@
+import "dart:async";
+import "dart:convert";
+import "dart:typed_data";
+
+import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
+import "package:record/record.dart";
 
+import "../../chat/notifier/chat_notifier.dart";
+import "../../../services/auth_service.dart";
+import "../../../services/tts_service.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/mic_level_notifier.dart";
 import "../notifier/voice_call_notifier.dart";
@@ -104,6 +113,12 @@ class VoiceCallBar extends ConsumerWidget {
               tooltip: "Tekrar Dene",
               onPressed: () => ref.read(voiceCallProvider.notifier).retry(),
             ),
+          // Kullanici istegi (2026-08-26): "Aura beyin, digerleri ajan"
+          // ilkesindeki bilinen bosluk (Gemini Live'in gercek zamanli
+          // esdegeri olan bir Groq yedegi yok) icin somut cozum. Canli
+          // baglanti kurulamiyorsa "basili tut konus" ile Groq Whisper +
+          // mevcut dayanikli metin hattina (Gemini/Groq yedekli) duser.
+          if (isError) const _VoiceFallbackButton(),
           IconButton(
             icon: const Icon(Icons.call_end, color: Colors.redAccent, size: 20),
             tooltip: "Görüşmeyi Bitir",
@@ -150,6 +165,165 @@ class _MicLevelBars extends ConsumerWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+/// "Basili tut konus" yedek sesli mod (2026-08-26, kullanici istegi).
+/// Gemini Live baglanamadiginda/coktugunde gorunur (bkz. yukaridaki
+/// isError kontrolu). Canli/kesintisiz DEGIL - basip konus, birak,
+/// birkaç saniye bekle: ses Groq Whisper'a gidip metne cevrilir, metin
+/// /api/chat ile AYNI govdeden (guvenlik/gizlilik dahil) gecip Aura'nin
+/// cevabini uretir, cevap TtsService ile okunur. Kendi basina TAMAMEN
+/// bagimsiz - VoiceCallNotifier'in karmasik yeniden-baglanma durum
+/// makinesine HIC dokunmuyor (o sistemde bugune kadar birkaç kritik
+/// donma hatasi bulunup duzeltildi - riski buyutmemek icin bilerek ayri
+/// tutuldu).
+class _VoiceFallbackButton extends ConsumerStatefulWidget {
+  const _VoiceFallbackButton();
+
+  @override
+  ConsumerState<_VoiceFallbackButton> createState() => _VoiceFallbackButtonState();
+}
+
+class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
+  static const _indigoColor = Color(0xFF6C63FF);
+  static const _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
+  static const _minRecordingBytes = 3200; // ~0.1sn, 16kHz mono 16-bit
+
+  final AudioRecorder _recorder = AudioRecorder();
+  StreamSubscription<Uint8List>? _sub;
+  BytesBuilder _buffer = BytesBuilder();
+  bool _recording = false;
+  bool _sending = false;
+
+  Future<void> _startRecording() async {
+    if (_sending || _recording) return;
+    try {
+      final hasPermission = await _recorder.hasPermission();
+      if (!hasPermission) return;
+      _buffer = BytesBuilder();
+      final stream = await _recorder.startStream(
+        const RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: 16000, numChannels: 1),
+      );
+      _sub = stream.listen((chunk) => _buffer.add(chunk));
+      if (mounted) setState(() => _recording = true);
+    } catch (e) {
+      debugPrint("Yedek ses kaydi baslatilamadi: $e");
+    }
+  }
+
+  Future<void> _stopAndSend() async {
+    if (!_recording) return;
+    if (mounted) setState(() => _recording = false);
+    await _sub?.cancel();
+    try {
+      await _recorder.stop();
+    } catch (_) {
+      // Zaten durmus olabilir - onemli degil.
+    }
+    final pcmBytes = _buffer.toBytes();
+    if (pcmBytes.length < _minRecordingBytes) return;
+
+    if (mounted) setState(() => _sending = true);
+    try {
+      final token = await AuthService().getToken();
+      if (token == null) return;
+      final wavBytes = _pcm16ToWav(pcmBytes);
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 40),
+      ));
+      final response = await dio.post(
+        "$_backendUrl/api/voice/fallback-turn",
+        data: {"audio_base64": base64Encode(wavBytes)},
+        options: Options(headers: {"Authorization": "Bearer $token"}),
+      );
+      final data = response.data as Map;
+      final transcript = (data["transcript"] as String?)?.trim() ?? "";
+      final reply = (data["reply"] as String?)?.trim() ?? "";
+      if (transcript.isNotEmpty) {
+        ref.read(chatProvider.notifier).addUserMessage(transcript);
+      }
+      if (reply.isNotEmpty) {
+        ref.read(chatProvider.notifier).addAssistantMessage(reply);
+        unawaited(TtsService.instance.speak(reply, token: token));
+      }
+    } catch (e) {
+      debugPrint("Yedek sesli mod hatasi: $e");
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Groq Whisper'ın (ve genel olarak cogu STT servisinin) beklendigi
+  /// gibi calismasi icin ham PCM16'nin basina standart 44 baytlik bir
+  /// WAV basligi ekler - record paketinin startStream() ciktisi HAM
+  /// (baslksiz) PCM oldugu icin bu adim sart.
+  Uint8List _pcm16ToWav(List<int> pcmBytes, {int sampleRate = 16000, int numChannels = 1}) {
+    const bitsPerSample = 16;
+    final byteRate = sampleRate * numChannels * bitsPerSample ~/ 8;
+    final blockAlign = numChannels * bitsPerSample ~/ 8;
+    final dataLength = pcmBytes.length;
+
+    final header = BytesBuilder();
+    void writeString(String s) => header.add(s.codeUnits);
+    void writeUint32(int v) => header.add([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]);
+    void writeUint16(int v) => header.add([v & 0xff, (v >> 8) & 0xff]);
+
+    writeString("RIFF");
+    writeUint32(36 + dataLength);
+    writeString("WAVE");
+    writeString("fmt ");
+    writeUint32(16);
+    writeUint16(1);
+    writeUint16(numChannels);
+    writeUint32(sampleRate);
+    writeUint32(byteRate);
+    writeUint16(blockAlign);
+    writeUint16(bitsPerSample);
+    writeString("data");
+    writeUint32(dataLength);
+
+    final result = BytesBuilder();
+    result.add(header.toBytes());
+    result.add(pcmBytes);
+    return result.toBytes();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressStart: (_) => _startRecording(),
+      onLongPressEnd: (_) => _stopAndSend(),
+      child: Tooltip(
+        message: "Basılı tut, konuş",
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _recording ? Colors.redAccent : _indigoColor.withValues(alpha: 0.25),
+          ),
+          child: _sending
+              ? const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : Icon(
+                  _recording ? Icons.mic : Icons.mic_none,
+                  color: Colors.white,
+                  size: 18,
+                ),
+        ),
       ),
     );
   }

@@ -1,12 +1,9 @@
-﻿import "dart:typed_data";
-import "dart:ui";
+﻿import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
-import "package:audioplayers/audioplayers.dart";
 import "package:image_picker/image_picker.dart";
-import "package:flutter_tts/flutter_tts.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
@@ -15,6 +12,7 @@ import "../../voice/notifier/voice_call_notifier.dart";
 import "../../settings/screens/settings_screen.dart";
 import "../../../services/auth_service.dart";
 import "../../../services/reminder_service.dart";
+import "../../../services/tts_service.dart";
 import "../widgets/sky_background.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -28,7 +26,6 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final AudioPlayer _audioPlayer = AudioPlayer();
   // Kod sagligi taramasinda bulundu: timeout YOKTU - /api/tts istegi
   // askida kalirsa ElevenLabs->yerel TTS fallback'i HIC TETIKLENMEZ
   // (fallback sadece istek HATA donerse calisiyor, sonsuza dek asili
@@ -39,9 +36,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       receiveTimeout: const Duration(seconds: 30),
     ),
   );
-  final FlutterTts _localTts = FlutterTts();
-  bool _localTtsReady = false;
-
   String _selectedVoice = "female";
   // "Hesabini Kaydet" ikonu SADECE kullanici hala anonimse gorunur -
   // ayarlar menusu degil, tek amacli kucuk bir aksiyon (bkz. plan).
@@ -56,7 +50,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _initLocalTts();
     _checkAnonymousStatus();
     _syncReminders();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -250,65 +243,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  String _cleanForSpeech(String text) {
-    final emojiPattern = RegExp(
-      r"[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}]",
-      unicode: true,
-    );
-    return text
-        .replaceAll(emojiPattern, "")
-        .replaceAll(RegExp(r"\*\*"), "")
-        .replaceAll(RegExp(r"#+\s*"), "")
-        .trim();
-  }
-
-  Future<void> _initLocalTts() async {
-    try {
-      await _localTts.setLanguage("tr-TR");
-      await _localTts.setSpeechRate(0.48);
-      await _localTts.setPitch(1.0);
-      _localTtsReady = true;
-    } catch (e) {
-      debugPrint("Yerel TTS baslatma hatasi: $e");
-    }
-  }
-
-  /// Once ElevenLabs'i (daha dogal/karakterli ses) dener - kota
-  /// bitmisse ya da baska bir sebeple basarisiz olursa, platformun
-  /// kendi (ucretsiz, sinirsiz) sesine (FlutterTts - Windows/Android/
-  /// web, hepsinde calisiyor) SESSIZCE duser. Boylece seslendirme
-  /// ozelligi ElevenLabs kotasindan bagimsiz hep calisir. NOT: web/
-  /// Safari'de Web Speech API'nin ses secenekleri masaustune gore
-  /// daha tutarsiz olabilir - henuz web'de ozel test edilmedi.
+  /// BULUNDU (kod incelemesi, sesli gorusme yedek modu eklenirken):
+  /// ElevenLabs+yerel-TTS-yedegi mantigi artik lib/services/tts_service.dart
+  /// icinde PAYLASILAN bir servis - hem burada hem VoiceCallBar'daki
+  /// "basili tut konus" yedek modunda ayni kod tekrar yazilmasin diye.
+  /// Davranis (once ElevenLabs, basarisiz olursa yerel sese sessizce
+  /// dusme) AYNEN korundu.
   Future<void> _speakWithElevenLabs(String text) async {
-    final cleanText = _cleanForSpeech(text);
-    if (cleanText.isEmpty) return;
-    try {
-      final response = await _dio.post<List<int>>(
-        "$_backendUrl/api/tts",
-        data: {"text": cleanText, "voice": _selectedVoice},
-        options: Options(
-          responseType: ResponseType.bytes,
-          headers: {"Authorization": "Bearer ${widget.token}"},
-        ),
-      );
-      if (response.data != null) {
-        await _audioPlayer.stop();
-        await _audioPlayer.play(
-          BytesSource(Uint8List.fromList(response.data!)),
-        );
-      }
-    } catch (e) {
-      debugPrint("ElevenLabs TTS hatasi (yerel sese dusuluyor): $e");
-      if (_localTtsReady) {
-        try {
-          await _localTts.stop();
-          await _localTts.speak(cleanText);
-        } catch (e2) {
-          debugPrint("Yerel TTS hatasi: $e2");
-        }
-      }
-    }
+    await TtsService.instance.speak(text, token: widget.token, voice: _selectedVoice);
   }
 
   Future<void> _pickAndAnalyzeImage() async {
@@ -599,8 +541,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     _dio.close();
-    _audioPlayer.dispose();
-    _localTts.stop();
     super.dispose();
   }
 
