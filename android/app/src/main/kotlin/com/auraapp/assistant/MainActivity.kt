@@ -1,5 +1,7 @@
 package com.auraapp.assistant
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// local_auth (biyometrik kilit, 2026-08-26 eklendi) bir FragmentActivity
+// gerektiriyor - normal FlutterActivity ile BiometricPrompt gosterilemiyor.
+class MainActivity : FlutterFragmentActivity()

@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'features/chat/screens/auth_screen.dart';
 import 'features/chat/screens/chat_screen.dart';
+import 'features/lock/screens/lock_screen.dart';
+import 'services/app_lock_service.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -14,8 +16,65 @@ void main() {
   );
 }
 
-class AuraApp extends StatelessWidget {
+final GlobalKey<NavigatorState> auraNavigatorKey = GlobalKey<NavigatorState>();
+
+class AuraApp extends StatefulWidget {
   const AuraApp({super.key});
+
+  @override
+  State<AuraApp> createState() => _AuraAppState();
+}
+
+/// Kullanici istegi uzerine eklendi (2026-08-26): uygulama arka plana
+/// alinip geri donuldugunde, PIN kilidi acikken ekran hicbir koruma
+/// olmadan aynen kaldigi yerden devam ediyordu - PIN sadece SOGUK
+/// baslangicta (SplashRouter) soruluyordu. Bu gozlemci, oturum acikken
+/// VE kilit etkinken her arka-plan-donusunde LockScreen'i navigator'in
+/// EN USTUNE iter - hangi ekranda oldugunun onemi yok.
+class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
+  bool _lockScreenShowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _maybeShowLockScreen();
+    }
+  }
+
+  Future<void> _maybeShowLockScreen() async {
+    if (_lockScreenShowing) return;
+    final token = await AuthService().getToken();
+    if (token == null || token.isEmpty) return;
+    final lockEnabled = await AppLockService.instance.isLockEnabled();
+    if (!lockEnabled) return;
+    final navState = auraNavigatorKey.currentState;
+    if (navState == null) return;
+    _lockScreenShowing = true;
+    await navState.push(
+      MaterialPageRoute(
+        builder: (_) => LockScreen(
+          onUnlocked: () {
+            _lockScreenShowing = false;
+            navState.pop();
+          },
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+    _lockScreenShowing = false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +88,7 @@ class AuraApp extends StatelessWidget {
     );
 
     return MaterialApp(
+      navigatorKey: auraNavigatorKey,
       title: 'Aura',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -125,6 +185,24 @@ class _SplashRouterState extends State<SplashRouter> {
       if (!mounted) return;
 
       if (valid) {
+        final lockEnabled = await AppLockService.instance.isLockEnabled();
+        if (!mounted) return;
+
+        if (lockEnabled) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LockScreen(
+                onUnlocked: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+                  );
+                },
+              ),
+            ),
+          );
+          return;
+        }
+
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ChatScreen(

@@ -21,7 +21,11 @@ if (hasKeystoreProperties) {
 
 android {
     namespace = "com.auraapp.assistant"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage (2026-08-26, PIN/biyometrik kilit icin
+    // eklendi) SDK 37 gerektiriyor - flutter.compileSdkVersion (36)
+    // yetmiyor, gradle uyarisinin onerdigi gibi sabit 37'ye cikarildi
+    // (geriye donuk uyumlu, alt SDK'lari calistiran cihazlari etkilemez).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -32,6 +32,16 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# local_auth_windows (2026-08-26 eklendi, PIN/biyometrik kilit ozelligi
+# icin) hala eski /await + <experimental/coroutine> kullaniyor - bu
+# makinedeki MSVC surumu bunu artik SERT bir derleme HATASI (uyari degil)
+# yapiyor. Paketin kendi CMake dosyasini degistirmek pub cache
+# guncellendiginde silinir, bu yuzden derleyicinin onerdigi bastirma
+# makrosunu BURADA (ust seviye) tanimliyoruz - CMake'te add_definitions
+# sonraki tum add_subdirectory() cagrilarina (plugin'ler dahil) miras
+# kalir.
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by

@@ -6,7 +6,9 @@ import '../notifier/memory_notifier.dart';
 import '../models/profile.dart';
 import '../notifier/profile_notifier.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/app_lock_service.dart';
 import '../../chat/screens/auth_screen.dart';
+import '../../lock/screens/set_pin_screen.dart';
 
 /// Ayarlar ekrani - kullanicinin "ayarlara hicbir erisimi yok" bulgusuna
 /// karsi eklendi (2026-08-24). Onceden vardi ama hicbir yerden
@@ -32,6 +34,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _notesController = TextEditingController();
   bool _initialized = false;
   bool _loggingOut = false;
+
+  bool _lockEnabled = false;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
 
   // Backend'deki LIMIT_DAILY_MESSAGES/VOICE_DAILY_LIMIT_SECONDS ile
   // ayni deger - sunucu bu sayilari ayrica bir API ile yayinlamiyor,
@@ -106,6 +112,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.read(memoryNotifierProvider.notifier)
       ..setToken(widget.token)
       ..load();
+    _loadLockState();
+  }
+
+  Future<void> _loadLockState() async {
+    final lockEnabled = await AppLockService.instance.isLockEnabled();
+    final biometricAvailable = await AppLockService.instance.isBiometricAvailable();
+    final biometricEnabled = await AppLockService.instance.isBiometricEnabled();
+    if (!mounted) return;
+    setState(() {
+      _lockEnabled = lockEnabled;
+      _biometricAvailable = biometricAvailable;
+      _biometricEnabled = biometricEnabled;
+    });
+  }
+
+  Future<void> _toggleLock(bool enable) async {
+    if (enable) {
+      final created = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const SetPinScreen()),
+      );
+      if (created == true && mounted) {
+        setState(() => _lockEnabled = true);
+      }
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: Text('Kilidi kaldır', style: GoogleFonts.poppins(color: Colors.white)),
+        content: Text(
+          'Uygulama kilidini kapatmak istediğine emin misin?',
+          style: GoogleFonts.poppins(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Kaldır')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await AppLockService.instance.disableLock();
+      if (mounted) {
+        setState(() {
+          _lockEnabled = false;
+          _biometricEnabled = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _changePin() async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const SetPinScreen()),
+    );
+  }
+
+  Future<void> _toggleBiometric(bool enable) async {
+    if (enable) {
+      final ok = await AppLockService.instance.authenticateWithBiometrics();
+      if (!ok) return;
+    }
+    await AppLockService.instance.setBiometricEnabled(enable);
+    if (mounted) setState(() => _biometricEnabled = enable);
   }
 
   void _fillFromProfile(UserProfile profile) {
@@ -309,6 +379,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildPrivacySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Gizlilik'),
+        _card(
+          child: Column(
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: _indigoColor,
+                title: Text('Uygulama kilidi (PIN)',
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
+                subtitle: Text('Aura\'yı her açışında PIN sorulsun',
+                    style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
+                value: _lockEnabled,
+                onChanged: _toggleLock,
+              ),
+              if (_lockEnabled) ...[
+                const Divider(color: _borderColor, height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('PIN\'i değiştir',
+                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                  onTap: _changePin,
+                ),
+                if (_biometricAvailable) ...[
+                  const Divider(color: _borderColor, height: 1),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: _indigoColor,
+                    title: Text('Biyometrik ile aç',
+                        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
+                    subtitle: Text('Parmak izi / yüz tanıma ile hızlı giriş',
+                        style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
+                    value: _biometricEnabled,
+                    onChanged: _toggleBiometric,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMemorySection() {
     final memoriesAsync = ref.watch(memoryNotifierProvider);
 
@@ -425,6 +543,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
+                _buildPrivacySection(),
                 const SizedBox(height: 24),
                 _sectionTitle('Serbest Talimat'),
                 _card(
