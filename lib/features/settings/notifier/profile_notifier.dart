@@ -36,10 +36,6 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
 
   Future<void> save({
     String? name,
-    String? warmth,
-    String? formality,
-    String? humor,
-    String? directness,
     String? notes,
   }) async {
     final repository = _repository;
@@ -47,10 +43,6 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
     try {
       final updated = await repository.updateProfile(
         name: name,
-        warmth: warmth,
-        formality: formality,
-        humor: humor,
-        directness: directness,
         notes: notes,
       );
       state = AsyncValue.data(updated);

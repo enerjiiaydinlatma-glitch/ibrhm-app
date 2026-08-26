@@ -5,10 +5,6 @@ abstract class ProfileRepository {
   Future<UserProfile> getProfile();
   Future<UserProfile> updateProfile({
     String? name,
-    String? warmth,
-    String? formality,
-    String? humor,
-    String? directness,
     String? notes,
   });
 }
@@ -46,18 +42,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<UserProfile> updateProfile({
     String? name,
-    String? warmth,
-    String? formality,
-    String? humor,
-    String? directness,
     String? notes,
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
-    if (warmth != null) data['warmth'] = warmth;
-    if (formality != null) data['formality'] = formality;
-    if (humor != null) data['humor'] = humor;
-    if (directness != null) data['directness'] = directness;
     if (notes != null) data['notes'] = notes;
 
     final response = await _dio.post(

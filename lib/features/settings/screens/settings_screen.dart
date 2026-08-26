@@ -30,17 +30,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
-  String _warmth = 'sicak';
-  String _formality = 'samimi';
-  String _humor = 'orta';
-  String _directness = 'dengeli';
   bool _initialized = false;
   bool _loggingOut = false;
-
-  static const warmthOptions = ['mesafeli', 'dengeli', 'sicak'];
-  static const formalityOptions = ['resmi', 'dengeli', 'samimi'];
-  static const humorOptions = ['dusuk', 'orta', 'yuksek'];
-  static const directnessOptions = ['yumusak', 'dengeli', 'dogrudan'];
 
   // Backend'deki LIMIT_DAILY_MESSAGES/VOICE_DAILY_LIMIT_SECONDS ile
   // ayni deger - sunucu bu sayilari ayrica bir API ile yayinlamiyor,
@@ -121,10 +112,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (_initialized) return;
     _nameController.text = profile.name ?? '';
     _notesController.text = profile.notes;
-    _warmth = profile.warmth;
-    _formality = profile.formality;
-    _humor = profile.humor;
-    _directness = profile.directness;
     _initialized = true;
   }
 
@@ -133,10 +120,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           name: _nameController.text.trim().isEmpty
               ? null
               : _nameController.text.trim(),
-          warmth: _warmth,
-          formality: _formality,
-          humor: _humor,
-          directness: _directness,
           notes: _notesController.text.trim(),
         );
     ScaffoldMessenger.of(context).showSnackBar(
@@ -326,36 +309,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildDropdown(
-    String label,
-    String value,
-    List<String> options,
-    void Function(String) onChanged,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(label, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
-          ),
-          DropdownButton<String>(
-            value: value,
-            dropdownColor: _cardColor,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-            underline: Container(height: 1, color: _borderColor),
-            items: options
-                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                .toList(),
-            onChanged: (v) {
-              if (v != null) setState(() => onChanged(v));
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMemorySection() {
     final memoriesAsync = ref.watch(memoryNotifierProvider);
 
@@ -456,12 +409,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 24),
                 _sectionTitle('Aura Nasıl Davransın'),
                 _card(
-                  child: Column(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDropdown('Sıcaklık', _warmth, warmthOptions, (v) => _warmth = v),
-                      _buildDropdown('Resmiyet', _formality, formalityOptions, (v) => _formality = v),
-                      _buildDropdown('Mizah', _humor, humorOptions, (v) => _humor = v),
-                      _buildDropdown('Doğrudanlık', _directness, directnessOptions, (v) => _directness = v),
+                      const Icon(Icons.auto_awesome, color: _indigoColor, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Artık burada elle ayar yok — Aura, konuşma tarzından '
+                          'sıcaklığını, resmiyetini ve mizahını kendi kendine '
+                          'öğreniyor ve zamanla sana uyum sağlıyor.',
+                          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, height: 1.4),
+                        ),
+                      ),
                     ],
                   ),
                 ),
