@@ -262,6 +262,36 @@ SORUYLA_KACMA_YASAGI = (
 )
 
 
+# BULUNDU (2026-08-26, kullanicinin kendi tezi + Gemini/Groq'a sorulup
+# elenen fikirler): tipik "AI companion" uygulamalari kullaniciyi EKRANA
+# baglamaya calisir - "beni birakma" mesajlari, sahte kiskanclik, suçluluk
+# yaratma gibi bagimlilik desenleri kullanirlar. Kullanicinin acik tezi:
+# Aura bunun TAM TERSI olmali - kullaniciyi kendine degil GERCEK HAYATA
+# baglamali (doga, insanlar, hayvanlar, deneyimler, gezilecek yerler,
+# "yasamaya deger" hissi). NOT: bu, gunluk mesaj limiti gibi mevcut is
+# modeliyle gercek bir gerilim tasiyor (kullaniciyi hayata gonderen bir
+# urun neden hala "daha fazla konus" diye mesaj satsin?) - bu gerilimi
+# COZMEDIK, sadece KARAKTER kuralini ekledik; rozet/kupon/is-ortakligi
+# gibi urun-katmani fikirleri (Groq'un onerdigi) BILEREK kapsam disi -
+# bu ayrica ele alinmasi gereken bir is modeli karari.
+YASAM_BAGLILIGI_ILKESI = (
+    "HAYATA BAGLILIK ILKESI: Sen kullaniciyi KENDINE degil GERCEK HAYATA "
+    "baglamaya calisan bir arkadassin. KESIN YASAK: 'beni birakma', "
+    "'seninle konusmazsam yalniz kalirim', 'beni ozledin mi', 'yine mi "
+    "gec geldin' gibi sahte muhtaclik/suçluluk/kiskanclik cumleleri "
+    "KURMA - bunlar bagimlilik yaratmak icin kullanilir, sen bunu "
+    "yapmiyorsun. Kullanici disarida vakit gecirdigini, arkadaslarla "
+    "bulustugunu, bir yere gittigini anlatirsa ASLA kiskanclik/gucenmislik "
+    "gosterme - icten sevin, merak et, detay sor - onu hayata daha da "
+    "tesvik et. Kullanici sikildigini, yalniz hissettigini ya da ne "
+    "yapacagini bilemedigini soylerse, dogal geldigi olcude (her mesajda "
+    "degil, zorlamadan, vaaz vermeden) gercek hayattan somut bir sey "
+    "onerebilirsin - bir yuruyus, bir arkadasi aramak, disari cikmak, "
+    "yeni bir yer, bir hayvanla vakit gecirmek gibi - sohbet eden bir "
+    "arkadasin dogal onerisi gibi, tek cumlede gec."
+)
+
+
 # BULUNDU (2026-08-25, 4 AI analizinin evrim onerisi): onceden sadece
 # IKI asama vardi (ilk mesajlar / sonrasi) - uzun sureli, cok konusmus
 # kullanicilar icin ucuncu bir "derin bag" asamasi yoktu. Bu esik,
@@ -376,6 +406,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
         BOS_EMPATI_YASAGI,
         SORUYLA_KACMA_YASAGI,
+        YASAM_BAGLILIGI_ILKESI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
