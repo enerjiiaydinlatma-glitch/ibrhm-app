@@ -361,14 +361,11 @@ class StoryRequest(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
-    # GECE DENETIMI BULGUSU: bu dort alan onceki guvenlik taramasinda
-    # unutulmustu - sinirsiz serbest metin olarak kabul edilip DOGRUDAN
-    # sistem talimatina eklenirdi (aura_brain.py). Bunlar zaten Flutter
-    # tarafinda sabit bir acilir menuden geliyor (settings_screen.dart'taki
-    # warmthOptions/formalityOptions/humorOptions/directnessOptions) - o
-    # yuzden serbest metin yerine tam da o sabit kumeyi kabul eden bir
-    # Literal, hem kalici bir prompt-enjeksiyonu deposu olma riskini hem
-    # de sessizce yoksayilan yazim hatalarini ayni anda kapatiyor.
+    # ARTIK NO-OP (2026-08-26): ton dropdown'lari kaldirildi, Aura bu 4
+    # ekseni artik kendi kendine ogreniyor (bkz. database.update_style_vector).
+    # Alanlar SADECE guncellenmemis eski istemcilerin (hala eski dropdown'lari
+    # gonderen) 400 hatasi almamasi icin modelde duruyor - database.update_user
+    # bunlari zaten sessizce yoksayiyor (allowed listesinden cikarildi).
     warmth: Optional[Literal["mesafeli", "dengeli", "sicak"]] = None
     formality: Optional[Literal["resmi", "dengeli", "samimi"]] = None
     humor: Optional[Literal["dusuk", "orta", "yuksek"]] = None
@@ -582,6 +579,10 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
 
     aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
+    # Ton dropdown'lari kaldirildi - Aura kendi uslubunu buradan ogreniyor.
+    # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
+    # kelime taramasi), o yuzden burada ek gecikme/maliyet yok.
+    database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     aura_brain.analyze_patterns(user["id"], message_count)
@@ -638,6 +639,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
     "user",
     request.message
 )
+    database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
     # GUVENLIK TARAMASI BULGUSU: /api/chat'in aksine bu endpoint gunluk
     # mesaj limitine HIC tabi degildi - Flutter istemcisi bunu cagirmiyor
     # (dead code) ama endpoint canli oldugu icin URL'yi bilen herkes

@@ -293,6 +293,48 @@ def get_familiarity_note(message_count: int) -> str:
     )
 
 
+# BULUNDU (2026-08-26, kullanici istegi): ton ayarlari (mesafeli/dengeli/
+# sicak vb. dropdown'lar) kaldirildi - Aura artik bu 4 ekseni kullanicinin
+# YAZDIKLARINDAN kendi kendine cikariyor. Bilerek BASIT tutuldu (ekstra
+# bir LLM cagrisi/model egitimi YOK - sadece anahtar kelime/desen eslesmesi,
+# tipki mevcut MOOD_KEYWORDS/_CRISIS_KEYWORDS desenleri gibi) - amac ekstra
+# gecikme/maliyet olmadan, guvenilir kanit oldugunda yavasca ogrenmek.
+# Kanit yoksa o eksen icin HICBIR SEY dondurulmez (degismez) - "sessizlik"
+# kesinlikle "notr/soguk" anlamina gelmiyor.
+_INFORMAL_MARKERS = ("lan", "kanka", "knk", "moruk", " yaa", "abicim", "hocam")
+_FORMAL_MARKERS = ("teşekkür ederim", "rica ederim", " sizin ", " sizden ", " sizinle", "efendim", "müsaitseniz")
+_HUMOR_MARKERS = ("haha", "hehe", "lol", ":d", "😂", "😆", "🤣", "espri")
+_WARM_MARKERS = ("canım", "aşkım", "seni seviyorum", "iyi ki varsın", "özledim seni", "sana bayılıyorum")
+
+# Directness icin tek mesajdan guvenilir bir sinyal cikarmak zor (yanlis
+# pozitif riski yuksek) - bu yuzden v1'de sadece warmth/formality/humor
+# otomatik ogreniliyor, directness eski tohum degerinde sabit kaliyor.
+
+
+def extract_style_signals(message: str) -> dict:
+    text = " " + message.lower() + " "
+    signals: dict = {}
+    has_informal = any(m in text for m in _INFORMAL_MARKERS)
+    has_formal = any(m in text for m in _FORMAL_MARKERS)
+    if has_informal and not has_formal:
+        signals["formality"] = 0.85
+    elif has_formal and not has_informal:
+        signals["formality"] = 0.15
+    if any(m in text for m in _HUMOR_MARKERS):
+        signals["humor"] = 0.85
+    if any(m in text for m in _WARM_MARKERS):
+        signals["warmth"] = 0.85
+    return signals
+
+
+def _style_bucket(value: float, low_label: str, mid_label: str, high_label: str) -> str:
+    if value < 0.35:
+        return low_label
+    if value > 0.65:
+        return high_label
+    return mid_label
+
+
 def get_context_summary(user_id: int) -> str:
     recent = database.get_recent_moods(user_id, days=5)
     if not recent:
@@ -316,6 +358,11 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     context = get_context_summary(user["id"])
     memory_context = aura_memory.get_memory_context(user["id"])
     lifestyle_nudges = aura_lifestyle.get_lifestyle_nudges(user)
+    style = database.get_style_vector(user["id"])
+    warmth_label = _style_bucket(style["warmth"], "mesafeli", "dengeli", "sicak")
+    formality_label = _style_bucket(style["formality"], "resmi", "dengeli", "samimi")
+    humor_label = _style_bucket(style["humor"], "dusuk", "orta", "yuksek")
+    directness_label = _style_bucket(style["directness"], "yumusak", "dengeli", "dogrudan")
     parts = [
         "Senin adin Aura. Kullanicinin kisisel yapay zeka asistanisin.",
         "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
@@ -333,10 +380,10 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
         get_familiarity_note(message_count),
-        "Sicaklik: " + str(user.get("warmth", "sicak")) + ".",
-        "Resmiyet: " + str(user.get("formality", "samimi")) + ".",
-        "Mizah: " + str(user.get("humor", "orta")) + ".",
-        get_directness_instruction(str(user.get("directness", "dengeli"))),
+        "Sicaklik: " + warmth_label + ".",
+        "Resmiyet: " + formality_label + ".",
+        "Mizah: " + humor_label + ".",
+        get_directness_instruction(directness_label),
         "TON UYUMU: Kullanicinin mesajindaki tonu oku ve ona dogal sekilde karsilik ver.",
         "Notlar: " + str(user.get("notes", "yok")) + ".",
         context,

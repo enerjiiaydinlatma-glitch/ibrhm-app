@@ -97,11 +97,47 @@ def init_db():
             "ALTER TABLE users ADD COLUMN daily_voice_seconds INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN usage_date TEXT DEFAULT ''",
             "ALTER TABLE users ADD COLUMN daily_tts_chars INTEGER DEFAULT 0",
+            # Ton ayarlari (warmth/formality/humor/directness) artik elle
+            # secilen dropdown degil - Aura kullanicinin konusma tarzindan
+            # bu 4 ekseni kendi kendine ogreniyor (0.0-1.0 arasi, EMA ile
+            # yavasca guncellenen bir "stil vektoru"). Eski TEXT kolonlar
+            # DURUYOR (geriye donuk uyumluluk + ilk tohum degeri icin).
+            # BULUNDU (yerel testte): DEFAULT 0.5 verirsek, bu backfill
+            # SADECE su an DB'de VAR OLAN satirlari duzeltir - migration'dan
+            # SONRA (yani sunucu yeniden baslamadan) kayit olan HER YENI
+            # kullanici (pratikte gelecekteki neredeyse herkes) duz notr
+            # 0.5 ile kalir, oysa eski sistemde varsayilan zaten "sicak/
+            # samimi" idi. Kolon varsayilanini dogrudan o eski varsayilana
+            # esitliyoruz (0.85=sicak/samimi) ki her YENI INSERT otomatik
+            # dogru tohumla gelsin - asagidaki UPDATE ise SADECE bu
+            # migrasyondan ONCE kullanicinin BILEREK farkli bir sey
+            # sectigi (ornegin 'mesafeli') satirlari duzeltmek icin var.
+            "ALTER TABLE users ADD COLUMN style_warmth REAL DEFAULT 0.85",
+            "ALTER TABLE users ADD COLUMN style_formality REAL DEFAULT 0.85",
+            "ALTER TABLE users ADD COLUMN style_humor REAL DEFAULT 0.5",
+            "ALTER TABLE users ADD COLUMN style_directness REAL DEFAULT 0.5",
+            "ALTER TABLE users ADD COLUMN style_sample_count INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(migration)
             except sqlite3.OperationalError:
                 pass  # sutun zaten var
+
+        # Tohumlama: kullanicinin ONCEDEN elle sectigi ton (varsa) yeni
+        # otomatik stil vektorunun baslangic noktasi olsun - sifirdan
+        # notr (0.5) baslamasin. SADECE style_sample_count = 0 olan
+        # satirlarda calisir (henuz hic gercek ogrenme olmamis) - bu
+        # yuzden her init_db()'de tekrar calismasi zararsiz (idempotent):
+        # bir kullanici icin ogrenme baslar baslamaz sample_count artar
+        # ve bu UPDATE bir daha o satiri etkilemez.
+        cursor.execute("""
+            UPDATE users SET
+                style_warmth = CASE warmth WHEN 'mesafeli' THEN 0.15 WHEN 'sicak' THEN 0.85 ELSE 0.5 END,
+                style_formality = CASE formality WHEN 'resmi' THEN 0.15 WHEN 'samimi' THEN 0.85 ELSE 0.5 END,
+                style_humor = CASE humor WHEN 'dusuk' THEN 0.15 WHEN 'yuksek' THEN 0.85 ELSE 0.5 END,
+                style_directness = CASE directness WHEN 'yumusak' THEN 0.15 WHEN 'dogrudan' THEN 0.85 ELSE 0.5 END
+            WHERE style_sample_count = 0
+        """)
 
         # KENDI KENDINI INCELEME BULGUSU: is_anonymous'u dogru yazmaya
         # baslamak (create_user artik is_anonymous_bootstrap'i isliyor)
@@ -552,8 +588,10 @@ def get_user_by_email(email: str) -> Optional[dict]:
 
 
 def update_user(user_id: int, **kwargs) -> dict:
-    allowed = ['name', 'warmth', 'formality', 'humor', 'directness',
-               'notes', 'location_lat', 'location_lon', 'location_city',
+    # NOT: warmth/formality/humor/directness KASITLI OLARAK burada degil -
+    # bunlar artik elle guncellenmiyor, style_* alanlari uzerinden Aura'nin
+    # kendi kendine ogrenmesiyle degisiyor (bkz. update_style_vector).
+    allowed = ['name', 'notes', 'location_lat', 'location_lon', 'location_city',
                'weather_enabled', 'activity_enabled', 'mood_tracking_enabled']
     fields = {k: v for k, v in kwargs.items() if k in allowed}
     if not fields:
@@ -563,6 +601,48 @@ def update_user(user_id: int, **kwargs) -> dict:
     with db_cursor(commit=True) as conn:
         conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
     return get_user(user_id)
+
+
+# --- OTOMATIK USLUP (STIL VEKTORU) ---
+# Ton dropdown'lari kaldirildi - Aura artik kullanicinin konusma tarzindan
+# 4 ekseni (warmth/formality/humor/directness) kendi kendine cikarip,
+# ani tek-mesajlik sapmalarin kalici sanilmamasi icin EMA (ustel hareketli
+# ortalama) ile YAVASCA guncelliyor. Degerler hep 0.0-1.0 arasinda.
+STYLE_EMA_ALPHA = 0.15
+STYLE_AXES = ("warmth", "formality", "humor", "directness")
+
+
+def get_style_vector(user_id: int) -> dict:
+    user = get_user(user_id)
+    return {
+        axis: user.get(f"style_{axis}") if user.get(f"style_{axis}") is not None else 0.5
+        for axis in STYLE_AXES
+    } | {"sample_count": user.get("style_sample_count") or 0}
+
+
+def update_style_vector(user_id: int, signals: dict) -> None:
+    """signals: {"warmth": 0.85, ...} - sadece GERCEK kanit bulunan
+    eksenler icerir, digerleri hic gonderilmez (o eksen degismez)."""
+    signals = {k: v for k, v in signals.items() if k in STYLE_AXES and v is not None}
+    if not signals:
+        return
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cols = ", ".join(f"style_{axis}" for axis in signals)
+        cursor.execute(f"SELECT {cols} FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            return
+        current = dict(row)
+        updates = {}
+        for axis, observed in signals.items():
+            col = f"style_{axis}"
+            old = current[col] if current[col] is not None else 0.5
+            new_value = old + STYLE_EMA_ALPHA * (observed - old)
+            updates[col] = max(0.0, min(1.0, new_value))
+        set_clause = ", ".join(f"{k} = ?" for k in updates) + ", style_sample_count = style_sample_count + 1"
+        values = list(updates.values()) + [user_id]
+        cursor.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
 
 
 # --- MESSAGES ---

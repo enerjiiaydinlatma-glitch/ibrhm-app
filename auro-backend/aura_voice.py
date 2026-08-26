@@ -229,6 +229,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         if user_text:
             msg_id = database.add_message(user["id"], "user", user_text)
             aura_brain.extract_memory_candidate(user["id"], user_text, msg_id)
+            database.update_style_vector(user["id"], aura_brain.extract_style_signals(user_text))
         if assistant_text:
             database.add_message(user["id"], "assistant", assistant_text)
 
