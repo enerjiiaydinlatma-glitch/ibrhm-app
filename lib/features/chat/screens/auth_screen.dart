@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../services/auth_service.dart';
@@ -118,6 +119,14 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       await _authService.saveToken(tokenValue);
+
+      // BULUNDU (kullanici geri bildirimi): email/password alanlarinda
+      // autofillHints olmadigi icin tarayici/isletim sistemi sifreyi
+      // KAYDETMEYI HIC TEKLIF ETMIYORDU - kullanici her seferinde elle
+      // giriyordu. finishAutofillContext(shouldSave: true) basarili
+      // giristen SONRA cagrilinca platforma "bu bilgiler dogruydu,
+      // kaydetmeyi teklif et" sinyali gonderiyor.
+      TextInput.finishAutofillContext();
 
       if (!mounted) return;
 
@@ -268,26 +277,42 @@ class _AuthScreenState extends State<AuthScreen> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          if (!_isLogin) ...[
-                            _field(
-                              _nameController,
-                              'İsmin',
-                              Icons.person_outline,
+                          AutofillGroup(
+                            child: Column(
+                              children: [
+                                if (!_isLogin) ...[
+                                  _field(
+                                    _nameController,
+                                    'İsmin',
+                                    Icons.person_outline,
+                                    autofillHints: const [AutofillHints.name],
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                _field(
+                                  _emailController,
+                                  'Email',
+                                  Icons.email_outlined,
+                                  type: TextInputType.emailAddress,
+                                  autofillHints: const [AutofillHints.email],
+                                ),
+                                const SizedBox(height: 16),
+                                _field(
+                                  _passwordController,
+                                  'Şifre',
+                                  Icons.lock_outline,
+                                  obscure: true,
+                                  // Giris'te 'password' (kayitli sifreyi
+                                  // onerir), kayitta 'newPassword' (tarayici
+                                  // yeni sifre kaydetme/oneri akisina girer).
+                                  autofillHints: [
+                                    _isLogin
+                                        ? AutofillHints.password
+                                        : AutofillHints.newPassword,
+                                  ],
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                          ],
-                          _field(
-                            _emailController,
-                            'Email',
-                            Icons.email_outlined,
-                            type: TextInputType.emailAddress,
-                          ),
-                          const SizedBox(height: 16),
-                          _field(
-                            _passwordController,
-                            'Şifre',
-                            Icons.lock_outline,
-                            obscure: true,
                           ),
                           if (_error != null) ...[
                             const SizedBox(height: 16),
@@ -405,11 +430,13 @@ class _AuthScreenState extends State<AuthScreen> {
     IconData icon, {
     bool obscure = false,
     TextInputType type = TextInputType.text,
+    List<String>? autofillHints,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
       keyboardType: type,
+      autofillHints: autofillHints,
       style: GoogleFonts.poppins(
         color: Colors.white,
         fontSize: 14,

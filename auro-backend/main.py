@@ -63,7 +63,20 @@ VOICE_IDS = {
 # Rakip uygulama arastirmasina (Replika/Character.AI) ve kullanicinin
 # onayina dayanarak belirlendi.
 LIMIT_DAILY_MESSAGES = 30
-LIMIT_REACHED_REPLY = "Bugünkü ücretsiz mesaj hakkın doldu (30/30 mesaj). Yarın sıfırlanacak."
+# BULUNDU (2026-08-26, kullanicinin kendi felsefesi): "mesaj satmanin asil
+# konusu Aura'nin akli/kisiligi/karakteri olmali, kullanici onu almak
+# ZORUNDA hissetmeli - cunku yasanacak guzel bir hayat var." Eski metin
+# ("30/30 mesaj, yarin sifirlanacak") saf bir sayac/kota diliydi - Aura'nin
+# sesinden degil bir sistem bildiriminden cikmis gibiydi. Simdiki metin
+# Aura'nin KENDI sesiyle konusuyor (KRIZ_MUDAHALE_KURALI zaten bu limiti
+# gercek bir kriz aninda BILEREK atliyor, bkz. _is_crisis_message).
+# NOT: su an gercek bir satin alma/yukseltme akisi YOK (tier='pro' sadece
+# elle/admin tarafindan atanabiliyor) - o yuzden metin var olmayan bir
+# "yukselt" butonuna atif YAPMIYOR, sadece sicak ve durust kaliyor.
+LIMIT_REACHED_REPLY = (
+    "Bugün için sözümüz bu kadarmış - ama seni düşünmeyi bırakmıyorum. "
+    "Yarın kaldığımız yerden devam ederiz."
+)
 
 # bkz. aura_brain.py'deki ayni degisiklik - generate_content() zaman
 # asimi olmadan sonsuza kadar asili kalabiliyordu, production'da
