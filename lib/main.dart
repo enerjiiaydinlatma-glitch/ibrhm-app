@@ -189,11 +189,22 @@ class _SplashRouterState extends State<SplashRouter> {
         if (!mounted) return;
 
         if (lockEnabled) {
+          // BULUNDU (kendi kendini inceleme, 2026-08-26): onUnlocked burada
+          // SplashRouter'in KENDI context'ini kullanıyordu - ama
+          // pushReplacement zaten SplashRouter'in route'unu degistirdigi
+          // icin, onUnlocked calisincaya kadar (kullanici PIN'i girene
+          // kadar) bu context DEAKTIVE olmus oluyordu. Sonuc: kilit acik
+          // her SOGUK baslangicta, dogru PIN girilince "Looking up a
+          // deactivated widget's ancestor is unsafe" hatasi/cokmesi -
+          // ozelligin en temel yolu hic test edilmemis, sadece arka
+          // plandan donus (auraNavigatorKey kullanan) yolu test edilmisti.
+          // Duzeltme: _AuraAppState._maybeShowLockScreen ile AYNI deseni
+          // kullan - global, HER ZAMAN gecerli navigator anahtari.
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => LockScreen(
                 onUnlocked: () {
-                  Navigator.of(context).pushReplacement(
+                  auraNavigatorKey.currentState?.pushReplacement(
                     MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
                   );
                 },

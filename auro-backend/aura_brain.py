@@ -335,8 +335,8 @@ def get_familiarity_note(message_count: int) -> str:
 # gecikme/maliyet olmadan, guvenilir kanit oldugunda yavasca ogrenmek.
 # Kanit yoksa o eksen icin HICBIR SEY dondurulmez (degismez) - "sessizlik"
 # kesinlikle "notr/soguk" anlamina gelmiyor.
-_INFORMAL_MARKERS = ("lan", "kanka", "knk", "moruk", " yaa", "abicim", "hocam")
-_FORMAL_MARKERS = ("teşekkür ederim", "rica ederim", " sizin ", " sizden ", " sizinle", "efendim", "müsaitseniz")
+_INFORMAL_MARKERS = ("lan", "kanka", "knk", "moruk", "yaa", "abicim", "hocam")
+_FORMAL_MARKERS = ("teşekkür ederim", "rica ederim", "sizin", "sizden", "sizinle", "efendim", "müsaitseniz")
 _HUMOR_MARKERS = ("haha", "hehe", "lol", ":d", "😂", "😆", "🤣", "espri")
 _WARM_MARKERS = ("canım", "aşkım", "seni seviyorum", "iyi ki varsın", "özledim seni", "sana bayılıyorum")
 
@@ -345,11 +345,29 @@ _WARM_MARKERS = ("canım", "aşkım", "seni seviyorum", "iyi ki varsın", "özle
 # otomatik ogreniliyor, directness eski tohum degerinde sabit kaliyor.
 
 
+def _contains_any_word(text: str, markers) -> bool:
+    """BULUNDU (2026-08-26, kendi kendini inceleme): eski hali duz
+    substring kontroluydu ("lan" in text) - "planimi", "kalan", "yalan"
+    gibi TAMAMEN alakasiz kelimeler icindeki "lan"i yanlislikla "argo/
+    samimi" sinyali sayip stil vektorunu bozuyordu. Tek kelimelik
+    isaretler icin \\b kelime siniri kullaniyoruz; birden fazla kelimeden
+    olusan ifadeler (ornek: "teşekkür ederim") zaten baska bir kelimenin
+    icine yanlislikla denk gelme riski tasimadigi icin duz substring
+    yeterli."""
+    for m in markers:
+        if " " in m:
+            if m in text:
+                return True
+        elif re.search(r"\b" + re.escape(m) + r"\b", text):
+            return True
+    return False
+
+
 def extract_style_signals(message: str) -> dict:
-    text = " " + message.lower() + " "
+    text = message.lower()
     signals: dict = {}
-    has_informal = any(m in text for m in _INFORMAL_MARKERS)
-    has_formal = any(m in text for m in _FORMAL_MARKERS)
+    has_informal = _contains_any_word(text, _INFORMAL_MARKERS)
+    has_formal = _contains_any_word(text, _FORMAL_MARKERS)
     if has_informal and not has_formal:
         signals["formality"] = 0.85
     elif has_formal and not has_informal:

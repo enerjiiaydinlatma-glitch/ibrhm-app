@@ -126,4 +126,11 @@ def extract_reminder_candidate(user_id: int, message: str) -> None:
     if remind_at < today:
         remind_at = today
 
+    # BULUNDU (kod incelemesi): kullanici ayni etkinlikten birden fazla
+    # mesajda bahsederse ("persembe mac var, bilet almaliyim" ... sonra
+    # ... "unutma persembe mac var") her ikisi de ayri ayri cikarilip
+    # coklanan yerel bildirime yol aciyordu.
+    if database.has_active_reminder_on_date(user_id, event_at.isoformat()):
+        return
+
     database.add_reminder(user_id, topic, event_at.isoformat(), remind_at.isoformat())

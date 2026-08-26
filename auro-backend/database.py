@@ -818,6 +818,23 @@ def add_reminder(user_id: int, description: str, event_at: str, remind_at: str) 
         return cursor.lastrowid
 
 
+def has_active_reminder_on_date(user_id: int, event_at: str) -> bool:
+    """BULUNDU (kod incelemesi): kullanici ayni etkinlikten birden fazla
+    mesajda bahsederse (ornek: "persembe mac var, bilet almam lazim"
+    sonra baska bir mesajda "unutma persembe mac var") her ikisi de
+    ayri ayri hatirlatma cikarimini gecip coklanan bildirim uretiyordu.
+    Kusursuz bir cozum degil (aynı gunde GERCEKTEN iki farkli etkinlik
+    varsa ikincisi atlanir) ama coklanan bildirim can sikiciligindan
+    daha iyi bir bedel."""
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM reminders WHERE user_id = ? AND event_at = ? LIMIT 1",
+            (user_id, event_at)
+        )
+        return cursor.fetchone() is not None
+
+
 def get_active_reminders(user_id: int) -> List[dict]:
     """Etkinlik tarihi henuz gecmemis TUM hatirlatmalar - istemci bunlari
     yerel bildirim olarak zamanlar (delivered olsa bile tekrar zamanlamak

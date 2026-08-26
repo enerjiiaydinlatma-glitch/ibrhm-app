@@ -619,21 +619,33 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
 @app.post("/api/chat")
 def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
-    # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
-    # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
-    # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
-    if user.get("mood_tracking_enabled", 1):
-        mood = detect_mood(request.message)
-        if mood:
-            database.add_mood(user["id"], mood, context=request.message[:100])
     # Kod-kelime ile gizli mod: mesaj kullanicinin kod cumlesiyle TAM
     # eslesirse modu ac/kapa. Eslesen mesaj ASLA normal gecmiste
     # gorunmemeli (kodun kendisi bile ifsa olmasin) - o yuzden
     # is_trigger ise HER ZAMAN gizli, degilse mevcut moda gore kaydedilir.
+    #
+    # KENDI KENDINI INCELEME BULGUSU (2026-08-26, 8 paralel ajanin
+    # BAGIMSIZ OLARAK aynı seyi bulmasi): hidden_now hesaplamasi ONCEDEN
+    # SADECE add_message()'a uygulaniyordu - mood tespiti, hafiza cikarimi
+    # ve hatirlatma cikarimi bu bayragi HIC gormeden calisiyordu. Sonuc:
+    # gizli moddaki bir mesaj normal gecmiste gorunmese bile (a) kalici
+    # bir "memory" olarak PIN gerektirmeyen Hafiza Agaci'nda ortaya
+    # cikabiliyordu, (b) bir "reminder" olusturup GIZLI MOD KAPANDIKTAN
+    # SONRAKI normal bir sohbette Aura tarafindan proaktif olarak dile
+    # getirilebiliyordu, (c) ruh hali kaydina giriyordu. Simdi hepsi
+    # hidden_now'a gore BILEREK atlaniyor.
     is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message)
     hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
     user_message_id = database.add_message(user["id"], "user", request.message, hidden=hidden_now)
+
+    # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
+    # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
+    # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
+    # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
+    if not hidden_now and user.get("mood_tracking_enabled", 1):
+        mood = detect_mood(request.message)
+        if mood:
+            database.add_mood(user["id"], mood, context=request.message[:100])
 
     # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
     # Kullanicinin mesaji yine de kaydedildi (yukarida) - sadece pahali
@@ -656,15 +668,23 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     ):
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
 
-    aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
+    if not hidden_now:
+        aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
+        # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
+        # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
+        aura_reminders.extract_reminder_candidate(user["id"], request.message)
     # Ton dropdown'lari kaldirildi - Aura kendi uslubunu buradan ogreniyor.
     # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
-    # kelime taramasi), o yuzden burada ek gecikme/maliyet yok.
+    # kelime taramasi) - bu, hafiza/hatirlatma gibi KALICI bir kayit
+    # OLUSTURMUYOR (sadece 4 float'i yavasca kaydiriyor), o yuzden gizli
+    # modda bile calismasi bilgi sizdirmiyor; atlamiyoruz.
     database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
-    # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
-    # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
-    aura_reminders.extract_reminder_candidate(user["id"], request.message)
-    past_messages = database.get_messages(user["id"])
+    # AI BAGLAMI: gizli mod AKTIFKEN gecmis gizli mesajlari da gorsun
+    # (sohbet baglamini kaybetmesin), ama gizli mod KAPALIYKEN SADECE
+    # gorunur mesajlari gorsun - yoksa gecmiste gizli modda paylasilan
+    # bir sey, mod kapandiktan cok sonra bile normal (gorunur) bir
+    # yanitta dolayli olarak yuzeye cikabilirdi (bkz. yukaridaki bulgu).
+    past_messages = database.get_messages(user["id"], include_hidden=hidden_now)
     message_count = len(past_messages)
     aura_brain.analyze_patterns(user["id"], message_count)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
@@ -707,18 +727,23 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
 @app.post("/api/chat/stream")
 def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
+    # bkz. /api/chat'teki ayni bulgu (2026-08-26 kendi kendini inceleme) -
+    # bu "olu ama canli" endpoint gizli mod kavramini hic bilmiyordu.
+    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message)
+    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
     # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
     # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
     # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
     # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
-    if user.get("mood_tracking_enabled", 1):
+    if not hidden_now and user.get("mood_tracking_enabled", 1):
         mood = detect_mood(request.message)
         if mood:
             database.add_mood(user["id"], mood, context=request.message[:100])
     message_id = database.add_message(
     user["id"],
     "user",
-    request.message
+    request.message,
+    hidden=hidden_now,
 )
     database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
     # GUVENLIK TARAMASI BULGUSU: /api/chat'in aksine bu endpoint gunluk
@@ -731,7 +756,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
         def limit_reached_generator():
             yield LIMIT_REACHED_REPLY
         return StreamingResponse(limit_reached_generator(), media_type="text/plain; charset=utf-8")
-    past_messages = database.get_messages(user["id"])
+    past_messages = database.get_messages(user["id"], include_hidden=hidden_now)
     message_count = len(past_messages)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
     contents = [
@@ -763,7 +788,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
             full = "".join(collected)
             if full:
                 full = aura_brain.sanitize_reply(full, message_count)
-                database.add_message(user["id"], "assistant", full)
+                database.add_message(user["id"], "assistant", full, hidden=hidden_now)
 
     return StreamingResponse(event_generator(), media_type="text/plain; charset=utf-8")
 

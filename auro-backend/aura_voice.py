@@ -161,7 +161,11 @@ async def handle_voice_session(websocket: WebSocket) -> None:
 
     session_start_time = time.time()
 
-    past_messages = database.get_messages(user["id"])
+    # bkz. main.py /api/chat'teki ayni bulgu - gizli mod AKTIF DEGILKEN
+    # AI baglami eski gizli mesajlari icermemeli (firewall), aktifken
+    # (bu arama baslamadan once yazili sohbette acilmis olabilir)
+    # sureklilik icin icermeli.
+    past_messages = database.get_messages(user["id"], include_hidden=database.is_hidden_mode_active(user["id"]))
     message_count = len(past_messages)
     system_instruction = (
         aura_brain.build_system_instruction(user, message_count)
@@ -226,12 +230,22 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         hatasinin bir kismi buydu. Bu yuzden asyncio.to_thread ile ayri
         bir thread'de, relay dongusunu HIC bloklamadan calistiriliyor.
         """
+        # KENDI KENDINI INCELEME BULGUSU (2026-08-26): bu fonksiyon gizli
+        # mod kavramini HIC bilmiyordu - kod cumlesi burada asla
+        # tetiklenmiyordu VE sesli sohbet transkripti her zaman hidden=0
+        # ile kaydediliyordu. Kullanici yazili sohbette gizli moda girip
+        # sonra sesli aramaya geciyorsa, tum konusma normal (PIN
+        # gerektirmeyen) gecmiste dogrudan gorunuyordu - ozelligi tamamen
+        # deliyordu. Artik yazili sohbetle AYNI kontrolu yapiyor.
+        is_trigger = database.check_and_toggle_secret_phrase(user["id"], user_text) if user_text else False
+        hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
         if user_text:
-            msg_id = database.add_message(user["id"], "user", user_text)
-            aura_brain.extract_memory_candidate(user["id"], user_text, msg_id)
+            msg_id = database.add_message(user["id"], "user", user_text, hidden=hidden_now)
+            if not hidden_now:
+                aura_brain.extract_memory_candidate(user["id"], user_text, msg_id)
             database.update_style_vector(user["id"], aura_brain.extract_style_signals(user_text))
         if assistant_text:
-            database.add_message(user["id"], "assistant", assistant_text)
+            database.add_message(user["id"], "assistant", assistant_text, hidden=hidden_now)
 
     # Es zamanlilik rezervasyonu, artik gercekten baglanmaya calismadan
     # HEMEN once yapiliyor - bundan sonrasi zaten mevcut try/finally

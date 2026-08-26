@@ -158,13 +158,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
       return;
     }
+    // BULUNDU (kendi kendini inceleme, 2026-08-26): PIN kilidi kapatilinca
+    // gizli mod kod cumlesi sunucuda ORTADA KALIYORDU - "Gizli mod kod
+    // cumlesi" karti SADECE _lockEnabled true iken gosteriliyor, yani
+    // kullanicinin kodu goreceği/kaldirabileceği/gizli sohbetleri
+    // gorebilecegi HICBIR arayuz kalmiyordu, ama sohbette kod soylenince
+    // mesajlar hala sessizce hidden=1 yazilmaya devam ediyordu - veri
+    // erisilemez hale geliyordu. Kilidi kaldirirken kod da varsa BIRLIKTE
+    // kaldiriliyor, kullaniciya once acikca soyleniyor.
+    final hasSecretPhrase = ref.read(profileNotifierProvider).value?.hasSecretPhrase ?? false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: _cardColor,
         title: Text('Kilidi kaldır', style: GoogleFonts.poppins(color: Colors.white)),
         content: Text(
-          'Uygulama kilidini kapatmak istediğine emin misin?',
+          hasSecretPhrase
+              ? 'Uygulama kilidini kapatmak istediğine emin misin? Gizli mod kod cümlen de birlikte kaldırılacak (gizli sohbetlere bir daha erişilemez).'
+              : 'Uygulama kilidini kapatmak istediğine emin misin?',
           style: GoogleFonts.poppins(color: Colors.white70),
         ),
         actions: [
@@ -175,6 +186,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed == true) {
       await AppLockService.instance.disableLock();
+      if (hasSecretPhrase) {
+        await ref.read(profileNotifierProvider.notifier).clearSecretPhrase();
+      }
       if (mounted) {
         setState(() {
           _lockEnabled = false;
