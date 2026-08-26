@@ -8,7 +8,9 @@ import '../notifier/profile_notifier.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/app_lock_service.dart';
 import '../../chat/screens/auth_screen.dart';
+import '../../lock/screens/lock_screen.dart';
 import '../../lock/screens/set_pin_screen.dart';
+import 'hidden_chats_screen.dart';
 
 /// Ayarlar ekrani - kullanicinin "ayarlara hicbir erisimi yok" bulgusuna
 /// karsi eklendi (2026-08-24). Onceden vardi ama hicbir yerden
@@ -32,8 +34,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
+  final _secretPhraseController = TextEditingController();
   bool _initialized = false;
   bool _loggingOut = false;
+  bool _savingSecretPhrase = false;
 
   bool _lockEnabled = false;
   bool _biometricAvailable = false;
@@ -115,6 +119,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadLockState();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _notesController.dispose();
+    _secretPhraseController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadLockState() async {
     final lockEnabled = await AppLockService.instance.isLockEnabled();
     final biometricAvailable = await AppLockService.instance.isBiometricAvailable();
@@ -176,6 +188,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     await AppLockService.instance.setBiometricEnabled(enable);
     if (mounted) setState(() => _biometricEnabled = enable);
+  }
+
+  Future<void> _saveSecretPhrase() async {
+    final phrase = _secretPhraseController.text.trim();
+    if (phrase.length < 2) return;
+    setState(() => _savingSecretPhrase = true);
+    try {
+      await ref.read(profileNotifierProvider.notifier).setSecretPhrase(phrase);
+      _secretPhraseController.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gizli mod kodu ayarlandı', style: GoogleFonts.poppins())),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kod ayarlanamadı, tekrar dene', style: GoogleFonts.poppins())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingSecretPhrase = false);
+    }
+  }
+
+  Future<void> _clearSecretPhrase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: Text('Gizli mod kodunu kaldır', style: GoogleFonts.poppins(color: Colors.white)),
+        content: Text(
+          'Kod kaldırılınca gizli mod bir daha tetiklenemez. Zaten kaydedilmiş gizli sohbetler etkilenmez.',
+          style: GoogleFonts.poppins(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Kaldır')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(profileNotifierProvider.notifier).clearSecretPhrase();
+    }
+  }
+
+  void _openHiddenChats() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LockScreen(
+          onUnlocked: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HiddenChatsScreen()),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _fillFromProfile(UserProfile profile) {
@@ -379,7 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildPrivacySection() {
+  Widget _buildPrivacySection(UserProfile profile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -419,6 +489,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: _toggleBiometric,
                   ),
                 ],
+                const Divider(color: _borderColor, height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Gizli mod kod cümlesi',
+                          style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text(
+                        profile.hasSecretPhrase
+                            ? 'Bir kod belirlendi. Sohbette bu cümleyi tek başına gönderirsen gizli mod açılır/kapanır.'
+                            : 'Kendi cümleni belirle. Sohbette bunu tek başına bir mesaj olarak gönderirsen, o andan sonraki konuşma normal geçmişte görünmez.',
+                        style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _secretPhraseController,
+                              style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
+                              decoration: _fieldDecoration('', hint: 'örn: bugün ay çok parlak'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _savingSecretPhrase
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: _indigoColor),
+                                )
+                              : IconButton(
+                                  onPressed: _saveSecretPhrase,
+                                  icon: const Icon(Icons.check_circle_outline, color: _indigoColor),
+                                ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: _openHiddenChats,
+                            icon: const Icon(Icons.visibility_off_outlined, size: 16, color: Colors.white54),
+                            label: Text('Gizli sohbetleri gör',
+                                style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
+                          ),
+                          if (profile.hasSecretPhrase)
+                            TextButton(
+                              onPressed: _clearSecretPhrase,
+                              child: Text('Kodu kaldır',
+                                  style: GoogleFonts.poppins(color: Colors.redAccent.withValues(alpha: 0.8), fontSize: 12)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),
@@ -544,7 +671,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildPrivacySection(),
+                _buildPrivacySection(profile),
                 const SizedBox(height: 24),
                 _sectionTitle('Serbest Talimat'),
                 _card(

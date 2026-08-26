@@ -50,6 +50,20 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
       state = AsyncValue.error(e, st);
     }
   }
+
+  Future<void> setSecretPhrase(String phrase) async {
+    await _repository.setSecretPhrase(phrase);
+    await load();
+  }
+
+  Future<void> clearSecretPhrase() async {
+    await _repository.clearSecretPhrase();
+    await load();
+  }
+
+  Future<List<Map<String, dynamic>>> getHiddenHistory() {
+    return _repository.getHiddenHistory();
+  }
 }
 
 final profileNotifierProvider =

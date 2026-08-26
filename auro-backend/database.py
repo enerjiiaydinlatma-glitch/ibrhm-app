@@ -117,6 +117,11 @@ def init_db():
             "ALTER TABLE users ADD COLUMN style_humor REAL DEFAULT 0.5",
             "ALTER TABLE users ADD COLUMN style_directness REAL DEFAULT 0.5",
             "ALTER TABLE users ADD COLUMN style_sample_count INTEGER DEFAULT 0",
+            # Kod-kelime ile "gizli mod" (2026-08-26, kullanici istegi -
+            # "kilitli sozler kelimeler"). secret_phrase_hash HIC acik
+            # metin tutmuyor (bcrypt, sifreyle ayni desen).
+            "ALTER TABLE users ADD COLUMN secret_phrase_hash TEXT",
+            "ALTER TABLE users ADD COLUMN hidden_mode_active INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(migration)
@@ -178,6 +183,10 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
+        try:
+            cursor.execute("ALTER TABLE messages ADD COLUMN hidden INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # sutun zaten var
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS mood_logs (
@@ -647,18 +656,23 @@ def update_style_vector(user_id: int, signals: dict) -> None:
 
 # --- MESSAGES ---
 
-def add_message(user_id: int, role: str, text: str, emotion: Optional[str] = None):
+def add_message(user_id: int, role: str, text: str, emotion: Optional[str] = None, hidden: bool = False):
     with db_cursor(commit=True) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO messages (user_id, role, text, emotion_detected) VALUES (?, ?, ?, ?)",
-            (user_id, role, text, emotion)
+            "INSERT INTO messages (user_id, role, text, emotion_detected, hidden) VALUES (?, ?, ?, ?, ?)",
+            (user_id, role, text, emotion, int(hidden))
         )
         message_id = cursor.lastrowid
     return message_id
 
 
-def get_messages(user_id: int, limit: int = 100) -> List[dict]:
+def get_messages(user_id: int, limit: int = 100, include_hidden: bool = True) -> List[dict]:
+    # NOT: include_hidden VARSAYILAN OLARAK True - bu fonksiyon AURA'NIN
+    # KENDI SOHBET BAGLAMINI (AI'ya giden gecmis) olusturmak icin de
+    # kullaniliyor (main.py /api/chat) - gizli mod aktifken bile Aura
+    # sohbetin baglamini kaybetmemeli. SADECE kullaniciya gorunen
+    # /api/history gibi yerlerde include_hidden=False acikca gecilir.
     with db_cursor() as conn:
         cursor = conn.cursor()
         # KRITIK DUZELTME: onceki hali "ORDER BY timestamp LIMIT ?" idi -
@@ -671,8 +685,27 @@ def get_messages(user_id: int, limit: int = 100) -> List[dict]:
         # yeniye) sira icin Python tarafinda ters cevriliyor. `id DESC` ikinci
         # siralama olcutu, ayni saniyeye denk gelen mesajlarin ekleniş sirasini
         # korur (timestamp tek basina ayirt edici olmayabilir).
+        if include_hidden:
+            cursor.execute(
+                "SELECT * FROM messages WHERE user_id = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
+                (user_id, limit)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM messages WHERE user_id = ? AND hidden = 0 "
+                "ORDER BY timestamp DESC, id DESC LIMIT ?",
+                (user_id, limit)
+            )
+        rows = cursor.fetchall()
+    return [dict(row) for row in reversed(rows)]
+
+
+def get_hidden_messages(user_id: int, limit: int = 200) -> List[dict]:
+    with db_cursor() as conn:
+        cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM messages WHERE user_id = ? ORDER BY timestamp DESC, id DESC LIMIT ?",
+            "SELECT * FROM messages WHERE user_id = ? AND hidden = 1 "
+            "ORDER BY timestamp DESC, id DESC LIMIT ?",
             (user_id, limit)
         )
         rows = cursor.fetchall()
@@ -682,6 +715,73 @@ def get_messages(user_id: int, limit: int = 100) -> List[dict]:
 def clear_messages(user_id: int):
     with db_cursor(commit=True) as conn:
         conn.execute("DELETE FROM messages WHERE user_id = ?", (user_id,))
+
+
+# --- KOD-KELIME ILE GIZLI MOD ---
+# Kullanici istegi (2026-08-26): "kilitli sozler kelimeler" - sohbette
+# kendi belirledigi bir cumleyi TEK BASINA bir mesaj olarak gonderince
+# Aura fark ettirmeden gizli moda gecer/cikar, o andan itibarenki
+# konusma normal gecmiste GORUNMEZ (PIN/biyometrik ile acilan ayri bir
+# ekranda goruntulenir). Kasitli olarak SUBSTRING eslesmesi degil, TAM
+# mesaj eslesmesi ariyoruz - hem yanlislikla tetiklenmeyi onler hem de
+# ifadeyi acik metin yerine bcrypt hash olarak saklayabilmemizi saglar
+# (parolayla ayni guvenlik duzeyi).
+
+def set_secret_phrase(user_id: int, phrase: str) -> None:
+    normalized = phrase.strip().lower()
+    hashed = bcrypt.hashpw(normalized.encode(), bcrypt.gensalt()).decode()
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "UPDATE users SET secret_phrase_hash = ?, hidden_mode_active = 0 WHERE id = ?",
+            (hashed, user_id)
+        )
+
+
+def clear_secret_phrase(user_id: int) -> None:
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "UPDATE users SET secret_phrase_hash = NULL, hidden_mode_active = 0 WHERE id = ?",
+            (user_id,)
+        )
+
+
+def has_secret_phrase(user_id: int) -> bool:
+    user = get_user(user_id)
+    return bool(user.get("secret_phrase_hash"))
+
+
+def is_hidden_mode_active(user_id: int) -> bool:
+    user = get_user(user_id)
+    return bool(user.get("hidden_mode_active"))
+
+
+def check_and_toggle_secret_phrase(user_id: int, message_text: str) -> bool:
+    """Mesaj TAM OLARAK kullanicinin kod cumlesiyle eslesirse gizli modu
+    ac/kapa ve True dondur (eslesme oldu = bu mesaj asla normal gecmiste
+    gorunmemeli). Eslesme yoksa (ya da kod cumlesi hic belirlenmemisse)
+    HICBIR SEYI degistirmeden False doner."""
+    user = get_user(user_id)
+    stored_hash = user.get("secret_phrase_hash")
+    if not stored_hash:
+        return False
+    # Ucuz on-eleme: bir "kod cumlesi" kisa olmali - bcrypt.checkpw
+    # (bilerek YAVAS) her mesajda calismasin diye once uzunluk kontrolu.
+    normalized = message_text.strip().lower()
+    if len(normalized) > 80:
+        return False
+    try:
+        matched = bcrypt.checkpw(normalized.encode(), stored_hash.encode())
+    except (ValueError, TypeError):
+        return False
+    if not matched:
+        return False
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "UPDATE users SET hidden_mode_active = CASE hidden_mode_active WHEN 1 THEN 0 ELSE 1 END "
+            "WHERE id = ?",
+            (user_id,)
+        )
+    return True
 
 
 # --- MOOD ---

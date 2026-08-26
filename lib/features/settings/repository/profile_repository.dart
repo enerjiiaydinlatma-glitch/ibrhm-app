@@ -7,6 +7,9 @@ abstract class ProfileRepository {
     String? name,
     String? notes,
   });
+  Future<void> setSecretPhrase(String phrase);
+  Future<void> clearSecretPhrase();
+  Future<List<Map<String, dynamic>>> getHiddenHistory();
 }
 
 class ProfileRepositoryImpl implements ProfileRepository {
@@ -54,5 +57,31 @@ class ProfileRepositoryImpl implements ProfileRepository {
       options: _authOptions,
     );
     return UserProfile.fromJson(response.data);
+  }
+
+  @override
+  Future<void> setSecretPhrase(String phrase) async {
+    await _dio.post(
+      '$baseUrl/api/profile/secret-phrase',
+      data: {'phrase': phrase},
+      options: _authOptions,
+    );
+  }
+
+  @override
+  Future<void> clearSecretPhrase() async {
+    await _dio.delete(
+      '$baseUrl/api/profile/secret-phrase',
+      options: _authOptions,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getHiddenHistory() async {
+    final response = await _dio.get(
+      '$baseUrl/api/history/hidden',
+      options: _authOptions,
+    );
+    return List<Map<String, dynamic>>.from(response.data as List);
   }
 }

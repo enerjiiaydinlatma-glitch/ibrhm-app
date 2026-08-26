@@ -391,8 +391,18 @@ class ProfileUpdate(BaseModel):
     activity_enabled: Optional[bool] = None
     mood_tracking_enabled: Optional[bool] = None
 
+_SENSITIVE_USER_FIELDS = {"password_hash", "secret_phrase_hash"}
+
+
 def _safe_user(user: dict) -> dict:
-    return {k: v for k, v in user.items() if k != "password_hash"}
+    # secret_phrase_hash (2026-08-26, gizli mod ozelligi): password_hash
+    # ile AYNI hassasiyette - istemciye asla sizmamali (bcrypt hash'i
+    # bile olsa, offline kaba-kuvvetle kod cumlesi cozulebilir). Yerine
+    # istemcinin "bir kod belirlenmis mi" diye anlayabilmesi icin turetilmis
+    # bir bool birakiyoruz.
+    safe = {k: v for k, v in user.items() if k not in _SENSITIVE_USER_FIELDS}
+    safe["has_secret_phrase"] = bool(user.get("secret_phrase_hash"))
+    return safe
 
 
 @app.get("/")
@@ -523,7 +533,38 @@ def delete_memory(memory_id: int, authorization: Optional[str] = Header(None)):
 @app.get("/api/history")
 def get_history(authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
-    return database.get_messages(user["id"])
+    # include_hidden=False: gizli mod mesajlari normal gecmiste GORUNMEZ -
+    # ayri /api/history/hidden ucuyla cekilir (bkz. asagida).
+    return database.get_messages(user["id"], include_hidden=False)
+
+
+@app.get("/api/history/hidden")
+def get_hidden_history(authorization: Optional[str] = Header(None)):
+    # NOT: bu uc BILEREK ek bir dogrulama (PIN/parola) istemiyor - zaten
+    # gecerli bir oturum tokeni gerektiriyor (get_current_user), ve
+    # istemci tarafinda bu ekrana girmeden once zaten AppLockService
+    # (yerel PIN/biyometrik) kapisi var. Sunucu sadece "bu token bu
+    # kullaniciya mi ait" diye bakiyor, tipki /api/history gibi.
+    user = get_current_user(authorization)
+    return database.get_hidden_messages(user["id"])
+
+
+class SecretPhraseRequest(BaseModel):
+    phrase: str = Field(min_length=2, max_length=80)
+
+
+@app.post("/api/profile/secret-phrase")
+def set_secret_phrase(request: SecretPhraseRequest, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    database.set_secret_phrase(user["id"], request.phrase)
+    return {"status": "ayarlandi"}
+
+
+@app.delete("/api/profile/secret-phrase")
+def delete_secret_phrase(authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    database.clear_secret_phrase(user["id"])
+    return {"status": "kaldirildi"}
 
 
 @app.delete("/api/history")
@@ -568,7 +609,13 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         mood = detect_mood(request.message)
         if mood:
             database.add_mood(user["id"], mood, context=request.message[:100])
-    user_message_id = database.add_message(user["id"], "user", request.message)
+    # Kod-kelime ile gizli mod: mesaj kullanicinin kod cumlesiyle TAM
+    # eslesirse modu ac/kapa. Eslesen mesaj ASLA normal gecmiste
+    # gorunmemeli (kodun kendisi bile ifsa olmasin) - o yuzden
+    # is_trigger ise HER ZAMAN gizli, degilse mevcut moda gore kaydedilir.
+    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message)
+    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
+    user_message_id = database.add_message(user["id"], "user", request.message, hidden=hidden_now)
 
     # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
     # Kullanicinin mesaji yine de kaydedildi (yukarida) - sadece pahali
@@ -632,7 +679,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
     reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
-    database.add_message(user["id"], "assistant", reply_text)
+    database.add_message(user["id"], "assistant", reply_text, hidden=hidden_now)
     return {"reply": reply_text}
 
 
