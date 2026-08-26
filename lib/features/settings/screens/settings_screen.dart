@@ -472,6 +472,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildStyleBar(String label, double value, String lowLabel, String highLabel) {
+    final v = value.clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+              Text(
+                v < 0.35 ? lowLabel : (v > 0.65 ? highLabel : 'Dengeli'),
+                style: GoogleFonts.poppins(color: _indigoColor, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: v,
+              minHeight: 6,
+              backgroundColor: _borderColor,
+              valueColor: const AlwaysStoppedAnimation<Color>(_indigoColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPrivacySection(UserProfile profile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,19 +729,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 24),
                 _sectionTitle('Aura Nasıl Davransın'),
                 _card(
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.auto_awesome, color: _indigoColor, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Artık burada elle ayar yok — Aura, konuşma tarzından '
-                          'sıcaklığını, resmiyetini ve mizahını kendi kendine '
-                          'öğreniyor ve zamanla sana uyum sağlıyor.',
-                          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, height: 1.4),
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: _indigoColor, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Artık burada elle ayar yok — Aura, konuşma tarzından '
+                              'kendi kendine öğreniyor ve zamanla sana uyum sağlıyor.',
+                              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, height: 1.4),
+                            ),
+                          ),
+                        ],
                       ),
+                      // BULUNDU (kullanici istegi devami, 2026-08-26): stil
+                      // vektoru backend'de zaten hesaplaniyordu ama hicbir
+                      // yerde GORUNMUYORDU - "kendi kendine ogreniyor"
+                      // yazisi sessiz kaliyordu. Az veriyle (ilk birkac
+                      // mesaj) henuz anlamli olmayan yuzdeler gostermek
+                      // yaniltici olur, o yuzden bir esik var.
+                      if (profile.styleSampleCount >= 5) ...[
+                        const SizedBox(height: 16),
+                        _buildStyleBar('Sıcaklık', profile.styleWarmth, 'Mesafeli', 'Sıcak'),
+                        _buildStyleBar('Resmiyet', profile.styleFormality, 'Resmi', 'Samimi'),
+                        _buildStyleBar('Mizah', profile.styleHumor, 'Düz', 'Şakacı'),
+                      ] else ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Henüz öğreniyor — birkaç mesaj sonra burada nasıl bir uyum sağladığını görebileceksin.',
+                          style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11.5, fontStyle: FontStyle.italic),
+                        ),
+                      ],
                     ],
                   ),
                 ),
