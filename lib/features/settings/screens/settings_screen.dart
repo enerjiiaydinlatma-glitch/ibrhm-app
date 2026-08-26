@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/memory_item.dart';
 import '../notifier/memory_notifier.dart';
+import '../widgets/memory_tree_painter.dart';
 import '../models/profile.dart';
 import '../notifier/profile_notifier.dart';
 import '../../../services/auth_service.dart';
@@ -583,7 +584,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             }
             return Column(
-              children: memories.map((memory) {
+              children: [
+                // "Kök ve Dal" - kullanici istegi uzerine eklendi
+                // (2026-08-26): duz liste yerine, hafizanin kategorilere
+                // gore nasil dagildigini ve ne kadar buyudugunu gosteren
+                // buyuyen bir agac. Liste ASLA kaldirilmadi (silme islevi
+                // hala gerekli) - agac SADECE bir gorsel ozet, ustune.
+                _card(child: MemoryTreeWidget(memories: memories)),
+                const SizedBox(height: 16),
+                ...memories.map((memory) {
                 final label = _categoryLabels[memory.category.toLowerCase()] ??
                     _prettifyCategory(memory.category);
                 return Container(
@@ -606,7 +615,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
+              ],
             );
           },
         ),
