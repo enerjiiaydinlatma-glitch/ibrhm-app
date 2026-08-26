@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import httpx
 
 import aura_memory
+import database
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -196,11 +197,37 @@ def get_insight_nudge(user_id: int) -> str:
     return "ORUNTU FARKINDALIGI: " + insight["memory_value"]
 
 
+def get_reminder_nudge(user_id: int) -> str:
+    """
+    Kullanici istegi (2026-08-26): "haftaya persembe maca gidecegim,
+    bilet almam lazim" gibi mesajlardan cikarilan hatirlatmalari (bkz.
+    aura_reminders.py), zamani gelince Aura'nin PROAKTIF olarak, olay
+    GERCEKLESMEDEN ONCE gundeme getirmesi icin. get_followup_nudge'in
+    (olay biTTIKTEN sonra "nasil gecti" sorusu) TAM TERSI yonde calisir.
+    """
+    reminder = database.get_due_reminders_for_nudge(user_id)
+    if not reminder:
+        return ""
+
+    try:
+        database.mark_reminder_delivered(user_id, reminder["id"])
+    except Exception:
+        pass
+
+    return (
+        "YASAM IPUCU - HATIRLATMA: Kullanicinin '" + reminder["description"] +
+        "' ile ilgili bir hatirlatmasi var (etkinlik tarihi: " +
+        reminder["event_at"] + "). Sohbetin dogal akisinda, zorlamadan, "
+        "bunu hatirlatabilirsin - unutmus olabilir."
+    )
+
+
 def get_lifestyle_nudges(user: dict) -> str:
     parts = [
         get_weather_nudge(user),
         get_routine_nudge(user["id"]),
         get_followup_nudge(user["id"]),
         get_insight_nudge(user["id"]),
+        get_reminder_nudge(user["id"]),
     ]
     return " ".join(p for p in parts if p)

@@ -200,6 +200,27 @@ def init_db():
             )
         """)
 
+        # Hatirlatmalar (2026-08-26, kullanici istegi): "haftaya persembe
+        # maca gidecegim, bilet almam lazim" gibi mesajlardan cikarilan,
+        # GELECEKTEKI bir tarihe bagli hatirlatmalar. event_at = etkinligin
+        # kendisi, remind_at = kullaniciya hatirlatilmasi gereken tarih
+        # (genelde event_at'ten ONCE). delivered: istemci bunu yerel bir
+        # bildirim olarak zamanladiktan/gosterdikten sonra 1 yapar - sunucu
+        # tarafinda gercek bir "gonderim" yok, sadece istemcinin tekrar
+        # tekrar ayni hatirlatmayi zamanlamamasi icin bir isaret.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                description TEXT NOT NULL,
+                event_at TEXT NOT NULL,
+                remind_at TEXT NOT NULL,
+                delivered INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS friends (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -782,6 +803,66 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str) -> bool:
             (user_id,)
         )
     return True
+
+
+# --- HATIRLATMALAR ---
+
+def add_reminder(user_id: int, description: str, event_at: str, remind_at: str) -> int:
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO reminders (user_id, description, event_at, remind_at) "
+            "VALUES (?, ?, ?, ?)",
+            (user_id, description, event_at, remind_at)
+        )
+        return cursor.lastrowid
+
+
+def get_active_reminders(user_id: int) -> List[dict]:
+    """Etkinlik tarihi henuz gecmemis TUM hatirlatmalar - istemci bunlari
+    yerel bildirim olarak zamanlar (delivered olsa bile tekrar zamanlamak
+    zararsiz, bildirim ID'si sabit oldugu icin isletim sistemi ayni ID'yi
+    gunceller/tekilleştirir)."""
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM reminders WHERE user_id = ? AND date(event_at) >= date('now') "
+            "ORDER BY remind_at ASC",
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+def mark_reminder_delivered(user_id: int, reminder_id: int) -> None:
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "UPDATE reminders SET delivered = 1 WHERE id = ? AND user_id = ?",
+            (reminder_id, user_id)
+        )
+
+
+def delete_reminder(user_id: int, reminder_id: int) -> None:
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "DELETE FROM reminders WHERE id = ? AND user_id = ?",
+            (reminder_id, user_id)
+        )
+
+
+def get_due_reminders_for_nudge(user_id: int, days_ahead: int = 1) -> Optional[dict]:
+    """Sohbet ici proaktif hatirlatma icin: remind_at bugune kadar gelmis
+    (bugun dahil, gecmis kalmis olsa bile) ama kullaniciya HENUZ sohbette
+    hic bahsedilmemis (delivered=0) hatirlatmalar."""
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM reminders WHERE user_id = ? AND delivered = 0 "
+            "AND date(remind_at) <= date('now', ?) ORDER BY remind_at ASC LIMIT 1",
+            (user_id, f"+{days_ahead} day")
+        )
+        row = cursor.fetchone()
+    return dict(row) if row else None
 
 
 # --- MOOD ---

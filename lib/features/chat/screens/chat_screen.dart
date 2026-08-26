@@ -14,6 +14,7 @@ import "../../voice/screens/voice_call_screen.dart";
 import "../../voice/notifier/voice_call_notifier.dart";
 import "../../settings/screens/settings_screen.dart";
 import "../../../services/auth_service.dart";
+import "../../../services/reminder_service.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -56,12 +57,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _initLocalTts();
     _checkAnonymousStatus();
+    _syncReminders();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final notifier = ref.read(chatProvider.notifier);
       notifier.setToken(widget.token);
       await notifier.loadHistory();
       await notifier.fetchGreeting();
     });
+  }
+
+  // Kullanici istegi (2026-08-26): sohbette gecen "haftaya persembe maca
+  // gidecegim, bilet almam lazim" gibi mesajlardan cikarilan hatirlatmalari
+  // (backend: aura_reminders.py) bu cihazda yerel bildirim olarak
+  // zamanliyor. Basarisiz olursa (izin verilmedi, platform desteklemiyor
+  // vs.) sessizce yutuluyor - sohbeti ASLA etkilememeli.
+  Future<void> _syncReminders() async {
+    try {
+      await ReminderService.instance.init();
+      await ReminderService.instance.requestPermissions();
+      final response = await _dio.get(
+        "$_backendUrl/api/reminders",
+        options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
+      );
+      final reminders = List<Map<String, dynamic>>.from(response.data as List);
+      await ReminderService.instance.scheduleAll(reminders);
+    } catch (e) {
+      debugPrint("Hatirlatma senkronizasyonu basarisiz: $e");
+    }
   }
 
   Future<void> _checkAnonymousStatus({bool isRetry = false}) async {

@@ -31,6 +31,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications (2026-08-26, hatirlatma ozelligi)
+        // bunu istiyor - java.time gibi yeni API'leri eski Android
+        // surumlerinde de kullanilabilir kilan bir derleme-zamani araci,
+        // calisma zamaninda ekstra bir izin/davranis degisikligi yok.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -77,6 +82,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

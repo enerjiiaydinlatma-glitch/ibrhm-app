@@ -5,6 +5,7 @@ import time
 import httpx
 import aura_brain
 import aura_memory
+import aura_reminders
 import aura_voice
 import base64
 from collections import defaultdict, deque
@@ -567,6 +568,23 @@ def delete_secret_phrase(authorization: Optional[str] = Header(None)):
     return {"status": "kaldirildi"}
 
 
+@app.get("/api/reminders")
+def get_reminders(authorization: Optional[str] = Header(None)):
+    # Istemci bu listeyi (uygulama acilisinda/profil yenilenince) cekip
+    # HER birini yerel bir bildirim olarak zamanlar - sabit reminder id
+    # ile zamanlandigi icin tekrar cagirmak zararsiz (isletim sistemi
+    # ayni ID'yi gunceller, coklanmaz).
+    user = get_current_user(authorization)
+    return database.get_active_reminders(user["id"])
+
+
+@app.delete("/api/reminders/{reminder_id}")
+def remove_reminder(reminder_id: int, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    database.delete_reminder(user["id"], reminder_id)
+    return {"status": "silindi"}
+
+
 @app.delete("/api/history")
 def clear_history(authorization: Optional[str] = Header(None)):
     user = get_current_user(authorization)
@@ -643,6 +661,9 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
     # kelime taramasi), o yuzden burada ek gecikme/maliyet yok.
     database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
+    # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
+    # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
+    aura_reminders.extract_reminder_candidate(user["id"], request.message)
     past_messages = database.get_messages(user["id"])
     message_count = len(past_messages)
     aura_brain.analyze_patterns(user["id"], message_count)
