@@ -642,12 +642,21 @@ STYLE_EMA_ALPHA = 0.15
 STYLE_AXES = ("warmth", "formality", "humor", "directness")
 
 
-def get_style_vector(user_id: int) -> dict:
-    user = get_user(user_id)
+def style_vector_from_user(user: dict) -> dict:
+    """get_style_vector ile AYNI cikti - ama zaten elde bir 'user' satiri
+    (SELECT u.* ile gelen, style_* kolonlarini ZATEN iceren) varsa YENIDEN
+    DB'ye gitmez. BULUNDU (verimlilik incelemesi): build_system_instruction
+    her /api/chat isteginde bu degeri ayri bir SELECT * FROM users ile
+    yeniden cekiyordu - oysa cagiran taraf zaten TAM satiri elinde
+    tutuyordu (get_current_user)."""
     return {
         axis: user.get(f"style_{axis}") if user.get(f"style_{axis}") is not None else 0.5
         for axis in STYLE_AXES
     } | {"sample_count": user.get("style_sample_count") or 0}
+
+
+def get_style_vector(user_id: int) -> dict:
+    return style_vector_from_user(get_user(user_id))
 
 
 def update_style_vector(user_id: int, signals: dict) -> None:
@@ -771,17 +780,23 @@ def has_secret_phrase(user_id: int) -> bool:
     return bool(user.get("secret_phrase_hash"))
 
 
-def is_hidden_mode_active(user_id: int) -> bool:
-    user = get_user(user_id)
+def is_hidden_mode_active(user_id: int, user: Optional[dict] = None) -> bool:
+    # BULUNDU (verimlilik incelemesi): cagiran taraf (main.py /api/chat)
+    # zaten TAM kullanici satirini elinde tutuyordu (get_current_user) -
+    # onu opsiyonel olarak kabul edip gereksiz bir SELECT * FROM users
+    # daha yapmaktan kaciniyoruz. Verilmezse eskisi gibi DB'den okur.
+    if user is None:
+        user = get_user(user_id)
     return bool(user.get("hidden_mode_active"))
 
 
-def check_and_toggle_secret_phrase(user_id: int, message_text: str) -> bool:
+def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Optional[dict] = None) -> bool:
     """Mesaj TAM OLARAK kullanicinin kod cumlesiyle eslesirse gizli modu
     ac/kapa ve True dondur (eslesme oldu = bu mesaj asla normal gecmiste
     gorunmemeli). Eslesme yoksa (ya da kod cumlesi hic belirlenmemisse)
     HICBIR SEYI degistirmeden False doner."""
-    user = get_user(user_id)
+    if user is None:
+        user = get_user(user_id)
     stored_hash = user.get("secret_phrase_hash")
     if not stored_hash:
         return False

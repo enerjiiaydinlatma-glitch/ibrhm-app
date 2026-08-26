@@ -165,7 +165,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     # AI baglami eski gizli mesajlari icermemeli (firewall), aktifken
     # (bu arama baslamadan once yazili sohbette acilmis olabilir)
     # sureklilik icin icermeli.
-    past_messages = database.get_messages(user["id"], include_hidden=database.is_hidden_mode_active(user["id"]))
+    past_messages = database.get_messages(user["id"], include_hidden=database.is_hidden_mode_active(user["id"], user=user))
     message_count = len(past_messages)
     system_instruction = (
         aura_brain.build_system_instruction(user, message_count)
@@ -237,8 +237,8 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         # sonra sesli aramaya geciyorsa, tum konusma normal (PIN
         # gerektirmeyen) gecmiste dogrudan gorunuyordu - ozelligi tamamen
         # deliyordu. Artik yazili sohbetle AYNI kontrolu yapiyor.
-        is_trigger = database.check_and_toggle_secret_phrase(user["id"], user_text) if user_text else False
-        hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
+        is_trigger = database.check_and_toggle_secret_phrase(user["id"], user_text, user=user) if user_text else False
+        hidden_now = is_trigger or database.is_hidden_mode_active(user["id"], user=user)
         if user_text:
             msg_id = database.add_message(user["id"], "user", user_text, hidden=hidden_now)
             if not hidden_now:

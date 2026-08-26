@@ -634,8 +634,8 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     # SONRAKI normal bir sohbette Aura tarafindan proaktif olarak dile
     # getirilebiliyordu, (c) ruh hali kaydina giriyordu. Simdi hepsi
     # hidden_now'a gore BILEREK atlaniyor.
-    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message)
-    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
+    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message, user=user)
+    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"], user=user)
     user_message_id = database.add_message(user["id"], "user", request.message, hidden=hidden_now)
 
     # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
@@ -729,8 +729,8 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
     user = get_current_user(authorization)
     # bkz. /api/chat'teki ayni bulgu (2026-08-26 kendi kendini inceleme) -
     # bu "olu ama canli" endpoint gizli mod kavramini hic bilmiyordu.
-    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message)
-    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"])
+    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message, user=user)
+    hidden_now = is_trigger or database.is_hidden_mode_active(user["id"], user=user)
     # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
     # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
     # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
