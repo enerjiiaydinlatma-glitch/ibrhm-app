@@ -38,6 +38,13 @@ GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 MODEL_NAME = "gemini-3.7-flash"
 GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# Kullanici istegi (2026-08-26): "ucretsiz bir yapay zeka daha ekleyelim
+# mi" - sesli gorusme (Gemini Live) coktugunde devreye giren "basili tut
+# konus" yedek modu icin Groq'un UCRETSIZ, cok hizli Whisper API'si.
+# whisper-large-v3-turbo: dogruluktan biraz odun verip hiz kazandiriyor -
+# kisa bir "bas-birak" konusma parcasi icin ideal.
+GROQ_WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
 # KRITIK BULUNAN CANLI SORUN (2026-08-24, reklam kampanyasi oncesi son
 # taramada tesadufen yakalandi): generate_content() cagrisinda HICBIR
@@ -519,6 +526,34 @@ def _contents_to_groq_messages(contents, system_instruction):
         if text:
             messages.append({"role": role, "content": text})
     return messages
+
+
+def transcribe_with_groq(audio_bytes: bytes, filename: str = "audio.wav") -> str:
+    """
+    Gercek zamanli sesli gorusme (Gemini Live) baglanamadiginda devreye
+    giren "basili tut konus" yedek modunun ILK adimi - kaydedilen ses
+    parcasini metne cevirir. Bundan sonraki adim (metinden Aura cevabi
+    uretmek) ZATEN dayanikli olan _process_chat_message/generate_with_retry
+    hattina gider - bu fonksiyon SADECE kulak gorevi goruyor, Aura'nin
+    kendisi degil.
+
+    Bos/anlasilmaz ses icin bos string doner (exception degil) - cagiran
+    taraf bunu "seni duyamadim" gibi nazik bir cevaba cevirsin diye.
+    """
+    try:
+        response = httpx.post(
+            GROQ_WHISPER_URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            files={"file": (filename, audio_bytes, "audio/wav")},
+            data={"model": GROQ_WHISPER_MODEL, "language": "tr"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return (data.get("text") or "").strip()
+    except Exception as e:
+        print(f"VOICE FALLBACK TRANSCRIBE ERROR: {type(e).__name__}: {e}")
+        return ""
 
 
 def _groq_text(contents, system_instruction, max_attempts=1):

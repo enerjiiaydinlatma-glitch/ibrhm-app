@@ -344,6 +344,13 @@ class ClaimAccountRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(max_length=4000)
 
+# "Basili tut konus" yedek sesli mod (2026-08-26, kullanici istegi) -
+# Gemini Live baglanamadiginda kullanilir. image_base64 ile ayni desen:
+# multipart yerine base64 (python-multipart bagimliligi eklemeye gerek
+# kalmiyor). ~15MB, birkaç dakikalik bir WAV kaydini rahatca kapsar.
+class VoiceFallbackRequest(BaseModel):
+    audio_base64: str = Field(max_length=15_000_000)
+
 class TTSRequest(BaseModel):
     text: str = Field(max_length=2000)
     voice: str = "female"
@@ -616,9 +623,19 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
     return {"reply": reply_text}
 
 
-@app.post("/api/chat")
-def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
+def _process_chat_message(user: dict, message_text: str) -> dict:
+    """
+    BULUNDU (kullanici istegi, 2026-08-26 - "Aura beyin, modeller ajan"
+    denetiminin devami): sesli gorusme (Gemini Live) coktugunde yerine
+    gecen "basili tut konus" yedek modu (bkz. /api/voice/fallback-turn)
+    icin /api/chat'in TAM govdesi buraya cikarildi. BILEREK - metin
+    sohbetindeki TUM guvenlik/gizlilik mantigini (gizli mod, kriz
+    atlama, hafiza/hatirlatma gizli-mod firewall'i) BIR YERDE tutup iki
+    ayri giris noktasinin (yazili + sesli-yedek) birbirinden SAPMASINI
+    onlemek icin - bu gecenin gizli-mod sizintisi TAM DA boyle bir
+    tutarsizliktan dogmustu, ayni hatayi ikinci bir yolda tekrarlamamak
+    icin ortak bir govde sart.
+    """
     # Kod-kelime ile gizli mod: mesaj kullanicinin kod cumlesiyle TAM
     # eslesirse modu ac/kapa. Eslesen mesaj ASLA normal gecmiste
     # gorunmemeli (kodun kendisi bile ifsa olmasin) - o yuzden
@@ -634,18 +651,18 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     # SONRAKI normal bir sohbette Aura tarafindan proaktif olarak dile
     # getirilebiliyordu, (c) ruh hali kaydina giriyordu. Simdi hepsi
     # hidden_now'a gore BILEREK atlaniyor.
-    is_trigger = database.check_and_toggle_secret_phrase(user["id"], request.message, user=user)
+    is_trigger = database.check_and_toggle_secret_phrase(user["id"], message_text, user=user)
     hidden_now = is_trigger or database.is_hidden_mode_active(user["id"], user=user)
-    user_message_id = database.add_message(user["id"], "user", request.message, hidden=hidden_now)
+    user_message_id = database.add_message(user["id"], "user", message_text, hidden=hidden_now)
 
     # GECE DENETIMI BULGUSU: mood_tracking_enabled kaydediliyordu ama
     # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
     # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
     # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
     if not hidden_now and user.get("mood_tracking_enabled", 1):
-        mood = detect_mood(request.message)
+        mood = detect_mood(message_text)
         if mood:
-            database.add_mood(user["id"], mood, context=request.message[:100])
+            database.add_mood(user["id"], mood, context=message_text[:100])
 
     # Ucretsiz (free) tier gunluk mesaj limiti - Pro kullanicilar muaf.
     # Kullanicinin mesaji yine de kaydedildi (yukarida) - sadece pahali
@@ -658,7 +675,7 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     # gosterilirdi. Acik bir kriz ifadesi tespit edilirse limit BILEREK
     # atlaniyor - bir kac ekstra ucretsiz Gemini cagrisi, gozden kacan
     # bir krizden cok daha ucuz bir bedel.
-    is_crisis = _is_crisis_message(request.message)
+    is_crisis = _is_crisis_message(message_text)
     if (
         not is_crisis
         and user.get("tier") != "pro"
@@ -669,16 +686,16 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
 
     if not hidden_now:
-        aura_brain.extract_memory_candidate(user["id"], request.message, user_message_id)
+        aura_brain.extract_memory_candidate(user["id"], message_text, user_message_id)
         # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
         # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
-        aura_reminders.extract_reminder_candidate(user["id"], request.message)
+        aura_reminders.extract_reminder_candidate(user["id"], message_text)
     # Ton dropdown'lari kaldirildi - Aura kendi uslubunu buradan ogreniyor.
     # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
     # kelime taramasi) - bu, hafiza/hatirlatma gibi KALICI bir kayit
     # OLUSTURMUYOR (sadece 4 float'i yavasca kaydiriyor), o yuzden gizli
     # modda bile calismasi bilgi sizdirmiyor; atlamiyoruz.
-    database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
+    database.update_style_vector(user["id"], aura_brain.extract_style_signals(message_text))
     # AI BAGLAMI: gizli mod AKTIFKEN gecmis gizli mesajlari da gorsun
     # (sohbet baglamini kaybetmesin), ama gizli mod KAPALIYKEN SADECE
     # gorunur mesajlari gorsun - yoksa gecmiste gizli modda paylasilan
@@ -722,6 +739,40 @@ def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
     database.add_message(user["id"], "assistant", reply_text, hidden=hidden_now)
     return {"reply": reply_text}
+
+
+@app.post("/api/chat")
+def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    return _process_chat_message(user, request.message)
+
+
+@app.post("/api/voice/fallback-turn")
+def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[str] = Header(None)):
+    """
+    "Aura beyin, modeller ajan" denetiminin devami (kullanici istegi,
+    2026-08-26): gercek zamanli sesli gorusme (Gemini Live, aura_voice.py)
+    baglanamadiginda/coktugunde devreye giren "basili tut konus" yedek
+    modu. Akis: ses -> Groq Whisper (transcribe_with_groq, UCRETSIZ) ->
+    metin -> _process_chat_message (yazili sohbetle AYNI govde, ayni
+    guvenlik/gizlilik kurallari) -> istemci cevabi kendi TTS'iyle (mevcut
+    /api/tts) okur. Yani sesli gorusme cokse bile Aura'nin "beyni"
+    (karakter + hafiza + gizlilik) DEGISMIYOR, sadece kulak (Whisper) ve
+    agiz (TTS) ayri, daha basit bir yoldan calisiyor.
+    """
+    user = get_current_user(authorization)
+    try:
+        audio_bytes = base64.b64decode(request.audio_base64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Gecersiz ses verisi.")
+
+    transcript = aura_brain.transcribe_with_groq(audio_bytes)
+    if not transcript:
+        return {"transcript": "", "reply": "Seni duyamadım, tekrar dener misin?"}
+
+    result = _process_chat_message(user, transcript)
+    result["transcript"] = transcript
+    return result
 
 
 @app.post("/api/chat/stream")
