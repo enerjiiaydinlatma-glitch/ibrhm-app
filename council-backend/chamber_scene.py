@@ -26,6 +26,10 @@ from shapes import SHAPE_FNS, SHAPE_TEXT_OFFSET_Y
 FONT_DIR = r"C:\Windows\Fonts"
 BG = "#0a0c10"
 ACCENT = "#5fd4c4"
+# Kullanicinin gercek ofis paletinden (sicak amber neon + soguk yesil LED
+# kontrasti) esinlenen ikinci vurgu rengi - mimariye dokunmadan, sadece
+# isik/doku katmanina eklendi (26 Agustos 2026).
+AMBER = "#e8a33d"
 
 # Meclis'teki 5 sabit koltuk sirasi (soldan saga) - "Aura merkezde/yuksekte"
 # onerisi: Aura ortada, digerleri iki yaninda.
@@ -53,8 +57,14 @@ def _draw_columns(draw, w, h):
             x = w / 2 + side * (w / 2 + 40) * (1 - t) ** 1.6
             col_w = 70 * (1 - t) + 6
             shade = int(14 + 10 * (1 - t))
-            draw.rectangle((x - col_w / 2, 0, x + col_w / 2, h), fill=(shade, shade + 3, shade + 8))
-            draw.line((x, 0, x, h), fill=(shade + 18, shade + 24, shade + 32), width=max(1, int(2 * (1 - t))))
+            # Sicak alt-ton (eskiden soguk mavimsi idi) - ofis referansindaki
+            # antrasit/sicak kontrastina yakin.
+            draw.rectangle((x - col_w / 2, 0, x + col_w / 2, h), fill=(shade + 6, shade + 2, shade))
+            draw.line((x, 0, x, h), fill=(shade + 30, shade + 20, shade + 10), width=max(1, int(2 * (1 - t))))
+            # Ofisteki cizgili panel duvar dokusu - ince yatay bantlar
+            stripe_shade = max(0, shade - 6)
+            for stripe_y in range(0, h, 16):
+                draw.rectangle((x - col_w / 2, stripe_y, x + col_w / 2, stripe_y + 3), fill=(stripe_shade, stripe_shade, stripe_shade))
 
 
 def _draw_floor(img, w, h, horizon_y):
@@ -118,9 +128,11 @@ def build_chamber_bg(w, h, seat_r=None, seat_cy=None, skip_seat=None,
     _draw_floor(img, w, h, horizon_y)
     draw = ImageDraw.Draw(img, "RGBA")
 
-    # LED panel (tavanda asili)
+    # LED panel (tavanda asili) - ofisteki sicak neon isaretten esinlenerek
+    # amber'e cevrildi (eskiden teal idi).
     panel_h_base = w if panel_h_basis == "w" else h
-    _draw_led_panel(draw, w / 2, int(h * 0.06), int(w * panel_w_ratio), int(panel_h_base * panel_h_ratio), (95, 212, 196))
+    amber_rgb = tuple(int(AMBER.lstrip("#")[j:j+2], 16) for j in (0, 2, 4))
+    _draw_led_panel(draw, w / 2, int(h * 0.06), int(w * panel_w_ratio), int(panel_h_base * panel_h_ratio), amber_rgb)
 
     # Sabit 5 koltuk - kucuk, sonuk, arka planda (Aura ortada/yuksekte)
     if seat_r is None:
