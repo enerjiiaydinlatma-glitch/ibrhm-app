@@ -32,6 +32,14 @@ PATTERN_INSIGHT_CATEGORY = "pattern_insight"
 _ROUTINE_GAP_HOURS = 20
 _INSIGHT_COOLDOWN_DAYS = 14
 
+# PERFORMANS TARAMASI BULGUSU (2026-08-26): asagidaki `httpx.get(...)`
+# her /api/chat isteginde (weather_enabled acikken) Open-Meteo'ya YENI
+# bir TCP+TLS baglantisi aciyordu - tam da asagidaki 2sn timeout
+# yorumunun bahsettigi "sinirli thread pool'u gereksiz yere isgal etme"
+# riskini biraz daha uzatiyordu. Kalici, yeniden kullanilan bir Client
+# ile bu el sikisma gecikmesi ortadan kalkiyor.
+_weather_http = httpx.Client()
+
 
 def _parse_timestamp(value):
     if not value:
@@ -55,7 +63,7 @@ def get_weather_nudge(user: dict) -> str:
         return ""
 
     try:
-        response = httpx.get(
+        response = _weather_http.get(
             OPEN_METEO_URL,
             params={
                 "latitude": lat,

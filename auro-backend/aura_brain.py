@@ -68,6 +68,20 @@ _client = genai.Client(
     http_options=types.HttpOptions(timeout=12000),
 )
 
+# PERFORMANS TARAMASI BULGUSU (2026-08-26): Groq'a giden HER cagri
+# (_extract_with_groq arka planda HER mesajda, _groq_text Gemini
+# cokunce, transcribe_with_groq sesli yedek modunda) modul-seviyesi
+# `httpx.post(...)` kisayolunu kullaniyordu - bu her seferinde YENI bir
+# TCP+TLS baglantisi acip cagri bitince kapatiyor demek. Ayni sunucuya
+# (Groq) tekrar tekrar bu kadar sik gidilirken, her seferinde tam
+# el sikisma (handshake) gecikmesini yeniden odemek gereksiz ve bu
+# gecikme FastAPI'nin sinirli worker thread pool'unu (bkz. Gemini
+# timeout notlari yukarida) daha UZUN sure isgal ediyordu. Tek, kalici
+# bir Client ile baglanti "keep-alive" tutulup yeniden kullaniliyor -
+# davranis (istek/yanit formati, hata isleme) AYNEN korunuyor, sadece
+# alt taraftaki TCP baglantisi paylasiliyor.
+_groq_http = httpx.Client()
+
 FAMILIARITY_THRESHOLD = 40
 MEMORY_AUTO_PROMOTE_THRESHOLD = 0.7
 TANISMA_THRESHOLD = 6
@@ -541,7 +555,7 @@ def transcribe_with_groq(audio_bytes: bytes, filename: str = "audio.wav") -> str
     taraf bunu "seni duyamadim" gibi nazik bir cevaba cevirsin diye.
     """
     try:
-        response = httpx.post(
+        response = _groq_http.post(
             GROQ_WHISPER_URL,
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             files={"file": (filename, audio_bytes, "audio/wav")},
@@ -563,7 +577,7 @@ def _groq_text(contents, system_instruction, max_attempts=1):
     yerine gercek bir Aura cevabi uretsin diye Groq'a duser.
     """
     messages = _contents_to_groq_messages(contents, system_instruction)
-    response = httpx.post(
+    response = _groq_http.post(
         GROQ_URL,
         headers={
             "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -754,7 +768,7 @@ Baska hicbir sey yazma.
 
 
 def _extract_with_groq(prompt: str) -> str:
-    response = httpx.post(
+    response = _groq_http.post(
         GROQ_URL,
         headers={
             "Authorization": f"Bearer {GROQ_API_KEY}",

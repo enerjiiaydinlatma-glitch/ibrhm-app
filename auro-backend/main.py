@@ -86,6 +86,13 @@ client = genai.Client(
     api_key=api_key,
     http_options=types.HttpOptions(timeout=12000),
 )
+# PERFORMANS TARAMASI BULGUSU (2026-08-26): /api/tts, ElevenLabs'e her
+# seferinde `httpx.post(...)` kisayoluyla YENI bir TCP+TLS baglantisi
+# aciyordu - Aura'nin hemen her cevabinda tetiklendigi icin (sesli
+# okuma) bu, gereksiz el sikisma gecikmesini her defasinda tekrar
+# odemek demekti. aura_brain.py'deki Groq istemcisiyle ayni desen:
+# tek, kalici bir Client baglantiyi "keep-alive" ile yeniden kullaniyor.
+elevenlabs_http = httpx.Client()
 database.init_db()
 aura_memory.init_memory_db()
 app = FastAPI()
@@ -910,7 +917,7 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
     }
 
     try:
-        r = httpx.post(
+        r = elevenlabs_http.post(
             url,
             json=payload,
             headers=headers,
