@@ -805,10 +805,28 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
     normalized = message_text.strip().lower()
     if len(normalized) > 80:
         return False
-    try:
-        matched = bcrypt.checkpw(normalized.encode(), stored_hash.encode())
-    except (ValueError, TypeError):
-        return False
+    # KOD INCELEMESI BULGUSU (2026-08-27, sesli yedek modu eklenince):
+    # kod cumlesi TIPIK OLARAK yazarak (noktalamasiz) belirleniyor, ama
+    # sesli yedek modda (Groq Whisper) ayni cumle soylenince transkript
+    # sona bir nokta/virgul EKLEYEBILIYOR - bcrypt tam-metin karsilastirmasi
+    # bu farkla sessizce basarisiz olup gizli modun hic acilmamasina (ya da
+    # gizli bir mesajin yanlislikla GORUNUR kaydedilmesine) yol acabilirdi.
+    # set_secret_phrase() cumleyi degistirmeden (sadece strip+lower) hash'liyor,
+    # o yuzden STORED HASH'e dokunmadan, gelen ADAY metni sondaki yaygin
+    # noktalama isaretlerinden ARINDIRILMIS haliyle de deniyoruz - orijinal
+    # (noktalamali) hali zaten ilk once denenir, hicbir davranis kaybolmaz.
+    candidates = [normalized]
+    stripped_punct = normalized.rstrip(".,!?;:…\"'")
+    if stripped_punct and stripped_punct != normalized:
+        candidates.append(stripped_punct)
+    matched = False
+    for candidate in candidates:
+        try:
+            if bcrypt.checkpw(candidate.encode(), stored_hash.encode()):
+                matched = True
+                break
+        except (ValueError, TypeError):
+            return False
     if not matched:
         return False
     with db_cursor(commit=True) as conn:

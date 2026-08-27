@@ -660,9 +660,18 @@ def clear_memories(user_id: int):
 def get_memory_context(
     user_id: int,
     max_memories: int = 20,
+    memories: Optional[List[dict]] = None,
 ) -> str:
-
-    memories = get_memories(user_id)[:max_memories]
+    # VERIMLILIK INCELEMESI BULGUSU (2026-08-27): build_system_instruction
+    # her turda bu fonksiyonu VE aura_lifestyle.get_lifestyle_nudges'i
+    # (o da kendi icinde 4 ayri nudge fonksiyonunu) cagiriyordu - hepsi
+    # AYNI kullanicinin hafizasini birbirinden habersiz, ayri ayri SQLite
+    # sorgulariyla cekiyordu. `memories` onceden cekilip verilirse tekrar
+    # sorgulanmiyor - davranis AYNEN korunuyor (aynen once oldugu gibi
+    # importance/updated_at sirali, sadece kim cektigi degisiyor).
+    if memories is None:
+        memories = get_memories(user_id)
+    memories = memories[:max_memories]
 
     if not memories:
         return ""

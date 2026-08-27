@@ -1,4 +1,5 @@
-﻿import "dart:ui";
+﻿import "dart:async";
+import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -541,6 +542,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     _dio.close();
+    // KOD INCELEMESI BULGUSU (2026-08-27): TtsService.instance paylasilan
+    // bir singleton, ekranin kendi omrune bagli degil - bu ekran kapanirken
+    // (orn. cikis yapilip login ekranina donulurken) o an calan bir
+    // ElevenLabs/yerel TTS sesi durdurulmadan devam edebiliyordu. Servisin
+    // KENDISI dispose edilmiyor (baska ekranlar hala kullanabilir), sadece
+    // o anki ses durduruluyor.
+    unawaited(TtsService.instance.stop());
     super.dispose();
   }
 

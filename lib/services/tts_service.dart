@@ -84,4 +84,27 @@ class TtsService {
       }
     }
   }
+
+  /// KOD INCELEMESI BULGUSU (2026-08-27): TtsService islem-genelinde
+  /// paylasilan bir singleton - artik chat_screen.dart'in KENDI
+  /// AudioPlayer/FlutterTts alanlari yok, hepsi buraya delege ediyor.
+  /// Ama chat_screen.dart'in dispose()'u SADECE kendi _controller/
+  /// _scrollController/_dio'sunu kapatiyordu - singleton'in sesi
+  /// ekran kapandiktan (orn. cikis yapip login ekranina donuldukten)
+  /// SONRA bile calmaya devam edebiliyordu, cunku hicbir yerde
+  /// durdurulmuyordu. Ekranlar kapanirken (dispose) bunu cagirip
+  /// o an calan sesi durdurabilir - singleton'in KENDISI (AudioPlayer/
+  /// FlutterTts nesneleri) dispose EDILMIYOR, sadece o anki sesi
+  /// durduruyoruz, cunku baska bir ekran (orn. sesli gorusme yedek
+  /// modu) ayni servisi hemen sonra tekrar kullanabilir.
+  Future<void> stop() async {
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+    if (_localTtsReady) {
+      try {
+        await _localTts.stop();
+      } catch (_) {}
+    }
+  }
 }

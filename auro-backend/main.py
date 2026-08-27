@@ -777,6 +777,19 @@ def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[s
     if not transcript:
         return {"transcript": "", "reply": "Seni duyamadım, tekrar dener misin?"}
 
+    # KOD INCELEMESI BULGUSU (2026-08-27): ChatRequest.message'daki
+    # Field(max_length=4000) siniri sadece /api/chat'in Pydantic
+    # katmaninda uygulaniyordu - _process_chat_message ORTAK govdeye
+    # cikarilinca bu ucun (ses -> Whisper transkripti) hicbir uzunluk
+    # sinirindan gecmedigi ortaya cikti. Uzun bir "basili tut konus"
+    # kaydi (VoiceFallbackRequest 15MB'a kadar izin veriyor, dakikalarca
+    # surebilir) 4000 karakteri kolayca asan bir transkripte donusup
+    # sinirsiz sekilde DB'ye ve Gemini/Groq baglamina gidebilirdi. Aynı
+    # sinira burada da uyuyoruz - reddetmek yerine kirpiyoruz (kullanicinin
+    # kaydini bosa harcamamak icin, /api/chat'teki 422 yerine).
+    if len(transcript) > 4000:
+        transcript = transcript[:4000]
+
     result = _process_chat_message(user, transcript)
     result["transcript"] = transcript
     return result

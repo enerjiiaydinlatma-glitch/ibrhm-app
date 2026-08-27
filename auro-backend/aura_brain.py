@@ -467,8 +467,14 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     if user.get("name"):
         isim_notu = "Kullanicinin adi " + str(user.get("name")) + ". "
     context = get_context_summary(user["id"])
-    memory_context = aura_memory.get_memory_context(user["id"])
-    lifestyle_nudges = aura_lifestyle.get_lifestyle_nudges(user)
+    # VERIMLILIK INCELEMESI BULGUSU (2026-08-27): asagidaki iki cagri
+    # (get_memory_context + get_lifestyle_nudges) birbirinden habersiz
+    # AYNI kullanicinin hafizasini ayri ayri cekiyordu (ikincisi kendi
+    # icinde 4 kez daha) - tek seferlik bir cekimle 5 SQLite sorgusu 1'e
+    # indi, davranis degismedi.
+    shared_memories = aura_memory.get_memories(user["id"])
+    memory_context = aura_memory.get_memory_context(user["id"], memories=shared_memories)
+    lifestyle_nudges = aura_lifestyle.get_lifestyle_nudges(user, memories=shared_memories)
     style = database.style_vector_from_user(user)
     warmth_label = _style_bucket(style["warmth"], "mesafeli", "dengeli", "sicak")
     formality_label = _style_bucket(style["formality"], "resmi", "dengeli", "samimi")
