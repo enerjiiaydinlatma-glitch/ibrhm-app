@@ -736,6 +736,14 @@ Ingilizce KALMALI.
   -> CATEGORY: upcoming_event
 - evcil hayvani -> CATEGORY: evcil_hayvan
 - korkulari -> CATEGORY: korkular
+- artik kullanmadigi, atacagi, elden cikarmayi dusundugu SOMUT bir esya
+  (ornek: "eski bisikletimi hic kullanmiyorum artik") -> CATEGORY:
+  kullanilmayan_esya (DIKKAT: soyut bir hedef/plan degil, elle tutulur
+  bir esya olmali - "daha az harcamak istiyorum" gibi bir sey buraya
+  GIRMEZ, o "hedefler")
+- satin almayi/edinmeyi dusundugu SOMUT bir urun/esya (ornek: "yeni bir
+  laptop almayi dusunuyorum") -> CATEGORY: istenen_urun (ayni sekilde
+  somut bir esya olmali, soyut bir hedef degil)
 - yukaridaki listeye hic uymayan, ama yine de degerli bir bilgi ise:
   kisa (1-2 kelime), Turkce, kucuk harf, alt cizgiyle ayrilmis YENI bir
   kategori adi uydurabilirsin - ama ONCE yukaridaki listeye bakip

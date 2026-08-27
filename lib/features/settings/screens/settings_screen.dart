@@ -94,6 +94,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'en_buyuk_korku': 'Korkular',
     'fear': 'Korkular',
     'pattern_insight': 'Fark Edilen Örüntü',
+    'kullanilmayan_esya': 'Kullanılmayan Eşya',
+    'istenen_urun': 'İstenen Ürün',
   };
 
   /// Yukaridaki sabit listede olmayan (LLM'in uretebilecegi herhangi bir)

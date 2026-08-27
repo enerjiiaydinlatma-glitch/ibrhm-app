@@ -10,6 +10,7 @@ sistem promptuna birer "YASAM IPUCU" cumlesi olarak eklenir.
 Kategori sozlesmesi (aura_memory'deki serbest metin category kolonunda):
 - "routine"        -> aliskanliklar (kahve, yuruyus, uyku ...)
 - "upcoming_event" -> takip edilecek gundem (toplanti, sinav, randevu ...)
+- "kullanilmayan_esya" / "istenen_urun" -> asagida DEGER FISILTISI notuna bak.
 """
 
 from datetime import datetime, timezone
@@ -31,6 +32,21 @@ UPCOMING_EVENT_CATEGORY = "upcoming_event"
 PATTERN_INSIGHT_CATEGORY = "pattern_insight"
 _ROUTINE_GAP_HOURS = 20
 _INSIGHT_COOLDOWN_DAYS = 14
+
+# DEGER FISILTISI (2026-08-26, "Aura Value Intelligence" konseptinin
+# KUCULTULMUS ilk denemesi - bkz. Value Intelligence Dosyasi artifact'i):
+# kullanicinin kendi hafizasinda hem "kullanmadigi/atacagi bir esya" hem
+# "almak istedigi bir urun" varsa, Aura bunu sohbette FARK ETTIREBILIR.
+# BILEREK DAR TUTULDU: Aura kendi ici bir eslestirme/takas motoru KURMUYOR,
+# baska kullanicilarla eslestirmiyor, para/eşya tasimiyor - sadece VAR OLAN
+# pazarlara (sahibinden, dolapdolu, Facebook Marketplace) yonlendirebiliyor.
+# Boylece: (1) likidite sorunu yok (var olan pazarlarin likiditesini
+# kullaniyor), (2) escrow/dolandiricilik riski yok (Aura eli hic degmiyor),
+# (3) "sosyal ozellik yok" ilkesini bozmuyor (hala 1:1 Aura<->kullanici,
+# baska kullanicilarla hicbir baglanti kurulmuyor).
+IDLE_ASSET_CATEGORY = "kullanilmayan_esya"
+WANTED_ITEM_CATEGORY = "istenen_urun"
+_VALUE_WHISPER_COOLDOWN_DAYS = 10
 
 # PERFORMANS TARAMASI BULGUSU (2026-08-26): asagidaki `httpx.get(...)`
 # her /api/chat isteginde (weather_enabled acikken) Open-Meteo'ya YENI
@@ -205,6 +221,62 @@ def get_insight_nudge(user_id: int) -> str:
     return "ORUNTU FARKINDALIGI: " + insight["memory_value"]
 
 
+def get_value_whisper_nudge(user_id: int) -> str:
+    """
+    "Fark ettim fisiltisi" - Value Intelligence konseptinin Katman 0'i.
+    get_insight_nudge ile AYNI soguma deseni: son _VALUE_WHISPER_COOLDOWN_DAYS
+    icinde bir esleme zaten gosterildiyse, yenisi olsa bile tekrar
+    GOSTERILMEZ - her mesajda "bak bunu satabilirsin" demesin diye.
+
+    ONEMLI: buradaki metin Aura'ya eslestirmeyi/aracilik etmeyi degil,
+    SADECE fark ettirip var olan pazarlara yonlendirmeyi soyluyor - bkz.
+    yukaridaki IDLE_ASSET_CATEGORY/WANTED_ITEM_CATEGORY yorumu.
+    """
+    memories = aura_memory.get_memories(user_id)
+    idle_items = [m for m in memories if m.get("category") == IDLE_ASSET_CATEGORY]
+    wanted_items = [m for m in memories if m.get("category") == WANTED_ITEM_CATEGORY]
+
+    if not idle_items or not wanted_items:
+        return ""
+
+    now = datetime.now(timezone.utc)
+
+    used_timestamps = [
+        ts
+        for ts in (
+            _parse_timestamp(m.get("last_used_at")) for m in idle_items + wanted_items
+        )
+        if ts is not None
+    ]
+    if used_timestamps:
+        hours_since_last_use = (now - max(used_timestamps)).total_seconds() / 3600
+        if hours_since_last_use < _VALUE_WHISPER_COOLDOWN_DAYS * 24:
+            return ""
+
+    # Tercihen daha once hic yuzeye cikarilmamis bir cift sec - ayni
+    # esyayi/istegi hep tekrar tekrar "fark etmis" gibi gorunmesin.
+    idle = next((m for m in idle_items if not m.get("last_used_at")), idle_items[0])
+    wanted = next((m for m in wanted_items if not m.get("last_used_at")), wanted_items[0])
+
+    try:
+        aura_memory.mark_memory_used(user_id, idle["id"])
+        aura_memory.mark_memory_used(user_id, wanted["id"])
+    except Exception:
+        pass
+
+    return (
+        "YASAM IPUCU - DEGER FARKINDALIGI: Kullanicinin kullanmadigi/atacagi "
+        "'" + idle["memory_value"] + "' ile almak istedigi "
+        "'" + wanted["memory_value"] + "' hafizanda var. Sohbetin akisi "
+        "dogal olarak izin veriyorsa (ZORLAMA, her sohbette bahsetme), "
+        "kullanmadigi seyi satarak/takas ederek istedigine ulasabilecegini "
+        "nazikce fark ettirebilirsin - istersen sahibinden.com, dolapdolu "
+        "veya Facebook Marketplace gibi VAR OLAN bir pazari onerebilirsin. "
+        "KENDIN eslestirme/araciliK YAPMA, baska kullanicilardan bahsetme - "
+        "sadece fark ettir, gerisini kullaniciya birak."
+    )
+
+
 def get_reminder_nudge(user_id: int) -> str:
     """
     Kullanici istegi (2026-08-26): "haftaya persembe maca gidecegim,
@@ -237,5 +309,6 @@ def get_lifestyle_nudges(user: dict) -> str:
         get_followup_nudge(user["id"]),
         get_insight_nudge(user["id"]),
         get_reminder_nudge(user["id"]),
+        get_value_whisper_nudge(user["id"]),
     ]
     return " ".join(p for p in parts if p)
