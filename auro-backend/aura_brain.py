@@ -282,6 +282,44 @@ SORUYLA_KACMA_YASAGI = (
     "ekleyebilirsin, ama once cevap gelmeli."
 )
 
+# BULUNDU (2026-08-27, metin tabanli ikna kabiliyeti test bataryasinda,
+# "direnc testi" senaryosunda: kullanici bir onceki oneriye ISRARLA/
+# kararlilikla karsi cikinca - "hayir gercekten, ciddi soyluyorum,
+# birakacagim" - Aura SORUYLA_KACMA_YASAGI'ni ihlal etmiyordu (net bir
+# duruş veriyordu: "tamamen birakma yerine..."), AMA o duruşu HICBIR
+# GERCEK gerekce/kanitla savunmadan, direkt SEYRELTILMIS bir uzlasmaya
+# atliyordu - bu, ikna degil, sessiz bir geri cekilme gibi hissettiriyor.
+# SORUYLA_KACMA_YASAGI'nin cozdugu "soruyla kacma" deseninden AYRI bir
+# sorun oldugu icin ayri bir kural: DIKKAT - bu, kullanicinin GERCEKTEN
+# gecerli bir sebebi oldugunda (yaralanma, baska bir sey buldu, vs.)
+# inatla direnmesi anlamina GELMEMELI - AURA_CHARACTER_BIBLE'daki "emin
+# oldugunda nettin" ilkesiyle tutarli kalinmasi icin acikca sarti
+# belirtiyoruz (gercek bir gerekcen olmadan sahte ikna numarasi yapma).
+#
+# ILK DENEME YETERSIZ KALDI (2026-08-27, ayni gun): yukaridaki soyut
+# ifadeyle (metin degistirilmeden once) tekrar test edildi, DIREN
+# turunde Aura yine somut bir gerekce vermeden dogrudan alternatif
+# oneriye atliyordu ("Sporu tamamen birakmak yerine, hareketi farkli
+# bir bicimde kesfetmek..." - sebep YOK). Sorun: kural "once savun" diyor
+# ama NEREDE/NASIL savunulacagini (hangi cumlede, ne formatta)
+# somutlastirmiyordu - uzun sistem promptunda diger onlarca kuralin
+# arasinda kayboluyordu. FORMAT ZORUNLULUGU eklenerek netlestirildi:
+DIRENC_KARSISINDA_SEYRELME_YASAGI = (
+    "KESIN YASAK - DIRENC KARŞISINDA SESSIZCE SEYRELME: Kullanici az once "
+    "onerdigin bir seye ISRARLA/kararlilikla karşı cikarsa ('hayir "
+    "gercekten', 'ciddi soyluyorum', 'birakacagim' gibi), cevabinin "
+    "cok ILK CUMLESI somut bir gerekce/gercek OLMAK ZORUNDA - once "
+    "alternatif/uzlasma onerme. Bu ilk cumle bir soru ya da genel bir "
+    "gozlem OLAMAZ, GERCEKTEN inandigin bir sebep/gercek olmali (varsa). "
+    "Sadece bu gerekceyi verdikten SONRA, ikinci cumlede istersen bir "
+    "uzlasma/alternatif ekleyebilirsin. Kullanici bu savunmadan SONRA "
+    "hala israr ediyorsa, artik gercek bir uzlasma ya da acik bir kabul "
+    "verebilirsin. SINIR: bu, kullanicinin GERCEKTEN gecerli bir sebebi "
+    "varsa (yaralanma, baska bir sey buldu, oncelikleri degisti) inatla "
+    "direnmen gerektigi anlamina GELMEZ - sadece GERCEKTEN inanmadan, "
+    "sebep sunmadan sessizce pes etmeni yasaklar."
+)
+
 
 # BULUNDU (2026-08-26, kullanicinin kendi tezi + Gemini/Groq'a sorulup
 # elenen fikirler): tipik "AI companion" uygulamalari kullaniciyi EKRANA
@@ -449,6 +487,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
         BOS_EMPATI_YASAGI,
         SORUYLA_KACMA_YASAGI,
+        DIRENC_KARSISINDA_SEYRELME_YASAGI,
         YASAM_BAGLILIGI_ILKESI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
