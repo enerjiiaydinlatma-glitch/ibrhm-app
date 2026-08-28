@@ -10,6 +10,7 @@ import "package:record/record.dart";
 
 import "../../chat/notifier/chat_notifier.dart";
 import "../../../services/auth_service.dart";
+import "../../../services/reminder_service.dart";
 import "../../../services/tts_service.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/mic_level_notifier.dart";
@@ -292,6 +293,10 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       if (reply.isNotEmpty) {
         ref.read(chatProvider.notifier).addAssistantMessage(reply);
         unawaited(TtsService.instance.speak(reply, token: token));
+        // KOD INCELEMESI BULGUSU: bu tur de (yazili sohbetle ayni ortak
+        // govdeden gectigi icin) yeni bir hatirlatma cikarabilir - bkz.
+        // ReminderService.syncFromServer'daki not.
+        unawaited(ReminderService.instance.syncFromServer(token));
       }
     } catch (e) {
       // KOD INCELEMESI BULGUSU: bu hata daha once SADECE debugPrint'e

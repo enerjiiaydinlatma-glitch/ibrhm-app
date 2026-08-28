@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -24,6 +25,12 @@ class ReminderService {
   static final ReminderService instance = ReminderService._();
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 20),
+    ),
+  );
   bool _initialized = false;
   bool _available = false;
 
@@ -68,6 +75,36 @@ class ReminderService {
           ?.requestNotificationsPermission();
     } catch (_) {
       // Android disi platformlarda bu implementasyon zaten yok - normal.
+    }
+  }
+
+  /// KOD INCELEMESI BULGUSU (2026-08-27): eskiden hatirlatma senkronizasyonu
+  /// SADECE chat_screen.dart'in initState()'inde, uygulama acilisinda BIR
+  /// KEZ calisiyordu. Sohbet SIRASINDA yeni bir hatirlatma cikarilirsa
+  /// (ornek: "persembe mac var, bilet almam lazim" mesaji) backend'de
+  /// hemen olusuyordu ama kullanici uygulamayi kapatip ACMADAN yerel bir
+  /// OS bildirimi HICBIR ZAMAN zamanlanmiyordu - tam da kullanicinin
+  /// istedigi "hatirlatma alarmi" ozelligi sessizce calismiyordu. Bu
+  /// metod, sunucudan GUNCEL listeyi cekip yeniden zamanlar - artik hem
+  /// acilista HEM her sohbet turundan sonra (chat_screen.dart, voice_
+  /// call_screen.dart) cagriliyor. Ucuz (kucuk bir GET + birkac yerel
+  /// zamanlama), tekrar cagirmak zararsiz.
+  Future<void> syncFromServer(
+    String token, {
+    String backendUrl = 'https://aura-backend-production-bc9c.up.railway.app',
+  }) async {
+    if (kIsWeb) return;
+    try {
+      await init();
+      await requestPermissions();
+      final response = await _dio.get(
+        '$backendUrl/api/reminders',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final reminders = List<Map<String, dynamic>>.from(response.data as List);
+      await scheduleAll(reminders);
+    } catch (e) {
+      debugPrint('Hatirlatma senkronizasyonu basarisiz: $e');
     }
   }
 

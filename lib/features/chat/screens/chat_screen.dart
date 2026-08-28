@@ -65,21 +65,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // gidecegim, bilet almam lazim" gibi mesajlardan cikarilan hatirlatmalari
   // (backend: aura_reminders.py) bu cihazda yerel bildirim olarak
   // zamanliyor. Basarisiz olursa (izin verilmedi, platform desteklemiyor
-  // vs.) sessizce yutuluyor - sohbeti ASLA etkilememeli.
-  Future<void> _syncReminders() async {
-    try {
-      await ReminderService.instance.init();
-      await ReminderService.instance.requestPermissions();
-      final response = await _dio.get(
-        "$_backendUrl/api/reminders",
-        options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
-      );
-      final reminders = List<Map<String, dynamic>>.from(response.data as List);
-      await ReminderService.instance.scheduleAll(reminders);
-    } catch (e) {
-      debugPrint("Hatirlatma senkronizasyonu basarisiz: $e");
-    }
-  }
+  // vs.) sessizce yutuluyor - sohbeti ASLA etkilememeli. Gercek network/
+  // zamanlama mantigi artik ReminderService.syncFromServer'da paylasilan
+  // - bkz. o metottaki kod incelemesi notu (sadece acilista degil, HER
+  // sohbet turundan sonra da cagrilmasi gerektigi bulundu).
+  Future<void> _syncReminders() =>
+      ReminderService.instance.syncFromServer(widget.token);
 
   Future<void> _checkAnonymousStatus({bool isRetry = false}) async {
     try {
@@ -291,7 +282,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
+    // KOD INCELEMESI BULGUSU: bu mesaj yeni bir hatirlatma cikarabilir
+    // (bkz. aura_reminders.py) - yaniti bekleyip hatirlatmalari yeniden
+    // senkronize ediyoruz ki yerel bildirim uygulama yeniden acilana
+    // kadar beklemeden hemen zamanlansin.
+    ref.read(chatProvider.notifier).sendMessage(text).then((_) => _syncReminders());
   }
 
   void _showVoiceSelector() {
