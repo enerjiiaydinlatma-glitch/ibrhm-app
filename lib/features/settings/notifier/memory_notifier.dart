@@ -48,6 +48,26 @@ class MemoryNotifier extends AsyncNotifier<List<MemoryItem>> {
       rethrow;
     }
   }
+
+  /// Dogal Hafiza: kullanici bir kaydi sabitler/sabitlemeyi kaldirirsa -
+  /// delete() ile ayni iyimser-guncelleme (optimistic update) deseni.
+  Future<void> togglePin(int id) async {
+    final previous = state.value ?? [];
+    final matches = previous.where((m) => m.id == id);
+    if (matches.isEmpty) return;
+    final newPinned = !matches.first.pinned;
+
+    state = AsyncValue.data(
+      previous.map((m) => m.id == id ? m.copyWith(pinned: newPinned) : m).toList(),
+    );
+
+    try {
+      await _repository.setMemoryPinned(id, newPinned);
+    } catch (e) {
+      state = AsyncValue.data(previous);
+      rethrow;
+    }
+  }
 }
 
 final memoryNotifierProvider =

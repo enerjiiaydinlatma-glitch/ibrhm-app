@@ -351,6 +351,11 @@ class ClaimAccountRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(max_length=4000)
 
+# Dogal Hafiza (2026-08-27) - kullanici bir kaydi soluklasmadan muaf
+# tutmak icin sabitleyebilir/sabitlemeyi kaldirabilir.
+class PinMemoryRequest(BaseModel):
+    pinned: bool = True
+
 # "Basili tut konus" yedek sesli mod (2026-08-26, kullanici istegi) -
 # Gemini Live baglanamadiginda kullanilir. image_base64 ile ayni desen:
 # multipart yerine base64 (python-multipart bagimliligi eklemeye gerek
@@ -543,6 +548,19 @@ def delete_memory(memory_id: int, authorization: Optional[str] = Header(None)):
     if not ok:
         raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
     return {"status": "silindi"}
+
+
+@app.post("/api/memories/{memory_id}/pin")
+def pin_memory(memory_id: int, request: PinMemoryRequest, authorization: Optional[str] = Header(None)):
+    """
+    Dogal Hafiza: kullanici "hep hatirla" diyerek bir kaydi soluklasma
+    hesabindan (aura_memory._effective_importance) muaf tutabilir.
+    """
+    user = get_current_user(authorization)
+    ok = aura_memory.set_memory_pinned(user["id"], memory_id, request.pinned)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
+    return {"status": "sabitlendi" if request.pinned else "sabitleme kaldirildi"}
 
 
 @app.get("/api/history")

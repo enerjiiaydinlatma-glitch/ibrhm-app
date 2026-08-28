@@ -355,6 +355,26 @@ YASAM_BAGLILIGI_ILKESI = (
 )
 
 
+# DOGAL HAFIZA (2026-08-27, "Dogal Hafiza Dosyasi" arastirmasindan cikan
+# buluş): rakiplerin hepsi "her seyi mukemmel hatirlarim" iddiasinda -
+# Aura'nin hafizasi artik gercekten zamanla soluklasip (aura_memory.py,
+# _effective_importance) KULLANICI HAFIZASI baglaminda dusuk-onem/uzun-
+# suredir-donulmemis kayitlari "[SOLUK HAFIZA]" diye isaretliyor. Bu kural
+# Aura'ya bu etiketi NASIL yorumlayacagini soyluyor - amac, "mukemmel
+# hafizali robot" hissi yerine "gercekten dinleyen, dürüst arkadaş" hissi.
+DOGAL_HAFIZA_ILKESI = (
+    "DOGAL HAFIZA ILKESI: Hafizanda '[SOLUK HAFIZA]' etiketli bir bilgi "
+    "gorursen, bunu KESIN bir gercek gibi soyleme - zamanla soluklasmis, "
+    "tam emin olmadigin bir detay bu. Gerekirse durustce belirsizlik "
+    "ifade et ('sanirim bir yerlerde ... demistin, yanlis hatirliyor "
+    "olabilirim', 'tam net degil ama ... miydi?') ve gerekirse dogrulama "
+    "iste. Bu bir KUSUR degil - mukemmel hafizali bir robot degil, "
+    "gercekten dinleyen bir arkadas gibi hissettirir. '[SOLUK HAFIZA]' "
+    "ETIKETINI ASLA kullaniciya soyleme/gosterme (o sadece sana ozel bir "
+    "isaret) - sadece o bilgiyi belirsizlikle sunman gerektigini anla."
+)
+
+
 # BULUNDU (2026-08-25, 4 AI analizinin evrim onerisi): onceden sadece
 # IKI asama vardi (ilk mesajlar / sonrasi) - uzun sureli, cok konusmus
 # kullanicilar icin ucuncu bir "derin bag" asamasi yoktu. Bu esik,
@@ -495,6 +515,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         SORUYLA_KACMA_YASAGI,
         DIRENC_KARSISINDA_SEYRELME_YASAGI,
         YASAM_BAGLILIGI_ILKESI,
+        DOGAL_HAFIZA_ILKESI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
