@@ -122,6 +122,13 @@ def init_db():
             # metin tutmuyor (bcrypt, sifreyle ayni desen).
             "ALTER TABLE users ADD COLUMN secret_phrase_hash TEXT",
             "ALTER TABLE users ADD COLUMN hidden_mode_active INTEGER DEFAULT 0",
+            # Reklam/gorunurluk analitigi (2026-08-27, kullanici istegi -
+            # gece raporunda "reklam oncesi analitik/gorunurluk eksikligi"
+            # en kritik bulgu olarak isaretlenmisti, o zamandan beri
+            # cozulmemisti). Serbest metin - hangi reklam/kanaldan geldigini
+            # (ornek: "instagram_agustos") istemcinin ?src= URL parametresinden
+            # yakalayip kayit aninda gonderdigi deger.
+            "ALTER TABLE users ADD COLUMN acquisition_source TEXT DEFAULT ''",
         ):
             try:
                 cursor.execute(migration)
@@ -339,7 +346,8 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 
 def create_user(
-    email: str, password: str, name: str = "", is_anonymous: bool = False
+    email: str, password: str, name: str = "", is_anonymous: bool = False,
+    acquisition_source: str = "",
 ) -> Optional[dict]:
     # GECE DENETIMI BULGUSU: is_anonymous ONCEDEN hic verilmiyordu, bu
     # yuzden semanin varsayilani (1) her zaman gecerli oluyordu - GERCEK
@@ -352,9 +360,12 @@ def create_user(
         with db_cursor(commit=True) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (email, password_hash, name, is_anonymous) "
-                "VALUES (?, ?, ?, ?)",
-                (email.lower().strip(), hash_password(password), name, int(is_anonymous))
+                "INSERT INTO users (email, password_hash, name, is_anonymous, acquisition_source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    email.lower().strip(), hash_password(password), name, int(is_anonymous),
+                    acquisition_source.strip()[:100],
+                )
             )
             user_id = cursor.lastrowid
         return get_user(user_id)
@@ -1041,6 +1052,27 @@ def get_admin_stats() -> dict:
             "AND tier != 'pro' AND daily_voice_seconds >= 600"
         )
 
+        # Reklam/gorunurluk analitigi (2026-08-27): son 30 gunde kaynaga
+        # (acquisition_source) gore yeni kullanici kirilimi - hangi
+        # reklam/kanalin gercekten kullanici getirdigini gormek icin.
+        # Bos kaynak (organik/dogrudan/eski istemci) "belirtilmemis"
+        # olarak grupanıyor.
+        cursor.execute(
+            """
+            SELECT
+                CASE WHEN TRIM(COALESCE(acquisition_source, '')) = ''
+                     THEN 'belirtilmemis' ELSE acquisition_source END AS source,
+                COUNT(*) AS count
+            FROM users
+            WHERE created_at >= date('now', '-30 days')
+            GROUP BY source
+            ORDER BY count DESC
+            """
+        )
+        acquisition_breakdown_30d = [
+            {"source": row[0], "count": row[1]} for row in cursor.fetchall()
+        ]
+
     return {
         "total_users": total_users,
         "new_users_today": new_today,
@@ -1055,4 +1087,5 @@ def get_admin_stats() -> dict:
         "messages_counted_today": messages_counted_today,
         "users_at_message_limit_today": users_at_message_limit_today,
         "users_at_voice_limit_today": users_at_voice_limit_today,
+        "acquisition_breakdown_30d": acquisition_breakdown_30d,
     }

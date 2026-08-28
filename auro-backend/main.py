@@ -1,4 +1,5 @@
-﻿import os
+﻿import html
+import os
 import re
 import secrets
 import time
@@ -333,6 +334,11 @@ class RegisterRequest(BaseModel):
     # BILEREK False gonderiyor, ATIF eksikligi hep eski davranisa
     # (anonim/claim edilebilir) duser, YENI bir kirilma yaratmaz.
     is_anonymous_bootstrap: bool = True
+    # Reklam/gorunurluk analitigi (2026-08-27) - istemci (?src= URL
+    # parametresinden) hangi kanal/kampanyadan geldigini bildirebiliyor.
+    # Serbest metin, sunucu HICBIR sekilde davranis degistirmiyor - sadece
+    # admin panelinde kaynak-bazli kirilim icin saklaniyor.
+    acquisition_source: str = Field(default="", max_length=100)
 
     _validate_email = field_validator("email")(_validate_email_format)
     _validate_password = field_validator("password")(_validate_password_byte_length)
@@ -435,7 +441,8 @@ def register(req: RegisterRequest):
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
     user = database.create_user(
-        req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap
+        req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap,
+        acquisition_source=req.acquisition_source,
     )
     if not user:
         raise HTTPException(status_code=409, detail="Bu email zaten kayitli.")
@@ -1129,6 +1136,29 @@ def _render_admin_dashboard(stats: dict) -> str:
             </div>"""
         for label, value, sub in cards
     )
+
+    # Reklam/gorunurluk analitigi (2026-08-27): kaynak (acquisition_source)
+    # KULLANICI-KONTROLLU, dogrulanmamis serbest metin (kayit istegiyle
+    # geliyor) - burada dogrudan HTML'e gomulurse depolanan (stored) XSS
+    # acigi olur (orn. birisi "src=<script>...</script>" ile kayit olsa,
+    # admin paneli acan HERKESIN tarayicisinda calisirdi). html.escape()
+    # ZORUNLU.
+    breakdown = stats.get("acquisition_breakdown_30d") or []
+    if breakdown:
+        rows_html = "".join(
+            f"<tr><td>{html.escape(str(row['source']))}</td>"
+            f"<td class='num'>{row['count']}</td></tr>"
+            for row in breakdown
+        )
+        breakdown_html = f"""
+        <h2>Son 30 gün - kaynağa göre yeni kullanıcı</h2>
+        <table class="src-table">
+          <thead><tr><th>Kaynak (?src=)</th><th class="num">Yeni kullanıcı</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>"""
+    else:
+        breakdown_html = ""
+
     return f"""<!doctype html>
 <html lang="tr">
 <head>
@@ -1149,6 +1179,7 @@ def _render_admin_dashboard(stats: dict) -> str:
     font-size: 1.4rem; font-weight: 600; margin: 0 0 4px;
     display: flex; align-items: center; gap: 10px;
   }}
+  h2 {{ font-size: 1rem; font-weight: 600; margin: 36px 0 14px; color: #EDEAF7; }}
   .dot {{ width: 8px; height: 8px; border-radius: 50%; background: #00E676; display: inline-block; }}
   .subtitle {{ color: #8A84A8; font-size: 0.85rem; margin-bottom: 32px; }}
   .grid {{
@@ -1163,12 +1194,21 @@ def _render_admin_dashboard(stats: dict) -> str:
   .card-value {{ font-size: 1.9rem; font-weight: 600; color: #FFFFFF; font-variant-numeric: tabular-nums; }}
   .card-sub {{ font-size: 0.75rem; color: #6C63FF; margin-top: 4px; }}
   .refresh {{ color: #8A84A8; font-size: 0.75rem; margin-top: 32px; }}
+  .src-table {{
+    border-collapse: collapse; max-width: 500px; width: 100%;
+    background: #12122A; border: 1px solid #2A2A4A; border-radius: 14px; overflow: hidden;
+  }}
+  .src-table th, .src-table td {{ text-align: left; padding: 10px 16px; font-size: 0.85rem; }}
+  .src-table th {{ color: #8A84A8; font-weight: 500; border-bottom: 1px solid #2A2A4A; }}
+  .src-table td {{ border-bottom: 1px solid #1E1E3A; }}
+  .src-table .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
 </style>
 </head>
 <body>
   <h1><span class="dot"></span>Aura Panel</h1>
   <div class="subtitle">Toplu istatistikler - tek kullanıcı verisi içermez</div>
   <div class="grid">{cards_html}</div>
+  {breakdown_html}
   <div class="refresh">Sayfayı yenileyerek güncel veriyi görebilirsin.</div>
 </body>
 </html>"""

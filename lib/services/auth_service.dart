@@ -75,6 +75,14 @@ class AuthService {
       password,
       'Aura Kullanıcısı',
       isAnonymousBootstrap: true,
+      // Reklam/görünürlük analitiği (2026-08-27, kullanici istegi): bu
+      // fonksiyon her GERCEKTEN yeni cihaz/kullanici icin TEK SEFER
+      // calisir (ilk acilis) - reklam linkine `?src=...` eklenirse
+      // (orn. ".../app/?src=instagram_agustos") hangi kaynaktan geldigini
+      // burada yakaliyoruz. `Uri.base` web'de gercek tarayici URL'sini
+      // dondurur; masaustu/Android'de sorgu parametresi olmayan bir URI
+      // dondurdugu icin bu, o platformlarda zararsizca bos kalir.
+      acquisitionSource: Uri.base.queryParameters['src'] ?? '',
     );
 
     final token = result['token']?.toString();
@@ -139,6 +147,7 @@ class AuthService {
     String password,
     String name, {
     bool isAnonymousBootstrap = false,
+    String acquisitionSource = '',
   }) async {
     final response = await _dio.post(
       '/api/auth/register',
@@ -147,6 +156,7 @@ class AuthService {
         'password': password,
         'name': name,
         'is_anonymous_bootstrap': isAnonymousBootstrap,
+        'acquisition_source': acquisitionSource,
       },
     );
 
