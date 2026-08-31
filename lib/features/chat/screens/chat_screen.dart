@@ -313,7 +313,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Text("Aura Sesi",
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
             ),
-            _voiceTile("female", "KadÄ±n Ses", Icons.face),
+            _voiceTile("female", "Kadın Ses", Icons.face),
             _voiceTile("male", "Erkek Ses", Icons.face_3),
             const SizedBox(height: 16),
           ],

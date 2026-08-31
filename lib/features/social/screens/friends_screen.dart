@@ -88,7 +88,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
-              Text("Ä°stek gÃ¶nderildi!", style: GoogleFonts.poppins()),
+              Text("İstek gönderildi!", style: GoogleFonts.poppins()),
           backgroundColor: _indigo,
         ),
       );
@@ -97,7 +97,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("KullanÄ±cÄ± bulunamadÄ±",
+          content: Text("Kullanıcı bulunamadı",
               style: GoogleFonts.poppins()),
           backgroundColor: Colors.red,
         ),
@@ -141,7 +141,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "ArkadaÅŸlar",
+          "Arkadaşlar",
           style: GoogleFonts.poppins(
               color: Colors.white, fontWeight: FontWeight.w600),
         ),
@@ -153,10 +153,10 @@ class _FriendsScreenState extends State<FriendsScreen>
           labelStyle:
               GoogleFonts.poppins(fontWeight: FontWeight.w600),
           tabs: [
-            const Tab(text: "ArkadaÅŸlar"),
+            const Tab(text: "Arkadaşlar"),
             Tab(
                 text:
-                    "Ä°stekler${_requests.isNotEmpty ? ' (${_requests.length})' : ''}"),
+                    "İstekler${_requests.isNotEmpty ? ' (${_requests.length})' : ''}"),
           ],
         ),
       ),
@@ -188,7 +188,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                       style: GoogleFonts.poppins(
                           color: Colors.white, fontSize: 14),
                       decoration: const InputDecoration(
-                        hintText: "Email ile arkadaÅŸ ekle...",
+                        hintText: "Email ile arkadaş ekle...",
                         prefixIcon: Icon(
                             Icons.person_add_outlined,
                             color: Colors.white38),
@@ -241,7 +241,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     if (_friends.isEmpty) {
       return Center(
         child: Text(
-          "HenÃ¼z arkadaÅŸ yok.\nEmail ile ekle!",
+          "Henüz arkadaş yok.\nEmail ile ekle!",
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
               color: Colors.white38, fontSize: 14),
@@ -253,7 +253,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       padding: const EdgeInsets.all(16),
       itemCount: _friends.length,
       itemBuilder: (context, i) => _friendTile(
-        name: _friends[i]["friend_name"] ?? "KullanÄ±cÄ±",
+        name: _friends[i]["friend_name"] ?? "Kullanıcı",
         email: _friends[i]["friend_email"] ?? "",
       ),
     );
@@ -275,7 +275,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       itemCount: _requests.length,
       itemBuilder: (context, i) => _requestTile(
         id: _requests[i]["id"],
-        name: _requests[i]["sender_name"] ?? "KullanÄ±cÄ±",
+        name: _requests[i]["sender_name"] ?? "Kullanıcı",
         email: _requests[i]["sender_email"] ?? "",
       ),
     );
