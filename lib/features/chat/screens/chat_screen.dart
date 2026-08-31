@@ -1,4 +1,5 @@
-﻿import "dart:ui";
+﻿import "dart:async";
+import "dart:ui";
 import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -64,21 +65,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // gidecegim, bilet almam lazim" gibi mesajlardan cikarilan hatirlatmalari
   // (backend: aura_reminders.py) bu cihazda yerel bildirim olarak
   // zamanliyor. Basarisiz olursa (izin verilmedi, platform desteklemiyor
-  // vs.) sessizce yutuluyor - sohbeti ASLA etkilememeli.
-  Future<void> _syncReminders() async {
-    try {
-      await ReminderService.instance.init();
-      await ReminderService.instance.requestPermissions();
-      final response = await _dio.get(
-        "$_backendUrl/api/reminders",
-        options: Options(headers: {"Authorization": "Bearer ${widget.token}"}),
-      );
-      final reminders = List<Map<String, dynamic>>.from(response.data as List);
-      await ReminderService.instance.scheduleAll(reminders);
-    } catch (e) {
-      debugPrint("Hatirlatma senkronizasyonu basarisiz: $e");
-    }
-  }
+  // vs.) sessizce yutuluyor - sohbeti ASLA etkilememeli. Gercek network/
+  // zamanlama mantigi artik ReminderService.syncFromServer'da paylasilan
+  // - bkz. o metottaki kod incelemesi notu (sadece acilista degil, HER
+  // sohbet turundan sonra da cagrilmasi gerektigi bulundu).
+  Future<void> _syncReminders() =>
+      ReminderService.instance.syncFromServer(widget.token);
 
   Future<void> _checkAnonymousStatus({bool isRetry = false}) async {
     try {
@@ -290,7 +282,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
+    // KOD INCELEMESI BULGUSU: bu mesaj yeni bir hatirlatma cikarabilir
+    // (bkz. aura_reminders.py) - yaniti bekleyip hatirlatmalari yeniden
+    // senkronize ediyoruz ki yerel bildirim uygulama yeniden acilana
+    // kadar beklemeden hemen zamanlansin.
+    ref.read(chatProvider.notifier).sendMessage(text).then((_) => _syncReminders());
   }
 
   void _showVoiceSelector() {
@@ -317,7 +313,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Text("Aura Sesi",
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
             ),
-            _voiceTile("female", "KadÄ±n Ses", Icons.face),
+            _voiceTile("female", "Kadın Ses", Icons.face),
             _voiceTile("male", "Erkek Ses", Icons.face_3),
             const SizedBox(height: 16),
           ],
@@ -541,6 +537,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     _dio.close();
+    // KOD INCELEMESI BULGUSU (2026-08-27): TtsService.instance paylasilan
+    // bir singleton, ekranin kendi omrune bagli degil - bu ekran kapanirken
+    // (orn. cikis yapilip login ekranina donulurken) o an calan bir
+    // ElevenLabs/yerel TTS sesi durdurulmadan devam edebiliyordu. Servisin
+    // KENDISI dispose edilmiyor (baska ekranlar hala kullanabilir), sadece
+    // o anki ses durduruluyor.
+    unawaited(TtsService.instance.stop());
     super.dispose();
   }
 

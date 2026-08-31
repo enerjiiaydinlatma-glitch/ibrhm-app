@@ -170,21 +170,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text("AvatarÄ±nÄ± seÃ§", style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
+                    Text("Avatarını seç", style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
                     const SizedBox(height: 24),
 
-                    // Ä°sim
+                    // İsim
                     _glassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Ä°sim", style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
+                          Text("İsim", style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _nameController,
                             style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
                             decoration: InputDecoration(
-                              hintText: "AdÄ±n ne?",
+                              hintText: "Adın ne?",
                               hintStyle: GoogleFonts.poppins(color: Colors.white24),
                               border: InputBorder.none,
                             ),
@@ -224,7 +224,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(height: 12),
                           _biography.isEmpty
                               ? Text(
-                                  "Aura seni tanÄ±dÄ±kÃ§a burada seni anlatan Ã¶zgÃ¼n bir biyografi Ã¼retecek.",
+                                  "Aura seni tanıdıkça burada seni anlatan özgün bir biyografi üretecek.",
                                   style: GoogleFonts.poppins(color: Colors.white24, fontSize: 13, fontStyle: FontStyle.italic),
                                 )
                               : Text(_biography, style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.85), fontSize: 14, height: 1.6)),
@@ -292,7 +292,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Avatar SeÃ§", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+              Text("Avatar Seç", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 16,

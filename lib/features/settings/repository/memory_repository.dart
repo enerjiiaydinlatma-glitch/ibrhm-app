@@ -4,6 +4,7 @@ import '../models/memory_item.dart';
 abstract class MemoryRepository {
   Future<List<MemoryItem>> getMemories();
   Future<void> deleteMemory(int id);
+  Future<void> setMemoryPinned(int id, bool pinned);
 }
 
 class MemoryRepositoryImpl implements MemoryRepository {
@@ -43,6 +44,15 @@ class MemoryRepositoryImpl implements MemoryRepository {
   Future<void> deleteMemory(int id) async {
     await _dio.delete(
       '$baseUrl/api/memories/$id',
+      options: _authOptions,
+    );
+  }
+
+  @override
+  Future<void> setMemoryPinned(int id, bool pinned) async {
+    await _dio.post(
+      '$baseUrl/api/memories/$id/pin',
+      data: {'pinned': pinned},
       options: _authOptions,
     );
   }

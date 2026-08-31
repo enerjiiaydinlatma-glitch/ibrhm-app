@@ -307,6 +307,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Dogal Hafiza (2026-08-27): kullanici bir kaydi "hep hatirla" diye
+  /// sabitleyebilir - bkz. aura_memory.py _effective_importance (sabitli
+  /// kayitlar zamanla soluklasmaz).
+  Future<void> _togglePinMemory(MemoryItem memory) async {
+    try {
+      await ref.read(memoryNotifierProvider.notifier).togglePin(memory.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            memory.pinned ? 'Sabitleme kaldırıldı, zamanla soluklaşabilir' : 'Sabitlendi, hep net hatırlanacak',
+            style: GoogleFonts.poppins(),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('İşlem başarısız, tekrar dene', style: GoogleFonts.poppins())),
+      );
+    }
+  }
+
   Future<void> _logout() async {
     setState(() => _loggingOut = true);
     try {
@@ -675,10 +698,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: Text(memory.memoryValue, style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
                     subtitle: Text(label, style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
-                      tooltip: 'Unut',
-                      onPressed: () => _deleteMemory(memory),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            memory.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                            color: memory.pinned ? _indigoColor : Colors.white38,
+                            size: 20,
+                          ),
+                          tooltip: memory.pinned ? 'Sabitlemeyi kaldır' : 'Hep hatırla (sabitle)',
+                          onPressed: () => _togglePinMemory(memory),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+                          tooltip: 'Unut',
+                          onPressed: () => _deleteMemory(memory),
+                        ),
+                      ],
                     ),
                   ),
                 );

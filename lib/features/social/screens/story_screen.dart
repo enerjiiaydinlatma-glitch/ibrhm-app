@@ -194,7 +194,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(story["author_name"] ?? "KullanÄ±cÄ±", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text(story["author_name"] ?? "Kullanıcı", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 12),

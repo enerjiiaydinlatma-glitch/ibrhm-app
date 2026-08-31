@@ -10,6 +10,7 @@ import "package:record/record.dart";
 
 import "../../chat/notifier/chat_notifier.dart";
 import "../../../services/auth_service.dart";
+import "../../../services/reminder_service.dart";
 import "../../../services/tts_service.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/mic_level_notifier.dart";
@@ -189,25 +190,67 @@ class _VoiceFallbackButton extends ConsumerStatefulWidget {
 
 class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
   static const _indigoColor = Color(0xFF6C63FF);
-  static const _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
   static const _minRecordingBytes = 3200; // ~0.1sn, 16kHz mono 16-bit
 
   final AudioRecorder _recorder = AudioRecorder();
+  // KOD INCELEMESI BULGUSU (2026-08-27): her kayitta SIFIRDAN yeni bir
+  // Dio() olusturuluyordu - tam da bu oturumda backend tarafinda
+  // (_groq_http/elevenlabs_http/_weather_http) duzeltilen "her cagrida
+  // yeniden TCP+TLS el sikismesi" israfinin ayni Flutter tarafindaki
+  // hali. Tek, kalici bir Dio ile baglanti yeniden kullaniliyor.
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 40),
+  ));
   StreamSubscription<Uint8List>? _sub;
   BytesBuilder _buffer = BytesBuilder();
   bool _recording = false;
   bool _sending = false;
+  // KOD INCELEMESI BULGUSU: _startRecording icindeki `await`'ler (izin
+  // dialogu + startStream) tamamlanmadan _recording HALA false - kullanici
+  // parmagini erken kaldirirsa (orn. ilk kullanimda izin dialogunu
+  // onaylamak icin) onLongPressEnd -> _stopAndSend erken calisip
+  // `if (!_recording) return;` ile hicbir sey yapmadan cikiyordu; kayit
+  // birkac an sonra GERCEKTEN baslayip hic durdurulamadan sonsuza kadar
+  // acik kaliyordu. Bu bayrak, "kullanici parmagini cektiginde kaydi
+  // beklemeden durdur" niyetini await'ler boyunca da hatirliyor.
+  bool _releasedBeforeStart = false;
 
   Future<void> _startRecording() async {
     if (_sending || _recording) return;
+    _releasedBeforeStart = false;
     try {
       final hasPermission = await _recorder.hasPermission();
-      if (!hasPermission) return;
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Mikrofon izni verilmedi - cihaz ayarlarindan acabilirsin.")),
+          );
+        }
+        return;
+      }
       _buffer = BytesBuilder();
       final stream = await _recorder.startStream(
-        const RecordConfig(encoder: AudioEncoder.pcm16bits, sampleRate: 16000, numChannels: 1),
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+          // voice_call_notifier.dart'taki ayni fix - bu ucun ONCEDEN
+          // hic acilmadigi, kod incelemesinde bulundu: birincil sesli
+          // gorusme yolu bunu zaten kullaniyordu, yedek buton kendi
+          // AYRI RecordConfig'ini kopyalarken bu ucu miras almamisti.
+          echoCancel: true,
+          autoGain: true,
+          noiseSuppress: true,
+        ),
       );
       _sub = stream.listen((chunk) => _buffer.add(chunk));
+      if (_releasedBeforeStart) {
+        // Kullanici, biz hala izin/baslatma await'lerindeyken parmagini
+        // cekmis - kaydi hic "basladi" saymadan hemen durdurup gonder.
+        unawaited(_stopAndSend());
+        return;
+      }
       if (mounted) setState(() => _recording = true);
     } catch (e) {
       debugPrint("Yedek ses kaydi baslatilamadi: $e");
@@ -215,7 +258,12 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
   }
 
   Future<void> _stopAndSend() async {
-    if (!_recording) return;
+    if (!_recording) {
+      // _startRecording hala await'lerdeyse (izin dialogu vb.) bunu
+      // isaretleyip, o taraf devraldiginda durdurmasini sagliyoruz.
+      _releasedBeforeStart = true;
+      return;
+    }
     if (mounted) setState(() => _recording = false);
     await _sub?.cancel();
     try {
@@ -231,12 +279,8 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       final token = await AuthService().getToken();
       if (token == null) return;
       final wavBytes = _pcm16ToWav(pcmBytes);
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 40),
-      ));
-      final response = await dio.post(
-        "$_backendUrl/api/voice/fallback-turn",
+      final response = await _dio.post(
+        "${TtsService.backendUrl}/api/voice/fallback-turn",
         data: {"audio_base64": base64Encode(wavBytes)},
         options: Options(headers: {"Authorization": "Bearer $token"}),
       );
@@ -249,9 +293,22 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       if (reply.isNotEmpty) {
         ref.read(chatProvider.notifier).addAssistantMessage(reply);
         unawaited(TtsService.instance.speak(reply, token: token));
+        // KOD INCELEMESI BULGUSU: bu tur de (yazili sohbetle ayni ortak
+        // govdeden gectigi icin) yeni bir hatirlatma cikarabilir - bkz.
+        // ReminderService.syncFromServer'daki not.
+        unawaited(ReminderService.instance.syncFromServer(token));
       }
     } catch (e) {
+      // KOD INCELEMESI BULGUSU: bu hata daha once SADECE debugPrint'e
+      // gidiyordu - kullanici konusup birakinca hicbir sey olmuyormus
+      // gibi goruyordu (backend zaten bir Groq/Gemini cagrisi harcamis
+      // olabilecegi halde). Artik kisa bir geri bildirim gosteriliyor.
       debugPrint("Yedek sesli mod hatasi: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ses gönderilemedi, tekrar dener misin?")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -296,6 +353,7 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
   void dispose() {
     _sub?.cancel();
     _recorder.dispose();
+    _dio.close();
     super.dispose();
   }
 
