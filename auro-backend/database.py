@@ -831,8 +831,6 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
         return False
     # Ucuz on-eleme: bir "kod cumlesi" kisa olmali - bcrypt.checkpw
     # (bilerek YAVAS) her mesajda calismasin diye once uzunluk kontrolu.
-    # _normalize_secret_phrase set_secret_phrase ile AYNI (Turkce I-varyant
-    # katlama dahil) normalizasyonu uyguluyor - bkz. o fonksiyonun yorumu.
     normalized = _normalize_secret_phrase(message_text)
     if len(normalized) > 80:
         return False
@@ -846,10 +844,26 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
     # o yuzden STORED HASH'e dokunmadan, gelen ADAY metni sondaki yaygin
     # noktalama isaretlerinden ARINDIRILMIS haliyle de deniyoruz - orijinal
     # (noktalamali) hali zaten ilk once denenir, hicbir davranis kaybolmaz.
+    #
+    # GERIYE-UYUMLULUK DUZELTMESI (aynı gun, ilk fix'ten hemen sonra kendi
+    # kendimi inceleyip buldum): _normalize_secret_phrase'e Turkce I-varyant
+    # katlama (İ/I/ı -> i) EKLENINCE, bu katlamayi DEGISTIREN bir karakter
+    # ICEREN kod cumlesini DAHA ONCE belirlemis kullanicilarin STORED HASH'i
+    # ARTIK ESKI (katlanmamis) normalizasyonla hesaplanmis durumda kaliyor -
+    # yeni normalizasyonla asla eslesmezdi (somut ornek: "yıldız" ESKI
+    # normalizasyonda "yıldız" olarak kaliyordu/hash'lendi, YENI normalizasyon
+    # "yildiz"a katliyor - ayni metin bile artik eski hash'iyle eslesmezdi).
+    # Cozum: LEGACY (fold'suz) normalizasyonu da ayri bir aday olarak
+    # deniyoruz - boylece fold'dan ONCE belirlenmis kod cumleleri CALISMAYA
+    # DEVAM EDIYOR, fold SADECE YENI eslesme ihtimallerini EKLIYOR.
+    legacy_normalized = message_text.strip().lower()
     candidates = [normalized]
-    stripped_punct = normalized.rstrip(".,!?;:…\"'")
-    if stripped_punct and stripped_punct != normalized:
-        candidates.append(stripped_punct)
+    if legacy_normalized != normalized:
+        candidates.append(legacy_normalized)
+    for base in list(candidates):
+        stripped_punct = base.rstrip(".,!?;:…\"'")
+        if stripped_punct and stripped_punct != base and stripped_punct not in candidates:
+            candidates.append(stripped_punct)
     matched = False
     for candidate in candidates:
         try:
