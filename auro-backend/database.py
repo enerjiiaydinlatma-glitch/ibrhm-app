@@ -1073,6 +1073,30 @@ def get_admin_stats() -> dict:
             {"source": row[0], "count": row[1]} for row in cursor.fetchall()
         ]
 
+        # Reklam etkinligini degerlendirmenin diger yarisi: kac kisi
+        # GETIRILDI degil, kac kisi GERI GELDI. 2-14 gun once kayit olan
+        # kullanicilardan, kayit olduklari GUNUN ERTESI GUNU en az bir
+        # mesaj gonderenlerin orani ("gun-1 elde tutma"). Cok yeni kayitlar
+        # (son 2 gun) disarida tutuluyor - henuz "ertesi gun"leri
+        # gecmemis olabilirler, dahil edilirlerse oran yapay dusuk cikar.
+        day1_eligible = scalar(
+            "SELECT COUNT(*) FROM users WHERE date(created_at) "
+            "BETWEEN date('now', '-14 days') AND date('now', '-2 days')"
+        )
+        day1_returned = scalar(
+            """
+            SELECT COUNT(*) FROM users u WHERE date(u.created_at)
+            BETWEEN date('now', '-14 days') AND date('now', '-2 days')
+            AND EXISTS (
+                SELECT 1 FROM messages m WHERE m.user_id = u.id
+                AND date(m.timestamp) = date(u.created_at, '+1 day')
+            )
+            """
+        )
+        day1_retention_pct = (
+            round(100 * day1_returned / day1_eligible, 1) if day1_eligible else None
+        )
+
     return {
         "total_users": total_users,
         "new_users_today": new_today,
@@ -1088,4 +1112,6 @@ def get_admin_stats() -> dict:
         "users_at_message_limit_today": users_at_message_limit_today,
         "users_at_voice_limit_today": users_at_voice_limit_today,
         "acquisition_breakdown_30d": acquisition_breakdown_30d,
+        "day1_retention_pct": day1_retention_pct,
+        "day1_eligible": day1_eligible,
     }

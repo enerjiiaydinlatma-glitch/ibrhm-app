@@ -1127,6 +1127,11 @@ def _render_admin_dashboard(stats: dict) -> str:
         ("Bugünkü sesli görüşme süresi", fmt_min(stats["voice_seconds_today"]), "tüm kullanıcılar toplamı"),
         ("Bugün mesaj limitine ulaşan", stats["users_at_message_limit_today"], "free tier"),
         ("Bugün sesli limite ulaşan", stats["users_at_voice_limit_today"], "free tier"),
+        (
+            "Gün-1 elde tutma",
+            f"%{stats['day1_retention_pct']}" if stats.get("day1_retention_pct") is not None else "—",
+            f"{stats.get('day1_eligible', 0)} kayıt (2-14 gün önce) üzerinden",
+        ),
     ]
     cards_html = "".join(
         f"""<div class="card">
