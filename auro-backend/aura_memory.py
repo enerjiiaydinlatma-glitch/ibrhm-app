@@ -5,6 +5,13 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
+# GECE DENETIMI BULGUSU: bu dosyanin memory_key normalizasyonu, asagidaki
+# yorumun "tek istisna İ/I/ı" dedigi tam o istisnayi hala tasiyordu -
+# database.py'deki fold_turkish_i/fold_turkish_diacritics YAZILDIKTAN
+# SONRA burada hic kullanilmamisti (2 bagimsiz kod-inceleme acisinin
+# BAGIMSIZ olarak yakaladigi bir tutarsizlik).
+import database
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # database.py ile ayni sozlesme: DB_DIR verilirse (Railway kalici disk)
 # oraya, yoksa proje klasorune (yerel gelistirme) yazilir.
@@ -399,10 +406,12 @@ def add_memory(
     # SQL'in LOWER()'ina dayaniyor - bu ASCII-disi karakterlerde (Turkce
     # ı/İ/I/i) dogru calismiyor (sqlite LOWER('İSİM') -> 'İsİm', 'i'
     # olmuyor). "isik_tercihi" ile "Işık_Tercihi" farkli string sayilip
-    # tekillik hic yakalamayabilirdi. Python'un kendi .lower()'i (Unicode
-    # farkindaligi SQL'den daha iyi, tek istisna İ/I/ı ozel harfleri) ile
-    # DEPOLAMA aninda normalize ederek bu riski buyuk olcude azaltiyoruz.
-    memory_key = memory_key.strip().lower()
+    # tekillik hic yakalamayabilirdi.
+    # GECE DENETIMI TAKIP BULGUSU: yukaridaki yorum "Python'un .lower()'i
+    # ile duzeltildi" diyordu ama fold_turkish_i/fold_turkish_diacritics
+    # burada HIC CAGRILMIYORDU - .lower() TEK BASINA İ/I/ı'yi (ve ö/ü/ş/
+    # ç/ğ'yi) dogru katlamiyor. Simdi gercekten uygulaniyor.
+    memory_key = database.fold_turkish_diacritics(database.fold_turkish_i(memory_key)).strip().lower()
 
     with db_cursor(commit=True) as conn:
         cursor = conn.cursor()
@@ -505,8 +514,14 @@ def find_active_memory(
     guvenilir degil) - SQL tarafindaki LOWER(memory_key) sadece ekstra
     bir guvenlik agi, artik zaten depolama aninda kucuk harfe cevrilmis
     degerlerle karsilastiriyor.
+
+    GECE DENETIMI TAKIP BULGUSU: add_memory'deki normalizasyonla AYNI
+    fold_turkish_i/fold_turkish_diacritics adimi burada da uygulanmali -
+    yoksa arama tarafi depolama tarafiyla tutarsiz kalir (add_memory
+    "isik_tercihi" diye katliyor ama burasi "Işık_Tercihi" arasa hicbir
+    zaman eslesmezdi).
     """
-    memory_key = memory_key.strip().lower()
+    memory_key = database.fold_turkish_diacritics(database.fold_turkish_i(memory_key)).strip().lower()
 
     with db_cursor() as conn:
         cursor = conn.cursor()

@@ -39,6 +39,17 @@ class ReminderService {
   // kacirmayacak makul bir varsayilan.
   static const int _defaultHour = 10;
 
+  // GECE DENETIMI BULGUSU (kod incelemesinde iki BAGIMSIZ acidan
+  // yakalandi): syncFromServer artik HER sohbet turunden sonra
+  // cagriliyor (bkz. asagidaki yorum). _scheduleOne'daki "remind_at
+  // gectiyse hemen simdi goster" dali, resync HER cagrildiginda ayni
+  // id icin YENIDEN "simdi+5sn" planliyordu - yani remind_at gectikten
+  // sonra kullanici o gun sohbet etmeye devam ettikce AYNI hatirlatma
+  // HER MESAJDAN SONRA tekrar bildirim olarak patliyordu. Surec-ici
+  // (in-memory) bu set, gecmis-zamanli "hemen goster" davranisinin bir
+  // id icin bu oturumda sadece BIR KEZ tetiklenmesini saglar.
+  final Set<int> _firedOverdueIds = {};
+
   Future<void> init() async {
     if (_initialized || kIsWeb) return;
     _initialized = true;
@@ -128,11 +139,19 @@ class ReminderService {
     if (date == null) return;
 
     final scheduled = tz.TZDateTime.local(date.year, date.month, date.day, _defaultHour);
+    final now = tz.TZDateTime.now(tz.local);
+    final isOverdue = scheduled.isBefore(now);
+    if (isOverdue) {
+      // Bu id icin gecmis-zamanli "hemen goster" davranisi bu oturumda
+      // zaten bir kez tetiklendiyse tekrar planlama - spam'i onler.
+      if (_firedOverdueIds.contains(id)) return;
+      _firedOverdueIds.add(id);
+    } else {
+      _firedOverdueIds.remove(id);
+    }
     // Zaten gecmis bir saate denk geliyorsa (ornek: bugun ama saat 10'u
     // gectiyse) hemen simdi goster - sessizce atlamak yerine.
-    final effective = scheduled.isBefore(tz.TZDateTime.now(tz.local))
-        ? tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5))
-        : scheduled;
+    final effective = isOverdue ? now.add(const Duration(seconds: 5)) : scheduled;
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(

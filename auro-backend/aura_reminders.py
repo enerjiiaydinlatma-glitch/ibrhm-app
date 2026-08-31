@@ -50,7 +50,13 @@ _EVENT_WORDS = (
 
 
 def _looks_schedulable(message: str) -> bool:
-    text = message.lower()
+    # GECE DENETIMI BULGUSU: kriz/ruh-hali tespitindeki AYNI sinif hata
+    # burada da vardi - duz .lower() Turkce ı/İ/I'yi ayirt etmiyor ve
+    # ö/ü/ş/ç/ğ'yi hic ele almiyor ("Perşembe" gibi dogru yazilmis bir
+    # gun adi "persembe"yle eslesmeyebilirdi). Guvenlik-kritik degil
+    # (en kotu ihtimalle hatirlatma on-elemesi sessizce gecmez) ama ayni
+    # tutarlilik icin duzeltildi.
+    text = database.fold_turkish_diacritics(database.fold_turkish_i(message)).lower()
     return any(w in text for w in _DATE_WORDS) and any(w in text for w in _EVENT_WORDS)
 
 

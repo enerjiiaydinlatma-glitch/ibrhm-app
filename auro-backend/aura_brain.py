@@ -617,9 +617,26 @@ def _gemini_text(contents, system_instruction, max_attempts=3):
 
 
 def _contents_to_groq_messages(contents, system_instruction):
+    # BULUNDU (gece denetimi, canli production'da yakalandi): Gemini'nin
+    # kendi API'si `contents=` parametresini HEM duz bir string HEM DE
+    # Content nesnelerinden olusan bir liste olarak kabul ediyor (bkz.
+    # generate_onboarding_opening -> _ONBOARDING_TRIGGER, duz bir string
+    # geciriyor). Bu fonksiyon SADECE liste seklini biliyordu - Gemini
+    # basarisiz olup Groq'a dusuldugunde `for item in contents` bir
+    # string'in TEK TEK KARAKTERLERINDE donuyor, her karakterin .parts'i
+    # olmadigi icin AttributeError firlatiyordu. Sonuc: yeni bir
+    # kullanicinin ilk acilista gordugu karsilama mesaji (/api/chat/
+    # greeting), Gemini o an yavas/hatali oldugunda (bu oturum boyunca
+    # sikca oldugu gibi) Groq'a duserken CIPLAK 500'e dusuyordu - en
+    # kritik ilk-izlenim anini kirıyordu. Fix: Groq adaptoru de Gemini'yle
+    # AYNI iki sekli kabul etsin (bandaid yerine genellenmis fix).
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
+    if isinstance(contents, str):
+        if contents:
+            messages.append({"role": "user", "content": contents})
+        return messages
     for item in contents:
         role = "assistant" if getattr(item, "role", "user") == "model" else "user"
         text = "".join(
@@ -933,6 +950,22 @@ def _format_existing_memories_for_prompt(user_id: int) -> str:
 
     if not existing:
         return "(henuz hafizada kayitli bilgi yok)"
+
+    # GECE DENETIMI BULGUSU: get_memories() artik Dogal Hafiza'nin
+    # SOLUKLASMA-AYARLI effective_importance'ina gore sirali donuyor
+    # (bkz. aura_memory.py) - bu, kullaniciya GORUNEN canli sohbet
+    # baglaminda (get_memory_context) dogru bir davranis. AMA bu
+    # fonksiyon farkli bir ise hizmet ediyor: LLM'e "zaten kayitli olan"
+    # ozetini vererek YINELENEN/CELISEN kayit olusmasini onluyor (bu
+    # dosyanin ustundeki docstring'in ta kendisi). Eger 40'tan fazla
+    # hafizasi olan bir kullanicinin ESKI-AMA-HALA-DOGRU bir gercegi
+    # (uzun suredir tekrar edilmemis) soluklasmadan asagi duserse, bu
+    # ozette GORUNMEYEBILIR - LLM onu "yeni bilgi" saniyor ve TAM DA bu
+    # fonksiyonun onlemesi gereken yinelenen kayit hatasini yeniden
+    # yaratiyor. Dedup baglami icin HAM (soluklasmamis) importance'a gore
+    # yeniden siralayip 40'i ONDAN aliyoruz - decay SADECE kullaniciya
+    # gorunen tarafta gecerli olmali, dahili eslesme mantiginda degil.
+    existing = sorted(existing, key=lambda m: m.get("importance", 0.5) or 0.5, reverse=True)
 
     lines = []
     for m in existing[:40]:
