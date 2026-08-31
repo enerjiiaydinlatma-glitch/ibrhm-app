@@ -250,7 +250,12 @@ MOOD_KEYWORDS = {
     "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim",
               "happy", "great", "wonderful", "delighted"],
     "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk",
-              "sad", "upset", "down", "depressed", "unhappy"],
+              # GECE DENETIMI BULGUSU: "down" burada duz bir alt-dize
+              # eslesmesiyle ("downtown", "download", "breakdown" gibi
+              # ALAKASIZ kelimeleri de yanlislikla "uzgun" olarak
+              # etiketliyordu) - cikarildi, "feeling down" gibi daha
+              # spesifik bir ifade eklendi.
+              "sad", "upset", "feeling down", "depressed", "unhappy"],
     "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var",
                "tired", "exhausted", "sleepy", "worn out"],
     "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim",
@@ -261,11 +266,12 @@ MOOD_KEYWORDS = {
 
 
 def detect_mood(text: str) -> str | None:
-    # bkz. database.fold_turkish_i - Python'un .lower()'i Turkce ı/İ/I
-    # varyantlarini ayirt etmiyor, kelime listeleri ASCII yazilmis oldugu
-    # icin dogru Turkce yazimla (orn. "kaygılı") yazan bir kullanicinin
-    # ifadesi eslesmeyebilirdi.
-    lowered = database.fold_turkish_i(text).lower()
+    # bkz. database.fold_turkish_i / fold_turkish_diacritics - Python'un
+    # .lower()'i Turkce ı/İ/I varyantlarini ayirt etmiyor, ve ayrica
+    # ö/ü/ş/ç/ğ gibi diger Turkce harfler ASCII'den TAMAMEN FARKLI
+    # karakterler (locale sorunu degil) - ikisi de dogru yazan bir
+    # kullanicinin ifadesini kacirabilirdi.
+    lowered = database.fold_turkish_diacritics(database.fold_turkish_i(text)).lower()
     for mood, keywords in MOOD_KEYWORDS.items():
         if any(kw in lowered for kw in keywords):
             return mood
@@ -344,8 +350,20 @@ def _is_crisis_message(text: str) -> bool:
     # dayanamiyorum" ICERMIYOR. Bu, tam da yorumdaki "yanlis negatif =
     # kabul EDILEMEZ risk" ilkesinin ihlaliydi - kriz mesaji dogru
     # yazildigi icin gozden kaciyordu. fold_turkish_i ile duzeltildi.
-    lowered = database.fold_turkish_i(text).lower()
-    return any(kw in lowered for kw in _CRISIS_KEYWORDS)
+    # GECE DENETIMI BULGUSU (2026-08-31/09-01, 3 bagimsiz kod-inceleme
+    # acisinin AYRI AYRI isaret ettigi 2 acik): (1) yukaridaki fold_
+    # turkish_i tek basina ö/ü/ş/ç/ğ'yi kapsamiyordu - "yaşayasım yok"
+    # gibi dogru yazilmis ama diakritik-fold'lanmamis bir ifade
+    # kacabiliyordu (fold_turkish_diacritics ile kapatildi). (2) Ingilizce
+    # kriz kelimelerindeki kesme isareti ("don't", "can't") DUZ ASCII
+    # tirnakla (U+0027) yazilmisti - ama iOS/Android klavyeleri yazarken
+    # OTOMATIK olarak bunu "akilli" egik tirnaga (U+2019, ') cevirir.
+    # "I can't take it anymore" gercek bir telefonda neredeyse HER ZAMAN
+    # egik tirnakla yazilir ve eski kod bunu hic yakalamiyordu - kesme
+    # isaretini normalize eden bir adim eklendi.
+    normalized = database.fold_turkish_diacritics(database.fold_turkish_i(text)).lower()
+    normalized = normalized.replace("’", "'").replace("‘", "'")
+    return any(kw in normalized for kw in _CRISIS_KEYWORDS)
 
 
 

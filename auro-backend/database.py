@@ -785,6 +785,36 @@ def fold_turkish_i(text: str) -> str:
     return text.replace("İ", "i").replace("I", "i").replace("ı", "i")
 
 
+def fold_turkish_diacritics(text: str) -> str:
+    """
+    GECE DENETIMI BULGUSU (4 bagimsiz kod-inceleme acisinin BAGIMSIZ
+    olarak isaret ettigi mimari eksiklik): fold_turkish_i SADECE İ/I/ı
+    ayrimini cozuyor - ama kriz/ruh-hali/hatirlatma anahtar kelime
+    listelerinde ö/ü/ş/ç/ğ icin AYNI sinif sorun, su ana kadar HER
+    KELIME icin ayrica "hem ASCII hem dogru Turkce yazim" ikili-listeleme
+    (dual-listing) ile tek tek bandaid'lendi - yeni bir kelime eklenirken
+    tekrar unutulmaya acik, olceklenmeyen bir desen (somut ornek: bu
+    fonksiyon eklenmeden once "yasayasim yok" kriz kelimesinin dogru
+    Turkce siblingi "yaşayasım yok" hic eklenmemisti - ş harfi yuzunden).
+    Bu fonksiyon Turkce'ye ozgu aksanli harfleri ASCII karsiliklarina
+    indirgiyor - hem kelime listesi hem gelen mesaj bu fonksiyondan
+    gecirilirse dual-listing artik GEREKSIZ hale gelir (mevcut ikili
+    kayitlar zararsizca kalir, tekli/unutulmus kayitlar da artik calisir).
+    fold_turkish_i ile BIRLIKTE kullanilmali (o İ/I/ı'yi, bu digerlerini
+    kapsiyor - ikisi ayri tutuldu cunku fold_turkish_i secret-phrase
+    normalizasyonunda TEK BASINA da kullaniliyor, oradaki davranisi
+    genisletmek istemedik).
+    """
+    table = str.maketrans({
+        "ö": "o", "Ö": "o",
+        "ü": "u", "Ü": "u",
+        "ş": "s", "Ş": "s",
+        "ç": "c", "Ç": "c",
+        "ğ": "g", "Ğ": "g",
+    })
+    return text.translate(table)
+
+
 def _normalize_secret_phrase(phrase: str) -> str:
     # SOMUT KANIT: "yildiz tozu" (ASCII i) ile kullanicinin klavye/IME/
     # ses-transkripsiyonuyla yazabilecegi "yıldız tozu" (Turkce dotless
