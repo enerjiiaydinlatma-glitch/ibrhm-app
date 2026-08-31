@@ -266,10 +266,28 @@ def detect_mood(text: str) -> str | None:
 # sinirli (yanlis pozitif = normal bir sohbette limit atlanmasi, kabul
 # edilebilir bir maliyet; yanlis negatif = gercek bir krizin gozden
 # kacmasi, kabul EDILEMEZ bir risk - o yuzden esik dusuk tutuldu).
+# KOD INCELEMESI BULGUSU (2026-08-27, I-varyant taramasindan cikan ayri
+# ama iliskili bulgu): fold_turkish_i sadece ı/İ/I -> i sorununu cozuyor -
+# asagidaki listede ö/ş gibi DIGER Turkce harfleri ASCII'ye cevrilmis
+# (orn. "oldur" yerine gercek "öldür", "yasamak" yerine "yaşamak")
+# kelimeler VARDI, bunlar .lower()'dan BAGIMSIZ bir sorun (ö != o, ş != s
+# - locale degil, gercekten FARKLI karakterler). Somut olarak dogrulandi:
+# "kendimi öldüreceğim" gibi DOGRU yazili gercek bir kriz ifadesi "kendimi
+# oldur" ile ESLESMIYORDU. Asagida hem ASCII hem dogru-Turkce yazili
+# varyantlar (aura_reminders.py'deki DATE/EVENT kelime listeleriyle AYNI
+# desen) yan yana tutuluyor - fold_turkish_i ile birlikte artik hem I
+# hem diger diakritik varyantlar kapsaniyor.
 _CRISIS_KEYWORDS = [
-    "intihar", "kendime zarar", "kendimi oldur", "yasamak istemiyorum",
-    "olmek istiyorum", "yasamaya deger", "hayatima son", "bitirmek istiyorum",
-    "artik dayanamiyorum", "yasayasim yok", "olsem daha iyi",
+    "intihar", "kendime zarar",
+    "kendimi oldur", "kendimi öldür",
+    "yasamak istemiyorum", "yaşamak istemiyorum",
+    "olmek istiyorum", "ölmek istiyorum",
+    "yasamaya deger", "yaşamaya değer",
+    "hayatima son",
+    "bitirmek istiyorum",
+    "artik dayanamiyorum",
+    "yasayasim yok",
+    "olsem daha iyi", "ölsem daha iyi",
 ]
 
 
