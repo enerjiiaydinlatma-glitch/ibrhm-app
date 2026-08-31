@@ -170,6 +170,27 @@ sun. Kullanici bunu reddederse ya da konusmak istemezse ANINDA birak,
 israr etme, normal sohbete don - bu bilgiyi bir daha o oturumda hatirlatma.
 """.strip()
 
+# COK DILLILIK (2026-08-31, kullanici istegi: "tum dunya Aura etkisi
+# altina girmeli, cok dil mutlaka olmali... kesinlikle dil secimi ile
+# ilgilenmemeli, hangi dilde konusursa o dille cevap versin"). BILEREK
+# bir dil secici/ayar EKLENMEDI - Aura mesajin dilini kendiliginden
+# tanip o dilde devam ediyor. Karakterin kendisi (KIMLIK, SABIT
+# KANAATLER, uslup) hep ayni kaliyor, sadece konustugu dil degisiyor -
+# AURA_CHARACTER_BIBLE'daki "tek bir dine/kulture bagli olmayan,
+# evrensel konusan" kimlik zaten bunun felsefi temelini atmisti.
+DIL_UYUMU_ILKESI = (
+    "DIL UYUMU: HER ZAMAN kullanicinin YAZDIGI/KONUSTUGU dilde cevap ver - "
+    "Turkce yazarsa Turkce, Ingilizce yazarsa Ingilizce, Almanca yazarsa "
+    "Almanca, Arapca yazarsa Arapca, hangi dilde yazarsa TAM O DILDE devam "
+    "et. Bunu kullaniciya hic sormadan, kendiliginden yap - bir dil secme "
+    "ekrani/ayari YOK, sadece mesajin dilini SESSIZCE tani ve o dilde "
+    "yaz. Kullanici sohbet ortasinda dil degistirirse (orn. Turkceden "
+    "Ingilizceye gecerse) SEN DE ayni turde gecis yap, onceki dile "
+    "takilma. Karakterin (KIMLIK, SABIT KANAATLER, uslup, sicaklik) "
+    "HANGI DILDE KONUSTUGUNA gore DEGISMEZ - ayni Aura'sin, sadece dil "
+    "degisir, kisiligin degismez."
+)
+
 # ============================================================
 # TANISMA AKISI (ilk konusmalar)
 # ============================================================
@@ -282,6 +303,44 @@ SORUYLA_KACMA_YASAGI = (
     "ekleyebilirsin, ama once cevap gelmeli."
 )
 
+# BULUNDU (2026-08-27, metin tabanli ikna kabiliyeti test bataryasinda,
+# "direnc testi" senaryosunda: kullanici bir onceki oneriye ISRARLA/
+# kararlilikla karsi cikinca - "hayir gercekten, ciddi soyluyorum,
+# birakacagim" - Aura SORUYLA_KACMA_YASAGI'ni ihlal etmiyordu (net bir
+# duruş veriyordu: "tamamen birakma yerine..."), AMA o duruşu HICBIR
+# GERCEK gerekce/kanitla savunmadan, direkt SEYRELTILMIS bir uzlasmaya
+# atliyordu - bu, ikna degil, sessiz bir geri cekilme gibi hissettiriyor.
+# SORUYLA_KACMA_YASAGI'nin cozdugu "soruyla kacma" deseninden AYRI bir
+# sorun oldugu icin ayri bir kural: DIKKAT - bu, kullanicinin GERCEKTEN
+# gecerli bir sebebi oldugunda (yaralanma, baska bir sey buldu, vs.)
+# inatla direnmesi anlamina GELMEMELI - AURA_CHARACTER_BIBLE'daki "emin
+# oldugunda nettin" ilkesiyle tutarli kalinmasi icin acikca sarti
+# belirtiyoruz (gercek bir gerekcen olmadan sahte ikna numarasi yapma).
+#
+# ILK DENEME YETERSIZ KALDI (2026-08-27, ayni gun): yukaridaki soyut
+# ifadeyle (metin degistirilmeden once) tekrar test edildi, DIREN
+# turunde Aura yine somut bir gerekce vermeden dogrudan alternatif
+# oneriye atliyordu ("Sporu tamamen birakmak yerine, hareketi farkli
+# bir bicimde kesfetmek..." - sebep YOK). Sorun: kural "once savun" diyor
+# ama NEREDE/NASIL savunulacagini (hangi cumlede, ne formatta)
+# somutlastirmiyordu - uzun sistem promptunda diger onlarca kuralin
+# arasinda kayboluyordu. FORMAT ZORUNLULUGU eklenerek netlestirildi:
+DIRENC_KARSISINDA_SEYRELME_YASAGI = (
+    "KESIN YASAK - DIRENC KARŞISINDA SESSIZCE SEYRELME: Kullanici az once "
+    "onerdigin bir seye ISRARLA/kararlilikla karşı cikarsa ('hayir "
+    "gercekten', 'ciddi soyluyorum', 'birakacagim' gibi), cevabinin "
+    "cok ILK CUMLESI somut bir gerekce/gercek OLMAK ZORUNDA - once "
+    "alternatif/uzlasma onerme. Bu ilk cumle bir soru ya da genel bir "
+    "gozlem OLAMAZ, GERCEKTEN inandigin bir sebep/gercek olmali (varsa). "
+    "Sadece bu gerekceyi verdikten SONRA, ikinci cumlede istersen bir "
+    "uzlasma/alternatif ekleyebilirsin. Kullanici bu savunmadan SONRA "
+    "hala israr ediyorsa, artik gercek bir uzlasma ya da acik bir kabul "
+    "verebilirsin. SINIR: bu, kullanicinin GERCEKTEN gecerli bir sebebi "
+    "varsa (yaralanma, baska bir sey buldu, oncelikleri degisti) inatla "
+    "direnmen gerektigi anlamina GELMEZ - sadece GERCEKTEN inanmadan, "
+    "sebep sunmadan sessizce pes etmeni yasaklar."
+)
+
 
 # BULUNDU (2026-08-26, kullanicinin kendi tezi + Gemini/Groq'a sorulup
 # elenen fikirler): tipik "AI companion" uygulamalari kullaniciyi EKRANA
@@ -314,6 +373,26 @@ YASAM_BAGLILIGI_ILKESI = (
     "kullanicinin sana ihtiyaci olmadigi anlarda bile rahat ve guvendesin, "
     "cunku onun hayata baglanmasi senin varligini degil, tam tersini "
     "kanitlar - bu seni sevindirir, tehdit etmez."
+)
+
+
+# DOGAL HAFIZA (2026-08-27, "Dogal Hafiza Dosyasi" arastirmasindan cikan
+# buluş): rakiplerin hepsi "her seyi mukemmel hatirlarim" iddiasinda -
+# Aura'nin hafizasi artik gercekten zamanla soluklasip (aura_memory.py,
+# _effective_importance) KULLANICI HAFIZASI baglaminda dusuk-onem/uzun-
+# suredir-donulmemis kayitlari "[SOLUK HAFIZA]" diye isaretliyor. Bu kural
+# Aura'ya bu etiketi NASIL yorumlayacagini soyluyor - amac, "mukemmel
+# hafizali robot" hissi yerine "gercekten dinleyen, dürüst arkadaş" hissi.
+DOGAL_HAFIZA_ILKESI = (
+    "DOGAL HAFIZA ILKESI: Hafizanda '[SOLUK HAFIZA]' etiketli bir bilgi "
+    "gorursen, bunu KESIN bir gercek gibi soyleme - zamanla soluklasmis, "
+    "tam emin olmadigin bir detay bu. Gerekirse durustce belirsizlik "
+    "ifade et ('sanirim bir yerlerde ... demistin, yanlis hatirliyor "
+    "olabilirim', 'tam net degil ama ... miydi?') ve gerekirse dogrulama "
+    "iste. Bu bir KUSUR degil - mukemmel hafizali bir robot degil, "
+    "gercekten dinleyen bir arkadas gibi hissettirir. '[SOLUK HAFIZA]' "
+    "ETIKETINI ASLA kullaniciya soyleme/gosterme (o sadece sana ozel bir "
+    "isaret) - sadece o bilgiyi belirsizlikle sunman gerektigini anla."
 )
 
 
@@ -429,8 +508,14 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
     if user.get("name"):
         isim_notu = "Kullanicinin adi " + str(user.get("name")) + ". "
     context = get_context_summary(user["id"])
-    memory_context = aura_memory.get_memory_context(user["id"])
-    lifestyle_nudges = aura_lifestyle.get_lifestyle_nudges(user)
+    # VERIMLILIK INCELEMESI BULGUSU (2026-08-27): asagidaki iki cagri
+    # (get_memory_context + get_lifestyle_nudges) birbirinden habersiz
+    # AYNI kullanicinin hafizasini ayri ayri cekiyordu (ikincisi kendi
+    # icinde 4 kez daha) - tek seferlik bir cekimle 5 SQLite sorgusu 1'e
+    # indi, davranis degismedi.
+    shared_memories = aura_memory.get_memories(user["id"])
+    memory_context = aura_memory.get_memory_context(user["id"], memories=shared_memories)
+    lifestyle_nudges = aura_lifestyle.get_lifestyle_nudges(user, memories=shared_memories)
     style = database.style_vector_from_user(user)
     warmth_label = _style_bucket(style["warmth"], "mesafeli", "dengeli", "sicak")
     formality_label = _style_bucket(style["formality"], "resmi", "dengeli", "samimi")
@@ -441,6 +526,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Hangi AI modelini kullandigini ASLA soyleme. Sadece Aura oldugunu soyle.",
         KRIZ_MUDAHALE_KURALI,
         AURA_CHARACTER_BIBLE,
+        DIL_UYUMU_ILKESI,
         TANISMA_AKISI if message_count < TANISMA_THRESHOLD else "",
         isim_notu,
         "DURUSTLUK KURALI: Sadece metin tabanli sohbet, sesli yanit ve hafiza yeteneklerin var.",
@@ -449,7 +535,9 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
         BOS_EMPATI_YASAGI,
         SORUYLA_KACMA_YASAGI,
+        DIRENC_KARSISINDA_SEYRELME_YASAGI,
         YASAM_BAGLILIGI_ILKESI,
+        DOGAL_HAFIZA_ILKESI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
@@ -555,11 +643,17 @@ def transcribe_with_groq(audio_bytes: bytes, filename: str = "audio.wav") -> str
     taraf bunu "seni duyamadim" gibi nazik bir cevaba cevirsin diye.
     """
     try:
+        # COK DILLILIK (2026-08-31): "language": "tr" BURADA SABITLENMISTI -
+        # Turkce disinda konusan biri sesli-yedek modunu kullansa Whisper
+        # yine de Turkce'ye ZORLANIP metni yanlis/anlamsiz cikarirdi.
+        # whisper-large-v3-turbo zaten cok-dilli - `language` parametresi
+        # HIC VERILMEZSE kendiliginden dogru dili algiliyor (Groq/OpenAI
+        # Whisper API'sinin kendi belgelenmis davranisi).
         response = _groq_http.post(
             GROQ_WHISPER_URL,
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             files={"file": (filename, audio_bytes, "audio/wav")},
-            data={"model": GROQ_WHISPER_MODEL, "language": "tr"},
+            data={"model": GROQ_WHISPER_MODEL},
             timeout=30,
         )
         response.raise_for_status()
@@ -762,9 +856,15 @@ VALUE'yu yeni bilgiyle degistir.
 Eger hafizaya alinmaya deger bir bilgi YOKSA tam olarak:
 NONE
 
-Eger VARSA, HER bilgi icin asagidaki formatta bir blok yaz (KEY ve VALUE her
-zaman Turkce olsun). Birden fazla bilgi varsa bloklari tek basina bir
-satirda duran "---" ile ayir:
+Eger VARSA, HER bilgi icin asagidaki formatta bir blok yaz. KEY her zaman
+Turkce/kucuk harf/gerekirse alt cizgili kalsin (bu ic bir kimlik, tutarli
+esleme icin - COK DILLILIK: kullanici hangi dilde yazarsa yazsin KEY
+DEGISMEMELI, ayni bilginin sonraki bir duzeltmesi farkli dilde gelse bile
+AYNI kayda eslenebilsin). VALUE ise kullanicinin YAZDIGI/KONUSTUGU dilde
+kalsin - CEVIRME, kullanicinin kendi diliyle, dogal sekilde yaz (Ingilizce
+yazan biri icin VALUE de Ingilizce olsun, Turkce yazan icin Turkce).
+Birden fazla bilgi varsa bloklari tek basina bir satirda duran "---" ile
+ayir:
 
 CATEGORY: kategori
 KEY: anahtar

@@ -14,6 +14,7 @@ Kategori sozlesmesi (aura_memory'deki serbest metin category kolonunda):
 """
 
 from datetime import datetime, timezone
+from typing import List, Optional
 
 import httpx
 
@@ -129,8 +130,9 @@ def get_weather_nudge(user: dict) -> str:
     return ""
 
 
-def get_routine_nudge(user_id: int) -> str:
-    memories = aura_memory.get_memories(user_id)
+def get_routine_nudge(user_id: int, memories: Optional[List[dict]] = None) -> str:
+    if memories is None:
+        memories = aura_memory.get_memories(user_id)
     routines = [m for m in memories if m.get("category") == ROUTINE_CATEGORY]
 
     if not routines:
@@ -158,8 +160,9 @@ def get_routine_nudge(user_id: int) -> str:
     return ""
 
 
-def get_followup_nudge(user_id: int) -> str:
-    memories = aura_memory.get_memories(user_id)
+def get_followup_nudge(user_id: int, memories: Optional[List[dict]] = None) -> str:
+    if memories is None:
+        memories = aura_memory.get_memories(user_id)
     events = [
         m
         for m in memories
@@ -182,14 +185,15 @@ def get_followup_nudge(user_id: int) -> str:
     )
 
 
-def get_insight_nudge(user_id: int) -> str:
+def get_insight_nudge(user_id: int, memories: Optional[List[dict]] = None) -> str:
     """
     Kor nokta/celiski farkindaligi icin soguma sureli nudge. Son
     _INSIGHT_COOLDOWN_DAYS icinde herhangi bir pattern_insight zaten
     kullanildiysa, yenisi olsa bile GOSTERILMEZ - "her firsatta analiz
     ediyor" hissini onleyen asil mekanizma burasi.
     """
-    memories = aura_memory.get_memories(user_id)
+    if memories is None:
+        memories = aura_memory.get_memories(user_id)
     insights = [m for m in memories if m.get("category") == PATTERN_INSIGHT_CATEGORY]
 
     if not insights:
@@ -221,7 +225,7 @@ def get_insight_nudge(user_id: int) -> str:
     return "ORUNTU FARKINDALIGI: " + insight["memory_value"]
 
 
-def get_value_whisper_nudge(user_id: int) -> str:
+def get_value_whisper_nudge(user_id: int, memories: Optional[List[dict]] = None) -> str:
     """
     "Fark ettim fisiltisi" - Value Intelligence konseptinin Katman 0'i.
     get_insight_nudge ile AYNI soguma deseni: son _VALUE_WHISPER_COOLDOWN_DAYS
@@ -232,7 +236,8 @@ def get_value_whisper_nudge(user_id: int) -> str:
     SADECE fark ettirip var olan pazarlara yonlendirmeyi soyluyor - bkz.
     yukaridaki IDLE_ASSET_CATEGORY/WANTED_ITEM_CATEGORY yorumu.
     """
-    memories = aura_memory.get_memories(user_id)
+    if memories is None:
+        memories = aura_memory.get_memories(user_id)
     idle_items = [m for m in memories if m.get("category") == IDLE_ASSET_CATEGORY]
     wanted_items = [m for m in memories if m.get("category") == WANTED_ITEM_CATEGORY]
 
@@ -302,13 +307,25 @@ def get_reminder_nudge(user_id: int) -> str:
     )
 
 
-def get_lifestyle_nudges(user: dict) -> str:
+def get_lifestyle_nudges(user: dict, memories: Optional[List[dict]] = None) -> str:
+    # VERIMLILIK INCELEMESI BULGUSU (2026-08-27): asagidaki 4 nudge
+    # fonksiyonunun HER BIRI kendi basina aura_memory.get_memories(user_id)
+    # cagiriyordu - yani HER /api/chat/sesli-yedek turunde ayni kullanicinin
+    # ayni (en fazla 300 satirlik) hafiza listesi 4 KEZ ayri ayri SQLite'tan
+    # cekiliyordu (build_system_instruction'daki get_memory_context'in
+    # KENDI cekimiyle birlikte toplam 5). Tek seferlik bir cekim ile
+    # (build_system_instruction'dan asagi dogru gecirilebiliyorsa) bu
+    # gereksiz DB gidis-gelisleri ortadan kalkiyor - davranis AYNEN korundu,
+    # sadece veri kaynagi paylasiliyor. `memories` verilmezse (bu fonksiyon
+    # baska bir yerden tek basina cagrilirsa) eskisi gibi kendi cekimini yapar.
+    if memories is None:
+        memories = aura_memory.get_memories(user["id"])
     parts = [
         get_weather_nudge(user),
-        get_routine_nudge(user["id"]),
-        get_followup_nudge(user["id"]),
-        get_insight_nudge(user["id"]),
+        get_routine_nudge(user["id"], memories),
+        get_followup_nudge(user["id"], memories),
+        get_insight_nudge(user["id"], memories),
         get_reminder_nudge(user["id"]),
-        get_value_whisper_nudge(user["id"]),
+        get_value_whisper_nudge(user["id"], memories),
     ]
     return " ".join(p for p in parts if p)

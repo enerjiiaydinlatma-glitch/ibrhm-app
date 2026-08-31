@@ -122,6 +122,13 @@ def init_db():
             # metin tutmuyor (bcrypt, sifreyle ayni desen).
             "ALTER TABLE users ADD COLUMN secret_phrase_hash TEXT",
             "ALTER TABLE users ADD COLUMN hidden_mode_active INTEGER DEFAULT 0",
+            # Reklam/gorunurluk analitigi (2026-08-27, kullanici istegi -
+            # gece raporunda "reklam oncesi analitik/gorunurluk eksikligi"
+            # en kritik bulgu olarak isaretlenmisti, o zamandan beri
+            # cozulmemisti). Serbest metin - hangi reklam/kanaldan geldigini
+            # (ornek: "instagram_agustos") istemcinin ?src= URL parametresinden
+            # yakalayip kayit aninda gonderdigi deger.
+            "ALTER TABLE users ADD COLUMN acquisition_source TEXT DEFAULT ''",
         ):
             try:
                 cursor.execute(migration)
@@ -339,7 +346,8 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 
 def create_user(
-    email: str, password: str, name: str = "", is_anonymous: bool = False
+    email: str, password: str, name: str = "", is_anonymous: bool = False,
+    acquisition_source: str = "",
 ) -> Optional[dict]:
     # GECE DENETIMI BULGUSU: is_anonymous ONCEDEN hic verilmiyordu, bu
     # yuzden semanin varsayilani (1) her zaman gecerli oluyordu - GERCEK
@@ -352,9 +360,12 @@ def create_user(
         with db_cursor(commit=True) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (email, password_hash, name, is_anonymous) "
-                "VALUES (?, ?, ?, ?)",
-                (email.lower().strip(), hash_password(password), name, int(is_anonymous))
+                "INSERT INTO users (email, password_hash, name, is_anonymous, acquisition_source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    email.lower().strip(), hash_password(password), name, int(is_anonymous),
+                    acquisition_source.strip()[:100],
+                )
             )
             user_id = cursor.lastrowid
         return get_user(user_id)
@@ -757,8 +768,35 @@ def clear_messages(user_id: int):
 # ifadeyi acik metin yerine bcrypt hash olarak saklayabilmemizi saglar
 # (parolayla ayni guvenlik duzeyi).
 
+def fold_turkish_i(text: str) -> str:
+    """
+    KOD INCELEMESI BULGUSU (2026-08-27, tam-yolculuk entegrasyon testinde
+    bulundu): Python'un .lower()'i Turkce'ye OZGU I/i/İ/ı ayrimini
+    locale-farkinda yapmiyor - "yıldız" (Turkce dotless ı, U+0131)
+    .lower() sonrasinda bile "yildiz" (ASCII i, U+0069) ile FARKLI kalıyor.
+    Bu, aura_memory.py'de memory_key normalizasyonu icin daha once bulunup
+    duzeltilen AYNI sinif hata (bkz. o dosyadaki "İ/I/ı ozel harfleri"
+    yorumu) - burada GENEL bir yardimci fonksiyona cikarildi ki
+    GUVENLIK-KRITIK tum karsilastirma noktalari (gizli mod kod cumlesi,
+    main.py'deki kriz/ruh-hali anahtar kelime tespiti) AYNI korumayi
+    paylassin. Once Turkce I-varyantlarini TEK bir kanonik forma
+    katliyoruz, SONRA standart .lower() guvenle uygulanabiliyor.
+    """
+    return text.replace("İ", "i").replace("I", "i").replace("ı", "i")
+
+
+def _normalize_secret_phrase(phrase: str) -> str:
+    # SOMUT KANIT: "yildiz tozu" (ASCII i) ile kullanicinin klavye/IME/
+    # ses-transkripsiyonuyla yazabilecegi "yıldız tozu" (Turkce dotless
+    # ı) .lower() sonrasi bile FARKLI kalıyordu - kullanici kendi kod
+    # cumlesini "dogru" yazdigini dusunse bile gizli mod SESSIZCE
+    # acilmayabilirdi (kritik bir gizlilik basarisizligi). bkz.
+    # fold_turkish_i.
+    return fold_turkish_i(phrase).strip().lower()
+
+
 def set_secret_phrase(user_id: int, phrase: str) -> None:
-    normalized = phrase.strip().lower()
+    normalized = _normalize_secret_phrase(phrase)
     hashed = bcrypt.hashpw(normalized.encode(), bcrypt.gensalt()).decode()
     with db_cursor(commit=True) as conn:
         conn.execute(
@@ -802,13 +840,47 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
         return False
     # Ucuz on-eleme: bir "kod cumlesi" kisa olmali - bcrypt.checkpw
     # (bilerek YAVAS) her mesajda calismasin diye once uzunluk kontrolu.
-    normalized = message_text.strip().lower()
+    normalized = _normalize_secret_phrase(message_text)
     if len(normalized) > 80:
         return False
-    try:
-        matched = bcrypt.checkpw(normalized.encode(), stored_hash.encode())
-    except (ValueError, TypeError):
-        return False
+    # KOD INCELEMESI BULGUSU (2026-08-27, sesli yedek modu eklenince):
+    # kod cumlesi TIPIK OLARAK yazarak (noktalamasiz) belirleniyor, ama
+    # sesli yedek modda (Groq Whisper) ayni cumle soylenince transkript
+    # sona bir nokta/virgul EKLEYEBILIYOR - bcrypt tam-metin karsilastirmasi
+    # bu farkla sessizce basarisiz olup gizli modun hic acilmamasina (ya da
+    # gizli bir mesajin yanlislikla GORUNUR kaydedilmesine) yol acabilirdi.
+    # set_secret_phrase() cumleyi degistirmeden (sadece strip+lower) hash'liyor,
+    # o yuzden STORED HASH'e dokunmadan, gelen ADAY metni sondaki yaygin
+    # noktalama isaretlerinden ARINDIRILMIS haliyle de deniyoruz - orijinal
+    # (noktalamali) hali zaten ilk once denenir, hicbir davranis kaybolmaz.
+    #
+    # GERIYE-UYUMLULUK DUZELTMESI (aynı gun, ilk fix'ten hemen sonra kendi
+    # kendimi inceleyip buldum): _normalize_secret_phrase'e Turkce I-varyant
+    # katlama (İ/I/ı -> i) EKLENINCE, bu katlamayi DEGISTIREN bir karakter
+    # ICEREN kod cumlesini DAHA ONCE belirlemis kullanicilarin STORED HASH'i
+    # ARTIK ESKI (katlanmamis) normalizasyonla hesaplanmis durumda kaliyor -
+    # yeni normalizasyonla asla eslesmezdi (somut ornek: "yıldız" ESKI
+    # normalizasyonda "yıldız" olarak kaliyordu/hash'lendi, YENI normalizasyon
+    # "yildiz"a katliyor - ayni metin bile artik eski hash'iyle eslesmezdi).
+    # Cozum: LEGACY (fold'suz) normalizasyonu da ayri bir aday olarak
+    # deniyoruz - boylece fold'dan ONCE belirlenmis kod cumleleri CALISMAYA
+    # DEVAM EDIYOR, fold SADECE YENI eslesme ihtimallerini EKLIYOR.
+    legacy_normalized = message_text.strip().lower()
+    candidates = [normalized]
+    if legacy_normalized != normalized:
+        candidates.append(legacy_normalized)
+    for base in list(candidates):
+        stripped_punct = base.rstrip(".,!?;:…\"'")
+        if stripped_punct and stripped_punct != base and stripped_punct not in candidates:
+            candidates.append(stripped_punct)
+    matched = False
+    for candidate in candidates:
+        try:
+            if bcrypt.checkpw(candidate.encode(), stored_hash.encode()):
+                matched = True
+                break
+        except (ValueError, TypeError):
+            return False
     if not matched:
         return False
     with db_cursor(commit=True) as conn:
@@ -1023,6 +1095,51 @@ def get_admin_stats() -> dict:
             "AND tier != 'pro' AND daily_voice_seconds >= 600"
         )
 
+        # Reklam/gorunurluk analitigi (2026-08-27): son 30 gunde kaynaga
+        # (acquisition_source) gore yeni kullanici kirilimi - hangi
+        # reklam/kanalin gercekten kullanici getirdigini gormek icin.
+        # Bos kaynak (organik/dogrudan/eski istemci) "belirtilmemis"
+        # olarak grupanıyor.
+        cursor.execute(
+            """
+            SELECT
+                CASE WHEN TRIM(COALESCE(acquisition_source, '')) = ''
+                     THEN 'belirtilmemis' ELSE acquisition_source END AS source,
+                COUNT(*) AS count
+            FROM users
+            WHERE created_at >= date('now', '-30 days')
+            GROUP BY source
+            ORDER BY count DESC
+            """
+        )
+        acquisition_breakdown_30d = [
+            {"source": row[0], "count": row[1]} for row in cursor.fetchall()
+        ]
+
+        # Reklam etkinligini degerlendirmenin diger yarisi: kac kisi
+        # GETIRILDI degil, kac kisi GERI GELDI. 2-14 gun once kayit olan
+        # kullanicilardan, kayit olduklari GUNUN ERTESI GUNU en az bir
+        # mesaj gonderenlerin orani ("gun-1 elde tutma"). Cok yeni kayitlar
+        # (son 2 gun) disarida tutuluyor - henuz "ertesi gun"leri
+        # gecmemis olabilirler, dahil edilirlerse oran yapay dusuk cikar.
+        day1_eligible = scalar(
+            "SELECT COUNT(*) FROM users WHERE date(created_at) "
+            "BETWEEN date('now', '-14 days') AND date('now', '-2 days')"
+        )
+        day1_returned = scalar(
+            """
+            SELECT COUNT(*) FROM users u WHERE date(u.created_at)
+            BETWEEN date('now', '-14 days') AND date('now', '-2 days')
+            AND EXISTS (
+                SELECT 1 FROM messages m WHERE m.user_id = u.id
+                AND date(m.timestamp) = date(u.created_at, '+1 day')
+            )
+            """
+        )
+        day1_retention_pct = (
+            round(100 * day1_returned / day1_eligible, 1) if day1_eligible else None
+        )
+
     return {
         "total_users": total_users,
         "new_users_today": new_today,
@@ -1037,4 +1154,7 @@ def get_admin_stats() -> dict:
         "messages_counted_today": messages_counted_today,
         "users_at_message_limit_today": users_at_message_limit_today,
         "users_at_voice_limit_today": users_at_voice_limit_today,
+        "acquisition_breakdown_30d": acquisition_breakdown_30d,
+        "day1_retention_pct": day1_retention_pct,
+        "day1_eligible": day1_eligible,
     }

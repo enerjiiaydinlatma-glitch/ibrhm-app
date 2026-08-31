@@ -1,4 +1,5 @@
-﻿import os
+﻿import html
+import os
 import re
 import secrets
 import time
@@ -235,17 +236,36 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     return user
 
 
+# KOD INCELEMESI BULGUSU (2026-08-27, kriz kelime listesindeki AYNI
+# desen): bazi kelimeler ASCII-transliterasyon (super/uzgun/kotu/endiseli)
+# olarak yazilmisti - dogru Turkce yazimlari (süper/üzgün/kötü/endişeli)
+# ö/ü/ş gibi fold_turkish_i'nin KAPSAMADIGI (I-varyanti disi) harfler
+# icerdigi icin eslesmiyordu. Kriz tespitindeki kadar guvenlik-kritik
+# degil (en kotu ihtimalle bir ruh hali kaydi kacar) ama ayni desen
+# tutarlilik icin duzeltildi.
+# COK DILLILIK (2026-08-31): her kategoriye Ingilizce karsiliklar da
+# eklendi - bkz. _CRISIS_KEYWORDS_EN'deki ayni gerekce (Aura artik
+# kullanicinin diline uyum sagliyor, tespit listeleri de uymali).
 MOOD_KEYWORDS = {
-    "mutlu": ["mutlu", "harika", "super", "keyifli", "sevindim"],
-    "uzgun": ["uzgun", "kotu", "berbat", "canim sikkin", "moralim bozuk"],
-    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var"],
-    "stresli": ["stresli", "kaygili", "endiseli", "gergin", "sinirliyim"],
-    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim"],
+    "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim",
+              "happy", "great", "wonderful", "delighted"],
+    "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk",
+              "sad", "upset", "down", "depressed", "unhappy"],
+    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var",
+               "tired", "exhausted", "sleepy", "worn out"],
+    "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim",
+                "stressed", "anxious", "worried", "nervous", "irritated"],
+    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim",
+                "energetic", "excited", "motivated", "pumped"],
 }
 
 
 def detect_mood(text: str) -> str | None:
-    lowered = text.lower()
+    # bkz. database.fold_turkish_i - Python'un .lower()'i Turkce ı/İ/I
+    # varyantlarini ayirt etmiyor, kelime listeleri ASCII yazilmis oldugu
+    # icin dogru Turkce yazimla (orn. "kaygılı") yazan bir kullanicinin
+    # ifadesi eslesmeyebilirdi.
+    lowered = database.fold_turkish_i(text).lower()
     for mood, keywords in MOOD_KEYWORDS.items():
         if any(kw in lowered for kw in keywords):
             return mood
@@ -261,15 +281,70 @@ def detect_mood(text: str) -> str | None:
 # sinirli (yanlis pozitif = normal bir sohbette limit atlanmasi, kabul
 # edilebilir bir maliyet; yanlis negatif = gercek bir krizin gozden
 # kacmasi, kabul EDILEMEZ bir risk - o yuzden esik dusuk tutuldu).
+# KOD INCELEMESI BULGUSU (2026-08-27, I-varyant taramasindan cikan ayri
+# ama iliskili bulgu): fold_turkish_i sadece ı/İ/I -> i sorununu cozuyor -
+# asagidaki listede ö/ş gibi DIGER Turkce harfleri ASCII'ye cevrilmis
+# (orn. "oldur" yerine gercek "öldür", "yasamak" yerine "yaşamak")
+# kelimeler VARDI, bunlar .lower()'dan BAGIMSIZ bir sorun (ö != o, ş != s
+# - locale degil, gercekten FARKLI karakterler). Somut olarak dogrulandi:
+# "kendimi öldüreceğim" gibi DOGRU yazili gercek bir kriz ifadesi "kendimi
+# oldur" ile ESLESMIYORDU. Asagida hem ASCII hem dogru-Turkce yazili
+# varyantlar (aura_reminders.py'deki DATE/EVENT kelime listeleriyle AYNI
+# desen) yan yana tutuluyor - fold_turkish_i ile birlikte artik hem I
+# hem diger diakritik varyantlar kapsaniyor.
 _CRISIS_KEYWORDS = [
-    "intihar", "kendime zarar", "kendimi oldur", "yasamak istemiyorum",
-    "olmek istiyorum", "yasamaya deger", "hayatima son", "bitirmek istiyorum",
-    "artik dayanamiyorum", "yasayasim yok", "olsem daha iyi",
+    "intihar", "kendime zarar",
+    "kendimi oldur", "kendimi öldür",
+    "yasamak istemiyorum", "yaşamak istemiyorum",
+    "olmek istiyorum", "ölmek istiyorum",
+    "yasamaya deger", "yaşamaya değer",
+    "hayatima son",
+    "bitirmek istiyorum",
+    "artik dayanamiyorum",
+    "yasayasim yok",
+    "olsem daha iyi", "ölsem daha iyi",
 ]
+
+# COK DILLILIK (2026-08-31, kullanici istegi: "tum dunya Aura etkisi
+# altina girmeli, cok dil mutlaka olmali"): Aura artik kullanicinin
+# YAZDIGI dilde konusuyor (bkz. aura_brain.DIL_UYUMU_ILKESI) - bu,
+# yukaridaki SADECE-Turkce kriz listesinin artik YETERSIZ oldugu
+# anlamina geliyor. Ingilizce (en genis ikinci-dil erisimi) yazan
+# birinin GERCEK bir kriz ifadesi hic yakalanmazdi - "yanlis negatif =
+# kabul EDILEMEZ risk" ilkesi (yukarida) DIL FARKI GOZETMEZ. Ayni
+# dar-ve-guclu-ifade felsefesiyle Ingilizce karsiliklari eklendi.
+# NOT: diger diller (Almanca, Arapca, Ispanyolca vb.) icin de ayni
+# genisletme gerekiyor - bu, gelecekte gercek kullanim goruldukce
+# devam ettirilmesi gereken bir liste, tek seferlik "bitti" degil.
+_CRISIS_KEYWORDS_EN = [
+    "suicide", "suicidal",
+    "hurt myself", "harm myself",
+    "kill myself",
+    "don't want to live", "do not want to live",
+    "want to die",
+    "not worth living",
+    "end my life",
+    "want it to end", "want to end it all",
+    "can't take it anymore", "cannot take it anymore",
+    "no reason to live",
+    "better off dead",
+]
+_CRISIS_KEYWORDS = _CRISIS_KEYWORDS + _CRISIS_KEYWORDS_EN
 
 
 def _is_crisis_message(text: str) -> bool:
-    lowered = text.lower()
+    # KOD INCELEMESI BULGUSU (2026-08-27, gizli-mod kod cumlesinde
+    # bulunan AYNI sinif hatanin bu cok daha kritik yolda da var oldugu
+    # fark edildi): _CRISIS_KEYWORDS ASCII yazilmis (orn. "artik
+    # dayanamiyorum"), ama Python'un .lower()'i Turkce ı/İ/I
+    # varyantlarini ayirt etmiyor - kullanici DOGRU Turkce yazimla
+    # ("artık dayanamıyorum") yazarsa .lower() sonrasi bile ASCII
+    # anahtar kelimeyle EBEDIYEN eslesmezdi. Somut olarak dogrulandi:
+    # "artık dayanamıyorum".lower() ("artık dayanamıyorum") "artik
+    # dayanamiyorum" ICERMIYOR. Bu, tam da yorumdaki "yanlis negatif =
+    # kabul EDILEMEZ risk" ilkesinin ihlaliydi - kriz mesaji dogru
+    # yazildigi icin gozden kaciyordu. fold_turkish_i ile duzeltildi.
+    lowered = database.fold_turkish_i(text).lower()
     return any(kw in lowered for kw in _CRISIS_KEYWORDS)
 
 
@@ -333,6 +408,11 @@ class RegisterRequest(BaseModel):
     # BILEREK False gonderiyor, ATIF eksikligi hep eski davranisa
     # (anonim/claim edilebilir) duser, YENI bir kirilma yaratmaz.
     is_anonymous_bootstrap: bool = True
+    # Reklam/gorunurluk analitigi (2026-08-27) - istemci (?src= URL
+    # parametresinden) hangi kanal/kampanyadan geldigini bildirebiliyor.
+    # Serbest metin, sunucu HICBIR sekilde davranis degistirmiyor - sadece
+    # admin panelinde kaynak-bazli kirilim icin saklaniyor.
+    acquisition_source: str = Field(default="", max_length=100)
 
     _validate_email = field_validator("email")(_validate_email_format)
     _validate_password = field_validator("password")(_validate_password_byte_length)
@@ -350,6 +430,11 @@ class ClaimAccountRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(max_length=4000)
+
+# Dogal Hafiza (2026-08-27) - kullanici bir kaydi soluklasmadan muaf
+# tutmak icin sabitleyebilir/sabitlemeyi kaldirabilir.
+class PinMemoryRequest(BaseModel):
+    pinned: bool = True
 
 # "Basili tut konus" yedek sesli mod (2026-08-26, kullanici istegi) -
 # Gemini Live baglanamadiginda kullanilir. image_base64 ile ayni desen:
@@ -430,7 +515,8 @@ def register(req: RegisterRequest):
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
     user = database.create_user(
-        req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap
+        req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap,
+        acquisition_source=req.acquisition_source,
     )
     if not user:
         raise HTTPException(status_code=409, detail="Bu email zaten kayitli.")
@@ -543,6 +629,19 @@ def delete_memory(memory_id: int, authorization: Optional[str] = Header(None)):
     if not ok:
         raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
     return {"status": "silindi"}
+
+
+@app.post("/api/memories/{memory_id}/pin")
+def pin_memory(memory_id: int, request: PinMemoryRequest, authorization: Optional[str] = Header(None)):
+    """
+    Dogal Hafiza: kullanici "hep hatirla" diyerek bir kaydi soluklasma
+    hesabindan (aura_memory._effective_importance) muaf tutabilir.
+    """
+    user = get_current_user(authorization)
+    ok = aura_memory.set_memory_pinned(user["id"], memory_id, request.pinned)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
+    return {"status": "sabitlendi" if request.pinned else "sabitleme kaldirildi"}
 
 
 @app.get("/api/history")
@@ -776,6 +875,19 @@ def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[s
     transcript = aura_brain.transcribe_with_groq(audio_bytes)
     if not transcript:
         return {"transcript": "", "reply": "Seni duyamadım, tekrar dener misin?"}
+
+    # KOD INCELEMESI BULGUSU (2026-08-27): ChatRequest.message'daki
+    # Field(max_length=4000) siniri sadece /api/chat'in Pydantic
+    # katmaninda uygulaniyordu - _process_chat_message ORTAK govdeye
+    # cikarilinca bu ucun (ses -> Whisper transkripti) hicbir uzunluk
+    # sinirindan gecmedigi ortaya cikti. Uzun bir "basili tut konus"
+    # kaydi (VoiceFallbackRequest 15MB'a kadar izin veriyor, dakikalarca
+    # surebilir) 4000 karakteri kolayca asan bir transkripte donusup
+    # sinirsiz sekilde DB'ye ve Gemini/Groq baglamina gidebilirdi. Aynı
+    # sinira burada da uyuyoruz - reddetmek yerine kirpiyoruz (kullanicinin
+    # kaydini bosa harcamamak icin, /api/chat'teki 422 yerine).
+    if len(transcript) > 4000:
+        transcript = transcript[:4000]
 
     result = _process_chat_message(user, transcript)
     result["transcript"] = transcript
@@ -1089,6 +1201,11 @@ def _render_admin_dashboard(stats: dict) -> str:
         ("Bugünkü sesli görüşme süresi", fmt_min(stats["voice_seconds_today"]), "tüm kullanıcılar toplamı"),
         ("Bugün mesaj limitine ulaşan", stats["users_at_message_limit_today"], "free tier"),
         ("Bugün sesli limite ulaşan", stats["users_at_voice_limit_today"], "free tier"),
+        (
+            "Gün-1 elde tutma",
+            f"%{stats['day1_retention_pct']}" if stats.get("day1_retention_pct") is not None else "—",
+            f"{stats.get('day1_eligible', 0)} kayıt (2-14 gün önce) üzerinden",
+        ),
     ]
     cards_html = "".join(
         f"""<div class="card">
@@ -1098,6 +1215,29 @@ def _render_admin_dashboard(stats: dict) -> str:
             </div>"""
         for label, value, sub in cards
     )
+
+    # Reklam/gorunurluk analitigi (2026-08-27): kaynak (acquisition_source)
+    # KULLANICI-KONTROLLU, dogrulanmamis serbest metin (kayit istegiyle
+    # geliyor) - burada dogrudan HTML'e gomulurse depolanan (stored) XSS
+    # acigi olur (orn. birisi "src=<script>...</script>" ile kayit olsa,
+    # admin paneli acan HERKESIN tarayicisinda calisirdi). html.escape()
+    # ZORUNLU.
+    breakdown = stats.get("acquisition_breakdown_30d") or []
+    if breakdown:
+        rows_html = "".join(
+            f"<tr><td>{html.escape(str(row['source']))}</td>"
+            f"<td class='num'>{row['count']}</td></tr>"
+            for row in breakdown
+        )
+        breakdown_html = f"""
+        <h2>Son 30 gün - kaynağa göre yeni kullanıcı</h2>
+        <table class="src-table">
+          <thead><tr><th>Kaynak (?src=)</th><th class="num">Yeni kullanıcı</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>"""
+    else:
+        breakdown_html = ""
+
     return f"""<!doctype html>
 <html lang="tr">
 <head>
@@ -1118,6 +1258,7 @@ def _render_admin_dashboard(stats: dict) -> str:
     font-size: 1.4rem; font-weight: 600; margin: 0 0 4px;
     display: flex; align-items: center; gap: 10px;
   }}
+  h2 {{ font-size: 1rem; font-weight: 600; margin: 36px 0 14px; color: #EDEAF7; }}
   .dot {{ width: 8px; height: 8px; border-radius: 50%; background: #00E676; display: inline-block; }}
   .subtitle {{ color: #8A84A8; font-size: 0.85rem; margin-bottom: 32px; }}
   .grid {{
@@ -1132,12 +1273,21 @@ def _render_admin_dashboard(stats: dict) -> str:
   .card-value {{ font-size: 1.9rem; font-weight: 600; color: #FFFFFF; font-variant-numeric: tabular-nums; }}
   .card-sub {{ font-size: 0.75rem; color: #6C63FF; margin-top: 4px; }}
   .refresh {{ color: #8A84A8; font-size: 0.75rem; margin-top: 32px; }}
+  .src-table {{
+    border-collapse: collapse; max-width: 500px; width: 100%;
+    background: #12122A; border: 1px solid #2A2A4A; border-radius: 14px; overflow: hidden;
+  }}
+  .src-table th, .src-table td {{ text-align: left; padding: 10px 16px; font-size: 0.85rem; }}
+  .src-table th {{ color: #8A84A8; font-weight: 500; border-bottom: 1px solid #2A2A4A; }}
+  .src-table td {{ border-bottom: 1px solid #1E1E3A; }}
+  .src-table .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
 </style>
 </head>
 <body>
   <h1><span class="dot"></span>Aura Panel</h1>
   <div class="subtitle">Toplu istatistikler - tek kullanıcı verisi içermez</div>
   <div class="grid">{cards_html}</div>
+  {breakdown_html}
   <div class="refresh">Sayfayı yenileyerek güncel veriyi görebilirsin.</div>
 </body>
 </html>"""

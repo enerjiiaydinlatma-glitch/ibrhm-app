@@ -2,7 +2,7 @@ import json
 import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -209,6 +209,17 @@ def init_memory_db():
                 f"muhtemelen zaten coklanan aktif hafiza kaydi var: {e}"
             )
 
+        # DOGAL HAFIZA (2026-08-27, "Dogal Hafiza Dosyasi" arastirmasindan
+        # cikan buluş): kullanici bir hafizayi "hep hatirla" diye
+        # sabitleyebilsin diye - sabitlenen kayitlar asagidaki soluklasma
+        # hesabindan (bkz. _effective_importance) muaf tutulur. database.py
+        # ile ayni desen: SQLite ADD COLUMN IF NOT EXISTS desteklemiyor,
+        # dene/basarisiz-olursa-yoksay.
+        try:
+            cursor.execute("ALTER TABLE memories ADD COLUMN pinned INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # sutun zaten var
+
 
 # ============================================================
 # MEMORY EVENTS
@@ -317,6 +328,61 @@ def get_candidates(
 
 
 # ============================================================
+# DOGAL HAFIZA (soluklasma/gucllenme)
+# ============================================================
+# "Dogal Hafiza Dosyasi" arastirmasindan cikan buluş (2026-08-27):
+# rakiplerin hepsi "her seyi sonsuza kadar hatirlarim" iddiasinda
+# yariciyor (Nomi'nin "Identity Core"u, Paradot'un seffaflik defteri,
+# Replika'nin "aylar sonra bile hatirlarim" sozu) - Aura'nin bunun
+# YERINE gercek bir insan gibi hatirlamasi: bir suredir hic donulmeyen
+# bir detay YAVASCA soluklasir (SILINMEZ, sadece geri planda kalir),
+# kullanici tekrar tekrar donerse GUCLENIR (bkz. update_memory - her
+# guncelleme updated_at'i tazeler, bu da soluklasma saatini sifirlar -
+# "gucllenme" icin AYRI bir mekanizma gerekmiyor, zaten var olan
+# davranisin dogal bir sonucu). Kullanici isterse bir kaydi "pinned"
+# yaparak bu soluklasmadan tamamen muaf tutabilir (bkz. set_memory_pinned).
+#
+# BILEREK STATELESS/OKUMA-ANINDA: soluklasma DB'deki `importance`
+# degerini hicbir zaman KALICI olarak degistirmiyor - sadece OKUMA
+# aninda (get_memories) turetilen bir "effective_importance" hesaplaniyor.
+# Boylece: (1) hicbir veri kaybi geri donusumsuz degil, (2) zamanlanan
+# bir arka plan gorevine (cron) gerek yok, (3) Replika'nin yasadigi
+# "hafiza guncellemesi = sessiz veri kaybi = ihanet hissi" sorunu hic
+# olusmuyor - stored importance her zaman oldugu gibi duruyor.
+DECAY_GRACE_DAYS = 14      # bu sureden once HICBIR soluklasma yok
+DECAY_HORIZON_DAYS = 120   # grace suresi bittikten sonra tabana inme suresi
+DECAY_FLOOR = 0.15         # asla bunun altina inmez (tamamen "unutulmuyor")
+# Bir hafizanin "belirsiz/soluk" sayilip Aura'ya durustce belirsizlik
+# ifade etmesi icin verilen esik - effective_importance, orijinal
+# importance'in bu orandan daha azina dusmusse (bkz. get_memory_context).
+DECAY_UNCERTAIN_RATIO = 0.6
+
+
+def _effective_importance(importance: float, updated_at: Optional[str], pinned: bool) -> float:
+    if pinned or not updated_at:
+        return importance
+    touched = _parse_memory_timestamp(updated_at)
+    if not touched:
+        return importance
+    days_since_touch = (datetime.now(timezone.utc) - touched).total_seconds() / 86400
+    if days_since_touch <= DECAY_GRACE_DAYS:
+        return importance
+    days_past_grace = days_since_touch - DECAY_GRACE_DAYS
+    fraction = min(1.0, days_past_grace / DECAY_HORIZON_DAYS)
+    floor = min(DECAY_FLOOR, importance)  # tabani, dusuk-onemli kayitlarda asmayalim
+    return importance - (importance - floor) * fraction
+
+
+def _parse_memory_timestamp(value: Optional[str]):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace(" ", "T")).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+# ============================================================
 # LONG-TERM MEMORY
 # ============================================================
 
@@ -410,7 +476,19 @@ def get_memories(
         )
         rows = cursor.fetchall()
 
-    return [dict(row) for row in rows]
+    memories = [dict(row) for row in rows]
+    # DOGAL HAFIZA: SQL zaten stored importance'a gore sirali getirdi -
+    # burada TURETILEN (DB'ye yazilmayan) effective_importance'i hesaplayip
+    # gercek sirlamayi ona gore yapiyoruz - soluklasmis kayitlar dogal
+    # olarak asagi duser, sabitlenmis (pinned) kayitlar hic etkilenmez.
+    # Python'un sort'u stabil oldugu icin esitliklerde SQL'in kendi
+    # sirasi (importance DESC, updated_at DESC) korunuyor.
+    for m in memories:
+        m["effective_importance"] = _effective_importance(
+            m.get("importance", 0.5), m.get("updated_at"), bool(m.get("pinned"))
+        )
+    memories.sort(key=lambda m: m["effective_importance"], reverse=True)
+    return memories
 
 
 def find_active_memory(
@@ -598,6 +676,39 @@ def update_memory(
     return changed
 
 
+def set_memory_pinned(
+    user_id: int,
+    memory_id: int,
+    pinned: bool,
+) -> bool:
+    """
+    DOGAL HAFIZA: kullanici bir kaydi "hep hatirla" diye sabitler/
+    sabitlemeyi kaldirirsa cagrilir - sabitlenen kayit yukaridaki
+    soluklasma hesabindan (_effective_importance) tamamen muaf olur.
+    """
+    with db_cursor(commit=True) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE memories
+            SET pinned = ?
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (1 if pinned else 0, memory_id, user_id),
+        )
+        changed = cursor.rowcount > 0
+
+    if changed:
+        add_memory_event(
+            user_id=user_id,
+            memory_id=memory_id,
+            event_type="pinned" if pinned else "unpinned",
+        )
+
+    return changed
+
+
 # ============================================================
 # FORGET MEMORY
 # ============================================================
@@ -660,9 +771,18 @@ def clear_memories(user_id: int):
 def get_memory_context(
     user_id: int,
     max_memories: int = 20,
+    memories: Optional[List[dict]] = None,
 ) -> str:
-
-    memories = get_memories(user_id)[:max_memories]
+    # VERIMLILIK INCELEMESI BULGUSU (2026-08-27): build_system_instruction
+    # her turda bu fonksiyonu VE aura_lifestyle.get_lifestyle_nudges'i
+    # (o da kendi icinde 4 ayri nudge fonksiyonunu) cagiriyordu - hepsi
+    # AYNI kullanicinin hafizasini birbirinden habersiz, ayri ayri SQLite
+    # sorgulariyla cekiyordu. `memories` onceden cekilip verilirse tekrar
+    # sorgulanmiyor - davranis AYNEN korunuyor (aynen once oldugu gibi
+    # importance/updated_at sirali, sadece kim cektigi degisiyor).
+    if memories is None:
+        memories = get_memories(user_id)
+    memories = memories[:max_memories]
 
     if not memories:
         return ""
@@ -679,9 +799,20 @@ def get_memory_context(
         if not value:
             continue
 
-        lines.append(
-            f"- [{category}] {value}"
+        # DOGAL HAFIZA: bir kayit belirgin sekilde soluklasmissa (ve
+        # sabitlenmemisse), Aura'ya bunu KESIN bir gercek gibi degil
+        # durustce belirsiz sunmasi icin isaretliyoruz - AURA_CHARACTER_
+        # BIBLE'daki DOGAL_HAFIZA_ILKESI bu etiketi nasil yorumlayacagini
+        # aciklar (bkz. aura_brain.py).
+        base_importance = memory.get("importance", 0.5) or 0.5
+        eff_importance = memory.get("effective_importance", base_importance)
+        is_faded = (
+            not memory.get("pinned")
+            and base_importance > 0
+            and eff_importance < base_importance * DECAY_UNCERTAIN_RATIO
         )
+        prefix = "- [SOLUK HAFIZA] " if is_faded else f"- [{category}] "
+        lines.append(prefix + value)
 
     if len(lines) == 1:
         return ""
