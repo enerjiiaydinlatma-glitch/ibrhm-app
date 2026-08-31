@@ -236,11 +236,18 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     return user
 
 
+# KOD INCELEMESI BULGUSU (2026-08-27, kriz kelime listesindeki AYNI
+# desen): bazi kelimeler ASCII-transliterasyon (super/uzgun/kotu/endiseli)
+# olarak yazilmisti - dogru Turkce yazimlari (süper/üzgün/kötü/endişeli)
+# ö/ü/ş gibi fold_turkish_i'nin KAPSAMADIGI (I-varyanti disi) harfler
+# icerdigi icin eslesmiyordu. Kriz tespitindeki kadar guvenlik-kritik
+# degil (en kotu ihtimalle bir ruh hali kaydi kacar) ama ayni desen
+# tutarlilik icin duzeltildi.
 MOOD_KEYWORDS = {
-    "mutlu": ["mutlu", "harika", "super", "keyifli", "sevindim"],
-    "uzgun": ["uzgun", "kotu", "berbat", "canim sikkin", "moralim bozuk"],
+    "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim"],
+    "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk"],
     "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var"],
-    "stresli": ["stresli", "kaygili", "endiseli", "gergin", "sinirliyim"],
+    "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim"],
     "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim"],
 }
 
