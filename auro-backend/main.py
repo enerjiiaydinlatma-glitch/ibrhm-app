@@ -243,12 +243,20 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
 # icerdigi icin eslesmiyordu. Kriz tespitindeki kadar guvenlik-kritik
 # degil (en kotu ihtimalle bir ruh hali kaydi kacar) ama ayni desen
 # tutarlilik icin duzeltildi.
+# COK DILLILIK (2026-08-31): her kategoriye Ingilizce karsiliklar da
+# eklendi - bkz. _CRISIS_KEYWORDS_EN'deki ayni gerekce (Aura artik
+# kullanicinin diline uyum sagliyor, tespit listeleri de uymali).
 MOOD_KEYWORDS = {
-    "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim"],
-    "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk"],
-    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var"],
-    "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim"],
-    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim"],
+    "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim",
+              "happy", "great", "wonderful", "delighted"],
+    "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk",
+              "sad", "upset", "down", "depressed", "unhappy"],
+    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var",
+               "tired", "exhausted", "sleepy", "worn out"],
+    "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim",
+                "stressed", "anxious", "worried", "nervous", "irritated"],
+    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim",
+                "energetic", "excited", "motivated", "pumped"],
 }
 
 
@@ -296,6 +304,32 @@ _CRISIS_KEYWORDS = [
     "yasayasim yok",
     "olsem daha iyi", "ölsem daha iyi",
 ]
+
+# COK DILLILIK (2026-08-31, kullanici istegi: "tum dunya Aura etkisi
+# altina girmeli, cok dil mutlaka olmali"): Aura artik kullanicinin
+# YAZDIGI dilde konusuyor (bkz. aura_brain.DIL_UYUMU_ILKESI) - bu,
+# yukaridaki SADECE-Turkce kriz listesinin artik YETERSIZ oldugu
+# anlamina geliyor. Ingilizce (en genis ikinci-dil erisimi) yazan
+# birinin GERCEK bir kriz ifadesi hic yakalanmazdi - "yanlis negatif =
+# kabul EDILEMEZ risk" ilkesi (yukarida) DIL FARKI GOZETMEZ. Ayni
+# dar-ve-guclu-ifade felsefesiyle Ingilizce karsiliklari eklendi.
+# NOT: diger diller (Almanca, Arapca, Ispanyolca vb.) icin de ayni
+# genisletme gerekiyor - bu, gelecekte gercek kullanim goruldukce
+# devam ettirilmesi gereken bir liste, tek seferlik "bitti" degil.
+_CRISIS_KEYWORDS_EN = [
+    "suicide", "suicidal",
+    "hurt myself", "harm myself",
+    "kill myself",
+    "don't want to live", "do not want to live",
+    "want to die",
+    "not worth living",
+    "end my life",
+    "want it to end", "want to end it all",
+    "can't take it anymore", "cannot take it anymore",
+    "no reason to live",
+    "better off dead",
+]
+_CRISIS_KEYWORDS = _CRISIS_KEYWORDS + _CRISIS_KEYWORDS_EN
 
 
 def _is_crisis_message(text: str) -> bool:

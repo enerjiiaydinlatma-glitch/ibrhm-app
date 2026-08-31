@@ -24,17 +24,28 @@ from datetime import date, datetime, timedelta
 import aura_brain
 import database
 
+# COK DILLILIK (2026-08-31, kullanici istegi): Aura artik kullanicinin
+# diliyle konusuyor (bkz. aura_brain.DIL_UYUMU_ILKESI) - bu iki liste
+# SADECE Turkce oldugu icin Ingilizce yazan birinin "Thursday I have a
+# match, need to buy a ticket" gibi bir mesaji on-elemeyi HIC GECMEZDI,
+# LLM cikarim cagrisi hic yapilmazdi - hatirlatma ozelligi o kullanici
+# icin sessizce calismazdi. Ingilizce karsiliklar eklendi.
 _DATE_WORDS = (
     "pazartesi", "sali", "salı", "carsamba", "çarşamba", "persembe", "perşembe",
     "cuma", "cumartesi", "pazar",
     "yarin", "yarın", "haftaya", "gelecek hafta", "önümüzdeki", "onumuzdeki",
     "ayın", "ayin",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "tomorrow", "next week", "next month",
 )
 _EVENT_WORDS = (
     "mac", "maç", "konser", "sinav", "sınav", "toplanti", "toplantı",
     "randevu", "ucak", "uçak", "bilet", "doğum günü", "dogum gunu",
     "davet", "görüşme", "gorusme", "etkinlik", "parti", "sunum", "seyahat",
     "tatil", "uçuş", "ucus", "operasyon", "ameliyat", "mülakat", "mulakat",
+    "match", "game", "concert", "exam", "meeting", "appointment", "flight",
+    "ticket", "birthday", "invitation", "event", "party", "presentation",
+    "trip", "vacation", "surgery", "interview",
 )
 
 
