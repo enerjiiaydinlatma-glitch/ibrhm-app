@@ -768,22 +768,31 @@ def clear_messages(user_id: int):
 # ifadeyi acik metin yerine bcrypt hash olarak saklayabilmemizi saglar
 # (parolayla ayni guvenlik duzeyi).
 
+def fold_turkish_i(text: str) -> str:
+    """
+    KOD INCELEMESI BULGUSU (2026-08-27, tam-yolculuk entegrasyon testinde
+    bulundu): Python'un .lower()'i Turkce'ye OZGU I/i/İ/ı ayrimini
+    locale-farkinda yapmiyor - "yıldız" (Turkce dotless ı, U+0131)
+    .lower() sonrasinda bile "yildiz" (ASCII i, U+0069) ile FARKLI kalıyor.
+    Bu, aura_memory.py'de memory_key normalizasyonu icin daha once bulunup
+    duzeltilen AYNI sinif hata (bkz. o dosyadaki "İ/I/ı ozel harfleri"
+    yorumu) - burada GENEL bir yardimci fonksiyona cikarildi ki
+    GUVENLIK-KRITIK tum karsilastirma noktalari (gizli mod kod cumlesi,
+    main.py'deki kriz/ruh-hali anahtar kelime tespiti) AYNI korumayi
+    paylassin. Once Turkce I-varyantlarini TEK bir kanonik forma
+    katliyoruz, SONRA standart .lower() guvenle uygulanabiliyor.
+    """
+    return text.replace("İ", "i").replace("I", "i").replace("ı", "i")
+
+
 def _normalize_secret_phrase(phrase: str) -> str:
-    # KOD INCELEMESI BULGUSU (2026-08-27, tam-yolculuk entegrasyon
-    # testinde bulundu): Python'un .lower()'i Turkce'ye OZGU I/i/İ/ı
-    # ayrimini locale-farkinda yapmiyor - aynen aura_memory.py'de
-    # memory_key normalizasyonu icin daha once bulunup duzeltilen AYNI
-    # sinif hata (bkz. o dosyadaki "İ/I/ı ozel harfleri" yorumu), ama
-    # bu GUVENLIK-KRITIK yola (gizli mod kod cumlesi) hic uygulanmamisti.
-    # SOMUT KANIT: "yildiz tozu" (ASCII i, U+0069) ile kullanicinin
-    # klavye/IME/ses-transkripsiyonuyla yazabilecegi "yıldız tozu"
-    # (Turkce dotless ı, U+0131) .lower() sonrasi bile FARKLI kalıyor -
-    # kullanici kendi kod cumlesini "doğru" yazdigini dusunse bile
-    # gizli mod SESSIZCE acilmayabilirdi (kritik bir gizlilik basarisizligi).
-    # Once Turkce I-varyantlarini TEK bir kanonik forma katliyoruz,
-    # SONRA standart .lower() guvenle uygulaniyor.
-    folded = phrase.replace("İ", "i").replace("I", "i").replace("ı", "i")
-    return folded.strip().lower()
+    # SOMUT KANIT: "yildiz tozu" (ASCII i) ile kullanicinin klavye/IME/
+    # ses-transkripsiyonuyla yazabilecegi "yıldız tozu" (Turkce dotless
+    # ı) .lower() sonrasi bile FARKLI kalıyordu - kullanici kendi kod
+    # cumlesini "dogru" yazdigini dusunse bile gizli mod SESSIZCE
+    # acilmayabilirdi (kritik bir gizlilik basarisizligi). bkz.
+    # fold_turkish_i.
+    return fold_turkish_i(phrase).strip().lower()
 
 
 def set_secret_phrase(user_id: int, phrase: str) -> None:

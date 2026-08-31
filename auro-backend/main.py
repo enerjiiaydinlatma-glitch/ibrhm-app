@@ -246,7 +246,11 @@ MOOD_KEYWORDS = {
 
 
 def detect_mood(text: str) -> str | None:
-    lowered = text.lower()
+    # bkz. database.fold_turkish_i - Python'un .lower()'i Turkce ı/İ/I
+    # varyantlarini ayirt etmiyor, kelime listeleri ASCII yazilmis oldugu
+    # icin dogru Turkce yazimla (orn. "kaygılı") yazan bir kullanicinin
+    # ifadesi eslesmeyebilirdi.
+    lowered = database.fold_turkish_i(text).lower()
     for mood, keywords in MOOD_KEYWORDS.items():
         if any(kw in lowered for kw in keywords):
             return mood
@@ -270,7 +274,18 @@ _CRISIS_KEYWORDS = [
 
 
 def _is_crisis_message(text: str) -> bool:
-    lowered = text.lower()
+    # KOD INCELEMESI BULGUSU (2026-08-27, gizli-mod kod cumlesinde
+    # bulunan AYNI sinif hatanin bu cok daha kritik yolda da var oldugu
+    # fark edildi): _CRISIS_KEYWORDS ASCII yazilmis (orn. "artik
+    # dayanamiyorum"), ama Python'un .lower()'i Turkce ı/İ/I
+    # varyantlarini ayirt etmiyor - kullanici DOGRU Turkce yazimla
+    # ("artık dayanamıyorum") yazarsa .lower() sonrasi bile ASCII
+    # anahtar kelimeyle EBEDIYEN eslesmezdi. Somut olarak dogrulandi:
+    # "artık dayanamıyorum".lower() ("artık dayanamıyorum") "artik
+    # dayanamiyorum" ICERMIYOR. Bu, tam da yorumdaki "yanlis negatif =
+    # kabul EDILEMEZ risk" ilkesinin ihlaliydi - kriz mesaji dogru
+    # yazildigi icin gozden kaciyordu. fold_turkish_i ile duzeltildi.
+    lowered = database.fold_turkish_i(text).lower()
     return any(kw in lowered for kw in _CRISIS_KEYWORDS)
 
 
