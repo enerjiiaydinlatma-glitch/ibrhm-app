@@ -37,7 +37,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       receiveTimeout: const Duration(seconds: 30),
     ),
   );
-  String _selectedVoice = "female";
   // "Hesabini Kaydet" ikonu SADECE kullanici hala anonimse gorunur -
   // ayarlar menusu degil, tek amacli kucuk bir aksiyon (bkz. plan).
   bool _isAnonymous = false;
@@ -235,16 +234,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  /// BULUNDU (kod incelemesi, sesli gorusme yedek modu eklenirken):
-  /// ElevenLabs+yerel-TTS-yedegi mantigi artik lib/services/tts_service.dart
-  /// icinde PAYLASILAN bir servis - hem burada hem VoiceCallBar'daki
-  /// "basili tut konus" yedek modunda ayni kod tekrar yazilmasin diye.
-  /// Davranis (once ElevenLabs, basarisiz olursa yerel sese sessizce
-  /// dusme) AYNEN korundu.
-  Future<void> _speakWithElevenLabs(String text) async {
-    await TtsService.instance.speak(text, token: widget.token, voice: _selectedVoice);
-  }
-
   Future<void> _pickAndAnalyzeImage() async {
     try {
       final picked = await ImagePicker().pickImage(
@@ -287,55 +276,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // senkronize ediyoruz ki yerel bildirim uygulama yeniden acilana
     // kadar beklemeden hemen zamanlansin.
     ref.read(chatProvider.notifier).sendMessage(text).then((_) => _syncReminders());
-  }
-
-  void _showVoiceSelector() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12122A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text("Aura Sesi",
-                style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-            ),
-            _voiceTile("female", "Kadın Ses", Icons.face),
-            _voiceTile("male", "Erkek Ses", Icons.face_3),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _voiceTile(String voice, String label, IconData icon) {
-    final selected = _selectedVoice == voice;
-    return ListTile(
-      leading: Icon(icon, color: selected ? _indigoColor : Colors.white54),
-      title: Text(label, style: GoogleFonts.poppins(
-        color: selected ? _indigoColor : Colors.white70,
-        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-      )),
-      trailing: selected ? const Icon(Icons.check_circle, color: _indigoColor) : null,
-      onTap: () {
-        setState(() => _selectedVoice = voice);
-        Navigator.pop(context);
-      },
-    );
   }
 
   Widget _buildMessageBubble(dynamic message) {
@@ -551,15 +491,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
 
+    // KULLANICI BULGUSU (2026-09-01): bu ekran (yazili sohbet) HER
+    // Aura yanitini otomatik olarak ElevenLabs ile sesli okuyordu -
+    // kullanici bunu istemiyor: "sesli okuması ... sadece canlı
+    // yayında olan bir özellik olarak kullanılmalı." Sesli okuma artik
+    // SADECE gercekten sesle baslatilan akislarda oluyor - Canli
+    // gorusme (Gemini Live, kendi sesiyle konusuyor) ve "basili tut
+    // konus" yedek modu (voice_call_screen.dart, TtsService.speak
+    // orada hala cagriliyor - kullanici zaten mikrofona konustugu icin
+    // sesli cevap beklemek dogal). Yazarak sohbet ederken sessiz kalir.
     ref.listen(chatProvider, (previous, next) {
       _scrollToBottom();
-      final justFinished = (previous?.isLoading ?? false) && !next.isLoading;
-      if (justFinished && next.messages.isNotEmpty) {
-        final lastMessage = next.messages.last;
-        if (!lastMessage.isUser && lastMessage.text.isNotEmpty) {
-          _speakWithElevenLabs(lastMessage.text);
-        }
-      }
     });
 
     // BULUNDU: canli altyazi metni (liveUserText/liveAssistantText)
@@ -626,11 +568,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onPressed: _showClaimAccountDialog,
               tooltip: "Hesabını Kaydet",
             ),
-          IconButton(
-            icon: const Icon(Icons.record_voice_over_outlined, color: Colors.white70),
-            onPressed: _showVoiceSelector,
-            tooltip: "Ses Seç",
-          ),
           // BULUNDU (kullanici istegi): profil/hafiza yonetimi, gunluk
           // kullanim gorunurlugu ve cikis yapmaya HICBIR erisim yoktu -
           // "menusuz, organik" felsefeye sadik, tek bir dislaiye tikla
