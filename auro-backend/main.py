@@ -366,6 +366,38 @@ def _is_crisis_message(text: str) -> bool:
     return any(kw in normalized for kw in _CRISIS_KEYWORDS)
 
 
+# GECE DENETIMI BULGUSU (netlestirme, 2026-09-01 - "sesli mesajda dil
+# algilama kriz tespitini atlatabilir" acik konusunun cozumu): Whisper'in
+# tam serbest dil auto-detect'i (bkz. aura_brain.transcribe_with_groq,
+# cok dillilik icin GEREKLI) kisa/belirsiz bir sesli mesajda YANLIS dile
+# karar verip transkripti baska bir dile/yaziya cevirebilir - bu durumda
+# metin hicbir kriz anahtar kelimesiyle eslesmez. Dil sabitlemek (eski
+# "language": "tr" davranisi) cok dilliligi TAMAMEN bozar; ama TERSINE
+# bir kullanicinin GECMIS METIN mesajlarinda Turkce'ye ozgu harfler
+# (ç/ğ/ı/ö/ş/ü) goruluyorsa, bu o kullaniciya OZEL, guvenli bir ipucu -
+# acikca Turkce yazan birine Whisper'a "tr" ipucu vermek YANLIS OLMAZ
+# (Ingilizce falan konusuyor olma ihtimali neredeyse yok), ve tam da
+# riskli senaryoyu (kisa bir Turkce kriz ifadesinin yanlis dile
+# dusmesi) kapatir. Turkce'ye ozgu harf GOSTERMEYEN (ya da hic metin
+# gecmisi olmayan) bir kullanicida HICBIR ipucu verilmez - onlar icin
+# davranis AYNEN tam auto-detect kalir, cok dillilik hic etkilenmez.
+_TURKISH_SIGNATURE_CHARS = set("çğıöşüÇĞİÖŞÜ")
+
+
+def _guess_voice_language_hint(user_id: int) -> Optional[str]:
+    try:
+        recent = database.get_messages(user_id)[-30:]
+    except Exception:
+        return None
+    for m in recent:
+        if m.get("role") != "user":
+            continue
+        text = m.get("text") or ""
+        if any(ch in _TURKISH_SIGNATURE_CHARS for ch in text):
+            return "tr"
+    return None
+
+
 
 # GUVENLIK TARAMASI BULGUSU: hicbir request modelinde alan uzunlugu
 # siniri yoktu - kotu niyetli/hatali bir istemci coook uzun metin/liste
@@ -890,7 +922,8 @@ def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[s
     except Exception:
         raise HTTPException(status_code=400, detail="Gecersiz ses verisi.")
 
-    transcript = aura_brain.transcribe_with_groq(audio_bytes)
+    language_hint = _guess_voice_language_hint(user["id"])
+    transcript = aura_brain.transcribe_with_groq(audio_bytes, language_hint=language_hint)
     if not transcript:
         return {"transcript": "", "reply": "Seni duyamadım, tekrar dener misin?"}
 

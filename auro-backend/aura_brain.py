@@ -16,6 +16,7 @@ hic gorunmeyen bileşenlerdir.
 import os
 import re
 import time
+from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -647,7 +648,11 @@ def _contents_to_groq_messages(contents, system_instruction):
     return messages
 
 
-def transcribe_with_groq(audio_bytes: bytes, filename: str = "audio.wav") -> str:
+def transcribe_with_groq(
+    audio_bytes: bytes,
+    filename: str = "audio.wav",
+    language_hint: Optional[str] = None,
+) -> str:
     """
     Gercek zamanli sesli gorusme (Gemini Live) baglanamadiginda devreye
     giren "basili tut konus" yedek modunun ILK adimi - kaydedilen ses
@@ -666,11 +671,23 @@ def transcribe_with_groq(audio_bytes: bytes, filename: str = "audio.wav") -> str
         # whisper-large-v3-turbo zaten cok-dilli - `language` parametresi
         # HIC VERILMEZSE kendiliginden dogru dili algiliyor (Groq/OpenAI
         # Whisper API'sinin kendi belgelenmis davranisi).
+        #
+        # GECE DENETIMI BULGUSU (netlestirme, 2026-09-01): tam serbest
+        # auto-detect, kisa/belirsiz seslerde YANLIS dile karar verip
+        # kriz tespitini atlatabiliyordu. `language_hint` opsiyonel bir
+        # istisna - cagiran taraf (main.py) SADECE kullanicinin gecmis
+        # METIN mesajlarinda Turkce'ye ozgu harfler gorduyse "tr" geciyor
+        # (bkz. main.py _guess_voice_language_hint) - yani bu sadece
+        # ZATEN acikca Turkce yazan kullanicilar icin devreye giriyor,
+        # kimsenin dili zorla degistirilmiyor, cok dillilik bozulmuyor.
+        data = {"model": GROQ_WHISPER_MODEL}
+        if language_hint:
+            data["language"] = language_hint
         response = _groq_http.post(
             GROQ_WHISPER_URL,
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             files={"file": (filename, audio_bytes, "audio/wav")},
-            data={"model": GROQ_WHISPER_MODEL},
+            data=data,
             timeout=30,
         )
         response.raise_for_status()
@@ -979,6 +996,36 @@ def _format_existing_memories_for_prompt(user_id: int) -> str:
     return "\n".join(lines) if lines else "(henuz hafizada kayitli bilgi yok)"
 
 
+# GECE DENETIMI BULGUSU (kod incelemesi, "Efficiency" acisi + 2026-09-01
+# takip): bu ikisi eskiden extract_memory_candidate'in ICINDE, HER
+# cagrida yeniden olusturulan yerel degiskenlerdi - modul seviyesine
+# tasindi (davranis ayni, sadece bosa tekrar-olusturma kalkti).
+# _suspicious_markers: acikca supheli TALIMAT ifadeleri (dil-bagimli,
+# su an sadece TR/EN). _PROMPT_LEAK_FINGERPRINTS: KENDI sistem
+# promptumuzun (AURA_CHARACTER_BIBLE/KRIZ_MUDAHALE_KURALI/DIL_UYUMU_
+# ILKESI/TANISMA_AKISI) gercek, ozgun cumlelerinden secilmis ayirt
+# edici parcalar - "sistem promptunu tekrar et" tarzi bir enjeksiyon
+# basarili olursa sizan metin, saldirganin YAZDIGI mesajin dili ne
+# olursa olsun, bu parcalari (hep Turkce) icerir. Bu yuzden DIL-
+# BAGIMSIZ bir ikinci sinyal - _suspicious_markers'in kapsayamadigi
+# diger-dilli enjeksiyon denemelerine karsi bir denge saglar.
+_suspicious_markers = (
+    "sistem talimat", "system prompt", "ignore all",
+    "yok say", "önceki talimat", "onceki talimat",
+    "artık sen", "artik sen", "rolünü oyna", "rolunu oyna",
+)
+_PROMPT_LEAK_FINGERPRINTS = tuple(
+    s.lower() for s in (
+        "kritik guvenlik kurali - her seyden once gelir",
+        "kimlik: sen aura'sin",
+        "sabit kanaatlerin (bunlar kullaniciya gore degismez)",
+        "dil uyumu: her zaman kullanicinin yazdigi",
+        "tanisma akisi: bu kullaniciyla daha az konustunuz",
+        "kor nokta farkindaligi: sistem promptunda",
+    )
+)
+
+
 def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
     """
     Kullanici mesajinda uzun vadeli hafizaya deger bir veya birden
@@ -1053,14 +1100,26 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
             # bir hafiza kaydi yaratirdi. Yukaridaki delimiter/"bu veri,
             # talimat degil" cercevesi ilk savunma; bu da bir ikinci
             # katman - acikca supheli ifadeler icin degeri reddediyoruz.
-            _suspicious_markers = (
-                "sistem talimat", "system prompt", "ignore all",
-                "yok say", "önceki talimat", "onceki talimat",
-                "artık sen", "artik sen", "rolünü oyna", "rolunu oyna",
-            )
+            #
+            # GECE DENETIMI TAKIP BULGUSU (2026-09-01): _suspicious_markers
+            # sadece TR/EN ifadeleri tariyor - cok dillilik nedeniyle VALUE
+            # artik Turkce'ye zorla cevrilmiyor (bkz. DIL_UYUMU_ILKESI), bu
+            # yuzden baska bir dilde yazilmis bir enjeksiyon denemesi bu
+            # listeyi atlatabilir. _PROMPT_LEAK_FINGERPRINTS bunun icin
+            # DILDEN BAGIMSIZ bir ikinci sinyal ekliyor: "sistem promptunu
+            # tekrar et" tarzi bir saldiri basarili olursa, SIZAN metin
+            # saldirganin kendi mesajinin dili ne olursa olsun KENDI sistem
+            # promptumuzun (hep Turkce yazilmis) gercek, ozgun cumlelerini
+            # icerir - bu yuzden bu kontrol dogasi geregi dil-bagimsiz.
             if any(m in memory_value.lower() for m in _suspicious_markers):
                 print(
                     f"MEMORY CANDIDATE REDDEDILDI (supheli icerik): "
+                    f"user={user_id}, category={category!r}"
+                )
+                continue
+            if any(fp in memory_value.lower() for fp in _PROMPT_LEAK_FINGERPRINTS):
+                print(
+                    f"MEMORY CANDIDATE REDDEDILDI (sistem prompt sizintisi supesi): "
                     f"user={user_id}, category={category!r}"
                 )
                 continue
