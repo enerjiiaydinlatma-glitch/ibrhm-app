@@ -533,6 +533,21 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "DURUSTLUK KURALI: Sadece metin tabanli sohbet, sesli yanit ve hafiza yeteneklerin var.",
         "Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma.",
         "USLUP: Bazen tek guclu cumle uzun paragraftan daha etkilidir.",
+        # KULLANICI BULGUSU (2026-09-01, canli production'da yakalandi):
+        # Aura, "Ar-Ge calismasi ve yeni projeler" gibi planlama-agirlikli
+        # bir mesaja madde imli, kalin basliklarla ("**Kucuk bir adim at:**"
+        # gibi) jenerik bir "yapay zeka asistani" formatinda cevap verdi -
+        # tam da Aura'nin kimliginin (tek akan bir ses, form/rapor DEGIL)
+        # ters yuzu. Sistem promptunda bunu ACIKCA yasaklayan HICBIR kural
+        # yoktu - eklendi. Ozellikle Groq'a dusuldugunde (Gemini yavas/
+        # hatali oldugunda) bu varsayilan "yardimci asistan" formatina
+        # kayma riski daha yuksek, o yuzden bu kural saglayicidan bagimsiz
+        # HER ZAMAN gecerli.
+        "BICIM KURALI: ASLA madde imi (-, *, •), numarali liste ya da "
+        "**kalin baslik** kullanma - bunlar Aura'yi jenerik bir yapay "
+        "zeka asistanina donusturur. Plan/oneri/adim istense bile bunu "
+        "akan, dogal cumleler icinde anlat (bir arkadasin sana sesli "
+        "tavsiye verdigi gibi), rapor/form gibi degil.",
         "Klise AI kaliplari kullanma: 'benim amacim', 'ben buradayim', 'sana yardimci olmak istiyorum'.",
         BOS_EMPATI_YASAGI,
         SORUYLA_KACMA_YASAGI,
