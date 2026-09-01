@@ -637,10 +637,19 @@ def update_memory(
     memory_value: Optional[str] = None,
     confidence: Optional[float] = None,
     importance: Optional[float] = None,
+    pinned: Optional[bool] = None,
 ) -> bool:
 
     fields = []
     values = []
+    # GECE DENETIMI BULGUSU (kod incelemesi, "Reuse" acisi): set_memory_
+    # pinned ASAGIDA aynen bu fonksiyonun UPDATE/add_memory_event kalibini
+    # (fields/values olustur, WHERE id+user_id, rowcount ile degisti mi
+    # kontrol et, degistiyse olay logla) birebir tekrar ediyordu - iki
+    # ayri yerde ayni "kismi guncelleme + olay logla" mantigi. `pinned`
+    # artik bu fonksiyonun bir parametresi, set_memory_pinned ince bir
+    # sarmalayiciya indirgendi.
+    event_type = "updated"
 
     if memory_value is not None:
         fields.append("memory_value = ?")
@@ -654,12 +663,29 @@ def update_memory(
         fields.append("importance = ?")
         values.append(importance)
 
+    # DAVRANIS KORUMA NOTU: pinned DEGISIKLIGI updated_at'i tazelemez -
+    # eski set_memory_pinned de yapmiyordu, ve bu KASITLI: pinned=False
+    # (sabitleme kaldirilirken) updated_at'i "simdi"ye cekmek, o kaydin
+    # soluklasma saatini SIFIRLAYIP suni bir 14 gunluk tazelik doneminde
+    # oldugunu iddia eder - halbuki kayit gercekte uzun suredir hic
+    # dokunulmamis olabilir. Sadece GERCEK icerik degisikligi (deger/
+    # guven/onem) "tazelenme" sayilmali.
+    touches_content = (
+        memory_value is not None or confidence is not None or importance is not None
+    )
+
+    if pinned is not None:
+        fields.append("pinned = ?")
+        values.append(1 if pinned else 0)
+        event_type = "pinned" if pinned else "unpinned"
+
     if not fields:
         return False
 
-    fields.append(
-        "updated_at = CURRENT_TIMESTAMP"
-    )
+    if touches_content:
+        fields.append(
+            "updated_at = CURRENT_TIMESTAMP"
+        )
 
     values.extend(
         [
@@ -685,7 +711,7 @@ def update_memory(
         add_memory_event(
             user_id=user_id,
             memory_id=memory_id,
-            event_type="updated",
+            event_type=event_type,
         )
 
     return changed
@@ -700,28 +726,9 @@ def set_memory_pinned(
     DOGAL HAFIZA: kullanici bir kaydi "hep hatirla" diye sabitler/
     sabitlemeyi kaldirirsa cagrilir - sabitlenen kayit yukaridaki
     soluklasma hesabindan (_effective_importance) tamamen muaf olur.
+    update_memory'nin ince bir sarmalayicisi (bkz. oradaki yorum).
     """
-    with db_cursor(commit=True) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE memories
-            SET pinned = ?
-            WHERE id = ?
-            AND user_id = ?
-            """,
-            (1 if pinned else 0, memory_id, user_id),
-        )
-        changed = cursor.rowcount > 0
-
-    if changed:
-        add_memory_event(
-            user_id=user_id,
-            memory_id=memory_id,
-            event_type="pinned" if pinned else "unpinned",
-        )
-
-    return changed
+    return update_memory(user_id, memory_id, pinned=pinned)
 
 
 # ============================================================

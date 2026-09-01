@@ -904,16 +904,38 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
         if stripped_punct and stripped_punct != base and stripped_punct not in candidates:
             candidates.append(stripped_punct)
     matched = False
+    matched_via_legacy = False
     for candidate in candidates:
         try:
             if bcrypt.checkpw(candidate.encode(), stored_hash.encode()):
                 matched = True
+                matched_via_legacy = candidate != normalized
                 break
         except (ValueError, TypeError):
             return False
     if not matched:
         return False
     with db_cursor(commit=True) as conn:
+        if matched_via_legacy:
+            # GECE DENETIMI BULGUSU (kod incelemesi, "Efficiency"/Altitude
+            # acilari): legacy_normalized adayi KALICI olarak sonsuza kadar
+            # deneniyordu - her yeni normalizasyon degisikliginde (bkz.
+            # fold_turkish_diacritics) bir "legacy" adayi daha eklenecekti,
+            # ustelik HER basarili eslesme gittikce artan sayida bcrypt.
+            # checkpw (bilerek YAVAS) cagirisina mal oluyordu. Sadece
+            # LEGACY bir aday uzerinden eslestiginde, hash'i GUNCEL
+            # normalizasyon semasi altinda YENIDEN kaydedip kendi kendini
+            # iyilestiriyoruz - sonraki mesajlar artik hizli (ilk aday)
+            # yoldan gecer. Tek seferlik, best-effort bir gecis - basarisiz
+            # olsa bile asagidaki mod-degistirme yine de gerceklesir.
+            try:
+                new_hash = bcrypt.hashpw(normalized.encode(), bcrypt.gensalt()).decode()
+                conn.execute(
+                    "UPDATE users SET secret_phrase_hash = ? WHERE id = ?",
+                    (new_hash, user_id),
+                )
+            except Exception:
+                pass
         conn.execute(
             "UPDATE users SET hidden_mode_active = CASE hidden_mode_active WHEN 1 THEN 0 ELSE 1 END "
             "WHERE id = ?",
@@ -1152,20 +1174,28 @@ def get_admin_stats() -> dict:
         # mesaj gonderenlerin orani ("gun-1 elde tutma"). Cok yeni kayitlar
         # (son 2 gun) disarida tutuluyor - henuz "ertesi gun"leri
         # gecmemis olabilirler, dahil edilirlerse oran yapay dusuk cikar.
-        day1_eligible = scalar(
-            "SELECT COUNT(*) FROM users WHERE date(created_at) "
-            "BETWEEN date('now', '-14 days') AND date('now', '-2 days')"
-        )
-        day1_returned = scalar(
+        # GECE DENETIMI BULGUSU (kod incelemesi, "Efficiency" acisi): bu
+        # ikisi ayni satir alt-kumesini (14-2 gun once kayit olanlar)
+        # ayri ayri iki kez taraniyordu - tek bir sorguda kosullu toplama
+        # (SUM/CASE) ile ikisi birden hesaplanabiliyor. Admin paneli
+        # dusuk trafikli oldugu icin acil degildi ama kullanicilar
+        # tablosu buyudukce gereksiz ikinci taramanin maliyeti de buyur.
+        cursor.execute(
             """
-            SELECT COUNT(*) FROM users u WHERE date(u.created_at)
+            SELECT
+                COUNT(*),
+                SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM messages m WHERE m.user_id = u.id
+                    AND date(m.timestamp) = date(u.created_at, '+1 day')
+                ) THEN 1 ELSE 0 END)
+            FROM users u
+            WHERE date(u.created_at)
             BETWEEN date('now', '-14 days') AND date('now', '-2 days')
-            AND EXISTS (
-                SELECT 1 FROM messages m WHERE m.user_id = u.id
-                AND date(m.timestamp) = date(u.created_at, '+1 day')
-            )
             """
         )
+        _row = cursor.fetchone()
+        day1_eligible = _row[0] or 0
+        day1_returned = (_row[1] or 0) if _row[0] else 0
         day1_retention_pct = (
             round(100 * day1_returned / day1_eligible, 1) if day1_eligible else None
         )
