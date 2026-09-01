@@ -519,21 +519,6 @@ class AnalyzeRequest(BaseModel):
     # turlerine sabitlendi.
     mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
 
-# GECE DENETIMI BULGUSU: history onceden list[dict] idi - liste UZUNLUGU
-# sinirliydi (max_length=100) ama HER OGENIN kendi icerigi (ozellikle
-# 'text') sinirsizdi - client 100 oge x birer MB gonderip tek bir
-# istekte Gemini'ye onlarca MB baglam yollatabilirdi (usage sayaci yine
-# de sadece 1 hak tuketirdi). Tipli bir alt model, hem boyutu hem
-# 'role' degerini (rastgele string yerine sadece iki gecerli deger)
-# sinirliyor.
-class StoryHistoryItem(BaseModel):
-    role: Literal["user", "assistant"] = "user"
-    text: str = Field(default="", max_length=4000)
-
-class StoryRequest(BaseModel):
-    action: str = Field(default="", max_length=2000)
-    history: list[StoryHistoryItem] = Field(default=[], max_length=100)
-
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
     # ARTIK NO-OP (2026-08-26): ton dropdown'lari kaldirildi, Aura bu 4
@@ -1184,48 +1169,6 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         raise HTTPException(status_code=500, detail="Fotoğraf analiz edilemedi.")
 
 
-@app.post("/api/story")
-def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
-    user = get_current_user(authorization)
-    # GUVENLIK TARAMASI BULGUSU: hikaye modu da HICBIR gunluk limite tabi
-    # degildi, ustelik client'in gonderdigi 'history' listesi sinirsiz
-    # buyuklukte olabiliyordu (her cagrida Gemini'ye tekrar gonderiliyor).
-    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
-        user["id"], LIMIT_DAILY_MESSAGES
-    ):
-        raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
-    system = (
-        "Sen Aura'sin, yetenekli bir hikaye anlaticinsin. "
-        "Kullanici ile interaktif hikaye yaratiyorsunuz. "
-        "Her yanit 2-4 paragraf, atmosfer yogun, dil akici olmali. "
-        "Hikaye Turkce. Her bolumun sonunda kullaniciyi yonlendirmeye davet et. "
-        "Kahraman sen olsun - ikinci sahis anlati."
-    )
-    try:
-        if not request.history and not request.action:
-            prompt = "Gizemli, surukleyici bir sahneyle bir hikaye baslat. Ikinci sahis anlatimiyla yaz."
-            contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
-        else:
-            contents = []
-            # Client'in gonderdigi history sinirsiz buyuklukte olabilirdi -
-            # son MAX_HISTORY_MESSAGES kadarina kirpiliyor (diger tum
-            # gecmis kullanimlarindaki desenle tutarli).
-            for msg in request.history[-MAX_HISTORY_MESSAGES:]:
-                role = "model" if msg.role == "assistant" else "user"
-                contents.append(types.Content(role=role, parts=[types.Part(text=msg.text)]))
-            if request.action:
-                contents.append(types.Content(role="user", parts=[types.Part(text=request.action)]))
-        response = client.models.generate_content(
-            model=aura_brain.MODEL_NAME,
-            contents=contents,
-            config=types.GenerateContentConfig(system_instruction=system),
-        )
-        return {"continuation": response.text}
-    except Exception as e:
-        print(f"STORY ERROR: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="Hikaye devam ettirilemedi.")
-
-
 # Sosyal katman (arkadas + story feed) BILEREK kaldirildi (2026-08-25):
 # hem bagimsiz 4 farkli AI analizi hem kendi kod taramamiz ayni sonuca
 # vardi - bu ekranlar zaten uygulamadan hicbir yerden erisilemiyordu
@@ -1235,6 +1178,15 @@ def story(request: StoryRequest, authorization: Optional[str] = Header(None)):
 # Eski route'lar: POST /api/stories, GET /api/stories/feed,
 # POST /api/friends/request, POST /api/friends/{id}/accept,
 # GET /api/friends, GET /api/friends/requests - git gecmisinde duruyor.
+#
+# KONTROL TURU TEMIZLIGI (2026-09-01, kullanici karari): POST /api/story
+# (interaktif hikaye anlatimi - yukaridaki sosyal feed'den AYRI bir
+# ozellikti) o temizlikten kacmisti - o da ayni sekilde istemciden HICBIR
+# yerden cagrilmiyordu (friends/profile/story_screen.dart ekranlariyla
+# birlikte, onlar da bu turda silindi) ve ayni "kisisel/mahrem asistan"
+# felsefesiyle (Hikaye Modu ozelligi de daha once ayni gerekceyle
+# kaldirilmisti) uyumsuzdu. StoryRequest/StoryHistoryItem modelleri de
+# birlikte kaldirildi - git gecmisinde duruyor.
 
 
 @app.get("/api/admin/stats")
