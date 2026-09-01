@@ -381,19 +381,31 @@ def _is_crisis_message(text: str) -> bool:
 # dusmesi) kapatir. Turkce'ye ozgu harf GOSTERMEYEN (ya da hic metin
 # gecmisi olmayan) bir kullanicida HICBIR ipucu verilmez - onlar icin
 # davranis AYNEN tam auto-detect kalir, cok dillilik hic etkilenmez.
-_TURKISH_SIGNATURE_CHARS = set("çğıöşüÇĞİÖŞÜ")
+#
+# KONTROL BULGUSU (2026-09-01, "Reuse" acisi): burada AYRI bir literal
+# karakter kumesi ("çğıöşüÇĞİÖŞÜ") tanimlanmisti - database.py'deki
+# fold_turkish_i/fold_turkish_diacritics'in ZATEN bildigi AYNI kume,
+# ikinci bir kopya olarak. Iki ayri tanim = biri guncellenince (orn.
+# yeni bir Turkce harf varyanti eklenirse) digerinin sessizce geride
+# kalma riski. Artik database.TURKISH_SIGNATURE_CHARS'tan tek kaynaktan
+# okunuyor.
 
 
 def _guess_voice_language_hint(user_id: int) -> Optional[str]:
     try:
-        recent = database.get_messages(user_id)[-30:]
+        # KONTROL BULGUSU (Efficiency acisi): eskiden limit VERILMEDEN
+        # (varsayilan 100, gizli-mod mesajlari DAHIL) tum satirlar
+        # cekilip Python'da son 30'a kirpiliyordu - burasi sadece son
+        # 30 mesaja bakiyor, limit'i DOGRUDAN sorguya vermek gereksiz
+        # 70 satirlik cekim/deserializasyonu onluyor (davranis ayni).
+        recent = database.get_messages(user_id, limit=30)
     except Exception:
         return None
     for m in recent:
         if m.get("role") != "user":
             continue
         text = m.get("text") or ""
-        if any(ch in _TURKISH_SIGNATURE_CHARS for ch in text):
+        if any(ch in database.TURKISH_SIGNATURE_CHARS for ch in text):
             return "tr"
     return None
 

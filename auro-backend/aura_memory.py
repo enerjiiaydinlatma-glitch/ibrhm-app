@@ -677,7 +677,18 @@ def update_memory(
     if pinned is not None:
         fields.append("pinned = ?")
         values.append(1 if pinned else 0)
-        event_type = "pinned" if pinned else "unpinned"
+        # KONTROL BULGUSU (2026-09-01, 2 BAGIMSIZ ajanin AYRI AYRI
+        # yakaladigi ayni riziko): event_type'i kosulsuz "pinned"/
+        # "unpinned"a cevirmek, AYNI cagrida icerik (deger/guven/onem)
+        # de degisirse bunu olay gunlugunden SESSIZCE dusurur. Su an
+        # HICBIR cagiran ikisini birden yapmiyor (sadece set_memory_
+        # pinned pinned'i TEK BASINA geciyor), ama bu API artik ikisine
+        # birden izin veriyor - gelecekte biri "sabitle VE metni duzelt"
+        # gibi birlesik bir cagri yaparsa, en azindan "updated" (genel
+        # ama YANLIS OLMAYAN) etiketi kalsin, "pinned" etiketi icerik
+        # degisikligini gizlemesin.
+        if not touches_content:
+            event_type = "pinned" if pinned else "unpinned"
 
     if not fields:
         return False

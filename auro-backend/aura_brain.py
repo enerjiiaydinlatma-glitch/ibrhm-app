@@ -1111,13 +1111,25 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
             # saldirganin kendi mesajinin dili ne olursa olsun KENDI sistem
             # promptumuzun (hep Turkce yazilmis) gercek, ozgun cumlelerini
             # icerir - bu yuzden bu kontrol dogasi geregi dil-bagimsiz.
-            if any(m in memory_value.lower() for m in _suspicious_markers):
+            # KONTROL BULGUSU (2026-09-01, "Reuse" acisi): asagidaki iki
+            # kontrol duz .lower() kullaniyordu - kodun geri kalaninda
+            # (main.py kriz/ruh-hali, aura_reminders.py, aura_memory.py
+            # memory_key) HER Turkce metin karsilastirmasi artik fold_
+            # turkish_i + fold_turkish_diacritics'ten geciyor, burasi
+            # istisnaydi. Tutarlilik icin ayni normalizasyon uygulandi -
+            # farkli Turkce I/diakritik yaziliminda sizan bir sistem
+            # promptu parcasi ya da farkli yazilan bir enjeksiyon ifadesi
+            # artik burada da kacmiyor.
+            normalized_value = database.fold_turkish_diacritics(
+                database.fold_turkish_i(memory_value)
+            ).lower()
+            if any(m in normalized_value for m in _suspicious_markers):
                 print(
                     f"MEMORY CANDIDATE REDDEDILDI (supheli icerik): "
                     f"user={user_id}, category={category!r}"
                 )
                 continue
-            if any(fp in memory_value.lower() for fp in _PROMPT_LEAK_FINGERPRINTS):
+            if any(fp in normalized_value for fp in _PROMPT_LEAK_FINGERPRINTS):
                 print(
                     f"MEMORY CANDIDATE REDDEDILDI (sistem prompt sizintisi supesi): "
                     f"user={user_id}, category={category!r}"

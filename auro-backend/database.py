@@ -785,6 +785,25 @@ def fold_turkish_i(text: str) -> str:
     return text.replace("İ", "i").replace("I", "i").replace("ı", "i")
 
 
+# KONTROL BULGUSU (2026-09-01, "Reuse" acisi): bu harf tablosu ONCEDEN
+# fold_turkish_diacritics'in KENDI govdesinde, yerel bir literal olarak
+# tanimliydi - main.py'deki _guess_voice_language_hint (sesli mesajda
+# dil ipucu icin "bu kullanici Turkce yazmis mi" sinyali arayan, bu
+# fonksiyonlarla TAMAMEN AYRI bir yerde yazilmis kod) AYNI karakter
+# kumesini KENDI literal kopyasi olarak tutuyordu. Iki ayri tanim = biri
+# guncellenince digerinin sessizce geride kalma riski. Artik modul
+# seviyesinde TEK bir kaynak - hem fold_turkish_diacritics hem asagidaki
+# TURKISH_SIGNATURE_CHARS (main.py'nin import ettigi) buradan besleniyor.
+TURKISH_DIACRITIC_MAP = {
+    "ö": "o", "Ö": "o",
+    "ü": "u", "Ü": "u",
+    "ş": "s", "Ş": "s",
+    "ç": "c", "Ç": "c",
+    "ğ": "g", "Ğ": "g",
+}
+TURKISH_SIGNATURE_CHARS = frozenset("İIı") | frozenset(TURKISH_DIACRITIC_MAP.keys())
+
+
 def fold_turkish_diacritics(text: str) -> str:
     """
     GECE DENETIMI BULGUSU (4 bagimsiz kod-inceleme acisinin BAGIMSIZ
@@ -805,14 +824,7 @@ def fold_turkish_diacritics(text: str) -> str:
     normalizasyonunda TEK BASINA da kullaniliyor, oradaki davranisi
     genisletmek istemedik).
     """
-    table = str.maketrans({
-        "ö": "o", "Ö": "o",
-        "ü": "u", "Ü": "u",
-        "ş": "s", "Ş": "s",
-        "ç": "c", "Ç": "c",
-        "ğ": "g", "Ğ": "g",
-    })
-    return text.translate(table)
+    return text.translate(str.maketrans(TURKISH_DIACRITIC_MAP))
 
 
 def _normalize_secret_phrase(phrase: str) -> str:
@@ -896,20 +908,38 @@ def check_and_toggle_secret_phrase(user_id: int, message_text: str, user: Option
     # deniyoruz - boylece fold'dan ONCE belirlenmis kod cumleleri CALISMAYA
     # DEVAM EDIYOR, fold SADECE YENI eslesme ihtimallerini EKLIYOR.
     legacy_normalized = message_text.strip().lower()
+    # KONTROL BULGUSU (2026-09-01, bagimsiz kod incelemesi kendi gece
+    # fix'imde bir REGRESYON yakaladi): matched_via_legacy asagida
+    # ONCEDEN `candidate != normalized` olarak hesaplaniyordu - ama
+    # `candidates` listesi normalized'in NOKTALAMA-ARINDIRILMIS
+    # varyantini da icerir (birkac satir asagida ekleniyor), ve o
+    # varyant DA normalized'e esit DEGILDIR. Sonuc: sesli-yedek modda
+    # sona nokta eklenen (yorumdaki bilinen davranis) HER kod-cumlesi
+    # dogrulamasi, GERCEKTE guncel semayla eslesse bile "legacy eslesme"
+    # sanilip her seferinde gereksiz bir bcrypt.hashpw + UPDATE
+    # tetikliyordu - tam da bu fix'in onlemeye calistigi maliyeti,
+    # ONLEMEK yerine sessizce SIKLASTIRIYORDU. Duzeltme: hangi adaylarin
+    # GERCEKTEN legacy dalindan geldigini ACIKCA izliyoruz (esitsizlikten
+    # CIKARSAMAK yerine), noktalama-arindirma her iki daldan da (normalized
+    # VE legacy_normalized) tureyebilir.
     candidates = [normalized]
+    legacy_candidates = set()
     if legacy_normalized != normalized:
         candidates.append(legacy_normalized)
+        legacy_candidates.add(legacy_normalized)
     for base in list(candidates):
         stripped_punct = base.rstrip(".,!?;:…\"'")
         if stripped_punct and stripped_punct != base and stripped_punct not in candidates:
             candidates.append(stripped_punct)
+            if base in legacy_candidates:
+                legacy_candidates.add(stripped_punct)
     matched = False
     matched_via_legacy = False
     for candidate in candidates:
         try:
             if bcrypt.checkpw(candidate.encode(), stored_hash.encode()):
                 matched = True
-                matched_via_legacy = candidate != normalized
+                matched_via_legacy = candidate in legacy_candidates
                 break
         except (ValueError, TypeError):
             return False
