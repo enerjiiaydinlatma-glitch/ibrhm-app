@@ -62,12 +62,22 @@ VOICE_TURN_IDLE_TIMEOUT_SECONDS = 20
 # sonlandiriyoruz (bkz. asagida "idle_timeout" sinyali).
 VOICE_IDLE_NO_CONTENT_TIMEOUT_SECONDS = 60
 
-# Ucretsiz (free) tier gunluk sesli goruşme limiti (saniye). 'pro' tier
-# bundan muaf. Rakip uygulama arastirmasina ve kullanicinin onayina
-# dayanarak belirlendi (10 dakika).
+# Ucretsiz (free) tier gunluk sesli goruşme limiti (saniye). 10 dakika.
 VOICE_DAILY_LIMIT_SECONDS = 600
 VOICE_LIMIT_REACHED_MESSAGE = (
     "Bugünkü ücretsiz sesli görüşme hakkın doldu (10 dakika). Yarın sıfırlanacak."
+)
+
+# BULUNDU (2026-09-02, kullanici + maliyet analizi): 'pro' tier sesli
+# goruşmede HIC sinira tabi degildi. Gemini Live sesli ≈ dakika basina
+# $0.10-0.30 - tek bir "cok konusan" pro kullanici (gunde saatlerce)
+# pro abonelik ucretinin cok ustunde API maliyeti uretebilir. Pro'ya da
+# comert ama GERCEK bir gunluk tavan konuldu (90 dakika). Kullanim zaten
+# daily_voice_seconds'a yaziliyordu (add_voice_usage_seconds tier'dan
+# bagimsiz) - sadece pro icin okunup kontrol edilmiyordu.
+VOICE_PRO_DAILY_LIMIT_SECONDS = 5400
+VOICE_PRO_LIMIT_REACHED_MESSAGE = (
+    "Bugünkü sesli görüşme sınırına ulaştın (90 dakika). Yarın sıfırlanacak."
 )
 
 # aura_brain.build_system_instruction() yazili sohbet icin yazildi ve
@@ -148,12 +158,19 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         return
 
     free_tier = user.get("tier") != "pro"
-    already_used_seconds = database.get_voice_usage_seconds(user["id"]) if free_tier else 0
+    # Limit artik HER iki tier icin var - free 10dk, pro 90dk (bkz. sabitler).
+    voice_daily_limit = (
+        VOICE_DAILY_LIMIT_SECONDS if free_tier else VOICE_PRO_DAILY_LIMIT_SECONDS
+    )
+    voice_limit_message = (
+        VOICE_LIMIT_REACHED_MESSAGE if free_tier else VOICE_PRO_LIMIT_REACHED_MESSAGE
+    )
+    already_used_seconds = database.get_voice_usage_seconds(user["id"])
 
-    if free_tier and already_used_seconds >= VOICE_DAILY_LIMIT_SECONDS:
+    if already_used_seconds >= voice_daily_limit:
         await websocket.send_text(json.dumps({
             "type": "limit_reached",
-            "message": VOICE_LIMIT_REACHED_MESSAGE,
+            "message": voice_limit_message,
         }))
         await websocket.close(code=4003)
         return
@@ -336,19 +353,19 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                     # sinirinda) o ana kadarki toplam kullanimi (bugun
                     # onceden kullanilan + bu oturumda gecen sure) tekrar
                     # kontrol edip, asildiysa oturumu duzgunce kapatiyoruz.
-                    if free_tier:
-                        elapsed_this_session = time.time() - session_start_time
-                        if already_used_seconds + elapsed_this_session >= VOICE_DAILY_LIMIT_SECONDS:
-                            print(
-                                f"VOICE SESSION: gunluk sesli limit oturum "
-                                f"SIRASINDA asildi (user={user['id']}, "
-                                f"{turn_number}. tur), kapatiliyor"
-                            )
-                            await websocket.send_text(json.dumps({
-                                "type": "limit_reached",
-                                "message": VOICE_LIMIT_REACHED_MESSAGE,
-                            }))
-                            return
+                    elapsed_this_session = time.time() - session_start_time
+                    if already_used_seconds + elapsed_this_session >= voice_daily_limit:
+                        print(
+                            f"VOICE SESSION: gunluk sesli limit oturum "
+                            f"SIRASINDA asildi (user={user['id']}, "
+                            f"tier={'free' if free_tier else 'pro'}, "
+                            f"{turn_number}. tur), kapatiliyor"
+                        )
+                        await websocket.send_text(json.dumps({
+                            "type": "limit_reached",
+                            "message": voice_limit_message,
+                        }))
+                        return
                     turn_number += 1
                     # got_any_content: "uretici HICBIR SEY verdi mi" (bkz.
                     # asagida dongu sonu - Gemini'nin gercekten kapanip
