@@ -183,16 +183,27 @@ class ChatNotifier extends Notifier<ChatState> {
       }
     }
   }
-  /// Bir fotografi analiz icin gonderir - sendMessage ile ayni desen:
-  /// kullanici + bos asistan mesaji eklenir, isLoading acilir (yaziyor
-  /// gostergesi ve mesaj bitince otomatik ElevenLabs sesi bunun
-  /// uzerinden calisir), sonuc/hata yerine yazilir.
-  Future<void> sendImageForAnalysis(Uint8List imageBytes) async {
+  /// Bir fotograf VEYA PDF gonderip Aura'nin incelemesini alir - sendMessage
+  /// ile ayni desen: kullanici (ek) + bos asistan mesaji eklenir, isLoading
+  /// acilir, sonuc/hata yerine yazilir.
+  ///
+  /// [mimeType] "image/*" ya da "application/pdf". PDF ise [fileName] balonda
+  /// belge cipi olarak gosterilir, [question] varsa Aura ona gore yanitlar.
+  Future<void> sendFileForAnalysis(
+    Uint8List bytes, {
+    required String mimeType,
+    String? fileName,
+    String question = '',
+  }) async {
+    final isPdf = mimeType == 'application/pdf';
+
     final userMessage = Message(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-      text: '',
+      text: isPdf ? question : '',
       isUser: true,
-      imageBytes: imageBytes,
+      imageBytes: isPdf ? null : bytes,
+      fileName: isPdf ? (fileName ?? 'belge.pdf') : null,
+      animateIn: true,
     );
 
     final assistantId = DateTime.now().microsecondsSinceEpoch.toString();
@@ -205,7 +216,12 @@ class ChatNotifier extends Notifier<ChatState> {
     );
 
     try {
-      final reply = await _repository.analyzeImage(base64Encode(imageBytes));
+      final reply = await _repository.analyzeFile(
+        base64Encode(bytes),
+        mimeType: mimeType,
+        question: question,
+        fileName: fileName ?? '',
+      );
       final messages = state.messages;
 
       state = state.copyWith(
@@ -224,12 +240,14 @@ class ChatNotifier extends Notifier<ChatState> {
           ...messages.sublist(0, messages.length - 1),
           Message(
             id: assistantId,
-            text: 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?',
+            text: isPdf
+                ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
+                : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?',
             isUser: false,
           ),
         ],
         isLoading: false,
-        errorMessage: 'Fotoğraf analiz edilemedi.',
+        errorMessage: isPdf ? 'Belge incelenemedi.' : 'Fotoğraf analiz edilemedi.',
       );
     }
   }
