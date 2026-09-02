@@ -10,10 +10,15 @@ Calistirma:
     python server.py                       # veya: uvicorn server:app --host 0.0.0.0 --port 8123
 
 Uclar:
-    GET  /health                 -> {status, model_loaded, device, sr}
-    POST /tts   {text, stream}   -> audio/wav (16-bit PCM). stream=true ise
-                                    cumle cumle StreamingResponse.
+    GET  /health                 -> {status, model_loaded, device, sr, speakers}
+    POST /tts   {text, stream,    -> audio/wav (16-bit PCM). stream=true ise
+                 speaker}            cumle cumle StreamingResponse.
 Kimlik: X-Voice-Key basligi AURA_VOICE_KEY ile eslesecek (bos ise kontrol yok).
+
+Cok-karakter: `voices/<isim>.wav` referans seslerinden secim. `speaker` alani
+bos/bilinmiyorsa "aura"ya duser. Boylece TEK Chatterbox modeli (tek GPU kopyasi)
+hem Aura APP'ine hem Sign Council podcast'ine hizmet eder - iki ayri model
+yuklemeden kaynakli CUDA OOM ortadan kalkar.
 """
 from __future__ import annotations
 
@@ -32,9 +37,30 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 VOICE_KEY = os.getenv("AURA_VOICE_KEY", "").strip()
-REF_WAV = os.path.join(os.path.dirname(__file__), "aura_voice.wav")
+_HERE = os.path.dirname(__file__)
+REF_WAV = os.path.join(_HERE, "aura_voice.wav")  # varsayilan (Aura) - geriye donuk uyum
+VOICES_DIR = os.getenv("AURA_VOICE_VOICES_DIR", os.path.join(_HERE, "voices"))
+DEFAULT_SPEAKER = os.getenv("AURA_VOICE_DEFAULT_SPEAKER", "aura").strip().lower()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SR = 24000  # Chatterbox cikis ornekleme hizi
+
+
+def _speaker_map() -> dict[str, str]:
+    """voices/<isim>.wav -> {isim: tam_yol}. 'aura' her zaman var (aura_voice.wav)."""
+    out: dict[str, str] = {"aura": REF_WAV}
+    try:
+        for fn in os.listdir(VOICES_DIR):
+            if fn.lower().endswith(".wav"):
+                out[os.path.splitext(fn)[0].lower()] = os.path.join(VOICES_DIR, fn)
+    except OSError:
+        pass
+    return out
+
+
+def _resolve_ref(speaker: str | None) -> str:
+    name = (speaker or DEFAULT_SPEAKER).strip().lower()
+    m = _speaker_map()
+    return m.get(name) or m.get(DEFAULT_SPEAKER) or REF_WAV
 
 # Chatterbox uretim parametreleri - Turkce'de token tekrari/erken kesme
 # gozlemlendigi icin muhafazakar. Kullanici geri bildirimiyle ayarlanacak.
@@ -145,13 +171,13 @@ def _wav_header(data_len: int) -> bytes:
     )
 
 
-def _generate(text: str) -> np.ndarray:
+def _generate(text: str, ref_wav: str = REF_WAV) -> np.ndarray:
     model = _load_model()
     with _gen_lock:
         wav = model.generate(
             text,
             language_id="tr",
-            audio_prompt_path=REF_WAV,
+            audio_prompt_path=ref_wav,
             exaggeration=EXAGGERATION,
             cfg_weight=CFG_WEIGHT,
         )
@@ -161,6 +187,7 @@ def _generate(text: str) -> np.ndarray:
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     stream: bool = False
+    speaker: str | None = None  # voices/<isim>.wav; bos -> "aura"
 
 
 @app.get("/health")
@@ -170,16 +197,19 @@ def health():
         "model_loaded": _model is not None,
         "device": DEVICE,
         "sr": SR,
+        "speakers": sorted(_speaker_map().keys()),
+        "default_speaker": DEFAULT_SPEAKER,
     }
 
 
 @app.post("/tts")
 def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
     _check_key(x_voice_key)
+    ref_wav = _resolve_ref(req.speaker)
     sentences = split_sentences(req.text) or [req.text.strip()]
 
     if not req.stream:
-        chunks = [_generate(s) for s in sentences]
+        chunks = [_generate(s, ref_wav) for s in sentences]
         audio = np.concatenate(chunks) if chunks else np.zeros(1, "float32")
         return Response(content=_wav_bytes(audio), media_type="audio/wav")
 
@@ -189,7 +219,7 @@ def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
         yield _wav_header(0)
         for s in sentences:
             t0 = time.time()
-            audio = _generate(s)
+            audio = _generate(s, ref_wav)
             print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
             yield _pcm_bytes(audio)
 
@@ -200,6 +230,7 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("AURA_VOICE_PORT", "8123"))
-    print(f"[voice] Aura Voice Mesh baslatiliyor :{port}  (ref: {REF_WAV})", flush=True)
+    _spk = ", ".join(sorted(_speaker_map().keys()))
+    print(f"[voice] Aura Voice Mesh baslatiliyor :{port}  (sesler: {_spk} / varsayilan: {DEFAULT_SPEAKER})", flush=True)
     _load_model()  # baslangicta yukle - ilk istek beklemesin
     uvicorn.run(app, host="0.0.0.0", port=port)
