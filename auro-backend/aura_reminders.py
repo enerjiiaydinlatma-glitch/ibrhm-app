@@ -18,8 +18,7 @@ extract_memory_candidate/extract_style_signals ile ayni "sadece kanit
 varsa pahali isi yap" ilkesi.
 """
 
-import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import aura_brain
 import database
