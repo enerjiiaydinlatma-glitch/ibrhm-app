@@ -1,0 +1,7 @@
+# Aura Voice Mesh - TTS servisi bagimliliklari.
+# torch + torchaudio'yu CUDA surumuyle AYRI kur (buyuk, indeks farkli):
+#   pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu118
+chatterbox-tts
+fastapi
+uvicorn[standard]
+numpy
