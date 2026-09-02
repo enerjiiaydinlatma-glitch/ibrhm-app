@@ -1,0 +1,13 @@
+# Aura Voice Mesh - kalici (named) cloudflared tuneli.
+# kurulum_tek_seferlik.bat calistiktan SONRA:
+#   - asagidaki "aura-ses" dogru mu kontrol et (tunnel create ile ayni ad)
+#   - credentials-file yolunu kendi kullanicina gore duzelt (genelde
+#     C:\Users\<KULLANICI>\.cloudflared\<TUNNEL-ID>.json - "cloudflared tunnel list" ID'yi verir)
+
+tunnel: aura-ses
+credentials-file: C:\Users\ibrah\.cloudflared\aura-ses.json
+
+ingress:
+  - hostname: ses.enerjiiaydinlatma.com   # kurulumda sectigin alt alan adi ile AYNI yap
+    service: http://localhost:8123
+  - service: http_status:404
