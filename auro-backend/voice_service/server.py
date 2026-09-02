@@ -84,7 +84,10 @@ def split_sentences(text: str, max_len: int = 240) -> list[str]:
     for m in _SENT_END.finditer(text):
         end = m.end()
         chunk = text[start:end].strip()
-        prev_word = text[max(0, m.start() - 6):m.start()].split()[-1].lower().strip(".") if text[:m.start()].split() else ""
+        # noktalama oncesi son kelime - kisaltma kontrolu icin. Bos listeye
+        # karsi guvenli ('or [""]' - dar pencere/basi bosluk cokme yapmasin).
+        words_before = text[:m.start()].split()
+        prev_word = (words_before or [""])[-1].lower().strip(".")
         if prev_word in _ABBREV:
             continue
         if chunk:
