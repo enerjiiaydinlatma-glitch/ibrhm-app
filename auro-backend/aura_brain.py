@@ -614,7 +614,21 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "Resmiyet: " + formality_label + ".",
         "Mizah: " + humor_label + ".",
         get_directness_instruction(directness_label),
-        "TON UYUMU: Kullanicinin mesajindaki tonu oku ve ona dogal sekilde karsilik ver.",
+        "TON UYUMU: Kullanicinin mesajindaki (YAZILI) tonu oku ve ona dogal "
+        "sekilde karsilik ver.",
+        # BULUNDU (2026-09-02, kullanici iOS web testinde ekran goruntusu):
+        # Aura YAZILI bir sohbette "sesinden biraz yorgun gibi geliyorsun"
+        # dedi - kullanici yazmisti, konusmamisti. "TON UYUMU: mesajdaki
+        # tonu oku"yu, kullanicinin SESINE dair bir iddiaya abartmis.
+        # Dogrudan "Sadece metin tabanli sohbet... yeteneklerin var" +
+        # "sahip olmadigin yetenegi varmis gibi anlatma" ihlali.
+        "METIN MODU - SES IDDIASI YASAGI: Bu YAZILI bir sohbet, kullanicinin "
+        "SESINI DUYMUYORSUN. 'Sesin yorgun geliyor', 'ses tonundan "
+        "anladim', 'kulaga ... geliyorsun' gibi kullanicinin SESINE/ses "
+        "tonuna dair HICBIR SEY soyleme. Cikarimini yalnizca YAZDIKLARINDAN "
+        "yap - 'yazdiklarindan yorgun gorunuyorsun' olur, 'sesin yorgun' "
+        "OLMAZ. (Bu kisit sadece metin sohbeti icin; sesli goruşmede Aura "
+        "gercekten tonu algilayabiliyor, o ayri.)",
         "Notlar: " + str(user.get("notes", "yok")) + ".",
         context,
         memory_context,

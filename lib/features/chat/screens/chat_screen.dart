@@ -1,6 +1,8 @@
 ﻿import "dart:async";
+import "dart:typed_data";
 import "dart:ui";
 import "package:dio/dio.dart";
+import "package:flutter/foundation.dart" show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
@@ -284,37 +286,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  /// Galeri: image_picker'in Windows/masaustu galeri destegi guvenilmez
-  /// (kullanici testinde "secilemedi" hatasi verdi), bu yuzden PDF ile
-  /// ayni file_picker kullaniliyor - her platformda calisir.
+  /// Masaustu (Windows/Linux/macOS) - orada image_picker'in galeri destegi
+  /// guvenilmez ve kamera hic yok. Web + mobilde (iOS/Android) image_picker
+  /// hem galeri hem kamera icin sorunsuz - iOS Safari'de bile native
+  /// "Fotograf / Kamera" sayfasini acar. file_picker ise tam tersi: web'de
+  /// FileType.custom galeri secimi iOS Safari'de "secilemedi" veriyordu.
+  bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  Future<void> _sendPickedImage(Uint8List bytes, String name) async {
+    if (bytes.length > 11 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Bu fotoğraf çok büyük (en fazla ~11MB).",
+                style: GoogleFonts.poppins())),
+      );
+      return;
+    }
+    final n = name.toLowerCase();
+    final mime = n.endsWith(".png")
+        ? "image/png"
+        : n.endsWith(".webp")
+            ? "image/webp"
+            : "image/jpeg";
+    await ref
+        .read(chatProvider.notifier)
+        .sendFileForAnalysis(bytes, mimeType: mime);
+    _scrollToBottom();
+  }
+
   Future<void> _pickImageFromGallery() async {
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ["jpg", "jpeg", "png", "webp"],
-      );
-      if (files.isEmpty) return;
-      final file = files.first;
-      final ext = file.name.toLowerCase().split(".").last;
-      final mime = ext == "png"
-          ? "image/png"
-          : ext == "webp"
-              ? "image/webp"
-              : "image/jpeg";
-      final bytes = await file.readAsBytes();
-      if (bytes.length > 11 * 1024 * 1024) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text("Bu fotoğraf çok büyük (en fazla ~11MB).",
-                  style: GoogleFonts.poppins())),
+      if (_isDesktop) {
+        final files = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ["jpg", "jpeg", "png", "webp"],
         );
-        return;
+        if (files.isEmpty) return;
+        await _sendPickedImage(await files.first.readAsBytes(), files.first.name);
+      } else {
+        final picked = await ImagePicker()
+            .pickImage(source: ImageSource.gallery, imageQuality: 85);
+        if (picked == null) return;
+        await _sendPickedImage(await picked.readAsBytes(), picked.name);
       }
-      await ref
-          .read(chatProvider.notifier)
-          .sendFileForAnalysis(bytes, mimeType: mime);
-      _scrollToBottom();
     } catch (e) {
       debugPrint("Fotograf secme hatasi: $e");
       if (!mounted) return;
@@ -326,28 +345,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  /// Kamera: sadece image_picker'da var, mobil/web'de calisir. Windows'ta
+  /// Kamera: sadece image_picker'da var, mobil/web'de calisir. Masaustunde
   /// desteklenmez - kullaniciya anlasilir bir mesaj verilir.
   Future<void> _pickImageFromCamera() async {
+    if (_isDesktop) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Kamera bu cihazda kullanılamıyor.",
+                style: GoogleFonts.poppins())),
+      );
+      return;
+    }
     try {
       final picked = await ImagePicker()
           .pickImage(source: ImageSource.camera, imageQuality: 85);
       if (picked == null) return;
-      final bytes = await picked.readAsBytes();
-      final mime = picked.name.toLowerCase().endsWith(".png")
-          ? "image/png"
-          : "image/jpeg";
-      await ref
-          .read(chatProvider.notifier)
-          .sendFileForAnalysis(bytes, mimeType: mime);
-      _scrollToBottom();
+      await _sendPickedImage(await picked.readAsBytes(), picked.name);
     } catch (e) {
       debugPrint("Kamera hatasi: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Kamera bu cihazda kullanılamıyor.",
-                style: GoogleFonts.poppins())),
+            content: Text("Kamera açılamadı.", style: GoogleFonts.poppins())),
       );
     }
   }
