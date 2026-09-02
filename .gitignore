@@ -70,3 +70,6 @@ diff_*.txt
 
 # Installer build output (binary, rebuildable from aura_setup.iss)
 installer_output/
+
+# Aura Voice Mesh - Railway API token (asla commit etme)
+auro-backend/voice_service/sync_secrets.txt
