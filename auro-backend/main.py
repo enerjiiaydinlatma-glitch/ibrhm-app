@@ -104,7 +104,15 @@ AURA_VOICE_KEY = os.getenv("AURA_VOICE_KEY", "").strip()
 # Mesh ~1x gercek-zaman uretiyor; cok uzun metin timeout olur - o durumda
 # dogrudan ElevenLabs'e git (hizli). Kisa yanitlar/karsilamalar/bas-konus
 # cevaplari mesh'ten (Aura sesi) gecer.
-AURA_VOICE_MAX_CHARS = 800
+#
+# GECE INCELEMESI (2026-09-02): 800 idi ama _mesh timeout'u 45s. 800 krkt
+# Turkce ≈ 55-60s konusma ≈ RTF~1.0'da 55-60s uretim -> max-uzunluk istek
+# HER ZAMAN 45s'de timeout olurdu (bosuna 45s bekleyip ElevenLabs'e duser).
+# 500'e cekildi: ≈35s uretim, 45s timeout'a rahat sigar.
+AURA_VOICE_MAX_CHARS = 500
+# Mesh HTTP timeout - uretim suresi + tunel gecikmesi. 500 krkt'lik en uzun
+# istek ~35s; +10s pay.
+AURA_VOICE_TIMEOUT_S = 45
 aura_voice_http = httpx.Client()
 
 
@@ -121,7 +129,7 @@ def _aura_voice_tts(text: str) -> tuple[Optional[bytes], str]:
             f"{AURA_VOICE_URL}/tts",
             json={"text": text, "stream": False},
             headers={"X-Voice-Key": AURA_VOICE_KEY} if AURA_VOICE_KEY else {},
-            timeout=45,
+            timeout=AURA_VOICE_TIMEOUT_S,
         )
         if r.status_code == 200 and r.content:
             return r.content, "ok"
