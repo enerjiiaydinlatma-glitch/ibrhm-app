@@ -1001,12 +1001,12 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
         mood = detect_mood(request.message)
         if mood:
             database.add_mood(user["id"], mood, context=request.message[:100])
-    message_id = database.add_message(
-    user["id"],
-    "user",
-    request.message,
-    hidden=hidden_now,
-)
+    database.add_message(
+        user["id"],
+        "user",
+        request.message,
+        hidden=hidden_now,
+    )
     database.update_style_vector(user["id"], aura_brain.extract_style_signals(request.message))
     # GUVENLIK TARAMASI BULGUSU: /api/chat'in aksine bu endpoint gunluk
     # mesaj limitine HIC tabi degildi - Flutter istemcisi bunu cagirmiyor
