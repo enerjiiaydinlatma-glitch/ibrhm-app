@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 
@@ -64,6 +65,17 @@ def railway_set_var(cfg: dict, name: str, value: str) -> None:
     print(f"[sync] Railway {name} = {value}  -> guncellendi (otomatik redeploy)", flush=True)
 
 
+def _sync_after_delay(cfg: dict, url: str) -> None:
+    """Ayri thread: birkac sn 'reachable' olmasi icin bekle, sonra Railway'i
+    guncelle. Ana dongude yapilsaydi time.sleep + urlopen cloudflared'in
+    stdout pipe'ini bloklayip onu stall edebilirdi (gece incelemesi)."""
+    time.sleep(5)
+    try:
+        railway_set_var(cfg, "AURA_VOICE_URL", url)
+    except Exception as e:
+        print(f"[sync] UYARI: Railway guncellenemedi: {e}", flush=True)
+
+
 def run_once(cfg: dict) -> None:
     print("[sync] cloudflared quick tunnel baslatiliyor...", flush=True)
     proc = subprocess.Popen(
@@ -79,12 +91,9 @@ def run_once(cfg: dict) -> None:
             m = URL_RE.search(line)
             if m and m.group(0) != url_sent:
                 url_sent = m.group(0)
-                # birkac saniye "reachable" olmasi icin bekle
-                time.sleep(4)
-                try:
-                    railway_set_var(cfg, "AURA_VOICE_URL", url_sent)
-                except Exception as e:
-                    print(f"[sync] UYARI: Railway guncellenemedi: {e}", flush=True)
+                threading.Thread(
+                    target=_sync_after_delay, args=(cfg, url_sent), daemon=True
+                ).start()
         proc.wait()
     finally:
         if proc.poll() is None:

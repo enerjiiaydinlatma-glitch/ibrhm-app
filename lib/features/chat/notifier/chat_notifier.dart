@@ -215,6 +215,24 @@ class ChatNotifier extends Notifier<ChatState> {
       errorMessage: null,
     );
 
+    // BULUNDU (gece incelemesi): eskiden kosulsuz 'sublist(0, length-1)' ile
+    // SON mesaji degistiriyordu - PDF analizi 10-45sn surer, o arada sesli
+    // gorusme turn_complete'i ya da eszamanli bir gonderim listeye baska
+    // mesaj eklerse YANLIS mesaj dusuyordu. Artik yer tutucu asistan mesaji
+    // ID'siyle bulunup yerinde degistiriliyor (nerede olursa olsun).
+    void replacePlaceholder(String text) {
+      final msgs = state.messages;
+      final idx = msgs.indexWhere((m) => m.id == assistantId);
+      final updated = Message(id: assistantId, text: text, isUser: false);
+      final newList = [...msgs];
+      if (idx >= 0) {
+        newList[idx] = updated;
+      } else {
+        newList.add(updated); // yer tutucu bir sekilde kayboldu - yine de goster
+      }
+      state = state.copyWith(messages: newList, isLoading: false);
+    }
+
     try {
       final reply = await _repository.analyzeFile(
         base64Encode(bytes),
@@ -222,31 +240,13 @@ class ChatNotifier extends Notifier<ChatState> {
         question: question,
         fileName: fileName ?? '',
       );
-      final messages = state.messages;
-
-      state = state.copyWith(
-        messages: [
-          ...messages.sublist(0, messages.length - 1),
-          Message(id: assistantId, text: reply.text, isUser: false),
-        ],
-        isLoading: false,
-        errorMessage: null,
-      );
+      replacePlaceholder(reply.text);
+      state = state.copyWith(errorMessage: null);
     } catch (e) {
-      final messages = state.messages;
-
+      replacePlaceholder(isPdf
+          ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
+          : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?');
       state = state.copyWith(
-        messages: [
-          ...messages.sublist(0, messages.length - 1),
-          Message(
-            id: assistantId,
-            text: isPdf
-                ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
-                : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?',
-            isUser: false,
-          ),
-        ],
-        isLoading: false,
         errorMessage: isPdf ? 'Belge incelenemedi.' : 'Fotoğraf analiz edilemedi.',
       );
     }
