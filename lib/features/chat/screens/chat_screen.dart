@@ -259,9 +259,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 8),
             _attachTile(sheetContext, Icons.photo_library_outlined, "Galeri",
-                () => _pickImage(ImageSource.gallery)),
+                _pickImageFromGallery),
             _attachTile(sheetContext, Icons.photo_camera_outlined, "Kamera",
-                () => _pickImage(ImageSource.camera)),
+                _pickImageFromCamera),
             _attachTile(sheetContext, Icons.picture_as_pdf_outlined,
                 "Belge (PDF)", _pickPdf),
             const SizedBox(height: 12),
@@ -284,17 +284,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  /// Galeri: image_picker'in Windows/masaustu galeri destegi guvenilmez
+  /// (kullanici testinde "secilemedi" hatasi verdi), bu yuzden PDF ile
+  /// ayni file_picker kullaniliyor - her platformda calisir.
+  Future<void> _pickImageFromGallery() async {
     try {
-      final picked =
-          await ImagePicker().pickImage(source: source, imageQuality: 85);
-      if (picked == null) return;
-      final bytes = await picked.readAsBytes();
-      final mime = picked.name.toLowerCase().endsWith(".png")
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ["jpg", "jpeg", "png", "webp"],
+      );
+      if (files.isEmpty) return;
+      final file = files.first;
+      final ext = file.name.toLowerCase().split(".").last;
+      final mime = ext == "png"
           ? "image/png"
-          : picked.name.toLowerCase().endsWith(".webp")
+          : ext == "webp"
               ? "image/webp"
               : "image/jpeg";
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 11 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Bu fotoğraf çok büyük (en fazla ~11MB).",
+                  style: GoogleFonts.poppins())),
+        );
+        return;
+      }
       await ref
           .read(chatProvider.notifier)
           .sendFileForAnalysis(bytes, mimeType: mime);
@@ -306,6 +322,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         SnackBar(
             content:
                 Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
+      );
+    }
+  }
+
+  /// Kamera: sadece image_picker'da var, mobil/web'de calisir. Windows'ta
+  /// desteklenmez - kullaniciya anlasilir bir mesaj verilir.
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final picked = await ImagePicker()
+          .pickImage(source: ImageSource.camera, imageQuality: 85);
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      final mime = picked.name.toLowerCase().endsWith(".png")
+          ? "image/png"
+          : "image/jpeg";
+      await ref
+          .read(chatProvider.notifier)
+          .sendFileForAnalysis(bytes, mimeType: mime);
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint("Kamera hatasi: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Kamera bu cihazda kullanılamıyor.",
+                style: GoogleFonts.poppins())),
       );
     }
   }
