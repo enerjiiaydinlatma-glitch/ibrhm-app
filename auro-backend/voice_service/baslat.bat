@@ -2,14 +2,15 @@
 title Aura Voice Mesh - TTS
 cd /d "%~dp0"
 
-REM --- Gizli anahtar: auro-backend'deki AURA_VOICE_KEY ile AYNI olmali ---
-if "%AURA_VOICE_KEY%"=="" set AURA_VOICE_KEY=DEGISTIR-uzun-gizli-bir-anahtar
+REM Bu anahtar Railway'deki AURA_VOICE_KEY ile AYNI olmali (SETUP.md).
+if "%AURA_VOICE_KEY%"=="" set AURA_VOICE_KEY=bhpkaVp9HGIYl7ufF5mTCT4m-huFLYWsE7C3ex4dl4Q
 
-REM Global Python 3.12 (chatterbox + torch cu118 burada kurulu)
 set PY=%LOCALAPPDATA%\Programs\Python\Python312\python.exe
 if not exist "%PY%" set PY=python
 
-echo Aura Voice Mesh baslatiliyor (model ilk seferde ~20sn yuklenir)...
+:loop
+echo [%date% %time%] Aura Voice Mesh baslatiliyor (model ~20sn yuklenir)...
 "%PY%" server.py
-
-pause
+echo [%date% %time%] Servis durdu. 5 sn sonra tekrar... (kapatmak icin pencereyi kapat)
+timeout /t 5 >nul
+goto loop
