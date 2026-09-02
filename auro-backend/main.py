@@ -510,14 +510,25 @@ class TTSRequest(BaseModel):
     voice: str = "female"
 
 class AnalyzeRequest(BaseModel):
-    # ~15MB base64 - tipik bir fotografi rahatca kapsar, sinirsizi engeller.
+    # ~15MB base64 - tipik bir fotografi VEYA orta boy bir PDF'i (~11MB ham)
+    # rahatca kapsar, sinirsizi engeller. Alan adi tarihsel sebeple
+    # "image_base64" ama artik PDF de tasiyabiliyor (bkz. mime_type).
     image_base64: str = Field(max_length=15_000_000)
     # GECE DENETIMI BULGUSU: mime_type dogrulamasizdi, dogrudan Gemini'ye
     # gecilen types.Blob'a gidiyordu - hem anlamsiz/kotu niyetli bir deger
     # gonderilebiliyordu hem de bu alanin kendine ait bir uzunluk siniri
     # yoktu (image_base64 disinda). Sadece fiilen desteklenen goruntu
-    # turlerine sabitlendi.
-    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
+    # turlerine + PDF'e sabitlendi (2026-09-02, kullanici istegi: "pdf'ler
+    # inceleme okuma icin olsun").
+    mime_type: Literal[
+        "image/jpeg", "image/png", "image/webp", "application/pdf"
+    ] = "image/jpeg"
+    # PDF/fotograf ile birlikte kullanicinin sorabildigi opsiyonel soru
+    # ("bu sozlesmede dikkat etmem gereken maddeler ne?"). Bos ise belge
+    # genel olarak ozetlenir.
+    question: str = Field(default="", max_length=2000)
+    # Sadece gecmis kaydinda gostermek icin ("[Bir PDF paylasti: X.pdf]").
+    file_name: str = Field(default="", max_length=200)
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
@@ -1126,14 +1137,35 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         user["id"], LIMIT_DAILY_MESSAGES
     ):
         raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
+    is_pdf = request.mime_type == "application/pdf"
+    question = request.question.strip()
     try:
-        image_bytes = base64.b64decode(request.image_base64)
-        prompt = (
-            "Bu fotografi iki katmanda analiz et ve Turkce yanit ver:\n\n"
-            "1. NESNEL ANALIZ: Fotografta ne goruyorsun?\n\n"
-            "2. DUYGUSAL YORUM: Bu fotografin atmosferi ve ruh hali ne?\n\n"
-            "Dogal, akici Aura uslubunda yaz. Paragraf olarak yaz."
-        )
+        file_bytes = base64.b64decode(request.image_base64)
+        if is_pdf and question:
+            prompt = (
+                "Kullanici bu belgeyi (PDF) paylasti ve sunu soruyor:\n"
+                f'"{question}"\n\n'
+                "Belgeyi oku ve DOGRUDAN bu soruya gore yanitla. Gerekirse "
+                "belgeden ilgili kisimlara atif yap. Aura uslubunda, akan "
+                "cumlelerle yaz."
+            )
+        elif is_pdf:
+            prompt = (
+                "Kullanici bu belgeyi (PDF) paylasti. Belgeyi oku ve ona "
+                "kisaca anlat: ne tur bir belge bu, ana konusu/amaci ne, ve "
+                "OZELLIKLE dikkat cekmesi gereken, onemli ya da riskli "
+                "gordugun noktalar var mi. Bir arkadasin belgeye goz atip "
+                "sana ozetledigi gibi, akan cumlelerle yaz - madde imli "
+                "liste ya da rapor formati KULLANMA."
+            )
+        else:
+            prompt = (
+                "Bu fotografi iki katmanda analiz et ve Turkce yanit ver:\n\n"
+                "1. NESNEL ANALIZ: Fotografta ne goruyorsun?\n\n"
+                "2. DUYGUSAL YORUM: Bu fotografin atmosferi ve ruh hali ne?\n\n"
+                "Dogal, akici Aura uslubunda yaz. Paragraf olarak yaz."
+            )
+        message_count = len(database.get_messages(user["id"]))
         response = client.models.generate_content(
             # Kod sagligi taramasinda bulundu: burada aura_brain.py'deki
             # guncel modelden (gemini-3.7-flash) FARKLI, eski bir model
@@ -1144,13 +1176,29 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
                 types.Content(
                     role="user",
                     parts=[
-                        types.Part(inline_data=types.Blob(mime_type=request.mime_type, data=image_bytes)),
+                        types.Part(inline_data=types.Blob(mime_type=request.mime_type, data=file_bytes)),
                         types.Part(text=prompt),
                     ],
                 )
             ],
+            # BULUNDU (2026-09-02): bu uc, /api/chat'in aksine Aura'nin
+            # sistem talimatini (karakter, BICIM KURALI, hafiza ilkeleri)
+            # HIC GECMIYORDU - ciplak bir prompt'la cagriliyordu, yani
+            # fotograf/PDF yanitlari jenerik asistan tonunda geliyordu.
+            # Artik ayni sistem talimatindan geciyor.
+            config=types.GenerateContentConfig(
+                system_instruction=aura_brain.build_system_instruction(
+                    user, message_count
+                )
+            ),
         )
-        analysis_text = response.text
+        analysis_text = response.text or ""
+        analysis_text = (
+            aura_brain.sanitize_reply(analysis_text, message_count)
+            or analysis_text
+        )
+        if not analysis_text:
+            raise ValueError("Bos/engellenmis yanit")
         # BULUNDU (2026-08-25, 4 AI'ya sorulan derinlemesine analiz):
         # bu analiz sonucu SADECE kullaniciya donduruluyordu, hicbir
         # yere kaydedilmiyordu - Aura ertesi gun bu fotografi hic
@@ -1158,7 +1206,16 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         # Normal sohbet mesajlariyla ayni tabloya (messages) yaziyoruz -
         # boylece bir sonraki /api/chat cagrisinin gecmis baglaminda
         # bu da yer aliyor, Aura bir daha sorulunca hatirlayabiliyor.
-        database.add_message(user["id"], "user", "[Bir fotoğraf paylaştı]")
+        if is_pdf:
+            fname = request.file_name.strip()
+            user_line = (
+                f"[Bir PDF paylaştı: {fname}]" if fname else "[Bir PDF paylaştı]"
+            )
+            if question:
+                user_line += f" — sorusu: {question}"
+        else:
+            user_line = "[Bir fotoğraf paylaştı]"
+        database.add_message(user["id"], "user", user_line)
         database.add_message(user["id"], "assistant", analysis_text)
         return {"analysis": analysis_text}
     except Exception as e:
@@ -1166,7 +1223,14 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         # icerebilir) artik istemciye sizdirilmiyor - detay sadece
         # sunucu logunda kaliyor.
         print(f"ANALYZE ERROR: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="Fotoğraf analiz edilemedi.")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Belgeyi şu an inceleyemedim, tekrar dener misin?"
+                if is_pdf
+                else "Fotoğraf analiz edilemedi."
+            ),
+        )
 
 
 # Sosyal katman (arkadas + story feed) BILEREK kaldirildi (2026-08-25):
