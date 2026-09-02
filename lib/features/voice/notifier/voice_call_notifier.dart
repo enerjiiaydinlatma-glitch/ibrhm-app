@@ -160,6 +160,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   static const int _maxAutoRetries = 3;
   bool _reconnecting = false;
 
+  // Masaustunde pencere gizlenip Flutter motoru askiya alindiginda (bkz.
+  // didChangeAppLifecycleState) geri donuldugunde ne kadar sure gectigini
+  // olcmek icin - her sunucu mesajinda tazeleniyor.
+  DateTime? _lastServerMessageAt;
+  // resumed olayi kisa araliyla birden fazla tetiklenebilir - askidan-
+  // donus yeniden baglanmasi zaten calisirken ikinciyi baslatma.
+  bool _resumeReconnectInFlight = false;
+
   // Sunucu "limit_reached" gonderip baglantiyi kendi kapattiginda,
   // hemen ardindan gelen onDone/onError'un OTOMATIK yeniden baglanmayi
   // tetiklememesi icin - aksi halde ayni gunluk limite tekrar carpip
@@ -239,11 +247,61 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     }
     if (lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden) {
+      // BULUNDU (2026-09-02, kullanici Windows testi + teshis logu): pencere
+      // arkada kalinca/ortulunce Flutter masaustunde motoru + Dart
+      // timer'larini askiya aliyor (AppLifecycleState.hidden + Win11 arka
+      // plan kisiti). Log kaniti: 78sn hicbir sey yok, sonra birikmis ses
+      // bir anda bosaliyor. Ama WebSocket KOPMUYOR - mobildeki gibi
+      // gorusmeyi bitirmek yanlis olur (mobilde WS OS tarafindan sessizce
+      // olduruluyor, o yuzden orada bitiriyoruz). Masaustunde gorusmeyi
+      // KORU; geri donuldugunde (resumed) bayat ses birikimini
+      // _lastServerMessageAt bosluguyla yakalayip temiz yeniden baglan.
+      if (_isDesktopPlatform) {
+        _voiceDebugLog(
+          "masaustu: pencere gizlendi ($lifecycleState) - gorusme korunuyor",
+        );
+        return;
+      }
       _voiceDebugLog(
         "uygulama arka plana alindi ($lifecycleState) - aktif gorusme "
         "sonlandiriliyor",
       );
       unawaited(_endCallDueToBackground());
+    } else if (lifecycleState == AppLifecycleState.resumed) {
+      // Masaustunde askidan donuldu: son sunucu mesajindan uzun sure
+      // gectiyse, kuyrukta bekleyen bayat sesi (birikmis addAudioDataStream
+      // patlamasi) calmak yerine sessizce yeniden baglaniyoruz. Ayni desen
+      // laptop uyku/uyanma ve kisa ag kopmasini da kapsar.
+      // _reconnectForSessionRefresh: _autoRetryCount'u artirmiyor, elde
+      // resumption_handle varsa Gemini baglamini korur, yoksa taze baglanir
+      // (istemci sohbet gecmisi zaten chatProvider'da).
+      if (_isDesktopPlatform &&
+          _lastServerMessageAt != null &&
+          !_resumeReconnectInFlight &&
+          !_intentionalClose) {
+        final gap = DateTime.now().difference(_lastServerMessageAt!);
+        if (gap > const Duration(seconds: 8)) {
+          _resumeReconnectInFlight = true;
+          _voiceDebugLog(
+            "masaustu: ${gap.inSeconds}sn sunucu sessizliginden donuldu - "
+            "bayat ses yerine yeniden baglaniliyor",
+          );
+          unawaited(
+            _reconnectForSessionRefresh()
+                .whenComplete(() => _resumeReconnectInFlight = false),
+          );
+        }
+      }
+    }
+  }
+
+  /// kIsWeb + Platform guard'li - sesli gorusme web'de de kosuyor.
+  bool get _isDesktopPlatform {
+    if (kIsWeb) return false;
+    try {
+      return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -485,6 +543,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     // gorusmede araya sikisan birkac ayri, gecici kopma toplam hakkı
     // tuketmesin.
     _autoRetryCount = 0;
+    _lastServerMessageAt = DateTime.now();
 
     if (message is List<int>) {
       // Aura'nin sesi hoparlorden cikmaya baslayacak. Gercek donanim/OS
