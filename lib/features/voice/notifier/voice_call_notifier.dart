@@ -286,7 +286,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       if (_isDesktopPlatform &&
           hiddenAt != null &&
           !_resumeReconnectInFlight &&
+          !_reconnecting &&
           !_intentionalClose) {
+        // !_reconnecting: pencere gizliyken WS koptuysa _reconnectAfterDelay
+        // zaten devrede (masaustunde timer'lar askidayken bekliyor). resumed
+        // olunca hem o devam eder hem burasi tetiklenir - ikisi ayni anda
+        // _cleanup()+_connect() calistirirsa bu dosyanin butun savastigi
+        // "iki es zamanli cleanup -> donma" sinifi geri gelir.
         final suspended = DateTime.now().difference(hiddenAt);
         if (suspended > const Duration(seconds: 8)) {
           _resumeReconnectInFlight = true;
@@ -1009,6 +1015,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     _unmuteCheckTimer = null;
     _muteMic = false;
     _bufferedDurationMs = 0;
+    // BULUNDU (kod incelemesi 2026-09-03): _desktopHiddenAt SADECE resumed'da
+    // temizleniyordu. Gorusme arka plandayken biterse (limit_reached/
+    // idle_timeout -> _cleanup, ama state artik "error" -> resumed guard'i
+    // erken donuyor) bayat kaliyordu; sonraki gorusmede siradan bir odak
+    // donusu (masaustunde resumed HER odak kazaniminda tetikleniyor) bu eski
+    // zaman damgasiyla "cok uzun askidaydik" deyip gereksiz reconnect ediyordu.
+    _desktopHiddenAt = null;
 
     _voiceDebugLog("_micSubscription.cancel() cagriliyor");
     await _micSubscription?.cancel();
