@@ -160,10 +160,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   static const int _maxAutoRetries = 3;
   bool _reconnecting = false;
 
-  // Masaustunde pencere gizlenip Flutter motoru askiya alindiginda (bkz.
-  // didChangeAppLifecycleState) geri donuldugunde ne kadar sure gectigini
-  // olcmek icin - her sunucu mesajinda tazeleniyor.
-  DateTime? _lastServerMessageAt;
+  // Masaustunde pencere GERCEKTEN gizlendiginde (paused/hidden - Flutter
+  // motorunu askiya alan durum) doldurulur; resumed'da "ne kadar sure
+  // askidaydik" bunun uzerinden olculur. inactive (sadece odak kaybi,
+  // motor askiya ALINMAZ) bunu doldurmaz - o yuzden kisa odak degisimleri
+  // gereksiz yeniden baglanma tetiklemez. resumed islenince null'a doner.
+  DateTime? _desktopHiddenAt;
   // resumed olayi kisa araliyla birden fazla tetiklenebilir - askidan-
   // donus yeniden baglanmasi zaten calisirken ikinciyi baslatma.
   bool _resumeReconnectInFlight = false;
@@ -254,9 +256,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       // bir anda bosaliyor. Ama WebSocket KOPMUYOR - mobildeki gibi
       // gorusmeyi bitirmek yanlis olur (mobilde WS OS tarafindan sessizce
       // olduruluyor, o yuzden orada bitiriyoruz). Masaustunde gorusmeyi
-      // KORU; geri donuldugunde (resumed) bayat ses birikimini
-      // _lastServerMessageAt bosluguyla yakalayip temiz yeniden baglan.
+      // KORU; geri donuldugunde (resumed) ne kadar askidaydik
+      // (_desktopHiddenAt) 8sn'yi asiyorsa temiz yeniden baglan.
       if (_isDesktopPlatform) {
+        _desktopHiddenAt = DateTime.now();
         _voiceDebugLog(
           "masaustu: pencere gizlendi ($lifecycleState) - gorusme korunuyor",
         );
@@ -268,22 +271,27 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       );
       unawaited(_endCallDueToBackground());
     } else if (lifecycleState == AppLifecycleState.resumed) {
-      // Masaustunde askidan donuldu: son sunucu mesajindan uzun sure
-      // gectiyse, kuyrukta bekleyen bayat sesi (birikmis addAudioDataStream
-      // patlamasi) calmak yerine sessizce yeniden baglaniyoruz. Ayni desen
-      // laptop uyku/uyanma ve kisa ag kopmasini da kapsar.
+      // Masaustunde GERCEK bir askiya-alinmadan (paused/hidden) donuldu VE
+      // uzun surdu ise: kuyrukta bekleyen bayat sesi (birikmis
+      // addAudioDataStream patlamasi) calmak yerine sessizce yeniden
+      // baglaniyoruz. Ayni desen laptop uyku/uyanma + kisa ag kopmasini da
+      // kapsar. NOT: sadece odak kaybi (inactive) _desktopHiddenAt'i
+      // DOLDURMAZ - o yuzden kisa alt-tab'lar gereksiz yeniden baglanma
+      // tetiklemez (onceki surumun bug'i: "son sunucu mesajindan beri"
+      // olcuyordu, sessiz bir gorusmede odak donusu bile reconnect ediyordu).
       // _reconnectForSessionRefresh: _autoRetryCount'u artirmiyor, elde
-      // resumption_handle varsa Gemini baglamini korur, yoksa taze baglanir
-      // (istemci sohbet gecmisi zaten chatProvider'da).
+      // resumption_handle varsa Gemini baglamini korur, yoksa taze baglanir.
+      final hiddenAt = _desktopHiddenAt;
+      _desktopHiddenAt = null;
       if (_isDesktopPlatform &&
-          _lastServerMessageAt != null &&
+          hiddenAt != null &&
           !_resumeReconnectInFlight &&
           !_intentionalClose) {
-        final gap = DateTime.now().difference(_lastServerMessageAt!);
-        if (gap > const Duration(seconds: 8)) {
+        final suspended = DateTime.now().difference(hiddenAt);
+        if (suspended > const Duration(seconds: 8)) {
           _resumeReconnectInFlight = true;
           _voiceDebugLog(
-            "masaustu: ${gap.inSeconds}sn sunucu sessizliginden donuldu - "
+            "masaustu: ${suspended.inSeconds}sn askidan donuldu - "
             "bayat ses yerine yeniden baglaniliyor",
           );
           unawaited(
@@ -543,7 +551,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     // gorusmede araya sikisan birkac ayri, gecici kopma toplam hakkı
     // tuketmesin.
     _autoRetryCount = 0;
-    _lastServerMessageAt = DateTime.now();
 
     if (message is List<int>) {
       // Aura'nin sesi hoparlorden cikmaya baslayacak. Gercek donanim/OS
