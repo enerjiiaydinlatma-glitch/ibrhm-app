@@ -60,13 +60,21 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Message> analyzeImage(String base64Image, {String mimeType = "image/jpeg"}) async {
+  Future<Message> analyzeFile(
+    String base64Data, {
+    required String mimeType,
+    String question = '',
+    String fileName = '',
+  }) async {
+    final isPdf = mimeType == 'application/pdf';
     try {
       final response = await _dio.post(
         '$baseUrl/api/analyze',
         data: {
-          'image_base64': base64Image,
+          'image_base64': base64Data,
           'mime_type': mimeType,
+          if (question.isNotEmpty) 'question': question,
+          if (fileName.isNotEmpty) 'file_name': fileName,
         },
         options: _authOptions,
       );
@@ -80,7 +88,9 @@ class ChatRepositoryImpl implements ChatRepository {
         isUser: false,
       );
     } on DioException catch (_) {
-      throw Exception('Fotoğraf analiz edilemedi.');
+      throw Exception(
+        isPdf ? 'Belge incelenemedi.' : 'Fotoğraf analiz edilemedi.',
+      );
     }
   }
 

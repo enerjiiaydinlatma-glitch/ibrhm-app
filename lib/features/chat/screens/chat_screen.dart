@@ -5,9 +5,11 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
 import "package:image_picker/image_picker.dart";
+import "package:file_picker/file_picker.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "../notifier/chat_notifier.dart";
 import "../models/message.dart";
+import "../widgets/aura_image_reveal.dart";
 import "../../voice/screens/voice_call_screen.dart";
 import "../../voice/notifier/voice_call_notifier.dart";
 import "../../settings/screens/settings_screen.dart";
@@ -234,23 +236,111 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Future<void> _pickAndAnalyzeImage() async {
+  /// Giris cubugundaki "+" butonu - galeri / kamera / PDF secenegi sunar.
+  void _showAttachSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF12122A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _attachTile(sheetContext, Icons.photo_library_outlined, "Galeri",
+                () => _pickImage(ImageSource.gallery)),
+            _attachTile(sheetContext, Icons.photo_camera_outlined, "Kamera",
+                () => _pickImage(ImageSource.camera)),
+            _attachTile(sheetContext, Icons.picture_as_pdf_outlined,
+                "Belge (PDF)", _pickPdf),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachTile(
+      BuildContext sheetContext, IconData icon, String label, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: _indigoColor),
+      title: Text(label,
+          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 15)),
+      onTap: () {
+        Navigator.pop(sheetContext);
+        onTap();
+      },
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
+      final picked =
+          await ImagePicker().pickImage(source: source, imageQuality: 85);
       if (picked == null) return;
-
       final bytes = await picked.readAsBytes();
-
-      await ref.read(chatProvider.notifier).sendImageForAnalysis(bytes);
+      final mime = picked.name.toLowerCase().endsWith(".png")
+          ? "image/png"
+          : picked.name.toLowerCase().endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg";
+      await ref
+          .read(chatProvider.notifier)
+          .sendFileForAnalysis(bytes, mimeType: mime);
       _scrollToBottom();
     } catch (e) {
       debugPrint("Fotograf secme hatasi: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
+        SnackBar(
+            content:
+                Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
+      );
+    }
+  }
+
+  Future<void> _pickPdf() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ["pdf"],
+      );
+      if (files.isEmpty) return;
+      final file = files.first;
+      final bytes = await file.readAsBytes();
+      // ~11MB ham (backend base64 siniri ~15MB) - buyuk PDF'i erkenden ele.
+      if (bytes.length > 11 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Bu PDF çok büyük (en fazla ~11MB).",
+                  style: GoogleFonts.poppins())),
+        );
+        return;
+      }
+      await ref.read(chatProvider.notifier).sendFileForAnalysis(
+            bytes,
+            mimeType: "application/pdf",
+            fileName: file.name,
+          );
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint("PDF secme hatasi: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Belge seçilemedi.", style: GoogleFonts.poppins())),
       );
     }
   }
@@ -282,11 +372,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final isUser = message is Message ? message.isUser : message["role"] == "user";
     final text = message is Message ? message.text : message["text"] as String;
     final imageBytes = message is Message ? message.imageBytes : null;
+    final fileName = message is Message ? message.fileName : null;
+    final animateIn = message is Message ? message.animateIn : false;
+    final hasAttachment = imageBytes != null || fileName != null;
 
     if (isUser) {
       return Container(
         constraints: const BoxConstraints(maxWidth: 280),
-        padding: imageBytes != null
+        padding: hasAttachment
             ? const EdgeInsets.all(6)
             : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -310,7 +403,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (imageBytes != null)
-              ClipRRect(
+              AuraImageReveal(
+                play: animateIn,
                 borderRadius: BorderRadius.circular(16),
                 child: Image.memory(
                   imageBytes,
@@ -318,9 +412,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   height: 180,
                 ),
               ),
+            if (fileName != null)
+              AuraImageReveal(
+                play: animateIn,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.picture_as_pdf_outlined,
+                          color: Colors.white, size: 22),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                              color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (text.isNotEmpty)
               Padding(
-                padding: EdgeInsets.only(top: imageBytes != null ? 8 : 0, left: 10, right: 10),
+                padding: EdgeInsets.only(top: hasAttachment ? 8 : 0, left: 10, right: 10),
                 child: SelectableText(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
               ),
           ],
@@ -404,7 +527,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: _pickAndAnalyzeImage,
+            onTap: _showAttachSheet,
             child: Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
@@ -412,7 +535,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 color: _indigoColor.withValues(alpha: 0.15),
                 border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
               ),
-              child: Icon(Icons.image_outlined, color: _indigoColor, size: 20),
+              child: Icon(Icons.add, color: _indigoColor, size: 22),
             ),
           ),
           const SizedBox(width: 6),
