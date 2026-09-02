@@ -108,10 +108,14 @@ AURA_VOICE_MAX_CHARS = 800
 aura_voice_http = httpx.Client()
 
 
-def _aura_voice_tts(text: str) -> Optional[bytes]:
-    """Aura Voice Mesh'ten WAV dener. Basarisizsa None (cagiran ElevenLabs'e duser)."""
-    if not AURA_VOICE_URL or len(text) > AURA_VOICE_MAX_CHARS:
-        return None
+def _aura_voice_tts(text: str) -> tuple[Optional[bytes], str]:
+    """Aura Voice Mesh'ten WAV dener. Doner: (wav_bytes|None, sebep).
+    sebep 'ok' degilse cagiran ElevenLabs'e duser; sebep tesihs icin
+    X-TTS-Source basligina ve loga yaziliyor."""
+    if not AURA_VOICE_URL:
+        return None, "mesh:env-yok"
+    if len(text) > AURA_VOICE_MAX_CHARS:
+        return None, "mesh:metin-uzun"
     try:
         r = aura_voice_http.post(
             f"{AURA_VOICE_URL}/tts",
@@ -120,11 +124,12 @@ def _aura_voice_tts(text: str) -> Optional[bytes]:
             timeout=45,
         )
         if r.status_code == 200 and r.content:
-            return r.content
-        print(f"AURA VOICE MESH non-200: {r.status_code}")
+            return r.content, "ok"
+        print(f"AURA VOICE MESH non-200: {r.status_code} {r.text[:200]}")
+        return None, f"mesh:http-{r.status_code}"
     except Exception as e:  # ConnectError/Timeout/ReadError vb. - hepsi fallback
-        print(f"AURA VOICE MESH ulasilamadi ({type(e).__name__}: {e}) - ElevenLabs'e dusuluyor")
-    return None
+        print(f"AURA VOICE MESH ulasilamadi ({type(e).__name__}: {e})")
+        return None, f"mesh:{type(e).__name__}"
 
 
 database.init_db()
@@ -1103,9 +1108,14 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
 
     # AURA VOICE MESH once - Aura'nin KENDI sesi (Chatterbox). Basarisiz/
     # yavas/kapali ise asagidaki ElevenLabs yoluna sessizce dusulur.
-    mesh_wav = _aura_voice_tts(request.text)
+    mesh_wav, mesh_reason = _aura_voice_tts(request.text)
     if mesh_wav is not None:
-        return Response(content=mesh_wav, media_type="audio/wav")
+        return Response(
+            content=mesh_wav,
+            media_type="audio/wav",
+            headers={"X-TTS-Source": "mesh"},
+        )
+    print(f"TTS: mesh atlandi ({mesh_reason}) -> ElevenLabs deneniyor")
 
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -1139,14 +1149,18 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
             print(f"ELEVENLABS ERROR BODY: {r.text}")
             # Ham ElevenLabs hata govdesini (hesap/plan bilgisi icerebilir)
             # istemciye sizdirmiyoruz - detay sadece sunucu logunda kalir.
+            # mesh_reason'i basliga koyuyoruz: hem mesh hem ElevenLabs neden
+            # dustu tek bakista gorunsun (teshis).
             raise HTTPException(
                 status_code=502,
                 detail="Seslendirme şu an başarısız.",
+                headers={"X-TTS-Source": f"fail:{mesh_reason}|11labs-{r.status_code}"},
             )
 
         return Response(
             content=r.content,
             media_type="audio/mpeg",
+            headers={"X-TTS-Source": "elevenlabs"},
         )
 
     except httpx.TimeoutException:
