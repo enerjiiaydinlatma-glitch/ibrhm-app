@@ -94,6 +94,39 @@ client = genai.Client(
 # odemek demekti. aura_brain.py'deki Groq istemcisiyle ayni desen:
 # tek, kalici bir Client baglantiyi "keep-alive" ile yeniden kullaniyor.
 elevenlabs_http = httpx.Client()
+
+# AURA VOICE MESH (2026-09-02): Aura'nin KENDI sesi (Chatterbox, self-host
+# GPU'da - bkz. voice_service/). /api/tts once buna gider, ulasilmaz/yavas/
+# hatali olursa sessizce ElevenLabs'e duser (asagida). URL bos ise (Railway'de
+# env tanimli degilse) mesh hic denenmez - davranis eskisiyle ayni kalir.
+AURA_VOICE_URL = os.getenv("AURA_VOICE_URL", "").strip().rstrip("/")
+AURA_VOICE_KEY = os.getenv("AURA_VOICE_KEY", "").strip()
+# Mesh ~1x gercek-zaman uretiyor; cok uzun metin timeout olur - o durumda
+# dogrudan ElevenLabs'e git (hizli). Kisa yanitlar/karsilamalar/bas-konus
+# cevaplari mesh'ten (Aura sesi) gecer.
+AURA_VOICE_MAX_CHARS = 800
+aura_voice_http = httpx.Client()
+
+
+def _aura_voice_tts(text: str) -> Optional[bytes]:
+    """Aura Voice Mesh'ten WAV dener. Basarisizsa None (cagiran ElevenLabs'e duser)."""
+    if not AURA_VOICE_URL or len(text) > AURA_VOICE_MAX_CHARS:
+        return None
+    try:
+        r = aura_voice_http.post(
+            f"{AURA_VOICE_URL}/tts",
+            json={"text": text, "stream": False},
+            headers={"X-Voice-Key": AURA_VOICE_KEY} if AURA_VOICE_KEY else {},
+            timeout=45,
+        )
+        if r.status_code == 200 and r.content:
+            return r.content
+        print(f"AURA VOICE MESH non-200: {r.status_code}")
+    except Exception as e:  # ConnectError/Timeout/ReadError vb. - hepsi fallback
+        print(f"AURA VOICE MESH ulasilamadi ({type(e).__name__}: {e}) - ElevenLabs'e dusuluyor")
+    return None
+
+
 database.init_db()
 aura_memory.init_memory_db()
 app = FastAPI()
@@ -1067,6 +1100,12 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
             status_code=429,
             detail="Bugünkü ücretsiz seslendirme hakkın doldu. Yarın sıfırlanacak.",
         )
+
+    # AURA VOICE MESH once - Aura'nin KENDI sesi (Chatterbox). Basarisiz/
+    # yavas/kapali ise asagidaki ElevenLabs yoluna sessizce dusulur.
+    mesh_wav = _aura_voice_tts(request.text)
+    if mesh_wav is not None:
+        return Response(content=mesh_wav, media_type="audio/wav")
 
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
