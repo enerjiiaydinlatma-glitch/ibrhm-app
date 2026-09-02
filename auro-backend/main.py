@@ -1087,27 +1087,8 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
             detail="Seslendirilecek metin çok uzun (en fazla 2000 karakter).",
         )
 
-    # GECE DENETIMI BULGUSU: /api/tts, diger TUM AI-uretim uclarinin
-    # aksine (chat/analyze/story) HICBIR gunluk kullanim limitine tabi
-    # degildi.
-    #
-    # KENDI KENDINI INCELEME BULGUSU: ilk fix (gunluk MESAJ sayacini
-    # paylasmak) YENI bir sorun aciyordu - istemci Aura'nin HER cevabini
-    # otomatik seslendirdigi icin, bu ayni turda hem /api/chat hem
-    # /api/tts sayaci artirip ucretsiz kullanicinin 30 mesajlik gunluk
-    # hakkini fiilen 15'e dusuruyordu (kullanici "0 mesaj kaldi" gorup
-    # neden oldugunu anlamazdi). Artik ayri, karakter-tabanli kendi
-    # bütçesi var - sohbet hakkina hic dokunmuyor.
-    if user.get("tier") != "pro" and not database.check_and_increment_tts_usage(
-        user["id"], len(request.text)
-    ):
-        raise HTTPException(
-            status_code=429,
-            detail="Bugünkü ücretsiz seslendirme hakkın doldu. Yarın sıfırlanacak.",
-        )
-
-    # AURA VOICE MESH once - Aura'nin KENDI sesi (Chatterbox). Basarisiz/
-    # yavas/kapali ise asagidaki ElevenLabs yoluna sessizce dusulur.
+    # AURA VOICE MESH once - Aura'nin KENDI sesi (Chatterbox, self-host,
+    # SIFIR birim maliyet). Basarisiz/yavas/kapali ise ElevenLabs'e dusulur.
     mesh_wav, mesh_reason = _aura_voice_tts(request.text)
     if mesh_wav is not None:
         return Response(
@@ -1116,6 +1097,22 @@ def tts(request: TTSRequest, authorization: Optional[str] = Header(None)):
             headers={"X-TTS-Source": "mesh"},
         )
     print(f"TTS: mesh atlandi ({mesh_reason}) -> ElevenLabs deneniyor")
+
+    # GECE INCELEMESI (2026-09-02): karakter butcesi ElevenLabs MALIYETINE
+    # karsi var. Onceden mesh denenmeden ONCE tuketiliyordu - mesh (bedava)
+    # servis etse bile free kullanicinin hakki yaniyordu. Artik SADECE
+    # ElevenLabs'e fiilen dusulunce kontrol/artir ediliyor.
+    #
+    # KENDI KENDINI INCELEME BULGUSU: gunluk MESAJ sayacini paylasmak YENI
+    # bir sorun aciyordu (chat + tts ayni turda ikisini de artirip 30 hakki
+    # 15'e dusuruyordu). Ayri, karakter-tabanli kendi butcesi var.
+    if user.get("tier") != "pro" and not database.check_and_increment_tts_usage(
+        user["id"], len(request.text)
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Bugünkü ücretsiz seslendirme hakkın doldu. Yarın sıfırlanacak.",
+        )
 
     voice_id = VOICE_IDS.get(request.voice, VOICE_IDS["female"])
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
