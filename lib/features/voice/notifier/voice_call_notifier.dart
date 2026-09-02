@@ -341,12 +341,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         // 0 verilirse, play() bos tamponla cagrildiginda akis aninda
         // "bitti" sayilip duruyor - veri gelmeden once. Kucuk bir deger
         // hem dusuk gecikme saglar hem bu erken-bitis sorununu onler.
-        // 0.3s'den 0.5s'ye cikarildi (2026-08-24, kullanici raporu:
-        // "ses bazi yerlerde takili kaliyor, kekeleme gibi") - ag+SoLoud
-        // tamponu bazen gercek zamana cok az bir payla yetisiyor, tampon
-        // payini biraz buyutmek bu kisa takilmalari azaltmali. Gecikme
-        // maliyeti kucuk (0.2s ek), degistirmeye deger.
-        bufferingTimeNeeds: 0.5,
+        // 0.3s -> 0.5s (2026-08-24) -> 0.8s (2026-09-02). Kullanici hala
+        // "seste degisme/kekeleme" bildirdi; teshis logu tur ORTASINDA
+        // `onBuffering ... hala PAUSED` gosterdi - yani ag+Gemini sesi
+        // patlamali geliyor, 0.5s'lik tampon payi bazi bosluklari hala
+        // kapatamiyor. Payi 0.8s'ye cikardik: ilk sese kadarki gecikme
+        // ~0.3s artar (kabul edilebilir), ama tur ici kuru-tampon
+        // duraklamalari belirgin azalmali.
+        bufferingTimeNeeds: 0.8,
         // BULUNDU (paket kaynagi + resmi ornek incelendi, bkz. pub cache
         // flutter_soloud-3.5.4/example/lib/buffer_stream/websocket.dart):
         // motorun KENDISI, tampon tukenip otomatik duraklattiginda VE
@@ -775,6 +777,31 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       }
 
       if (remainingMs <= 150 || DateTime.now().isAfter(deadline)) {
+        // BULUNDU (2026-09-02, kullanici raporu: "bazen kendi sesini
+        // dinleyip cevap veriyor" + Windows teshis logu: mikrofon
+        // turn_complete'ten sadece ~150-380ms sonra aciliyordu):
+        // getPosition() SoLoud'un cozme imlecini biliyor ama OS'in ses
+        // cikis tamponunu + hoparlor gecikmesini GORMUYOR. Donanim AEC'i
+        // OLAN platformlarda bu sorun degil (mikrofon zaten Aura konusurken
+        // de acik, native yanki iptali hallediyor). AEC'siz platformlarda
+        // (Windows) ise "kuyruk tukendi" dedigimiz anda Aura'nin son
+        // kelimeleri hala hoparlorden cikiyor olabilir - mikrofonu o an
+        // acinca kendi sesi sizip Gemini'ye "yeni kullanici sesi" gidiyor,
+        // Aura kendi cumlesine cevap veriyor. Cozum: bu platformlarda
+        // kuyruk-tukendi kontrolu gectikten SONRA da mikrofonu hemen acma,
+        // OS/hoparlor tamponu bosalsin diye biraz daha bekle.
+        if (!_hasNativeEchoCancellation) {
+          _voiceDebugLog(
+            "unmute-check: kuyruk tukendi (kalan=${remainingMs}ms) - "
+            "non-AEC platform, OS ses tamponu icin +500ms bekleniyor",
+          );
+          _unmuteTimer?.cancel();
+          _unmuteTimer = Timer(const Duration(milliseconds: 500), () {
+            _voiceDebugLog("unmute-check: ek gecikme doldu - mikrofon aciliyor");
+            _muteMic = false;
+          });
+          return;
+        }
         _voiceDebugLog(
           "unmute-check: kuyruk tukendi (kalan=${remainingMs}ms) - "
           "mikrofon aciliyor",
