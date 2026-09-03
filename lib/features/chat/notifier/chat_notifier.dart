@@ -13,6 +13,31 @@ final chatProvider =
 class ChatNotifier extends Notifier<ChatState> {
   String? _token;
 
+  // Mesaj ID'leri icin: microsecondsSinceEpoch tek basina, ard arda iki
+  // kullanicida (or. userMessage + placeholder) AYNI degeri dondurebilir
+  // ve o zaman ID-bazli bulma (indexWhere m.id == ...) yanlis mesaji
+  // yakalar. Monotonik bir sayac ekleyerek carpismayi imkansiz kiliyoruz.
+  int _idSeq = 0;
+  String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${_idSeq++}';
+
+  /// Verilen ID'li mesaji yerinde (nerede olursa olsun) [updated] ile
+  /// degistirir; bulunamazsa sona ekler. sendMessage / sendFileForAnalysis
+  /// gibi UZUN suren await'lerden sonra "SON mesaj hala benim yer
+  /// tutucumdur" varsayimi YANLIS - bu arada sesli gorusme turn_complete'i
+  /// veya eszamanli bir gonderim listeye baska mesaj eklemis olabilir.
+  void _replaceMessageById(String id, Message updated) {
+    final msgs = state.messages;
+    final idx = msgs.indexWhere((m) => m.id == id);
+    final newList = [...msgs];
+    if (idx >= 0) {
+      newList[idx] = updated;
+    } else {
+      newList.add(updated);
+    }
+    state = state.copyWith(messages: newList, isLoading: false);
+  }
+
   @override
   ChatState build() {
     return ChatState();
@@ -64,7 +89,7 @@ class ChatNotifier extends Notifier<ChatState> {
           messages: [
             ...state.messages,
             Message(
-              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              id: _newId(),
               text: greeting,
               isUser: false,
             ),
@@ -95,7 +120,7 @@ class ChatNotifier extends Notifier<ChatState> {
     }
 
     final userMessage = Message(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: _newId(),
       text: cleanText,
       isUser: true,
     );
@@ -109,8 +134,7 @@ class ChatNotifier extends Notifier<ChatState> {
       errorMessage: null,
     );
 
-    final assistantId =
-        DateTime.now().microsecondsSinceEpoch.toString();
+    final assistantId = _newId();
 
     final assistantMessage = Message(
       id: assistantId,
@@ -129,58 +153,27 @@ class ChatNotifier extends Notifier<ChatState> {
 
     try {
       final reply = await _repository.sendMessage(cleanText);
-
-      final messages = state.messages;
-
-      if (messages.isNotEmpty && !messages.last.isUser) {
-        final updatedAssistant = Message(
-          id: assistantId,
-          text: reply.text,
-          isUser: false,
-        );
-
-        state = state.copyWith(
-          messages: [
-            ...messages.sublist(0, messages.length - 1),
-            updatedAssistant,
-          ],
-          isLoading: false,
-          errorMessage: null,
-        );
-      } else {
-        state = state.copyWith(
-          messages: [
-            ...messages,
-            reply,
-          ],
-          isLoading: false,
-          errorMessage: null,
-        );
-      }
+      // Eskiden 'messages.last' yer tutucu sanilip kosulsuz degistiriliyordu -
+      // await sirasinda sesli gorusme turn_complete'i (addUserMessage/
+      // addAssistantMessage) veya eszamanli bir gonderim araya mesaj
+      // eklerse YANLIS mesaj degisiyor ve bos yer tutucu balon oksuz
+      // kaliyordu. Artik yer tutucu ID'siyle bulunuyor (bkz. sendFileForAnalysis,
+      // ayni sinif - fix e7a15a6). ID esitleme icin _newId() monotonik.
+      _replaceMessageById(
+        assistantId,
+        Message(id: assistantId, text: reply.text, isUser: false),
+      );
+      state = state.copyWith(errorMessage: null);
     } catch (e) {
-      final messages = state.messages;
-
-      if (messages.isNotEmpty && !messages.last.isUser) {
-        final failedAssistant = Message(
+      _replaceMessageById(
+        assistantId,
+        Message(
           id: assistantId,
           text: 'Aura şu an cevap veremiyor. Biraz sonra tekrar deneyelim.',
           isUser: false,
-        );
-
-        state = state.copyWith(
-          messages: [
-            ...messages.sublist(0, messages.length - 1),
-            failedAssistant,
-          ],
-          isLoading: false,
-          errorMessage: 'Aura bağlantısında bir sorun oluştu.',
-        );
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: 'Aura bağlantısında bir sorun oluştu.',
-        );
-      }
+        ),
+      );
+      state = state.copyWith(errorMessage: 'Aura bağlantısında bir sorun oluştu.');
     }
   }
   /// Bir fotograf VEYA PDF gonderip Aura'nin incelemesini alir - sendMessage
@@ -198,7 +191,7 @@ class ChatNotifier extends Notifier<ChatState> {
     final isPdf = mimeType == 'application/pdf';
 
     final userMessage = Message(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: _newId(),
       text: isPdf ? question : '',
       isUser: true,
       imageBytes: isPdf ? null : bytes,
@@ -206,7 +199,7 @@ class ChatNotifier extends Notifier<ChatState> {
       animateIn: true,
     );
 
-    final assistantId = DateTime.now().microsecondsSinceEpoch.toString();
+    final assistantId = _newId();
     final assistantMessage = Message(id: assistantId, text: '', isUser: false);
 
     state = state.copyWith(
@@ -218,20 +211,10 @@ class ChatNotifier extends Notifier<ChatState> {
     // BULUNDU (gece incelemesi): eskiden kosulsuz 'sublist(0, length-1)' ile
     // SON mesaji degistiriyordu - PDF analizi 10-45sn surer, o arada sesli
     // gorusme turn_complete'i ya da eszamanli bir gonderim listeye baska
-    // mesaj eklerse YANLIS mesaj dusuyordu. Artik yer tutucu asistan mesaji
-    // ID'siyle bulunup yerinde degistiriliyor (nerede olursa olsun).
-    void replacePlaceholder(String text) {
-      final msgs = state.messages;
-      final idx = msgs.indexWhere((m) => m.id == assistantId);
-      final updated = Message(id: assistantId, text: text, isUser: false);
-      final newList = [...msgs];
-      if (idx >= 0) {
-        newList[idx] = updated;
-      } else {
-        newList.add(updated); // yer tutucu bir sekilde kayboldu - yine de goster
-      }
-      state = state.copyWith(messages: newList, isLoading: false);
-    }
+    // mesaj eklerse YANLIS mesaj dusuyordu. Artik ortak _replaceMessageById
+    // ile yer tutucu ID'siyle bulunup yerinde degistiriliyor.
+    Message assistantReply(String text) =>
+        Message(id: assistantId, text: text, isUser: false);
 
     try {
       final reply = await _repository.analyzeFile(
@@ -240,12 +223,15 @@ class ChatNotifier extends Notifier<ChatState> {
         question: question,
         fileName: fileName ?? '',
       );
-      replacePlaceholder(reply.text);
+      _replaceMessageById(assistantId, assistantReply(reply.text));
       state = state.copyWith(errorMessage: null);
     } catch (e) {
-      replacePlaceholder(isPdf
-          ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
-          : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?');
+      _replaceMessageById(
+        assistantId,
+        assistantReply(isPdf
+            ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
+            : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?'),
+      );
       state = state.copyWith(
         errorMessage: isPdf ? 'Belge incelenemedi.' : 'Fotoğraf analiz edilemedi.',
       );
@@ -263,7 +249,7 @@ class ChatNotifier extends Notifier<ChatState> {
       messages: [
         ...state.messages,
         Message(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          id: _newId(),
           text: cleanText,
           isUser: true,
         ),
@@ -283,7 +269,7 @@ class ChatNotifier extends Notifier<ChatState> {
       messages: [
         ...state.messages,
         Message(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          id: _newId(),
           text: cleanText,
           isUser: false,
         ),
