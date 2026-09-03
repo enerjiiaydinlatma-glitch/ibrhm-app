@@ -942,7 +942,12 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         for m in recent_messages
     ]
     try:
-        response = aura_brain.generate_with_retry(contents, aura_brain.build_system_instruction(user, message_count))
+        route = aura_brain.route_request(message_text, turn_count=message_count)
+        response = aura_brain.generate_with_retry(
+            contents,
+            aura_brain.build_system_instruction(user, message_count),
+            route=route,
+        )
         reply_text = response.text
         if not reply_text:
             # GECE DENETIMI BULGUSU: Gemini bir yaniti guvenlik/recitation
