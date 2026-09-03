@@ -903,8 +903,11 @@ def _aura_brain_remote(contents, system_instruction, route=None):
         headers["X-Brain-Key"] = AURA_BRAIN_KEY
         headers["Authorization"] = f"Bearer {AURA_BRAIN_KEY}"
     model = AURA_BRAIN_MODEL
-    if route and route.get("tier"):
-        model = f"{AURA_BRAIN_MODEL}-{route['tier']}"
+    # tier son-eki SADECE brain_service konvansiyonunda (model adi "aura")
+    # eklenir - AURA_BRAIN_URL dogrudan bir OpenAI-uyumlu uca (OpenRouter
+    # vb.) isaret ediyorsa gercek model adina "-deep" eklemek onu bozardi.
+    if route and route.get("tier") and AURA_BRAIN_MODEL.lower() == "aura":
+        model = f"aura-{route['tier']}"
     response = _groq_http.post(
         f"{AURA_BRAIN_URL}/v1/chat/completions",
         headers=headers,
