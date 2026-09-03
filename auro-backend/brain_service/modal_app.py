@@ -28,16 +28,25 @@ from datetime import datetime, timezone
 import modal
 
 # --- ayarlar ---
-MODEL_ID = os.environ.get("AURA_BRAIN_MODEL_ID", "Qwen/Qwen2.5-7B-Instruct")
-GPU = os.environ.get("AURA_BRAIN_GPU", "A10G")
+# 2026-09-03: Qwen2.5-7B Turkcesi Aura icin yetersizdi (bozuk gramer/uydurma
+# kelime). 14B'ye cikildi - A100-40GB gerekir. Daha da iyisi icin 32B +
+# A100-80GB (veya AWQ + 40GB). env ile override edilebilir.
+MODEL_ID = os.environ.get("AURA_BRAIN_MODEL_ID", "Qwen/Qwen2.5-14B-Instruct")
+GPU = os.environ.get("AURA_BRAIN_GPU", "A100-40GB")
 MAX_MODEL_LEN = int(os.environ.get("AURA_BRAIN_MAX_LEN", "8192"))
 
 app = modal.App("aura-brain")
 
-# vLLM + model agirliklari imaja gomulu (soguk baslama daha hizli).
+# vLLM. transformers'i <5'e sabitliyoruz - Modal'in pypi aynasi aksi halde
+# vllm 0.6.3 ile uyumsuz transformers 5.x cekiyor (model yuklerken cokerdi).
 vllm_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("vllm==0.6.3", "fastapi", "huggingface_hub[hf_transfer]")
+    .pip_install(
+        "vllm==0.6.3",
+        "transformers<5",
+        "fastapi",
+        "huggingface_hub[hf_transfer]",
+    )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
 )
 
