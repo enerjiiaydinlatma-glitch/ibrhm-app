@@ -1170,6 +1170,31 @@ def _extract_with_gemini(prompt: str) -> str:
     return (response.text or "").strip()
 
 
+def grounded_answer(query: str) -> str:
+    """Seviye 1d 'search' araci: guncel/olgusal bir soruyu Google arama
+    baglamali (grounded) bir Gemini alt-cagrisina havale eder. Aura'nin
+    cagirdigi bir AJAN - sonuc Aura'ya baglam olarak verilir, Aura son
+    cevabi yine kendi sesiyle uretir. Hata -> '' (cagiran atlar)."""
+    try:
+        prompt = (
+            "Asagidaki soruyu guncel ve dogru bilgiyle, KISA (en fazla 3-4 "
+            "cumle) ve olgusal yanitla. Yorum/uslup ekleme, sadece bilgi:\n\n"
+            + (query or "").strip()
+        )
+        resp = _client.models.generate_content(
+            model=MODEL_NAME,
+            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                temperature=0.2,
+            ),
+        )
+        return (resp.text or "").strip()
+    except Exception as e:
+        print(f"GROUNDED ANSWER hata: {type(e).__name__}: {e}")
+        return ""
+
+
 # Arka planda sessizce calisan "ajan". Groq anahtari yoksa Gemini'ye
 # duser (chat hic kesilmez). Ucuncu bir saglayici eklemek icin: bir
 # _extract_with_xxx yaz, buraya ekle, BACKGROUND_PROVIDER'i guncelle.
