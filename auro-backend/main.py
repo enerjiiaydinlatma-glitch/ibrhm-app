@@ -960,6 +960,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
                 )
         response = aura_brain.generate_with_retry(contents, system_instruction, route=route)
         reply_text = response.text
+        generation_ok = bool(reply_text)
         if not reply_text:
             # GECE DENETIMI BULGUSU: Gemini bir yaniti guvenlik/recitation
             # gibi bir nedenle engellediginde .text None DONER - bu bir
@@ -981,8 +982,13 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         # donmesini, ciplak 500'un asla sizmamasini garantiliyor.
         print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
+        generation_ok = False
     reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
     database.add_message(user["id"], "assistant", reply_text, hidden=hidden_now)
+    # FAZ 3: basarili + gizli-olmayan turleri damitma verisine yaz (varsayilan
+    # KAPALI, AURA_DISTILL_LOG=1 ile acilir). Gizli mod turleri ASLA loglanmaz.
+    if generation_ok and not hidden_now:
+        aura_brain.log_distill_sample(system_instruction, contents, reply_text)
     return {"reply": reply_text}
 
 

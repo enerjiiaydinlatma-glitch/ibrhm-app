@@ -78,3 +78,6 @@ auro-backend/voice_service/sync_secrets.txt
 auro-backend/brain_service/sync_secrets.txt
 auro-backend/brain_service/conversations.jsonl
 auro-backend/brain_service/*.log
+
+# Faz 3 damitma verisi - kullanici konusmalari (kisisel veri, asla commit etme)
+auro-backend/brain_distill.jsonl
