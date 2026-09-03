@@ -384,9 +384,17 @@ def _parse_memory_timestamp(value: Optional[str]):
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace(" ", "T")).replace(tzinfo=timezone.utc)
+        dt = datetime.fromisoformat(value.replace(" ", "T"))
     except ValueError:
         return None
+    # SQLite CURRENT_TIMESTAMP naif + UTC yazar (created_at/updated_at hep
+    # boyle) - naif ise UTC oldugunu varsayip damgala. Ama ISO string bir
+    # offset TASIYORSA (gelecekte biri Python-tarafi bir zaman damgasi
+    # yazarsa) `.replace(tzinfo=utc)` o offset'i SESSIZCE ezip zamani
+    # kaydirirdi - o durumda gercekten UTC'ye CEVIR.
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 # ============================================================
