@@ -11,8 +11,11 @@ Calistirma:
 
 Uclar:
     GET  /health                 -> {status, model_loaded, device, sr, speakers}
-    POST /tts   {text, stream,    -> audio/wav (16-bit PCM). stream=true ise
-                 speaker}            cumle cumle StreamingResponse.
+    POST /tts   {text, stream,    -> stream=false: tam audio/wav (16-bit PCM).
+                 speaker}            stream=true: HAM PCM akisi (s16le/24kHz/mono,
+                                     header YOK) - cumle cumle uretilir, ilk ses
+                                     ~2-3s'de baslar. Istemci `ffmpeg -f s16le
+                                     -ar 24000 -ac 1 -i pipe:0` ile tuketir.
 Kimlik: X-Voice-Key basligi AURA_VOICE_KEY ile eslesecek (bos ise kontrol yok).
 
 Cok-karakter: `voices/<isim>.wav` referans seslerinden secim. `speaker` alani
@@ -25,7 +28,6 @@ from __future__ import annotations
 import io
 import os
 import re
-import struct
 import time
 import threading
 import wave
@@ -160,17 +162,6 @@ def _pcm_bytes(samples: np.ndarray) -> bytes:
     return (pcm * 32767.0).astype("<i2").tobytes()
 
 
-def _wav_header(data_len: int) -> bytes:
-    """Streaming icin onden gonderilecek WAV header. data_len bilinmiyorsa
-    buyuk bir deger yazip (0xFFFFFFFF) oynaticilarin yine de calmasina birak."""
-    n = data_len if data_len > 0 else 0xFFFFFFFF - 44
-    return (
-        b"RIFF" + struct.pack("<I", n + 36) + b"WAVE"
-        + b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, SR, SR * 2, 2, 16)
-        + b"data" + struct.pack("<I", n)
-    )
-
-
 def _generate(text: str, ref_wav: str = REF_WAV) -> np.ndarray:
     model = _load_model()
     with _gen_lock:
@@ -214,16 +205,28 @@ def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
         return Response(content=_wav_bytes(audio), media_type="audio/wav")
 
     def gen():
-        # Once header (uzunluk bilinmiyor - 0xFFFFFFFF), sonra her cumle
-        # uretildikce ham PCM govdesi. Oynaticilarin cogu bunu sorunsuz calar.
-        yield _wav_header(0)
+        # HAM PCM (s16le, 24kHz, mono) - header YOK, cumle siniri isareti YOK.
+        # Istemci tek bir uzun-omurlu ffmpeg'e (`-f s16le -ar 24000 -ac 1 -i
+        # pipe:0`) chunk'lari geldigi gibi akitir; hizalama/parse derdi yok.
+        # Uretim cumle cumle yapiliyor (ilk cumle ~2-3s'de akmaya baslar,
+        # tur sonunu beklemez) ama cikti kesintisiz tek bir PCM akisidir.
+        # Sahte WAV header (eski 0xFFFFFFFF) bilerek kaldirildi - ffmpeg
+        # pipe'ta onu kirilgan sekilde yorumluyordu (faz-2, 2026-09-03).
         for s in sentences:
             t0 = time.time()
             audio = _generate(s, ref_wav)
             print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
             yield _pcm_bytes(audio)
 
-    return StreamingResponse(gen(), media_type="audio/wav")
+    return StreamingResponse(
+        gen(),
+        media_type="audio/L16; rate=24000; channels=1",
+        headers={
+            "X-Audio-Format": "s16le",
+            "X-Sample-Rate": str(SR),
+            "X-Channels": "1",
+        },
+    )
 
 
 if __name__ == "__main__":
