@@ -1,3 +1,4 @@
+import hashlib
 import html
 import os
 import re
@@ -176,7 +177,16 @@ if os.path.isdir("downloads"):
     app.mount("/downloads", StaticFiles(directory="downloads", html=False), name="downloads")
 
 RATE_LIMIT_WINDOW = 60
-RATE_LIMIT_MAX_REQUESTS = 30
+# YUK SIMULASYONU BULGUSU (2026-09-03): tek, IP-basina 30/dk limit vardi.
+# Tek kullaniciya yeter ama PAYLASIMLI IP'de (ev/ofis/okul NAT'i arkasinda
+# birkac gercek kullanici) birbirlerini bloke ediyorlardi - test tek IP'den
+# 10 sanal kullaniciyla kosunca ~30 istekten sonra hepsi 429 yedi. Cozum:
+# kimlikli istekleri TOKEN basina (IP'den bagimsiz) ve daha comert bir
+# tavanla say; anonim istekler eskisi gibi IP-basina (kotu niyet korumasi).
+# Hesap-basina gunluk tavanlar (check_and_increment_message_usage) + giris
+# kilidi zaten ayri katman - bu sadece kaba bir dakika-basi patlama guardi.
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_ANON_PER_MIN", "30"))
+RATE_LIMIT_MAX_REQUESTS_AUTH = int(os.getenv("RATE_LIMIT_USER_PER_MIN", "90"))
 request_log = defaultdict(deque)
 
 MAX_HISTORY_MESSAGES = 20
@@ -195,12 +205,21 @@ MAX_HISTORY_MESSAGES = 20
 # atlatmak MUMKUN DEGIL. Asagidaki mantik bilerek DEGISTIRILMEDI.
 @app.middleware("http")
 async def rate_limiter(request: Request, call_next):
-    client_ip = request.client.host if request.client else "unknown"
     now = time.time()
-    log = request_log[client_ip]
+    # Kimlikli istek -> token basina say (paylasimli IP'de kullanicilar
+    # birbirini bloke etmesin). Anonim -> IP basina (eskisi gibi).
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("bearer ") and len(auth) > 20:
+        # Ham token'i sozluk anahtari yapmak yerine kisa bir parmak izi.
+        key = "u:" + hashlib.sha256(auth[7:].strip().encode()).hexdigest()[:16]
+        limit = RATE_LIMIT_MAX_REQUESTS_AUTH
+    else:
+        key = "ip:" + (request.client.host if request.client else "unknown")
+        limit = RATE_LIMIT_MAX_REQUESTS
+    log = request_log[key]
     while log and now - log[0] > RATE_LIMIT_WINDOW:
         log.popleft()
-    if len(log) >= RATE_LIMIT_MAX_REQUESTS:
+    if len(log) >= limit:
         return JSONResponse(
             status_code=429,
             content={"detail": "Cok fazla istek gonderdin."},
