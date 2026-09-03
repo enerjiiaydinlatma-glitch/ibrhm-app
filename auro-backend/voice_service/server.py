@@ -76,6 +76,16 @@ _model_lock = threading.Lock()
 # Chatterbox tek GPU'da ayni anda tek uretim - istekleri seri hale getir.
 _gen_lock = threading.Lock()
 
+# YUK KORUMASI (2026-09-03, yuk simulasyonunda bulundu): 6 es zamanli istek
+# geldiginde _gen_lock hepsini sıraya diziyor, sonuncusu ~31s bekliyordu -
+# cagiran tarafin (main.py _aura_voice_tts) 45s timeout'unu asip bosuna
+# bekletiyor. Artik "kac istek islemde/kuyrukta" sayiliyor; esik asilirsa
+# YENI istek hemen 503 aliyor -> cagiran hizlica yedege (ElevenLabs) duser,
+# 45s asili beklemez. AURA_TTS_MAX_QUEUE=0 ile kapatilabilir (sinirsiz kuyruk).
+MAX_QUEUE = int(os.getenv("AURA_TTS_MAX_QUEUE", "3"))
+_inflight = 0
+_inflight_lock = threading.Lock()
+
 
 def _load_model():
     global _model
@@ -190,6 +200,23 @@ def _pcm_bytes(samples: np.ndarray) -> bytes:
     return (pcm * 32767.0).astype("<i2").tobytes()
 
 
+def _try_enter() -> bool:
+    """Islemdeki+kuyruktaki istek sayisi esigi asmadiysa kabul et (sayaci
+    artir), astiysa reddet. MAX_QUEUE=0 -> sinirsiz (her zaman kabul)."""
+    global _inflight
+    with _inflight_lock:
+        if MAX_QUEUE and _inflight >= 1 + MAX_QUEUE:
+            return False
+        _inflight += 1
+        return True
+
+
+def _leave() -> None:
+    global _inflight
+    with _inflight_lock:
+        _inflight = max(0, _inflight - 1)
+
+
 def _generate(text: str, ref_wav: str = REF_WAV) -> np.ndarray:
     model = _load_model()
     with _gen_lock:
@@ -218,48 +245,67 @@ def health():
         "sr": SR,
         "speakers": sorted(_speaker_map().keys()),
         "default_speaker": DEFAULT_SPEAKER,
+        "inflight": _inflight,
+        "max_queue": MAX_QUEUE,
     }
 
 
 @app.post("/tts")
 def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
     _check_key(x_voice_key)
-    ref_wav = _resolve_ref(req.speaker)
-    clean = sanitize_text(req.text)
-    sentences = [s for s in (split_sentences(clean) or [clean.strip()]) if s.strip()]
-    if not sentences:
-        # Metin temizlikten sonra bos kaldi (or. sadece sifir-genislik/noktalama)
-        # - modele bos string gondermek yerine kisa bir sessizlik don.
-        raise HTTPException(status_code=400, detail="seslendirilecek metin yok")
 
-    if not req.stream:
-        chunks = [_generate(s, ref_wav) for s in sentences]
-        audio = np.concatenate(chunks) if chunks else np.zeros(1, "float32")
-        return Response(content=_wav_bytes(audio), media_type="audio/wav")
+    # Yuk koruması: kuyruk doluysa HEMEN 503 - cagiran 45s beklemeden yedege
+    # dusebilsin (bkz. _try_enter aciklamasi).
+    if not _try_enter():
+        raise HTTPException(
+            status_code=503,
+            detail=f"mesh mesgul ({_inflight} islemde, kuyruk {MAX_QUEUE})",
+            headers={"Retry-After": "5"},
+        )
+    # Bu noktadan sonra _leave() SART: non-stream'de finally, stream'de
+    # jeneratorun finally'si sorumlu (StreamingResponse fonksiyon donunce
+    # bitmez - govde tuketilene kadar surer).
+    released = False
+    try:
+        ref_wav = _resolve_ref(req.speaker)
+        clean = sanitize_text(req.text)
+        sentences = [s for s in (split_sentences(clean) or [clean.strip()]) if s.strip()]
+        if not sentences:
+            raise HTTPException(status_code=400, detail="seslendirilecek metin yok")
 
-    def gen():
-        # HAM PCM (s16le, 24kHz, mono) - header YOK, cumle siniri isareti YOK.
-        # Istemci tek bir uzun-omurlu ffmpeg'e (`-f s16le -ar 24000 -ac 1 -i
-        # pipe:0`) chunk'lari geldigi gibi akitir; hizalama/parse derdi yok.
-        # Uretim cumle cumle yapiliyor (ilk cumle ~2-3s'de akmaya baslar,
-        # tur sonunu beklemez) ama cikti kesintisiz tek bir PCM akisidir.
-        # Sahte WAV header (eski 0xFFFFFFFF) bilerek kaldirildi - ffmpeg
-        # pipe'ta onu kirilgan sekilde yorumluyordu (faz-2, 2026-09-03).
-        for s in sentences:
-            t0 = time.time()
-            audio = _generate(s, ref_wav)
-            print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
-            yield _pcm_bytes(audio)
+        if not req.stream:
+            chunks = [_generate(s, ref_wav) for s in sentences]
+            audio = np.concatenate(chunks) if chunks else np.zeros(1, "float32")
+            return Response(content=_wav_bytes(audio), media_type="audio/wav")
 
-    return StreamingResponse(
-        gen(),
-        media_type="audio/L16; rate=24000; channels=1",
-        headers={
-            "X-Audio-Format": "s16le",
-            "X-Sample-Rate": str(SR),
-            "X-Channels": "1",
-        },
-    )
+        def gen():
+            # HAM PCM (s16le, 24kHz, mono) - header YOK, cumle siniri isareti
+            # YOK. Istemci tek uzun-omurlu ffmpeg'e (`-f s16le -ar 24000 -ac 1
+            # -i pipe:0`) akitir. Uretim cumle cumle (ilk ses ~2-3s), cikti
+            # kesintisiz tek PCM akisi. Sahte WAV header bilerek yok (ffmpeg
+            # pipe'ta kirilgandi, faz-2 2026-09-03).
+            try:
+                for s in sentences:
+                    t0 = time.time()
+                    audio = _generate(s, ref_wav)
+                    print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
+                    yield _pcm_bytes(audio)
+            finally:
+                _leave()
+
+        released = True  # sorumluluk gen()'e gecti
+        return StreamingResponse(
+            gen(),
+            media_type="audio/L16; rate=24000; channels=1",
+            headers={
+                "X-Audio-Format": "s16le",
+                "X-Sample-Rate": str(SR),
+                "X-Channels": "1",
+            },
+        )
+    finally:
+        if not released:
+            _leave()
 
 
 if __name__ == "__main__":
