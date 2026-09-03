@@ -900,7 +900,52 @@ TEXT_PROVIDERS = {
 TEXT_PROVIDER = "gemini"
 
 
-def generate_with_retry(contents, system_instruction, max_attempts=2):
+# --- YONLENDIRME KATMANI (Seviye 1c, 2026-09-03) ---
+# "Aura emri verir, korukorune iletmez": her turu once siniflandiriyoruz.
+# Simdilik hafif sezgisel - cikti `tier` deneme/timeout ayarini etkiliyor,
+# `wants_tool` sadece LOGLANIYOR (gercek araclar Seviye 1d). Ilerde bu
+# fonksiyon zorluk-bazli MODEL secimi de yapacak (light -> kucuk/hizli,
+# deep -> buyuk model / cok-adimli).
+_TOOL_HINTS = {
+    "time": ("saat kac", "bugun gunlerden", "hangi gun", "tarih ne", "kac gun kaldi",
+             "kac gun sonra", "yarin gunlerden", "what time", "what day"),
+    "search": ("son dakika", "guncel", "bugun ne oldu", "haber", "fiyati ne",
+               "dolar kac", "euro kac", "kac lira", "kac dolar", "kac euro",
+               "altin fiyat", "borsa", "hava durumu", "mac sonucu", "bugunku"),
+    "math": ("hesapla", "kac eder", "yuzde hesap", "carpim", "karekok", "faiz hesab",
+             "toplami kac", "yuzde kac"),
+}
+_DEEP_HINTS = ("adim adim", "planla", "karsilastir", "analiz et", "neden", "nasil yapilir",
+               "avantaj", "dezavantaj", "listele", "acikla", "ozetle", "cikarim",
+               "hangisini secmeliyim", "artilari eksileri")
+
+
+def route_request(message_text: str, turn_count: int = 0) -> dict:
+    """Bir kullanici turunu siniflandirir. Ucuz ve dayanikli - LLM cagirmaz."""
+    t = (message_text or "").lower().strip()
+    n = len(t)
+
+    wants_tool = None
+    for tool, needles in _TOOL_HINTS.items():
+        if any(k in t for k in needles):
+            wants_tool = tool
+            break
+
+    if n <= 25 and "?" not in t and not any(k in t for k in _DEEP_HINTS):
+        tier = "light"          # selam, kisa onay, "hmm", "peki" ...
+    elif n >= 220 or any(k in t for k in _DEEP_HINTS) or t.count("?") >= 2:
+        tier = "deep"
+    else:
+        tier = "standard"
+
+    reason = f"n={n} tool={wants_tool or '-'} turn={turn_count}"
+    return {"tier": tier, "wants_tool": wants_tool, "reason": reason}
+
+
+_TIER_ATTEMPTS = {"light": 1, "standard": 2, "deep": 2}
+
+
+def generate_with_retry(contents, system_instruction, max_attempts=2, route=None):
     # BULUNDU (2026-08-24, production'da bizzat test edilip dogrulandi):
     # max_attempts DAHA ONCE 3'tu - Gemini yavasladiginda (bugun oldugu
     # gibi) her deneme kendi 12sn'lik zaman asimini tuketiyor, ARADA
@@ -908,6 +953,13 @@ def generate_with_retry(contents, system_instruction, max_attempts=2):
     # Groq fallback'in butun amaci TAM OLARAK bu senaryoyu HIZLI
     # atlatmakti. 2'ye dusuruldu - Gemini'ye bir sans daha (tek seferlik
     # blip'ler icin) verilip, hala basarisizsa cabucak Groq'a gecilir.
+    # YONLENDIRME (Seviye 1c): cagiran bir `route` (route_request ciktisi)
+    # verdiyse deneme sayisini tier'e gore ayarla + karari logla. route
+    # yoksa davranis eskisiyle ayni.
+    if route:
+        max_attempts = _TIER_ATTEMPTS.get(route.get("tier"), max_attempts)
+        print(f"ROUTE: tier={route.get('tier')} {route.get('reason', '')} -> attempts={max_attempts}", flush=True)
+
     # SAGLAYICI SIRASI: Aura'nin kendi LLM'i (varsa) -> Gemini -> Groq.
     # AURA_BRAIN_URL bos ise ilk adim atlanir, davranis eskisiyle ayni.
     if AURA_BRAIN_URL:
