@@ -73,3 +73,8 @@ installer_output/
 
 # Aura Voice Mesh - Railway API token (asla commit etme)
 auro-backend/voice_service/sync_secrets.txt
+
+# Aura Brain Mesh - anahtar + konusma logu (kisisel veri, asla commit etme)
+auro-backend/brain_service/sync_secrets.txt
+auro-backend/brain_service/conversations.jsonl
+auro-backend/brain_service/*.log
