@@ -13,8 +13,10 @@ hic gorunmeyen bileşenlerdir.
   "ajan" gercekten farkli saglayicilardir, sadece isim degil.
 """
 
+import json
 import os
 import re
+import threading
 import time
 from typing import Optional
 
@@ -839,6 +841,39 @@ def _transcribe_with_gemini(audio_bytes: bytes, language_hint: Optional[str] = N
         config=types.GenerateContentConfig(temperature=0.0),
     )
     return (response.text or "").strip()
+
+
+# --- FAZ 3 hazirlik: damitma (distillation) logu ---
+# Gemini iyi bir yanit verdiginde (sistem talimati, mesajlar, yanit) uclusu
+# diske JSONL yazilir - ileride kucuk/self-host bir modeli "Gemini gibi =
+# Aura gibi cevapla" diye fine-tune etmenin GOLD verisi. Varsayilan KAPALI
+# (kisisel veri). AURA_DISTILL_LOG=1 ile acilir. Dosya DB_DIR'de (Railway
+# kalici disk), 500MB'i asarsa yeni yazim durur (guvenlik).
+DISTILL_ON = (os.getenv("AURA_DISTILL_LOG") or "").strip() in ("1", "true", "yes", "on")
+_DISTILL_PATH = os.path.join(
+    os.getenv("DB_DIR") or os.path.dirname(os.path.abspath(__file__)), "brain_distill.jsonl"
+)
+_distill_lock = threading.Lock()
+
+
+def log_distill_sample(system_instruction: str, contents, reply_text: str, provider: str = "gemini") -> None:
+    """Fire-and-forget. Hata YUTULUR - sohbeti asla etkilemez."""
+    if not DISTILL_ON or not reply_text:
+        return
+    try:
+        if os.path.exists(_DISTILL_PATH) and os.path.getsize(_DISTILL_PATH) > 500 * 1024 * 1024:
+            return
+        row = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "provider": provider,
+            "messages": _contents_to_groq_messages(contents, system_instruction),
+            "reply": reply_text,
+        }
+        line = json.dumps(row, ensure_ascii=False) + "\n"
+        with _distill_lock, open(_DISTILL_PATH, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception as e:
+        print(f"DISTILL LOG hata (yoksayildi): {type(e).__name__}: {e}")
 
 
 def _aura_brain_remote(contents, system_instruction, route=None):
