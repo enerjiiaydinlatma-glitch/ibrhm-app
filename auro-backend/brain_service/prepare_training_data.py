@@ -128,7 +128,10 @@ def main():
         stats[source] += weight if source == "golden" else 1
 
     for row in golden:
-        add(row, "golden", weight=max(1, args.golden_weight))
+        # golden_set.jsonl karisik: provider "golden" (elle) x3 agirlik,
+        # "refined" (oz-elestiri motoru) x1. Distill zaten x1.
+        w = max(1, args.golden_weight) if row.get("provider") != "refined" else 1
+        add(row, "golden" if w > 1 else "distill", weight=w)
     random.shuffle(distill)
     for row in distill[: args.max_distill]:
         add(row, "distill")
