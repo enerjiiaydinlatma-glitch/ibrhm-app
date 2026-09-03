@@ -1,0 +1,9 @@
+# Aura Brain Mesh - muhakeme cekirdegi sarmalayicisi.
+# Arka plan LLM'i AYRI kurulur (bu servis onu cagirir, icinde model YOK):
+#   1. Ollama: https://ollama.com/download  ->  `ollama serve`
+#   2. Model:  `ollama pull qwen2.5:7b-instruct`  (8GB GPU'ya sigar;
+#      Chatterbox ayni anda calisiyorsa `qwen2.5:3b-instruct` daha guvenli)
+# Alternatif backend: vLLM / llama.cpp server / TGI - hepsi OpenAI-uyumlu.
+fastapi
+uvicorn[standard]
+httpx
