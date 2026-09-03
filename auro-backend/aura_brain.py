@@ -744,7 +744,15 @@ def transcribe_with_groq(
 
     Bos/anlasilmaz ses icin bos string doner (exception degil) - cagiran
     taraf bunu "seni duyamadim" gibi nazik bir cevaba cevirsin diye.
+
+    SAGLAYICI ZINCIRI (2026-09-03): Groq Whisper birincil (bedava, hizli).
+    Groq HATA verirse (429/5xx/timeout/ag) Gemini'ye duser - GEMINI_API_KEY
+    zaten chat icin yapilandirilmis, yeni bagimlilik/kayit/VRAM yok. Metin
+    uretiminde (generate_with_retry) zaten olan "tek saglayici cokerse
+    devam et" deseninin STT karsiligi. Groq BOS string dondururse (gercekten
+    anlasilir konusma yok) Gemini denenmez - o zaten dogru cevap.
     """
+    groq_error: Optional[Exception] = None
     try:
         # COK DILLILIK (2026-08-31): "language": "tr" BURADA SABITLENMISTI -
         # Turkce disinda konusan biri sesli-yedek modunu kullansa Whisper
@@ -775,8 +783,49 @@ def transcribe_with_groq(
         data = response.json()
         return (data.get("text") or "").strip()
     except Exception as e:
-        print(f"VOICE FALLBACK TRANSCRIBE ERROR: {type(e).__name__}: {e}")
+        groq_error = e
+        print(f"VOICE FALLBACK TRANSCRIBE (groq) ERROR: {type(e).__name__}: {e}")
+
+    # Groq patladi - Gemini'ye dus.
+    try:
+        text = _transcribe_with_gemini(audio_bytes, language_hint=language_hint)
+        if text:
+            print("VOICE FALLBACK TRANSCRIBE: groq -> gemini basarili")
+        return text
+    except Exception as e:
+        print(
+            f"VOICE FALLBACK TRANSCRIBE (gemini de basarisiz): {type(e).__name__}: {e} "
+            f"(groq: {type(groq_error).__name__ if groq_error else '-'})"
+        )
         return ""
+
+
+def _transcribe_with_gemini(audio_bytes: bytes, language_hint: Optional[str] = None) -> str:
+    """Groq Whisper cokunce yedek STT. Gemini Flash ham sesi kabul eder;
+    sadece transkripti istiyoruz - aciklama/yorum degil."""
+    lang = ""
+    if language_hint:
+        lang = f" Ses {language_hint!r} dilinde olabilir ama emin degilsen algiladigina yaz."
+    prompt = (
+        "Bu ses kaydini KELIMESI KELIMESINE yaziya dok. SADECE konusulan "
+        "metni yaz - baska hicbir sey ekleme (aciklama, tirnak, 'iste "
+        "transkript' gibi giris YOK). Anlasilir konusma yoksa hicbir sey "
+        "yazma." + lang
+    )
+    response = _client.models.generate_content(
+        model=MODEL_NAME,
+        contents=[
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part(inline_data=types.Blob(mime_type="audio/wav", data=audio_bytes)),
+                    types.Part(text=prompt),
+                ],
+            )
+        ],
+        config=types.GenerateContentConfig(temperature=0.0),
+    )
+    return (response.text or "").strip()
 
 
 def _groq_text(contents, system_instruction, max_attempts=1):
