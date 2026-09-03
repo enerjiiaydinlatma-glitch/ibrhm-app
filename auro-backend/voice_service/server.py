@@ -98,6 +98,34 @@ def _check_key(x_voice_key: str | None):
         raise HTTPException(status_code=401, detail="gecersiz anahtar")
 
 
+# --- Metin temizleme ---
+# Chatterbox'in tokenizer'i bazi Unicode noktalama isaretlerini tanimiyor;
+# tanimadigi bir karakterde model dogal bir "bitis" noktasina hic ulasamayip
+# GPU'yu %100'de tutarak dakikalarca ayni sesi tekrar edebiliyor (Sign
+# Council'da 2026-09-02 Bolum 10 render'inda gozlendi - kok neden U+2011
+# bitisik tire + akilli tirnaklardi; ayni ders `council-backend/render_audio.py`
+# `_PUNCT_FIXES`'te de var). Prod app'ten VEYA Sign Council'dan gelen metin
+# bu karakterleri tasiyabildigi icin uretimden ONCE ASCII'ye sabitliyoruz.
+_PUNCT_FIXES = {
+    "‑": "-", "‒": "-", "–": "-", "—": "-", "―": "-",
+    "‘": "'", "’": "'", "‚": "'", "‛": "'",
+    "“": '"', "”": '"', "„": '"', "‟": '"',
+    "…": "...",  # yatay ucnokta (_SENT_END "..."i de tanir)
+    "·": ".", "•": ".",  # orta nokta / madde imi -> cumle sonu gibi
+}
+# Sifir-genislikli / yon isaretleri: tokenizer'i sessizce kaydirabilir.
+_ZERO_WIDTH = dict.fromkeys(map(ord, "​‌‍‎‏﻿"), None)
+
+
+def sanitize_text(text: str) -> str:
+    for bad, good in _PUNCT_FIXES.items():
+        text = text.replace(bad, good)
+    text = text.translate(_ZERO_WIDTH)
+    # kontrol karakterleri (satir sonlari haric) -> bosluk
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text)
+    return text
+
+
 # --- Turkce cumle bolucu (kisaltmalara toleransli, basit ve dayanikli) ---
 _ABBREV = {"dr", "av", "sn", "no", "vb", "vs", "bkz", "age", "bkz", "prof", "doc"}
 _SENT_END = re.compile(r"([.!?…]+)(\s+|$)")
@@ -197,7 +225,12 @@ def health():
 def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
     _check_key(x_voice_key)
     ref_wav = _resolve_ref(req.speaker)
-    sentences = split_sentences(req.text) or [req.text.strip()]
+    clean = sanitize_text(req.text)
+    sentences = [s for s in (split_sentences(clean) or [clean.strip()]) if s.strip()]
+    if not sentences:
+        # Metin temizlikten sonra bos kaldi (or. sadece sifir-genislik/noktalama)
+        # - modele bos string gondermek yerine kisa bir sessizlik don.
+        raise HTTPException(status_code=400, detail="seslendirilecek metin yok")
 
     if not req.stream:
         chunks = [_generate(s, ref_wav) for s in sentences]
