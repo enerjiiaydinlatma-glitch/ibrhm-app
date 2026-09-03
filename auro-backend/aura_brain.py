@@ -841,19 +841,26 @@ def _transcribe_with_gemini(audio_bytes: bytes, language_hint: Optional[str] = N
     return (response.text or "").strip()
 
 
-def _aura_brain_remote(contents, system_instruction, max_attempts=1):
+def _aura_brain_remote(contents, system_instruction, route=None):
     """Aura'nin KENDI LLM'i (self-host, OpenAI-uyumlu). AURA_BRAIN_URL bos
     ise cagrilmaz. Ulasilamaz/hatali olursa exception firlatir -
-    generate_with_retry bunu yakalayip Gemini'ye duser."""
+    generate_with_retry bunu yakalayip Gemini'ye duser.
+
+    route verilirse `model` alani "aura-{tier}" gonderilir - brain_service
+    bunu zorluk-bazli gercek modele esler (light -> kucuk/hizli, deep ->
+    buyuk). route yoksa duz AURA_BRAIN_MODEL."""
     messages = _contents_to_groq_messages(contents, system_instruction)
     headers = {"Content-Type": "application/json"}
     if AURA_BRAIN_KEY:
         headers["X-Brain-Key"] = AURA_BRAIN_KEY
         headers["Authorization"] = f"Bearer {AURA_BRAIN_KEY}"
+    model = AURA_BRAIN_MODEL
+    if route and route.get("tier"):
+        model = f"{AURA_BRAIN_MODEL}-{route['tier']}"
     response = _groq_http.post(
         f"{AURA_BRAIN_URL}/v1/chat/completions",
         headers=headers,
-        json={"model": AURA_BRAIN_MODEL, "messages": messages, "temperature": 0.8},
+        json={"model": model, "messages": messages, "temperature": 0.8},
         timeout=AURA_BRAIN_TIMEOUT_S,
     )
     response.raise_for_status()
@@ -964,7 +971,7 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
     # AURA_BRAIN_URL bos ise ilk adim atlanir, davranis eskisiyle ayni.
     if AURA_BRAIN_URL:
         try:
-            return _TextResponse(_aura_brain_remote(contents, system_instruction))
+            return _TextResponse(_aura_brain_remote(contents, system_instruction, route=route))
         except Exception as brain_error:
             print(
                 f"AURA BRAIN basarisiz ({type(brain_error).__name__}: {brain_error}) "

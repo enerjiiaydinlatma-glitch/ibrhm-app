@@ -45,6 +45,22 @@ BRAIN_KEY = (os.getenv("AURA_BRAIN_KEY") or "").strip()
 BACKEND_URL = (os.getenv("BRAIN_BACKEND_URL") or "http://localhost:11434").strip().rstrip("/")
 BACKEND_MODEL = (os.getenv("BRAIN_BACKEND_MODEL") or "qwen2.5:7b-instruct").strip()
 BACKEND_TIMEOUT_S = float(os.getenv("BRAIN_BACKEND_TIMEOUT_S") or "60")
+
+# Zorluk-bazli model secimi (Seviye 1c'nin karsiligi). auro-backend
+# "aura-light" / "aura-standard" / "aura-deep" gonderir; burada gercek
+# modele eslenir. Env verilmezse hepsi ana modele duser (tek model kurulumu
+# icin degisiklik gerekmez).
+MODEL_LIGHT = (os.getenv("BRAIN_MODEL_LIGHT") or BACKEND_MODEL).strip()
+MODEL_DEEP = (os.getenv("BRAIN_MODEL_DEEP") or BACKEND_MODEL).strip()
+
+
+def _resolve_model(requested: str) -> str:
+    r = (requested or "").strip().lower()
+    if r.endswith("-light"):
+        return MODEL_LIGHT
+    if r.endswith("-deep"):
+        return MODEL_DEEP
+    return BACKEND_MODEL
 PORT = int(os.getenv("AURA_BRAIN_PORT") or "8130")
 
 # Faz 3 yakiti: her tam tur buraya JSONL olarak eklenir. AURA_BRAIN_LOG=""
@@ -146,10 +162,11 @@ def chat_completions(
     t0 = time.time()
     try:
         # Arka plan LLM'i de OpenAI-uyumlu /v1/chat/completions konusur
-        # (Ollama, vLLM, llama.cpp server, TGI hepsi). "model" alanini
-        # backend'in bekledigi ada sabitliyoruz.
+        # (Ollama, vLLM, llama.cpp server, TGI hepsi). Istekteki "model"
+        # (or. "aura-deep") -> gercek backend modeline eslenir.
+        backend_model = _resolve_model(body.get("model", ""))
         payload = {
-            "model": BACKEND_MODEL,
+            "model": backend_model,
             "messages": messages,
             "temperature": body.get("temperature", 0.8),
             "stream": False,
@@ -167,16 +184,16 @@ def chat_completions(
         reply = (data["choices"][0]["message"]["content"] or "").strip()
         elapsed = time.time() - t0
         print(f"[brain] {len(messages)} msg -> {len(reply)} krkt / {elapsed:.1f}s", flush=True)
-        _log_turn(messages, reply, {"model": BACKEND_MODEL, "elapsed_s": round(elapsed, 2), "ok": True})
+        _log_turn(messages, reply, {"model": backend_model, "elapsed_s": round(elapsed, 2), "ok": True})
 
         # auro-backend sadece choices[0].message.content okuyor - backend'in
         # yanitini oldugu gibi geciriyoruz (usage vb. alanlar da gecer).
         return data
     except httpx.HTTPStatusError as e:
-        _log_turn(messages, "", {"model": BACKEND_MODEL, "ok": False, "error": f"http-{e.response.status_code}"})
+        _log_turn(messages, "", {"model": backend_model, "ok": False, "error": f"http-{e.response.status_code}"})
         raise HTTPException(status_code=502, detail=f"backend LLM http-{e.response.status_code}")
     except Exception as e:
-        _log_turn(messages, "", {"model": BACKEND_MODEL, "ok": False, "error": type(e).__name__})
+        _log_turn(messages, "", {"model": backend_model, "ok": False, "error": type(e).__name__})
         raise HTTPException(status_code=502, detail=f"backend LLM: {type(e).__name__}")
     finally:
         _leave()
