@@ -47,6 +47,19 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
+# --- AURA BRAIN MESH (2026-09-03, Seviye 1) ---
+# Voice Mesh (auro-backend/voice_service) deseninin muhakeme cekirdegi
+# karsiligi: Aura'nin KENDI (self-host / fine-tune edilmis) LLM'i. Ayri bir
+# process'te GPU'lu makinede kosar, OpenAI-uyumlu /v1/chat/completions
+# konusur (vLLM / llama.cpp / TGI / Ollama hepsi bu formatta). generate_
+# with_retry once buna gider, ulasilmaz/hatali/yavas ise Gemini'ye, o da
+# olmazsa Groq'a duser. AURA_BRAIN_URL bos ise HIC denenmez - davranis
+# eskisiyle BIREBIR ayni, deploy risksiz (Voice Mesh'te oldugu gibi).
+AURA_BRAIN_URL = (os.getenv("AURA_BRAIN_URL") or "").strip().rstrip("/")
+AURA_BRAIN_KEY = (os.getenv("AURA_BRAIN_KEY") or "").strip()
+AURA_BRAIN_MODEL = (os.getenv("AURA_BRAIN_MODEL") or "aura").strip()
+AURA_BRAIN_TIMEOUT_S = float(os.getenv("AURA_BRAIN_TIMEOUT_S") or "20")
+
 # KRITIK BULUNAN CANLI SORUN (2026-08-24, reklam kampanyasi oncesi son
 # taramada tesadufen yakalandi): generate_content() cagrisinda HICBIR
 # zaman asimi yoktu - Gemini tarafinda bir yavaslama/kota baskisi
@@ -828,6 +841,29 @@ def _transcribe_with_gemini(audio_bytes: bytes, language_hint: Optional[str] = N
     return (response.text or "").strip()
 
 
+def _aura_brain_remote(contents, system_instruction, max_attempts=1):
+    """Aura'nin KENDI LLM'i (self-host, OpenAI-uyumlu). AURA_BRAIN_URL bos
+    ise cagrilmaz. Ulasilamaz/hatali olursa exception firlatir -
+    generate_with_retry bunu yakalayip Gemini'ye duser."""
+    messages = _contents_to_groq_messages(contents, system_instruction)
+    headers = {"Content-Type": "application/json"}
+    if AURA_BRAIN_KEY:
+        headers["X-Brain-Key"] = AURA_BRAIN_KEY
+        headers["Authorization"] = f"Bearer {AURA_BRAIN_KEY}"
+    response = _groq_http.post(
+        f"{AURA_BRAIN_URL}/v1/chat/completions",
+        headers=headers,
+        json={"model": AURA_BRAIN_MODEL, "messages": messages, "temperature": 0.8},
+        timeout=AURA_BRAIN_TIMEOUT_S,
+    )
+    response.raise_for_status()
+    data = response.json()
+    text = (data["choices"][0]["message"]["content"] or "").strip()
+    if not text:
+        raise RuntimeError("aura-brain bos yanit dondu")
+    return text
+
+
 def _groq_text(contents, system_instruction, max_attempts=1):
     """
     Gemini yogun/hatali oldugunda devreye giren YEDEK metin ajani.
@@ -872,6 +908,17 @@ def generate_with_retry(contents, system_instruction, max_attempts=2):
     # Groq fallback'in butun amaci TAM OLARAK bu senaryoyu HIZLI
     # atlatmakti. 2'ye dusuruldu - Gemini'ye bir sans daha (tek seferlik
     # blip'ler icin) verilip, hala basarisizsa cabucak Groq'a gecilir.
+    # SAGLAYICI SIRASI: Aura'nin kendi LLM'i (varsa) -> Gemini -> Groq.
+    # AURA_BRAIN_URL bos ise ilk adim atlanir, davranis eskisiyle ayni.
+    if AURA_BRAIN_URL:
+        try:
+            return _TextResponse(_aura_brain_remote(contents, system_instruction))
+        except Exception as brain_error:
+            print(
+                f"AURA BRAIN basarisiz ({type(brain_error).__name__}: {brain_error}) "
+                f"-> {TEXT_PROVIDER}'e duseluyor"
+            )
+
     try:
         text = TEXT_PROVIDERS[TEXT_PROVIDER](contents, system_instruction, max_attempts)
     except Exception as primary_error:
