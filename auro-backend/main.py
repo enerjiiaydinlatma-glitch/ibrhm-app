@@ -8,6 +8,7 @@ import httpx
 import aura_brain
 import aura_memory
 import aura_reminders
+import aura_tools
 import aura_voice
 import base64
 from collections import defaultdict, deque
@@ -943,11 +944,20 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     ]
     try:
         route = aura_brain.route_request(message_text, turn_count=message_count)
-        response = aura_brain.generate_with_retry(
-            contents,
-            aura_brain.build_system_instruction(user, message_count),
-            route=route,
-        )
+        system_instruction = aura_brain.build_system_instruction(user, message_count)
+        # Seviye 1d: Aura'nin cagirdigi arac (time/math/search). Sonuc sistem
+        # talimatina KISA bir baglam notu olarak eklenir - Aura son cevabi
+        # yine kendi sesiyle uretir. Arac patlarsa (bos donerse) sessizce
+        # atlanir, sohbet kirilmaz.
+        if route.get("wants_tool"):
+            tool_note = aura_tools.run_tool(route["wants_tool"], message_text)
+            if tool_note:
+                system_instruction += (
+                    f"\n\n[ARAC BILGISI ({route['wants_tool']})]: {tool_note}\n"
+                    "Bu bilgiyi kullanarak dogal, kendi uslubunla yanitla; "
+                    "'araca gore', 'sistemden' gibi ifadeler KULLANMA."
+                )
+        response = aura_brain.generate_with_retry(contents, system_instruction, route=route)
         reply_text = response.text
         if not reply_text:
             # GECE DENETIMI BULGUSU: Gemini bir yaniti guvenlik/recitation
