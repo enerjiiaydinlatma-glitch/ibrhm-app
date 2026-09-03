@@ -29,10 +29,12 @@ import modal
 
 # --- ayarlar ---
 # 2026-09-03: Qwen2.5-7B Turkcesi Aura icin yetersizdi (bozuk gramer/uydurma
-# kelime). 14B'ye cikildi - A100-40GB gerekir. Daha da iyisi icin 32B +
-# A100-80GB (veya AWQ + 40GB). env ile override edilebilir.
-MODEL_ID = os.environ.get("AURA_BRAIN_MODEL_ID", "Qwen/Qwen2.5-14B-Instruct")
-GPU = os.environ.get("AURA_BRAIN_GPU", "A100-40GB")
+# kelime). 14B'ye cikildi. A100 Modal'da odeme yontemi ister; onun yerine
+# 14B-AWQ (4-bit, ~9GB) A10G'ye sigar ve UCRETSIZ katmanda kalir - kalite
+# fp16'ya cok yakin. Odeme yontemi eklenirse: MODEL_ID=Qwen/Qwen2.5-14B-
+# Instruct (veya 32B-Instruct-AWQ) + AURA_BRAIN_GPU=A100-40GB.
+MODEL_ID = os.environ.get("AURA_BRAIN_MODEL_ID", "Qwen/Qwen2.5-14B-Instruct-AWQ")
+GPU = os.environ.get("AURA_BRAIN_GPU", "A10G")
 MAX_MODEL_LEN = int(os.environ.get("AURA_BRAIN_MAX_LEN", "8192"))
 
 app = modal.App("aura-brain")
