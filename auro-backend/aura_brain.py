@@ -41,6 +41,19 @@ GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 MODEL_NAME = "gemini-3.7-flash"
 GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# --- COK-SAGLAYICILI BEDAVA REASONING ZINCIRI (Faz A, 2026-09-03) ---
+# "Kimseye bagimli kalmak zorunda degiliz": Gemini birincil, ama coker/
+# yavaslarsa sirayla Groq -> Cerebras -> OpenRouter denenir. Hepsi
+# OpenAI-uyumlu /chat/completions. Anahtari OLMAYAN saglayici sessizce
+# atlanir - hicbir anahtar yoksa davranis eskisi gibi (sadece Gemini->Groq).
+# Boylece Aura HICBIR TEK sirkete bagli degil.
+CEREBRAS_API_KEY = (os.getenv("CEREBRAS_API_KEY") or "").strip()
+CEREBRAS_MODEL = (os.getenv("CEREBRAS_MODEL") or "llama-3.3-70b").strip()
+OPENROUTER_API_KEY = (os.getenv("OPENROUTER_API_KEY") or "").strip()
+OPENROUTER_MODEL = (os.getenv("OPENROUTER_MODEL") or "deepseek/deepseek-chat-v3-0324:free").strip()
+MISTRAL_API_KEY = (os.getenv("MISTRAL_API_KEY") or "").strip()
+MISTRAL_MODEL = (os.getenv("MISTRAL_MODEL") or "mistral-small-latest").strip()
 # Kullanici istegi (2026-08-26): "ucretsiz bir yapay zeka daha ekleyelim
 # mi" - sesli gorusme (Gemini Live) coktugunde devreye giren "basili tut
 # konus" yedek modu icin Groq'un UCRETSIZ, cok hizli Whisper API'si.
@@ -931,6 +944,38 @@ def _groq_text(contents, system_instruction, max_attempts=1):
     return (data["choices"][0]["message"]["content"] or "").strip()
 
 
+def _openai_compatible_text(base_url, api_key, model, contents, system_instruction, timeout=30):
+    """Herhangi bir OpenAI-uyumlu /chat/completions ucu (Cerebras, OpenRouter,
+    Mistral, DeepSeek...). Hepsi ayni sekil - tek fonksiyon."""
+    messages = _contents_to_groq_messages(contents, system_instruction)
+    r = _groq_http.post(
+        f"{base_url}/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={"model": model, "messages": messages, "temperature": 0.8},
+        timeout=timeout,
+    )
+    r.raise_for_status()
+    return (r.json()["choices"][0]["message"]["content"] or "").strip()
+
+
+def _reasoning_fallback_chain():
+    """Gemini cokerse SIRAYLA denenecek bedava saglayicilar. Anahtari olmayan
+    atlanir. Boylece Aura hicbir TEK sirkete bagli degil (Faz A)."""
+    chain = []
+    if GROQ_API_KEY:
+        chain.append(("groq", lambda c, s: _groq_text(c, s)))
+    if CEREBRAS_API_KEY:
+        chain.append(("cerebras", lambda c, s: _openai_compatible_text(
+            "https://api.cerebras.ai/v1", CEREBRAS_API_KEY, CEREBRAS_MODEL, c, s, timeout=25)))
+    if MISTRAL_API_KEY:
+        chain.append(("mistral", lambda c, s: _openai_compatible_text(
+            "https://api.mistral.ai/v1", MISTRAL_API_KEY, MISTRAL_MODEL, c, s, timeout=30)))
+    if OPENROUTER_API_KEY:
+        chain.append(("openrouter", lambda c, s: _openai_compatible_text(
+            "https://openrouter.ai/api/v1", OPENROUTER_API_KEY, OPENROUTER_MODEL, c, s, timeout=40)))
+    return chain
+
+
 # Bugun ana ses Gemini - yeni bir "ses" adaylandirmak icin buraya
 # "openai": _openai_voice gibi bir satir eklemek yeterli olmali. Groq
 # burada ayrica FALLBACK olarak kullaniliyor (generate_with_retry icinde) -
@@ -1002,8 +1047,11 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
         max_attempts = _TIER_ATTEMPTS.get(route.get("tier"), max_attempts)
         print(f"ROUTE: tier={route.get('tier')} {route.get('reason', '')} -> attempts={max_attempts}", flush=True)
 
-    # SAGLAYICI SIRASI: Aura'nin kendi LLM'i (varsa) -> Gemini -> Groq.
-    # AURA_BRAIN_URL bos ise ilk adim atlanir, davranis eskisiyle ayni.
+    # SAGLAYICI SIRASI: Aura'nin kendi LLM'i (varsa) -> Gemini -> [Groq,
+    # Cerebras, Mistral, OpenRouter zinciri]. AURA_BRAIN_URL bos ise ilk adim
+    # atlanir. Zincirdeki anahtarsiz saglayicilar atlanir - hicbir anahtar
+    # yoksa davranis eskisi (sadece Gemini->Groq). Amac: Aura HICBIR TEK
+    # sirkete bagli olmasin (Faz A).
     if AURA_BRAIN_URL:
         try:
             return _TextResponse(_aura_brain_remote(contents, system_instruction, route=route))
@@ -1013,22 +1061,26 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
                 f"-> {TEXT_PROVIDER}'e duseluyor"
             )
 
+    primary_error = None
     try:
         text = TEXT_PROVIDERS[TEXT_PROVIDER](contents, system_instruction, max_attempts)
-    except Exception as primary_error:
-        if not GROQ_API_KEY:
-            raise
-        print(
-            f"TEXT FALLBACK: {TEXT_PROVIDER} basarisiz "
-            f"({type(primary_error).__name__}), Groq'a duseluyor"
-        )
-        try:
-            text = _groq_text(contents, system_instruction)
-        except Exception as fallback_error:
-            print(f"TEXT FALLBACK ERROR: {type(fallback_error).__name__}: {fallback_error}")
-            raise primary_error
+        return _TextResponse(text)
+    except Exception as e:
+        primary_error = e
+        print(f"TEXT FALLBACK: {TEXT_PROVIDER} basarisiz ({type(e).__name__})")
 
-    return _TextResponse(text)
+    for name, fn in _reasoning_fallback_chain():
+        try:
+            text = fn(contents, system_instruction)
+            if text:
+                print(f"TEXT FALLBACK: '{name}' kullanildi", flush=True)
+                return _TextResponse(text)
+        except Exception as e:
+            print(f"TEXT FALLBACK '{name}' basarisiz: {type(e).__name__}: {e}", flush=True)
+
+    # Butun zincir coktu - cagiran (main.py) zaten genis yakalayip zarif bir
+    # mesaj donduruyor.
+    raise primary_error
 
 
 def generate_stream(contents, system_instruction):
