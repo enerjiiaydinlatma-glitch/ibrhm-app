@@ -62,10 +62,10 @@ FastAPI backend  (Railway, tek uvicorn worker, SQLite+WAL)
 |---|---|
 | `modal_app.py` | Serverless GPU (Modal, A10G). vLLM + OpenAI-uyumlu. Sıfıra ölçek = $0 boşta. Fine-tune modelinin deploy hedefi |
 | `server.py` | Yerel Ollama sarmalayıcı (alternatif) — konuşma logu, anahtar, kuyruk, tier→model |
-| `golden_set.jsonl` | 394 örnek: 46 elle yazılmış (x3 ağırlık) + 60 tek-turlu + 288 **çok-turlu** (2026-09-04/05, `refine_golden_multiturn.py`, 7 parti: 10+8×6 arc) oz-elestiri ürünü (x1). Çok-turlu satırlar hafıza/süreklilik sinyali taşıyor — kalite çıpası. Hedef ~300-500 aralığında, üst sınıra yaklaşıyor |
+| `golden_set.jsonl` | 434 örnek: 46 elle yazılmış (x3 ağırlık) + 60 tek-turlu + 328 **çok-turlu** (2026-09-04/05, `refine_golden_multiturn.py`, 8 parti: 10+8×7 arc) oz-elestiri ürünü (x1). Çok-turlu satırlar hafıza/süreklilik sinyali taşıyor — kalite çıpası. Hedef ~300-500 aralığında |
 | `refine_golden.py` / `refine_golden_multiturn.py` | Tek-turlu / çok-turlu oz-elestiri motoru: taslak → Aura rubriğine göre acımasız eleştiri → nihai yeniden yazım (3 Gemini geçişi) |
 | `prepare_training_data.py` | golden + distill logu → temiz/tekil/ağırlıklı eğitim JSONL |
-| `eval_set.jsonl` + `eval_brain.py` | 28 elde tutulan zor test + 2 katmanlı puanlama (heuristik + Gemini yargıç 1-5) |
+| `eval_set.jsonl` + `eval_brain.py` | 36 elde tutulan zor test (2026-09-05: +8 - call-center klise, uzman yönlendirme, bağlantı-kurma reddi, 3-adımlı hafıza, tıbbi tavsiye sınırı) + 2 katmanlı puanlama (heuristik + Gemini yargıç 1-5) |
 | `eval_results.md` | A/B tablosu. **Baseline: Gemini 4.90/5 (call-center fix sonrası), prompted 14B-AWQ 2.60/5.** Fine-tune hedefi ≥4.0 |
 | `FINE_TUNE.md` | Tam süreç: 3 veri katmanı, LoRA (Unsloth), eval kapısı, hibrit deploy |
 
