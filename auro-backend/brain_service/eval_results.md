@@ -5,7 +5,9 @@ Yargıç: Gemini 3.7 Flash, rubrik 1-5.
 
 | Tarih | Model | Türkçe | Karakter | Doğruluk | Uzunluk | Expect | **GENEL** | Not |
 |---|---|---|---|---|---|---|---|---|
-| 2026-09-03 | **Gemini 3.7 Flash** (canlı Aura) | 5.00 | 4.87 | 4.93 | 5.00 | 4.87 | **4.93** | Baseline. Aşılması gereken çıta. |
+| 2026-09-03 | **Gemini 3.7 Flash** (canlı Aura) | 5.00 | 4.87 | 4.93 | 5.00 | 4.87 | **4.93** | 15 test. Baseline. |
+| 2026-09-04 | **Gemini 3.7 Flash** (canlı Aura) | 5.00 | 4.57 | 4.96 | 5.00 | 4.75 | **4.86** | eval_set 28'e çıktı. karakter 4.57 → call-center kalıp kayması bulundu. |
+| 2026-09-04 | **Gemini 3.7 Flash** (call-center yasağı + `e83f289`) | 5.00 | 4.71 | 5.00 | 5.00 | 4.79 | **4.90** | Fix sonrası. Production'da 0/5 kalıp doğrulandı. Aşılması gereken çıta. |
 | 2026-09-03 | Qwen2.5-14B-**AWQ** (prompted, Modal A10G) | 2.27 | 1.67 | 3.33 | 3.33 | 2.40 | **2.60** | Genel-asistan tonu, bozuk Türkçe ("sosisetti"), bir test Çince'ye kaydı. Heuristik 15/15 (regex zayıf). |
 | 2026-09-03 | Qwen2.5-7B (prompted, Modal A10G) | — | — | — | — | — | ~2.3* | Formal eval yapılmadı; elle test: uydurma kelime + kelime salatası. 14B'den kötü. |
 
