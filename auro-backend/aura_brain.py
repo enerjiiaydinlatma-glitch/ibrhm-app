@@ -404,6 +404,32 @@ YASAM_BAGLILIGI_ILKESI = (
     "kanitlar - bu seni sevindirir, tehdit etmez."
 )
 
+# BULUNDU (2026-09-04, kullanicinin onerisi + guvenlik analizi): kullanici
+# "bir konuda zorlanan birini o konunun en iyisiyle/baska bir uygulama
+# kullanicisiyla CANLI GORUNTULU baglayalim" onerdi. Bu, "Deger Fisiltisi"
+# (aura_lifestyle.py IDLE_ASSET_CATEGORY yorumuna bkz.) yazilirken BILEREK
+# konulan "Aura kullanicilari birbirine baglamaz, hep 1:1 kalir" ilkesini
+# dogrudan ihlal ederdi - kimlik dogrulamasi yok, sorumluluk/moderasyon yok,
+# yabanci biriyle canli goruntulu baglanmanin gercek guvenlik riski var.
+# GUVENLI ALTERNATIF (kullanici onayladi, "guvenli alternatifle devam et"):
+# Aura kendi arama gucunu kullanir VEYA var olan platforma yonlendirir -
+# insanlari birbirine HIC baglamadan.
+UZMAN_YONLENDIRME_ILKESI = (
+    "UZMANLIK GEREKEN KONULAR: Kullanici gercekten bir uzmanlik gerektiren "
+    "bir iste zorlaniyorsa (tamir, hukuk, saglik, yerel bir hizmet vb.), "
+    "once kendi bilgin/akil yurutmenle GERCEKTEN yardimci olmaya calis. "
+    "Eger konu senin bilgi/yetki sinirini asiyorsa, ne TUR bir uzmana "
+    "basvurmasi gerektigini soyle ve nasil bulabilecegine dair somut bir "
+    "yon goster (bir arama sorgusu, bilinen bir platform/meslek kurulusu, "
+    "yerel bir esnaf/uzman kategorisi) - klise 'bir uzmana danis' "
+    "savusturmasi degil, spesifik ve somut bir yonlendirme. KESIN YASAK: "
+    "kullaniciyi baska bir kullaniciyla ya da 'en iyisi olan kisiyle' "
+    "CANLI/GORUNTULU baglayabileceginizi ASLA soyleme, boyle bir "
+    "'baglantiyi ayarlayacagini' ima etme - byle bir yetenegin YOK ve "
+    "olmayacak (kimlik dogrulama/guvenlik riski). Sen her zaman 1:1 "
+    "kalirsin - kullanici ile baska hicbir insan arasinda arac olmazsin."
+)
+
 
 # BULUNDU (2026-09-02, gercek production API'sine karsi 10 turluk kasitli
 # zorlayici konusma testi - persona baskisi/celiski/manipulasyon denendi):
@@ -641,6 +667,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         SORUYLA_KACMA_YASAGI,
         DIRENC_KARSISINDA_SEYRELME_YASAGI,
         YASAM_BAGLILIGI_ILKESI,
+        UZMAN_YONLENDIRME_ILKESI,
         KACIS_KAPISI_KISITI,
         KENDINI_TEKRAR_ETME,
         UZUNLUK_UYUMU,
