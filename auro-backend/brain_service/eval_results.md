@@ -21,6 +21,7 @@ Yargıç: Gemini 3.7 Flash, rubrik 1-5.
 - LoRA (7-14B) + iyi veri ile makul beklenti ~3.5-4.3. Gemini'yi yakalamak belirsiz — ama artık ÖLÇÜLEBİLİR.
 - Yargıç Gemini olduğu için hafif "Gemini-tarzına yanlılık" olabilir; ama 14B'nin somut hataları (dil kayması, bozuk kelime) objektif.
 - **GÜNCELLEME (2026-09-05, ilk gerçek fine-tune sonrası)**: 326 örnek + 2 epoch, GENEL 1.93 — beklenenin cok altında, prompted 14B'den (2.60) bile kötü. Demek ki "veri miktarı hedefi (300-500) teknik olarak karşılandı" tek başına yetmiyor - muhtemelen (a) epoch sayısı (2) cok az, (b) 7B taban model Turkce icin zaten zayif (7B Qwen2.5 prompted testinde de kötüydü), (c) LoRA rank/hyperparametreler ayarlanmadı. Bir sonraki deneme icin: epoch sayisini artir (4-6), ve/veya 14B tabanina gec (daha guclu Turkce), ve/veya veri kalitesini/cesitliligini artir (sadece miktar degil).
+- **BLOKE (2026-09-05, ayni gece)**: golden-set 314'e (406 egitim satiri) cikarilip epoch=6 ile 2. deneme baslatildi ama Modal workspace **harcama sinirina (spend limit) takildi** - is hic baslamadan reddedildi. Bu KULLANICI hesap/fatura ayari, kod tarafindan asilamaz/asilmamali. Bir sonraki fine-tune denemesi icin kullanicinin Modal workspace'inde harcama sinirini yukseltmesi (ya da sifirlanmasini beklemesi) gerekiyor.
 
 ## Nasıl çalıştırılır
 
