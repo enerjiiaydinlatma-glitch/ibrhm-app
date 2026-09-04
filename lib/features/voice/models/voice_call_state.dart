@@ -24,6 +24,15 @@ class VoiceCallState {
   // eklerdi.
   final bool videoEnabled;
   final bool cameraReady;
+  // BULUNDU (2026-09-04, kullanici + kendi testimde ayni sekilde
+  // uretildi): kamera izni reddedilince/donanim basarisiz olunca ekran
+  // SESSIZCE "Kamera aciliyor..." yazisinda sonsuza dek takili kaliyordu -
+  // mikrofon tarafinin AKSINE (o net "izin verilmedi" mesaji veriyor) hic
+  // geri bildirim yoktu. Bu bayrak video_call_screen.dart'a "beklemeyi
+  // birak, kullaniciya soyle" sinyali verir - CAGRIYI SONLANDIRMAZ (ses
+  // hala calisir), sadece kamera onizlemesi yerine anlasilir bir mesaj
+  // gosterilir.
+  final bool cameraFailed;
 
   const VoiceCallState({
     this.status = VoiceCallStatus.idle,
@@ -32,6 +41,7 @@ class VoiceCallState {
     this.errorMessage,
     this.videoEnabled = false,
     this.cameraReady = false,
+    this.cameraFailed = false,
   });
 
   bool get isActive => status != VoiceCallStatus.idle;
@@ -43,6 +53,7 @@ class VoiceCallState {
     String? errorMessage,
     bool? videoEnabled,
     bool? cameraReady,
+    bool? cameraFailed,
   }) {
     return VoiceCallState(
       status: status ?? this.status,
@@ -51,6 +62,7 @@ class VoiceCallState {
       errorMessage: errorMessage,
       videoEnabled: videoEnabled ?? this.videoEnabled,
       cameraReady: cameraReady ?? this.cameraReady,
+      cameraFailed: cameraFailed ?? this.cameraFailed,
     );
   }
 }
