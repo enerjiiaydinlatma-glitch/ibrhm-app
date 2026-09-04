@@ -115,14 +115,30 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         alignment: Alignment.center,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const CircularProgressIndicator(color: _indigoColor),
-                            const SizedBox(height: 16),
-                            Text(
-                              "Kamera açılıyor...",
-                              style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-                            ),
-                          ],
+                          children: callState.cameraFailed
+                              ? [
+                                  const Icon(Icons.videocam_off_outlined,
+                                      color: Colors.white38, size: 40),
+                                  const SizedBox(height: 16),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                                    child: Text(
+                                      "Kamera açılamadı. Tarayıcı/telefon ayarlarından "
+                                      "kamera iznini kontrol et — sesli konuşmaya devam "
+                                      "edebilirsin.",
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                                    ),
+                                  ),
+                                ]
+                              : [
+                                  const CircularProgressIndicator(color: _indigoColor),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "Kamera açılıyor...",
+                                    style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                                  ),
+                                ],
                         ),
                       ),
               ),

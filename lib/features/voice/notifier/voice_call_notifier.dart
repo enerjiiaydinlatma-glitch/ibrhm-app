@@ -384,6 +384,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       status: VoiceCallStatus.connecting,
       videoEnabled: _videoRequested,
       cameraReady: false,
+      cameraFailed: false,
     );
     await _connect();
   }
@@ -605,6 +606,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         _voiceDebugLog("video: kullanilabilir kamera yok");
+        state = state.copyWith(cameraFailed: true);
         return;
       }
       final front = cameras.firstWhere(
@@ -618,7 +620,13 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         ResolutionPreset.low,
         enableAudio: false,
       );
-      await controller.initialize();
+      // BULUNDU (2026-09-04, gercek testte kanitlandi): bazi tarayici/
+      // ortamlarda izin istegi ne acikca reddedilip HATA firlatiyor ne de
+      // onaylaniyor - initialize() Future'i SONSUZA DEK cozulmeden asili
+      // kaliyor, asagidaki catch bloguna hic dusmeden ekran sonsuza dek
+      // "Kamera aciliyor..." gosteriyordu. 10sn'lik acik bir sinir, ne
+      // olursa olsun kullaniciya bir sonuc (cameraFailed) garanti eder.
+      await controller.initialize().timeout(const Duration(seconds: 10));
       // Bu sirada gorusme zaten bitmis olabilir (kullanici hizlica
       // endCall() bastiysa) - o durumda yeni acilan kamerayi hemen kapat.
       if (state.status == VoiceCallStatus.idle) {
@@ -634,7 +642,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         (_) => unawaited(_sendVideoFrame()),
       );
     } catch (e) {
-      _voiceDebugLog("video: baslatma HATASI (yoksayildi, sesli devam ediyor): $e");
+      // BULUNDU (2026-09-04, gercek testte kanitlandi): burada eskiden
+      // sadece debug loguna yazip SESSIZCE vazgeciliyordu - kullaniciya
+      // hicbir geri bildirim gitmiyordu, ekran sonsuza dek "Kamera
+      // aciliyor..." yaziyordu (izin reddedildiginde/donanim yoksa).
+      // Mikrofon tarafinin (_connect() basindaki hasMicPermission kontrolu)
+      // AKSINE net bir mesaj yoktu. cameraFailed artik video_call_screen.dart'a
+      // "beklemeyi birak, kullaniciya soyle" sinyali veriyor - CAGRIYI
+      // SONLANDIRMIYOR (ses hala calisir, sadece kamera onizlemesi yerine
+      // anlasilir bir mesaj gosterilir).
+      _voiceDebugLog("video: baslatma HATASI (sesli devam ediyor): $e");
+      state = state.copyWith(cameraFailed: true);
     }
   }
 
