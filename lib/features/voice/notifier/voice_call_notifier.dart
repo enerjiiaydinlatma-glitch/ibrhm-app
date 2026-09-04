@@ -603,7 +603,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   /// yutulur, kullanici sesli aramaya (kamerasiz) devam edebilir.
   Future<void> _startVideoCapture() async {
     try {
-      final cameras = await availableCameras();
+      // BULUNDU (2026-09-04, gercek testte kanitlandi - bir onceki
+      // .timeout() sadece controller.initialize()'i sarmisti ve YETERSIZ
+      // kaldi): bazi tarayici/ortamlarda asili kalan asil cagri BUYMUS -
+      // availableCameras() izin istegini SESSIZCE hic cozmeden bekletiyor,
+      // controller.initialize()'e hic sira gelmiyordu. Artik ikisi de
+      // ayri ayri sinirli.
+      final cameras =
+          await availableCameras().timeout(const Duration(seconds: 8));
       if (cameras.isEmpty) {
         _voiceDebugLog("video: kullanilabilir kamera yok");
         state = state.copyWith(cameraFailed: true);
