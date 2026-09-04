@@ -62,7 +62,7 @@ FastAPI backend  (Railway, tek uvicorn worker, SQLite+WAL)
 |---|---|
 | `modal_app.py` | Serverless GPU (Modal, A10G). vLLM + OpenAI-uyumlu. Sıfıra ölçek = $0 boşta. Fine-tune modelinin deploy hedefi |
 | `server.py` | Yerel Ollama sarmalayıcı (alternatif) — konuşma logu, anahtar, kuyruk, tier→model |
-| `golden_set.jsonl` | 314 örnek: 46 elle yazılmış (x3 ağırlık) + 60 tek-turlu + 208 **çok-turlu** (2026-09-04/05, `refine_golden_multiturn.py`, 5 parti: 10+8+8+8+8 arc) oz-elestiri ürünü (x1). Çok-turlu satırlar hafıza/süreklilik sinyali taşıyor — kalite çıpası. **Hedef ~300-500'e ulaşıldı (314)** — büyümeye devam (epoch/hiperparametre denemeleri için daha fazla veri hâlâ faydalı) |
+| `golden_set.jsonl` | 354 örnek: 46 elle yazılmış (x3 ağırlık) + 60 tek-turlu + 248 **çok-turlu** (2026-09-04/05, `refine_golden_multiturn.py`, 6 parti: 10+8+8+8+8+8 arc) oz-elestiri ürünü (x1). Çok-turlu satırlar hafıza/süreklilik sinyali taşıyor — kalite çıpası. Hedef ~300-500 aralığında ilerliyor |
 | `refine_golden.py` / `refine_golden_multiturn.py` | Tek-turlu / çok-turlu oz-elestiri motoru: taslak → Aura rubriğine göre acımasız eleştiri → nihai yeniden yazım (3 Gemini geçişi) |
 | `prepare_training_data.py` | golden + distill logu → temiz/tekil/ağırlıklı eğitim JSONL |
 | `eval_set.jsonl` + `eval_brain.py` | 28 elde tutulan zor test + 2 katmanlı puanlama (heuristik + Gemini yargıç 1-5) |
