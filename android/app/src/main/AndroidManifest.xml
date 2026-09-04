@@ -5,6 +5,14 @@
          izin olmadan HICBIR bildirim gostermiyor. requestPermissions()
          (reminder_service.dart) calisma zamaninda bunu kullaniciya sorar. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Goruntulu gorusme (2026-09-04) - camera paketi (record paketinin
+         RECORD_AUDIO'sundan farkli olarak) OS kamerasina DOGRUDAN
+         Camera2/CameraX ile eristigi icin bu izni kendimiz deklare etmemiz
+         gerekiyor - image_picker'in "Kamera" secenegi bunu gerektirmiyordu
+         cunku o sistem kamera uygulamasina (intent) devrediyor, camera
+         paketi ise uygulama icinde dogrudan aciyor. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="Aura"
         android:name="${applicationName}"

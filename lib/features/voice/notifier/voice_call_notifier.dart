@@ -3,6 +3,7 @@ import "dart:convert";
 import "dart:io";
 import "dart:math";
 
+import "package:camera/camera.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/widgets.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
@@ -119,6 +120,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   // Windows'ta (record_windows kaynaginda AEC/ses efekti bulunamadi -
   // dogrulandi) hala gercek bir donanim AEC'i yok, o platformda eski
   // (guvenli ama kesintisiz) tam-susturma davranisi KORUNUYOR.
+  /// UI icin: kamera hazir olunca CameraPreview(bunu) render eder. Henuz
+  /// hazir degilse (ya da goruntulu gorusme degilse/kamera hic yoksa) null.
+  CameraController? get cameraController => _cameraController;
+
   bool get _hasNativeEchoCancellation {
     if (kIsWeb) return true;
     try {
@@ -131,6 +136,22 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   bool _muteMic = false;
   Timer? _unmuteTimer;
   int _audioChunkCounter = 0;
+
+  // GORUNTULU GORUSME (2026-09-04, kullanici istegi: "canli kamera acilsin
+  // sesli ve goruntulu konussun"). BILEREK ana ses durum makinesinden
+  // TAMAMEN izole tutuldu - burada olusabilecek HERHANGI bir hata (kamera
+  // izni, donanim, format) sesli aramanin GERI KALANINI (mikrofon/SoLoud)
+  // hicbir sekilde etkilememeli, tipki WakelockPlus'in "kritik degil"
+  // felsefesiyle ayni (bkz. yukarida _connect() icindeki WakelockPlus
+  // try/catch yorumu). CameraController BILEREK immutable VoiceCallState'in
+  // DISINDA - UI, hazir olunca `cameraController` getter'iyla dogrudan okur.
+  CameraController? _cameraController;
+  Timer? _frameTimer;
+  bool _videoRequested = false;
+  // takePicture() cagrisi zaten devam ederken USTUSTE ikinci bir cagri
+  // atmamak icin (bazi platformlarda/donanimlarda "capture already in
+  // progress" hatasi/kilitlenmesine yol acabiliyor) - bkz. _sendVideoFrame.
+  bool _captureInFlight = false;
 
   // BULUNDU (2026-08-24, kullanici raporu + ekran goruntusu: bir "user"
   // baloncugunda Aura'nin BIR ONCEKI cumlesi BIREBIR AYNI sekilde
@@ -223,6 +244,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       _micSubscription?.cancel();
       _channel?.sink.close();
       WakelockPlus.disable();
+      _frameTimer?.cancel();
+      _cameraController?.dispose();
     });
     return const VoiceCallState();
   }
@@ -345,15 +368,23 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     );
   }
 
-  Future<void> startCall(String token) async {
-    _voiceDebugLog("===== startCall() =====");
+  Future<void> startCall(String token, {bool video = false}) async {
+    _voiceDebugLog("===== startCall() (video=$video) =====");
     _audioChunkCounter = 0;
     _bufferedDurationMs = 0;
     _token = token;
     _autoRetryCount = 0;
     _limitReached = false;
     _awaitingFirstChunkOfTurn = true;
-    state = state.copyWith(status: VoiceCallStatus.connecting);
+    // Kamera paketinin Windows/Linux/macOS destegi yok (bkz. chat_screen.dart
+    // _isDesktop ile ayni ilke) - masaustunde istense bile sessizce
+    // sesli-only'ye duser, kullaniciyi hatayla karsilamiyoruz.
+    _videoRequested = video && !_isDesktopPlatform;
+    state = state.copyWith(
+      status: VoiceCallStatus.connecting,
+      videoEnabled: _videoRequested,
+      cameraReady: false,
+    );
     await _connect();
   }
 
@@ -489,7 +520,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     final handleQuery = resumptionHandle != null
         ? "&resumption_handle=${Uri.encodeQueryComponent(resumptionHandle)}"
         : "";
-    final uri = Uri.parse("$_wsBase/api/voice?token=$_token$handleQuery");
+    final videoQuery = _videoRequested ? "&video=1" : "";
+    final uri = Uri.parse(
+      "$_wsBase/api/voice?token=$_token$handleQuery$videoQuery",
+    );
 
     try {
       _channel = WebSocketChannel.connect(uri);
@@ -549,6 +583,119 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     }
 
     state = state.copyWith(status: VoiceCallStatus.listening);
+
+    if (_videoRequested) {
+      // BILEREK await EDILMIYOR (unawaited): kamera acilisi (izin dialogu +
+      // donanim init) saniyeler surebilir, ama ses tarafi zaten yukarida
+      // "listening" durumuna gecti - kullaniciyi kamera hazir olana kadar
+      // bekletmemeliyiz, konusma hemen baslayabilir. Kamera basarisiz
+      // olursa _startVideoCapture kendi icinde sessizce vazgecer (asagida).
+      unawaited(_startVideoCapture());
+    }
+  }
+
+  /// Kamerayi acar (on kamera tercih edilir) ve dusuk-hizli (~0.7 kare/sn)
+  /// periyodik JPEG karelerini AYNI sesli WebSocket uzerinden Gemini Live
+  /// oturumuna yollar (bkz. aura_voice.py relay_client_to_gemini - JSON
+  /// {"type":"video_frame","data": base64}). HICBIR ADIMDA ana sesli
+  /// aramayi BLOKLAMAZ/BOZMAZ - herhangi bir hata burada sessizce
+  /// yutulur, kullanici sesli aramaya (kamerasiz) devam edebilir.
+  Future<void> _startVideoCapture() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        _voiceDebugLog("video: kullanilabilir kamera yok");
+        return;
+      }
+      final front = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+      // low: kucuk/hizli JPEG karesi yeterli (Gemini'ye giden 0.7fps'lik
+      // durgun kareler icin yuksek cozunurluk gereksiz maliyet/gecikme).
+      final controller = CameraController(
+        front,
+        ResolutionPreset.low,
+        enableAudio: false,
+      );
+      await controller.initialize();
+      // Bu sirada gorusme zaten bitmis olabilir (kullanici hizlica
+      // endCall() bastiysa) - o durumda yeni acilan kamerayi hemen kapat.
+      if (state.status == VoiceCallStatus.idle) {
+        await controller.dispose();
+        return;
+      }
+      _cameraController = controller;
+      state = state.copyWith(cameraReady: true);
+      _voiceDebugLog("video: kamera hazir (${front.lensDirection})");
+
+      _frameTimer = Timer.periodic(
+        const Duration(milliseconds: 1400),
+        (_) => unawaited(_sendVideoFrame()),
+      );
+    } catch (e) {
+      _voiceDebugLog("video: baslatma HATASI (yoksayildi, sesli devam ediyor): $e");
+    }
+  }
+
+  Future<void> _sendVideoFrame() async {
+    final controller = _cameraController;
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        _captureInFlight ||
+        _channel == null) {
+      return;
+    }
+    _captureInFlight = true;
+    try {
+      final file = await controller.takePicture();
+      final bytes = await file.readAsBytes();
+      _channel?.sink.add(jsonEncode({
+        "type": "video_frame",
+        "data": base64Encode(bytes),
+      }));
+    } catch (e) {
+      _voiceDebugLog("video: kare gonderme HATASI (yoksayildi): $e");
+    } finally {
+      _captureInFlight = false;
+    }
+  }
+
+  Future<void> _stopVideoCapture() async {
+    _frameTimer?.cancel();
+    _frameTimer = null;
+    final controller = _cameraController;
+    _cameraController = null;
+    _captureInFlight = false;
+    if (controller != null) {
+      try {
+        await controller.dispose();
+      } catch (e) {
+        _voiceDebugLog("video: controller.dispose() HATASI (yoksayildi): $e");
+      }
+    }
+  }
+
+  /// Kullanicinin "deklanşor" tusuna basmasiyla cagrilir - o anki kareyi
+  /// TAM kalitede yakalayip mevcut, kanitlanmis fotograf-analiz hattina
+  /// (chatProvider.sendFileForAnalysis -> /api/analyze) yollar. Boylece
+  /// "fotograf cekebilsin, Aura efekt yapabilsin" istegi SIFIR yeni backend
+  /// kodu ve SIFIR yeni mahremiyet yuzeyiyle karsilanir - AuraImageReveal
+  /// animasyonu ve iki katmanli (nesnel+duygusal) analiz zaten oradan gelir.
+  Future<bool> captureAndAnalyzePhoto() async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return false;
+    try {
+      final file = await controller.takePicture();
+      final bytes = await file.readAsBytes();
+      await ref
+          .read(chatProvider.notifier)
+          .sendFileForAnalysis(bytes, mimeType: "image/jpeg");
+      return true;
+    } catch (e) {
+      _voiceDebugLog("video: deklansor HATASI: $e");
+      return false;
+    }
   }
 
   void _handleServerMessage(dynamic message) {
@@ -1015,6 +1162,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     _unmuteCheckTimer = null;
     _muteMic = false;
     _bufferedDurationMs = 0;
+    await _stopVideoCapture();
     // BULUNDU (kod incelemesi 2026-09-03): _desktopHiddenAt SADECE resumed'da
     // temizleniyordu. Gorusme arka plandayken biterse (limit_reached/
     // idle_timeout -> _cleanup, ama state artik "error" -> resumed guard'i

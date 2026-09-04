@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Goruntulu gorusme (2026-09-04) - camera paketi dogrudan Camera2/
+	     AVFoundation kullaniyor, iOS bu aciklama olmadan erisimi reddeder. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Aura ile görüntülü görüşebilmen ve kombin önerisi için fotoğraf çekebilmen için kamera erişimi gerekir.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
