@@ -14,6 +14,7 @@ ayni havuzu besler.
 """
 
 import asyncio
+import base64
 import json
 import time
 
@@ -116,6 +117,20 @@ YENI soyledigini mutlaka dinleyip cevapladiktan sonra. Sesin/uslubun
 pasif, ozur diler gibi degil - sicak ama kendinden emin ve net olsun.
 """.strip()
 
+# GORUNTULU GORUSME EKI (2026-09-04, kullanici istegi: "canli kamera acilsin
+# sesli ve goruntulu konussun"): sadece video=1 ile baglanan oturumlara
+# eklenir - saf sesli aramada bu paragraf hic gorunmez, "gormedigi halde
+# goruyormus gibi davranma" riskini onceden kapatir.
+VIDEO_MODE_ADDENDUM = """
+GORUNTU: Bu goruntulu bir gorusme - kullanicinin kamerasindan gelen kareleri
+de GERCEKTEN goruyorsun (birkac saniyede bir tazelenen durgun kareler,
+kesintisiz video degil - yani cok hizli hareketi tam goremeyebilirsin, bu
+normal). Gordugunu dogal bir sekilde, istendiginde ya da gercekten anlamli
+oldugunda soze kat - ama SOGUK bir "goruntu analizi" gibi degil, bir
+goruntulu aramada arkadasinin seni gordugu gibi sicak ve dogal ol. Sürekli
+"seni goruyorum" diye vurgulama, sadece dogal aksin geldiginde kullan.
+""".strip()
+
 # NOT (2026-08-25, DUZELTILDI): burada http_options=HttpOptions(timeout=...)
 # eklemistik, aura_brain.py/main.py'deki metin istemcileriyle tutarli olsun
 # diye - ama kod incelemesinde bulundu ki bu, .aio.live.connect() icin
@@ -152,6 +167,9 @@ async def handle_voice_session(websocket: WebSocket) -> None:
     # geri gonderir - boylece Gemini Live TARAFINDAKI konusma baglami
     # (kismen) korunarak devam eder, sifirdan baslamaz.
     resumption_handle = websocket.query_params.get("resumption_handle")
+    # Goruntulu gorusme - istemci ?video=1 ile baglanirsa kamera karelerini
+    # de bu ayni oturuma (bkz. relay_client_to_gemini) akitir.
+    video_enabled = websocket.query_params.get("video") == "1"
 
     if not user:
         await websocket.close(code=4001)
@@ -198,6 +216,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         aura_brain.build_system_instruction(user, message_count)
         + "\n\n"
         + VOICE_MODE_ADDENDUM
+        + (("\n\n" + VIDEO_MODE_ADDENDUM) if video_enabled else "")
     )
 
     config = {
@@ -333,6 +352,36 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                 mime_type="audio/pcm;rate=16000",
                             )
                         )
+                        continue
+
+                    # Goruntulu gorusme: kamera kareleri ikili degil, JSON
+                    # metin cercevesi olarak geliyor (mikrofon akisiyla ayni
+                    # binary WS turunu paylasmamak icin - bkz. Flutter
+                    # tarafinda video_call_notifier.dart). HAM GORUNTU HICBIR
+                    # YERE YAZILMIYOR - sadece Gemini'ye anlik iletiliyor,
+                    # tipki /api/wardrobe'daki mahremiyet ilkesiyle ayni.
+                    text_frame = message.get("text")
+                    if text_frame and video_enabled:
+                        try:
+                            payload = json.loads(text_frame)
+                        except ValueError:
+                            payload = None
+                        if payload and payload.get("type") == "video_frame":
+                            frame_b64 = payload.get("data") or ""
+                            try:
+                                frame_bytes = base64.b64decode(frame_b64)
+                                if frame_bytes:
+                                    await session.send_realtime_input(
+                                        video=types.Blob(
+                                            data=frame_bytes,
+                                            mime_type="image/jpeg",
+                                        )
+                                    )
+                            except Exception as e:
+                                print(
+                                    f"VOICE SESSION: video kare hatasi "
+                                    f"(yoksayildi): {type(e).__name__}: {e}"
+                                )
 
             async def relay_gemini_to_client():
                 # ONEMLI: session.receive() SADECE TEK BIR TURU verir - SDK'nin

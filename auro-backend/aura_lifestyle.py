@@ -69,15 +69,22 @@ def _parse_timestamp(value):
         return None
 
 
-def get_weather_nudge(user: dict) -> str:
+def get_current_weather(user: dict) -> Optional[dict]:
+    """Kullanicinin konumundaki anlik hava durumunu doner - {"temp", "code"}
+    ya da (weather_enabled kapali/konum yok/istek basarisiz) None.
+
+    get_weather_nudge() ile PAYLASILAN cekirdek - kombin onerisi gibi baska
+    ozelliklerin de ayni konum/izin kurallarina uyarak ham veriye erismesi
+    icin ayristirildi (2026-09-04, "Aura goruntulu kombin onerisi" analizi).
+    """
     if not user.get("weather_enabled"):
-        return ""
+        return None
 
     lat = user.get("location_lat")
     lon = user.get("location_lon")
 
     if lat is None or lon is None:
-        return ""
+        return None
 
     try:
         response = _weather_http.get(
@@ -102,10 +109,34 @@ def get_weather_nudge(user: dict) -> str:
         temp = current.get("temperature_2m")
         code = current.get("weather_code")
     except Exception:
-        return ""
+        return None
 
     if temp is None:
+        return None
+
+    return {"temp": temp, "code": code}
+
+
+def describe_weather_code(code) -> str:
+    """Hava kodunu kisa Turkce bir durum adina cevirir (kombin onerisi
+    promptu icin) - get_weather_nudge()'daki kod-grubu esik degerleriyle
+    TUTARLI, ama tek kelimelik bir siniflandirma dondurur."""
+    if code in _SNOW_CODES:
+        return "karli"
+    if code in _RAIN_CODES:
+        return "yagmurlu"
+    if code in _CLEAR_CODES:
+        return "acik/gunesli"
+    return "bulutlu"
+
+
+def get_weather_nudge(user: dict) -> str:
+    weather = get_current_weather(user)
+    if weather is None:
         return ""
+
+    temp = weather["temp"]
+    code = weather["code"]
 
     if code in _SNOW_CODES:
         return (
