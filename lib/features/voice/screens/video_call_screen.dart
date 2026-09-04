@@ -115,30 +115,54 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         alignment: Alignment.center,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: callState.cameraFailed
+                          // BULUNDU (2026-09-04, gercek testte kanitlandi):
+                          // mikrofon izni reddedilince _connect() ERKEN
+                          // donuyor ve _startVideoCapture() HIC CAGRILMIYOR
+                          // - yani cameraFailed asla true olmuyor, ama
+                          // cameraReady da hep false kaliyor. Eskiden bu
+                          // durumda ekran (ust banner'daki mikrofon hatasina
+                          // ragmen) sonsuza dek "Kamera aciliyor..."
+                          // gosteriyordu - kamera hic denenmemisken bile.
+                          // isError kontrolu bu yaniltici durumu da kapatiyor.
+                          children: isError
                               ? [
-                                  const Icon(Icons.videocam_off_outlined,
+                                  const Icon(Icons.error_outline,
                                       color: Colors.white38, size: 40),
                                   const SizedBox(height: 16),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 32),
                                     child: Text(
-                                      "Kamera açılamadı. Tarayıcı/telefon ayarlarından "
-                                      "kamera iznini kontrol et — sesli konuşmaya devam "
-                                      "edebilirsin.",
+                                      callState.errorMessage ??
+                                          "Görüşme başlatılamadı.",
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
                                     ),
                                   ),
                                 ]
-                              : [
-                                  const CircularProgressIndicator(color: _indigoColor),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "Kamera açılıyor...",
-                                    style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-                                  ),
-                                ],
+                              : callState.cameraFailed
+                                  ? [
+                                      const Icon(Icons.videocam_off_outlined,
+                                          color: Colors.white38, size: 40),
+                                      const SizedBox(height: 16),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                                        child: Text(
+                                          "Kamera açılamadı. Tarayıcı/telefon ayarlarından "
+                                          "kamera iznini kontrol et — sesli konuşmaya devam "
+                                          "edebilirsin.",
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                                        ),
+                                      ),
+                                    ]
+                                  : [
+                                      const CircularProgressIndicator(color: _indigoColor),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        "Kamera açılıyor...",
+                                        style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                                      ),
+                                    ],
                         ),
                       ),
               ),
