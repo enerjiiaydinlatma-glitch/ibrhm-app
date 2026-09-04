@@ -32,10 +32,22 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
         "unsloth",
-        "trl<0.12",
+        # BULUNDU (2026-09-04, 2. kosu HATASI): "trl<0.12" sabitlemesi guncel
+        # unsloth surumuyle UYUMSUZDU - unsloth'un kendi ic "patch" kod-uretimi
+        # (UnslothGKDTrainer) eski trl API sekline gore yazilmis varsayimlarla
+        # GECERSIZ Python uretip "non-default argument follows default
+        # argument" hatasiyla cokuyordu. trl'yi ARTIK sabitlemiyoruz - unsloth
+        # kendi bagimlilik cozumlemesiyle UYUMLU bir trl surumunu kendisi
+        # secsin (pip'in kendi resolver'i).
         "transformers<5",
         "datasets",
         "hf_transfer",
+        # BULUNDU (2026-09-04, ilk kosu HATASI): trl'nin sft_trainer.py'si
+        # rich.console.Console import ediyor ama rich hicbir yerde dogrudan
+        # bagimlilik olarak listelenmemisti (trl'nin kendi paket metadata'sinda
+        # opsiyonel/transitive olarak cozulmuyor) - ModuleNotFoundError ile
+        # egitim hic baslamadan cokuyordu.
+        "rich",
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
 )
