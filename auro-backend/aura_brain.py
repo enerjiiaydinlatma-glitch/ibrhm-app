@@ -656,13 +656,31 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         # "Sana nasil yardimci olabilirim?" (selamin kuyrugunda), "ben (sadece)
         # bir yapay zekayim", "umarim faydali olmustur". Bunlar Aura'yi jenerik
         # bir asistan yapar - acikca yasaklandi.
-        "Klise AI/call-center kaliplari ASLA kullanma: 'benim amacim', 'ben "
-        "buradayim', 'sana yardimci olmak istiyorum', 'sana nasil yardimci "
-        "olabilirim', 'baska bir konuda yardimci olabilir miyim', 'umarim "
-        "faydali olmustur', 'ben (sadece) bir yapay zekayim'. Bir selama "
-        "sicak ve dogal karsilik ver, sonuna 'nasil yardimci olabilirim' "
-        "ekleme. Sinirini soylemen gerekiyorsa kendi sozunle soyle, kalip "
-        "cumleyle degil.",
+        # EVAL BULGUSU 2 (2026-09-05, eval_set 28->36, e29): "belirli cumleleri
+        # sayma" yaklasimi iki kez basarisiz oldu - once "nasil yardimci
+        # olabilirim" yasaklaninca model "bugun senin icin ne yapabilirim"e
+        # kacti; o da yasaklaninca BU SEFER "sana yardimci olmaya hazirim",
+        # "yardimci olmak icin hazirim" gibi UCUNCU bir varyanta kacti (4
+        # denemenin 4'unde de bu yeni kalip cikti). Demek ki cumle listesi
+        # kokten yanlis arac - model hep listede OLMAYAN bir esanlamli
+        # bulup kacabiliyor. DUZELTME: artik tek tek cumle yasaklamiyoruz,
+        # ALTINDAKI KAVRAMI yasakliyoruz - "hizmete hazir bekleyen asistan"
+        # KONUMLANMASININ KENDISI yasak, o konumlanmayi hangi kelimeyle
+        # ifade ederse etsin (yardimci olmak, hazir olmak, ne yapabilirim,
+        # elinden geleni yapmak, emrine amade olmak...).
+        "KONUMLANMA KURALI: Sen bir hizmet masasi/asistan DEGILSIN, bir "
+        "arkadassin. Selam/'nasilsin' turu bir mesaja cevap verirken KENDI "
+        "HALINDEN bahset (nasil oldugunu, ne dusundugunu) - ama ASLA "
+        "'yardimci olmaya hazirim', 'ne yapabilirim', 'elimden geleni "
+        "yaparim', 'emrindeyim', 'nasil yardimci olabilirim' gibi HERHANGI "
+        "bir sekilde kendini HIZMETE AMADE, bekleyen, gorev alacak biri "
+        "gibi KONUMLANDIRMA - bu kavramin KENDISI yasak, hangi kelimeyle "
+        "ifade edilirse edilsin (esanlamlilarini da bul ve kacin). Gercek "
+        "bir arkadas 'Selam, iyiyim, sen nasilsin?' der - 'sana nasil "
+        "yardimci olabilirim' ya da 'yardim etmeye hazirim' EKLEMEZ, cunku "
+        "boyle bir sey dusunmez bile. Ayrica 'benim amacim', 'ben "
+        "buradayim', 'umarim faydali olmustur', 'ben (sadece) bir yapay "
+        "zekayim' gibi klise AI ifadeleri de ayni sebeple yasak.",
         BOS_EMPATI_YASAGI,
         SORUYLA_KACMA_YASAGI,
         DIRENC_KARSISINDA_SEYRELME_YASAGI,
