@@ -339,8 +339,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
             "bayat ses yerine yeniden baglaniliyor",
           );
           unawaited(
-            _reconnectForSessionRefresh()
-                .whenComplete(() => _resumeReconnectInFlight = false),
+            _reconnectForSessionRefresh().whenComplete(
+              () => _resumeReconnectInFlight = false,
+            ),
           );
         }
       }
@@ -665,8 +666,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       // yakalamak icin var - kullanici dialogu icin BOL sure taniyoruz
       // (30 / 45sn). Bu sirada ekran "frozen" degil; kullanici zaten
       // dialogla ugrasiyor.
-      final cameras =
-          await availableCameras().timeout(const Duration(seconds: 30));
+      final cameras = await availableCameras().timeout(
+        const Duration(seconds: 30),
+      );
       if (cameras.isEmpty) {
         _voiceDebugLog("video: kullanilabilir kamera yok");
         state = state.copyWith(cameraFailed: true);
@@ -755,7 +757,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       _videoRequested = true;
     } else {
       if (!state.cameraOff && _cameraController != null) return;
-      state = state.copyWith(cameraOff: false, cameraFailed: false, cameraReady: false);
+      state = state.copyWith(
+        cameraOff: false,
+        cameraFailed: false,
+        cameraReady: false,
+      );
       await _startVideoCapture();
     }
   }
@@ -774,10 +780,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     final subject =
         t.contains("kamera") || t.contains("goruntu") || t.contains("video");
     if (!subject) return;
-    final wantsOff = t.contains("kapat") ||
-        t.contains("kapan") ||
-        t.contains("durdur");
-    final wantsOn = t.contains(" ac") ||
+    final wantsOff =
+        t.contains("kapat") || t.contains("kapan") || t.contains("durdur");
+    final wantsOn =
+        t.contains(" ac") ||
         t.startsWith("ac") ||
         t.contains("acar mi") ||
         t.contains("acsana") ||
@@ -797,8 +803,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   String _foldTr(String s) {
     var r = s.toLowerCase().trim();
     const map = {
-      "ı": "i", "i̇": "i", "İ": "i", "ş": "s", "ğ": "g",
-      "ü": "u", "ö": "o", "ç": "c", "â": "a", "î": "i", "û": "u",
+      "ı": "i",
+      "i̇": "i",
+      "İ": "i",
+      "ş": "s",
+      "ğ": "g",
+      "ü": "u",
+      "ö": "o",
+      "ç": "c",
+      "â": "a",
+      "î": "i",
+      "û": "u",
     };
     map.forEach((k, v) => r = r.replaceAll(k, v));
     return r;
@@ -816,10 +831,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     try {
       final file = await controller.takePicture();
       final bytes = await file.readAsBytes();
-      _channel?.sink.add(jsonEncode({
-        "type": "video_frame",
-        "data": base64Encode(bytes),
-      }));
+      _channel?.sink.add(
+        jsonEncode({"type": "video_frame", "data": base64Encode(bytes)}),
+      );
     } catch (e) {
       _voiceDebugLog("video: kare gonderme HATASI (yoksayildi): $e");
     } finally {
@@ -1162,7 +1176,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         final positionMs = SoLoud.instance.getPosition(handle).inMilliseconds;
         remainingMs = _bufferedDurationMs - positionMs;
       } catch (e) {
-        _voiceDebugLog("unmute-check getPosition HATASI, mikrofon aciliyor: $e");
+        _voiceDebugLog(
+          "unmute-check getPosition HATASI, mikrofon aciliyor: $e",
+        );
         _muteMic = false;
         return;
       }
@@ -1188,7 +1204,9 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
           );
           _unmuteTimer?.cancel();
           _unmuteTimer = Timer(const Duration(milliseconds: 500), () {
-            _voiceDebugLog("unmute-check: ek gecikme doldu - mikrofon aciliyor");
+            _voiceDebugLog(
+              "unmute-check: ek gecikme doldu - mikrofon aciliyor",
+            );
             _muteMic = false;
           });
           return;
@@ -1393,5 +1411,6 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   }
 }
 
-final voiceCallProvider =
-    NotifierProvider<VoiceCallNotifier, VoiceCallState>(VoiceCallNotifier.new);
+final voiceCallProvider = NotifierProvider<VoiceCallNotifier, VoiceCallState>(
+  VoiceCallNotifier.new,
+);
