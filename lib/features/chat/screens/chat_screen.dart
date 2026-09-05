@@ -152,9 +152,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  /// Goruntulu gorusme girisi. _pickWardrobePhoto/_pickImageFromCamera ile
-  /// AYNI masaustu kisitlamasi (camera paketinin Windows/Linux/macOS
-  /// destegi yok) - orada oldugu gibi anlasilir bir mesajla reddediyoruz,
+  /// Goruntulu gorusme girisi. _pickImageFromCamera ile AYNI masaustu
+  /// kisitlamasi (camera paketinin Windows/Linux/macOS destegi yok) -
+  /// orada oldugu gibi anlasilir bir mesajla reddediyoruz,
   /// sessizce kilitlenmesin.
   Future<void> _startVideoCall() async {
     if (_isDesktop) {
@@ -289,8 +289,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 _pickImageFromCamera),
             _attachTile(sheetContext, Icons.picture_as_pdf_outlined,
                 "Belge (PDF)", _pickPdf),
-            _attachTile(sheetContext, Icons.checkroom_outlined,
-                "Kombin Önerisi", _pickWardrobePhoto),
             const SizedBox(height: 12),
           ],
         ),
@@ -392,58 +390,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text("Kamera açılamadı.", style: GoogleFonts.poppins())),
-      );
-    }
-  }
-
-  /// Kombin onerisi - kamerayi (ya da masaustunde galeriyi) acar, secilen
-  /// kiyafet fotografini /api/wardrobe akisina (hava durumu + persona
-  /// harmanlanmis oneri) yollar. _pickImageFromCamera ile ayni izin/hata
-  /// deseni, farkli hedef (analyzeFile degil suggestOutfit).
-  Future<void> _pickWardrobePhoto() async {
-    try {
-      Uint8List bytes;
-      String name;
-      if (_isDesktop) {
-        final files = await FilePicker.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ["jpg", "jpeg", "png", "webp"],
-        );
-        if (files.isEmpty) return;
-        bytes = await files.first.readAsBytes();
-        name = files.first.name;
-      } else {
-        final picked = await ImagePicker()
-            .pickImage(source: ImageSource.camera, imageQuality: 85);
-        if (picked == null) return;
-        bytes = await picked.readAsBytes();
-        name = picked.name;
-      }
-      if (bytes.length > 11 * 1024 * 1024) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text("Bu fotoğraf çok büyük (en fazla ~11MB).",
-                  style: GoogleFonts.poppins())),
-        );
-        return;
-      }
-      final n = name.toLowerCase();
-      final mime = n.endsWith(".png")
-          ? "image/png"
-          : n.endsWith(".webp")
-              ? "image/webp"
-              : "image/jpeg";
-      await ref
-          .read(chatProvider.notifier)
-          .sendWardrobePhoto(bytes, mimeType: mime);
-      _scrollToBottom();
-    } catch (e) {
-      debugPrint("Kombin fotografi hatasi: $e");
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text("Fotoğraf açılamadı.", style: GoogleFonts.poppins())),
       );
     }
   }

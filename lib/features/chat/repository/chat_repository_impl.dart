@@ -95,36 +95,6 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Message> suggestOutfit(
-    String base64Data, {
-    required String mimeType,
-    String question = '',
-  }) async {
-    try {
-      final response = await _dio.post(
-        '$baseUrl/api/wardrobe',
-        data: {
-          'image_base64': base64Data,
-          'mime_type': mimeType,
-          if (question.isNotEmpty) 'question': question,
-        },
-        options: _authOptions,
-      );
-
-      final data = response.data as Map<String, dynamic>;
-      final analysis = data['analysis']?.toString() ?? '';
-
-      return Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        text: analysis,
-        isUser: false,
-      );
-    } on DioException catch (_) {
-      throw Exception('Kombini şu an göremedim.');
-    }
-  }
-
-  @override
   Future<String?> getGreeting() async {
     try {
       final response = await _dio.get(
