@@ -178,6 +178,18 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Sesli komutla ("aramayi bitir") gorusme sonlandirilirsa durum idle'a
+    // doner - ekran acik kalmasin, kendini kapatsin (dispose zaten endCall
+    // cagirir, tekrari zararsiz). isError'da kapatMIYORUZ: orada kullanici
+    // "yeniden baglan"i gorebilmeli.
+    ref.listen(voiceCallProvider, (prev, next) {
+      if ((prev?.isActive ?? false) &&
+          next.status == VoiceCallStatus.idle &&
+          mounted) {
+        Navigator.of(context).maybePop();
+      }
+    });
+
     final callState = ref.watch(voiceCallProvider);
     final controller = ref.watch(voiceCallProvider.notifier).cameraController;
     final isError = callState.status == VoiceCallStatus.error;

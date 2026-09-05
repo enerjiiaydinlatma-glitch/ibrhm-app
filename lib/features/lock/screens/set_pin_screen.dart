@@ -79,43 +79,60 @@ class _SetPinScreenState extends State<SetPinScreen> {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            const Icon(Icons.lock_outline, color: _kIndigoColor, size: 40),
+            const ExcludeSemantics(
+              child: Icon(Icons.lock_outline, color: _kIndigoColor, size: 40),
+            ),
             const SizedBox(height: 16),
-            Text(
-              _confirming ? 'PIN\'i tekrar gir' : '4 haneli bir PIN belirle',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            Semantics(
+              header: true,
+              child: Text(
+                _confirming ? 'PIN\'i tekrar gir' : '4 haneli bir PIN belirle',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 80),
-              transform: Matrix4.translationValues(_shaking ? 8 : 0, 0, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_kPinLength, (i) {
-                  final filled = i < _entered.length;
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: filled ? _kIndigoColor : Colors.transparent,
-                      border: Border.all(color: _kIndigoColor, width: 1.5),
-                    ),
-                  );
-                }),
+            Semantics(
+              label: '4 haneli PIN, ${_entered.length} hane girildi',
+              liveRegion: true,
+              child: ExcludeSemantics(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 80),
+                  transform: Matrix4.translationValues(_shaking ? 8 : 0, 0, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_kPinLength, (i) {
+                      final filled = i < _entered.length;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: filled ? _kIndigoColor : Colors.transparent,
+                          border: Border.all(color: _kIndigoColor, width: 1.5),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               height: 20,
-              child: Text(
-                _error ?? '',
-                style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 13),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  _error ?? '',
+                  style: GoogleFonts.poppins(
+                    color: Colors.redAccent,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
             const Spacer(flex: 2),
@@ -145,32 +162,43 @@ class _SetPinScreenState extends State<SetPinScreen> {
               if (key.isEmpty) {
                 return const SizedBox(width: 72, height: 60);
               }
+              final isBackspace = key == '⌫';
               return SizedBox(
                 width: 72,
                 height: 60,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(36),
-                    onTap: () {
-                      if (key == '⌫') {
-                        _onBackspace();
-                      } else {
-                        _onDigit(key);
-                      }
-                    },
-                    child: Center(
-                      child: key == '⌫'
-                          ? const Icon(Icons.backspace_outlined,
-                              color: Colors.white70, size: 20)
-                          : Text(
-                              key,
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                child: Semantics(
+                  button: true,
+                  label: isBackspace ? 'Sil' : key,
+                  onTap: () => isBackspace ? _onBackspace() : _onDigit(key),
+                  child: ExcludeSemantics(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(36),
+                        onTap: () {
+                          if (isBackspace) {
+                            _onBackspace();
+                          } else {
+                            _onDigit(key);
+                          }
+                        },
+                        child: Center(
+                          child: isBackspace
+                              ? const Icon(
+                                  Icons.backspace_outlined,
+                                  color: Colors.white70,
+                                  size: 20,
+                                )
+                              : Text(
+                                  key,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

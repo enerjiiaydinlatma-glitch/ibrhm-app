@@ -768,20 +768,43 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
 
   /// Sesli görüşmede turn_complete ile gelen NIHAI kullanici transkriptini
   /// kucuk bir komut sozlugune karsi kontrol eder. Eslesirse ilgili yan
-  /// etkiyi yapar (su an sadece kamera ac/kapa). Konusmayi ENGELLEMEZ -
-  /// soz yine sohbet balonuna duser, Aura da normalde yanit verir; sadece
-  /// istemci tarafi bir aksiyon eklenir. Video istenmediyse hic calismaz.
+  /// etkiyi yapar: kamera ac/kapa (sadece goruntulu aramada) veya aramayi
+  /// bitir (her turlu aramada). Konusmayi ENGELLEMEZ - soz yine sohbet
+  /// balonuna duser, Aura da normalde yanit verir; sadece istemci tarafi
+  /// bir aksiyon eklenir. 2026-09-05, erisilebilirlik: kolunu kullanamayan
+  /// kullanici tum gorusmeyi sesle yonetebilsin.
   void _maybeHandleVoiceCommand(String userText) {
-    if (_isDesktopPlatform || !_videoRequested) return;
+    if (_isDesktopPlatform || !state.isActive) return;
     final t = _foldTr(userText);
-    // Cok uzun cumlelerde (kullanici kamerayi ANLATIYOR ama komut vermiyor)
+    // Cok uzun cumlelerde (kullanici ANLATIYOR ama komut vermiyor)
     // yanlis tetiklememek icin kisa tutuyoruz.
     if (t.split(RegExp(r"\s+")).length > 6) return;
-    final subject =
+
+    final cameraSubject =
         t.contains("kamera") || t.contains("goruntu") || t.contains("video");
-    if (!subject) return;
+    final callSubject =
+        t.contains("arama") ||
+        t.contains("gorusme") ||
+        t.contains("konusma") ||
+        t.contains("telefon");
     final wantsOff =
         t.contains("kapat") || t.contains("kapan") || t.contains("durdur");
+
+    // ARAMAYI BITIR - kamera sozu YOKKEN "aramayi/gorusmeyi bitir/kapat/
+    // sonlandir". "kamerayi kapat" bu dala DUSMEZ (cameraSubject onceligi).
+    if (!cameraSubject &&
+        callSubject &&
+        (wantsOff ||
+            t.contains("bitir") ||
+            t.contains("sonlandir") ||
+            t.contains("son ver"))) {
+      _voiceDebugLog("sesli komut: aramayi bitir ('$userText')");
+      unawaited(endCall());
+      return;
+    }
+
+    // KAMERA AC/KAPA - sadece goruntulu aramada.
+    if (!_videoRequested || !cameraSubject) return;
     final wantsOn =
         t.contains(" ac") ||
         t.startsWith("ac") ||
