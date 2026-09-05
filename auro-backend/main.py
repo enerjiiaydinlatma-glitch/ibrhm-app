@@ -891,6 +891,13 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # HICBIR YERDE okunmuyordu - kullanici bu ayari kapatsa bile ruh
     # hali izlemeye devam ediliyordu (weather_enabled'in aksine, o
     # gercekten kontrol ediliyor - bkz. aura_lifestyle.py).
+    # BULUNDU (2026-09-05, kullanici istegi: "Aura efekti" - sohbetin
+    # tonuna gore yavasca renk degistiren bir hale): mood zaten burada
+    # tespit ediliyordu ama fonksiyon disina HIC dondurulmuyordu, istemci
+    # tarafinda tamamen KARANLIKTA kaliyordu. Artik asagida yanitla
+    # birlikte donuyor - gizli moddaysa (hidden_now) BILEREK None kalir,
+    # gizli modun disina hicbir sinyal sizmasin diye.
+    mood: str | None = None
     if not hidden_now and user.get("mood_tracking_enabled", 1):
         mood = detect_mood(message_text)
         if mood:
@@ -915,7 +922,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
             user["id"], LIMIT_DAILY_MESSAGES
         )
     ):
-        return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True}
+        return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True, "mood": mood}
 
     if not hidden_now:
         aura_brain.extract_memory_candidate(user["id"], message_text, user_message_id)
@@ -990,7 +997,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # KAPALI, AURA_DISTILL_LOG=1 ile acilir). Gizli mod turleri ASLA loglanmaz.
     if generation_ok and not hidden_now:
         aura_brain.log_distill_sample(system_instruction, contents, reply_text)
-    return {"reply": reply_text}
+    return {"reply": reply_text, "mood": mood}
 
 
 @app.post("/api/chat")
