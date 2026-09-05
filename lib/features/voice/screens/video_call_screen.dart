@@ -104,6 +104,34 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
           ),
         ),
       ];
+    } else if (callState.cameraOff) {
+      children = [
+        const Icon(Icons.videocam_off_rounded,
+            color: Colors.white38, size: 36),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            "Kamera kapalı. \"Kamerayı aç\" diyebilir ya da aşağıdaki "
+            "butona dokunabilirsin — sesli konuşma açık.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: () => ref
+              .read(voiceCallProvider.notifier)
+              .toggleCameraByUser(off: false),
+          icon: const Icon(Icons.videocam_rounded, size: 18),
+          label: Text("Kamerayı aç",
+              style: GoogleFonts.poppins(fontSize: 13)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white24),
+          ),
+        ),
+      ];
     } else if (callState.cameraFailed) {
       children = [
         const Icon(Icons.videocam_off_outlined,
@@ -334,6 +362,19 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         onTap: () => ref.read(voiceCallProvider.notifier).retry(),
                         color: _indigoColor,
                         icon: Icons.refresh,
+                      )
+                    else if (callState.videoEnabled)
+                      _CircleButton(
+                        // Kolunu kullanamayan kullanici icin sesli "kamerayi
+                        // kapat" da ayni seyi yapar (bkz. notifier
+                        // _maybeHandleVoiceCommand) - bu buton dokunusla ayni.
+                        onTap: () => ref
+                            .read(voiceCallProvider.notifier)
+                            .toggleCameraByUser(off: !callState.cameraOff),
+                        color: Colors.white.withValues(alpha: 0.15),
+                        icon: callState.cameraOff
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
                       )
                     else
                       const SizedBox(width: 52),
