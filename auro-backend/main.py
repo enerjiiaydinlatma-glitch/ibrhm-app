@@ -1389,6 +1389,31 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
 # birlikte kaldirildi - git gecmisinde duruyor.
 
 
+class SetTierRequest(BaseModel):
+    email: str
+    tier: str  # "free" | "pro"
+
+
+@app.post("/api/admin/set-tier")
+def admin_set_tier(
+    body: SetTierRequest,
+    key: Optional[str] = None,
+    x_admin_key: Optional[str] = Header(None),
+):
+    # Bir kullaniciyi elle 'pro' (ya da geri 'free') yapar - gercek bir
+    # satin alma akisi YOK (bkz. LIMIT_REACHED_REPLY yorumu), tier sadece
+    # buradan ayarlanabiliyor. ADMIN_KEY tanimli degilse _check_admin_key
+    # 404 dondurur (endpoint'in varligini bile sizdirmaz).
+    _check_admin_key(x_admin_key or key)
+    try:
+        user = database.set_user_tier(body.email, body.tier)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if user is None:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    return {"email": body.email.strip().lower(), "tier": user.get("tier")}
+
+
 @app.get("/api/admin/stats")
 def admin_stats(key: Optional[str] = None, x_admin_key: Optional[str] = Header(None)):
     # GECE DENETIMI BULGUSU: anahtar sadece URL query string'inde
