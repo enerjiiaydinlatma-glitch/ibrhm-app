@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
 
+import "../../chat/widgets/aura_hale.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/voice_call_notifier.dart";
 
@@ -13,6 +14,11 @@ import "../notifier/voice_call_notifier.dart";
 /// ile cagiriyor) - VoiceCallBar ile ayni durum makinesini paylasir, bu
 /// yuzden chat ekranindaki tum dayaniklilik (otomatik yeniden baglanma,
 /// gunluk limit, oturum tazeleme) burada da GECERLI.
+///
+/// 2026-09-05 kullanici istegi: "insan kendini gorebilmeli kamerayla
+/// konusabilirken" - ekran artik iki yariya bolunuyor: UST = Aura'nin
+/// varligi (nefes alan hale), ALT = kullanicinin kendi kamerasi. Yuz
+/// filtresi DEGIL, sade bir bol-ekran.
 class VideoCallScreen extends ConsumerStatefulWidget {
   const VideoCallScreen({super.key, required this.token});
 
@@ -81,11 +87,72 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     });
   }
 
+  /// Alt yari: kamera hazir degilken gosterilen durum (yukleniyor / izin
+  /// yok / arama hatasi). Uc dal da onceki tam-ekran surumdekiyle ayni.
+  Widget _selfPlaceholder(VoiceCallState callState, bool isError) {
+    final List<Widget> children;
+    if (isError) {
+      children = [
+        const Icon(Icons.error_outline, color: Colors.white38, size: 36),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            callState.errorMessage ?? "Görüşme başlatılamadı.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+      ];
+    } else if (callState.cameraFailed) {
+      children = [
+        const Icon(Icons.videocam_off_outlined,
+            color: Colors.white38, size: 36),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            "Kamera açılamadı. Tarayıcı/telefon ayarlarından kamera iznini "
+            "ver, sonra tekrar dene — sesli konuşmaya bu arada devam "
+            "edebilirsin.",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: () =>
+              ref.read(voiceCallProvider.notifier).retryCamera(),
+          icon: const Icon(Icons.refresh, size: 18),
+          label: Text("Kamerayı tekrar dene",
+              style: GoogleFonts.poppins(fontSize: 13)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white24),
+          ),
+        ),
+      ];
+    } else {
+      children = [
+        const CircularProgressIndicator(color: _indigoColor),
+        const SizedBox(height: 14),
+        Text(
+          "Kamera açılıyor...",
+          style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+        ),
+      ];
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: children);
+  }
+
   @override
   Widget build(BuildContext context) {
     final callState = ref.watch(voiceCallProvider);
     final controller = ref.watch(voiceCallProvider.notifier).cameraController;
     final isError = callState.status == VoiceCallStatus.error;
+    final cameraLive = callState.cameraReady &&
+        controller != null &&
+        controller.value.isInitialized;
 
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
@@ -97,87 +164,64 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         body: SafeArea(
           child: Stack(
             children: [
-              // Kamera onizlemesi - hazir olana kadar sade bir bekleme
-              // ekrani (bagimsiz oldugu icin ses baglantisi kamera
-              // hazir olmadan da baslayabilir, konusma bekletilmez).
+              // Iki yarim bol-ekran: UST = Aura'nin varligi (nefes alan
+              // hale), ALT = kullanicinin kendi kamerasi. Ses baglantisi
+              // kameradan bagimsiz oldugu icin alt yari, kamera hazir
+              // olmadan da yukleniyor/hata durumunu gosterir; konusma
+              // bu arada kesintisiz devam eder.
               Positioned.fill(
-                child: (callState.cameraReady &&
-                        controller != null &&
-                        controller.value.isInitialized)
-                    ? Center(
-                        child: AspectRatio(
-                          aspectRatio: controller.value.aspectRatio,
-                          child: CameraPreview(controller),
-                        ),
-                      )
-                    : Container(
-                        color: const Color(0xFF0A0A18),
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          // BULUNDU (2026-09-04, gercek testte kanitlandi):
-                          // mikrofon izni reddedilince _connect() ERKEN
-                          // donuyor ve _startVideoCapture() HIC CAGRILMIYOR
-                          // - yani cameraFailed asla true olmuyor, ama
-                          // cameraReady da hep false kaliyor. Eskiden bu
-                          // durumda ekran (ust banner'daki mikrofon hatasina
-                          // ragmen) sonsuza dek "Kamera aciliyor..."
-                          // gosteriyordu - kamera hic denenmemisken bile.
-                          // isError kontrolu bu yaniltici durumu da kapatiyor.
-                          children: isError
-                              ? [
-                                  const Icon(Icons.error_outline,
-                                      color: Colors.white38, size: 40),
-                                  const SizedBox(height: 16),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                                    child: Text(
-                                      callState.errorMessage ??
-                                          "Görüşme başlatılamadı.",
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-                                    ),
+                child: Column(
+                  children: [
+                    // --- UST YARI: AURA ---
+                    Expanded(
+                      child: ClipRect(
+                        child: Container(
+                          color: const Color(0xFF0A0A18),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Positioned.fill(child: AuraHale()),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 36),
+                                child: Text(
+                                  "AURA",
+                                  style: GoogleFonts.poppins(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.45),
+                                    fontSize: 13,
+                                    letterSpacing: 6,
+                                    fontWeight: FontWeight.w300,
                                   ),
-                                ]
-                              : callState.cameraFailed
-                                  ? [
-                                      const Icon(Icons.videocam_off_outlined,
-                                          color: Colors.white38, size: 40),
-                                      const SizedBox(height: 16),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                                        child: Text(
-                                          "Kamera açılamadı. Tarayıcı/telefon ayarlarından "
-                                          "kamera iznini ver, sonra tekrar dene — sesli "
-                                          "konuşmaya bu arada devam edebilirsin.",
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 18),
-                                      OutlinedButton.icon(
-                                        onPressed: () => ref
-                                            .read(voiceCallProvider.notifier)
-                                            .retryCamera(),
-                                        icon: const Icon(Icons.refresh, size: 18),
-                                        label: Text("Kamerayı tekrar dene",
-                                            style: GoogleFonts.poppins(fontSize: 13)),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          side: const BorderSide(color: Colors.white24),
-                                        ),
-                                      ),
-                                    ]
-                                  : [
-                                      const CircularProgressIndicator(color: _indigoColor),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        "Kamera açılıyor...",
-                                        style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-                                      ),
-                                    ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                    ),
+                    Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    // --- ALT YARI: KENDIM ---
+                    Expanded(
+                      child: Container(
+                        color: const Color(0xFF05050C),
+                        alignment: Alignment.center,
+                        child: cameraLive
+                            ? ClipRect(
+                                child: Center(
+                                  child: AspectRatio(
+                                    aspectRatio: controller.value.aspectRatio,
+                                    child: CameraPreview(controller),
+                                  ),
+                                ),
+                              )
+                            : _selfPlaceholder(callState, isError),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               // Ust bar: geri + durum.
