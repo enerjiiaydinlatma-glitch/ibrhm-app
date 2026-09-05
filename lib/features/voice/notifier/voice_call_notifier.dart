@@ -148,6 +148,17 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   CameraController? _cameraController;
   Timer? _frameTimer;
   bool _videoRequested = false;
+  // _startVideoCapture'in USTUSTE calismasini engeller. BULUNDU (2026-09-05,
+  // kullanici gercek Android/Chrome testi - "kamerada donma var, kendimi
+  // goremiyorum" + ekran goruntusu): kamera istegi ESKIDEN _connect()'in
+  // SONUNDA (mikrofon izni + WakelockPlus + SoLoud init + WebSocket + mic
+  // stream'in HEPSINDEN sonra) yapiliyordu - o noktada tarayicinin "gecici
+  // kullanici etkilesimi" penceresi (dokunustan ~5sn sonra kapanir) coktan
+  // gecmis oluyor, mobil Chrome getUserMedia(video) istegini ya sessizce
+  // reddediyor ya da izin dialogunu hic gostermiyor. Artik kamera istegi
+  // startCall()'in EN BASINDA, dokunusun hemen ardindan, ses zinciriyle
+  // PARALEL yapiliyor.
+  bool _videoCaptureStarting = false;
   // takePicture() cagrisi zaten devam ederken USTUSTE ikinci bir cagri
   // atmamak icin (bazi platformlarda/donanimlarda "capture already in
   // progress" hatasi/kilitlenmesine yol acabiliyor) - bkz. _sendVideoFrame.
@@ -386,6 +397,14 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       cameraReady: false,
       cameraFailed: false,
     );
+    // KRITIK (bkz. _videoCaptureStarting yorumu): kamera istegini BURADA,
+    // dokunusun hemen ardindan, ses baglantisiyla PARALEL baslat - butun
+    // ses zincirini bekleyip sonra istersek mobil tarayicida izin penceresi
+    // kapanmis oluyor. _sendVideoFrame zaten _channel yoksa kare gondermeyi
+    // atliyor, yani kamera WebSocket'ten once hazir olsa da sorun yok.
+    if (_videoRequested) {
+      unawaited(_startVideoCapture());
+    }
     await _connect();
   }
 
@@ -585,12 +604,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
 
     state = state.copyWith(status: VoiceCallStatus.listening);
 
-    if (_videoRequested) {
-      // BILEREK await EDILMIYOR (unawaited): kamera acilisi (izin dialogu +
-      // donanim init) saniyeler surebilir, ama ses tarafi zaten yukarida
-      // "listening" durumuna gecti - kullaniciyi kamera hazir olana kadar
-      // bekletmemeliyiz, konusma hemen baslayabilir. Kamera basarisiz
-      // olursa _startVideoCapture kendi icinde sessizce vazgecer (asagida).
+    // NOT: kamera artik BURADA degil, startCall()'in en basinda (dokunusa
+    // yakin, ses zinciriyle paralel) baslatiliyor - bkz. _videoCaptureStarting
+    // yorumu. Yeniden baglanmalarda (reconnect) _startVideoCapture zaten
+    // acik bir kameray varsa erken donuyor.
+    if (_videoRequested && _cameraController == null && !state.cameraFailed) {
       unawaited(_startVideoCapture());
     }
   }
@@ -602,15 +620,20 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   /// aramayi BLOKLAMAZ/BOZMAZ - herhangi bir hata burada sessizce
   /// yutulur, kullanici sesli aramaya (kamerasiz) devam edebilir.
   Future<void> _startVideoCapture() async {
+    if (_videoCaptureStarting || _cameraController != null) return;
+    _videoCaptureStarting = true;
     try {
       // BULUNDU (2026-09-04, gercek testte kanitlandi - bir onceki
       // .timeout() sadece controller.initialize()'i sarmisti ve YETERSIZ
       // kaldi): bazi tarayici/ortamlarda asili kalan asil cagri BUYMUS -
       // availableCameras() izin istegini SESSIZCE hic cozmeden bekletiyor,
       // controller.initialize()'e hic sira gelmiyordu. Artik ikisi de
-      // ayri ayri sinirli.
+      // ayri ayri sinirli. Sureler 8/10 -> 6/7'ye dusuruldu (2026-09-05):
+      // gercek kullanici "kamerada donma" dedi - basarisiz olacaksa ~13sn
+      // beklemek yerine ~13sn'yi ~13sn... yani toplam ~18sn'yi ~13sn'ye
+      // cekiyoruz ki "donma" hissi kisalsin.
       final cameras =
-          await availableCameras().timeout(const Duration(seconds: 8));
+          await availableCameras().timeout(const Duration(seconds: 6));
       if (cameras.isEmpty) {
         _voiceDebugLog("video: kullanilabilir kamera yok");
         state = state.copyWith(cameraFailed: true);
@@ -633,7 +656,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       // kaliyor, asagidaki catch bloguna hic dusmeden ekran sonsuza dek
       // "Kamera aciliyor..." gosteriyordu. 10sn'lik acik bir sinir, ne
       // olursa olsun kullaniciya bir sonuc (cameraFailed) garanti eder.
-      await controller.initialize().timeout(const Duration(seconds: 10));
+      await controller.initialize().timeout(const Duration(seconds: 7));
       // Bu sirada gorusme zaten bitmis olabilir (kullanici hizlica
       // endCall() bastiysa) - o durumda yeni acilan kamerayi hemen kapat.
       if (state.status == VoiceCallStatus.idle) {
@@ -660,7 +683,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       // anlasilir bir mesaj gosterilir).
       _voiceDebugLog("video: baslatma HATASI (sesli devam ediyor): $e");
       state = state.copyWith(cameraFailed: true);
+    } finally {
+      _videoCaptureStarting = false;
     }
+  }
+
+  /// video_call_screen.dart'taki "Kamerayi tekrar dene" tusundan cagrilir -
+  /// izni sonradan verip tekrar denemek isteyen kullanici icin. Cagriyi
+  /// yeniden baslatmaz, sadece kamerayi tekrar acmayi dener.
+  Future<void> retryCamera() async {
+    if (!_videoRequested || _cameraController != null) return;
+    state = state.copyWith(cameraFailed: false, cameraReady: false);
+    await _startVideoCapture();
   }
 
   Future<void> _sendVideoFrame() async {
