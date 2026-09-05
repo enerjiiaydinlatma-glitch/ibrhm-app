@@ -170,6 +170,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ref.read(voiceCallProvider.notifier).endCall();
       return;
     }
+    // iOS Safari (+ mobil web): kamera izni SADECE kullanici hareketinin
+    // (bu tik'in) KENDI cagri yiginindan istenirse dialog gorunuyor -
+    // ekrana gecip orada async istersek pencere kapanmis oluyor. Bu yuzden
+    // izni BURADA, navigasyondan ONCE tetikliyoruz. Basarisiz olsa bile
+    // (izin yok) yine de ekrana geciyoruz - orada "Kamerayi tekrar dene"
+    // + sesli devam var. `await` etmiyoruz: dialog acilirken ekran da
+    // acilsin, kullanici beklemesin.
+    unawaited(ref.read(voiceCallProvider.notifier).primeCamera());
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => VideoCallScreen(token: widget.token)),
     );
