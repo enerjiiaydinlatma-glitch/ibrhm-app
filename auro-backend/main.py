@@ -598,15 +598,6 @@ class AnalyzeRequest(BaseModel):
     # Sadece gecmis kaydinda gostermek icin ("[Bir PDF paylasti: X.pdf]").
     file_name: str = Field(default="", max_length=200)
 
-class WardrobeRequest(BaseModel):
-    # Kombin onerisi - kullanici dolabindan/uzerinden bir fotograf gosterir,
-    # Aura hava durumuna (varsa) gore ne giyecegini onerir. AnalyzeRequest'in
-    # kucultulmus hali: sadece fotograf (PDF yok), soru opsiyonel ("hangi
-    # ayakkabiyla?" gibi). 2026-09-04, "goruntulu kombin onerisi" analizi.
-    image_base64: str = Field(max_length=15_000_000)
-    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
-    question: str = Field(default="", max_length=500)
-
 class ProfileUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
     # ARTIK NO-OP (2026-08-26): ton dropdown'lari kaldirildi, Aura bu 4
@@ -1268,11 +1259,31 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
                 "liste ya da rapor formati KULLANMA."
             )
         else:
+            # BULUNDU (2026-09-05, kullanici istegi): "kombin onerisi" AYRI,
+            # gorunur bir ozellik/buton olmasin - kullanici zaten var olan
+            # Kamera/Galeri akisindan bir kiyafet fotografi paylasirsa, Aura
+            # bunu KENDI fark etsin ve (varsa) gercek hava durumuyla
+            # harmanlayip dogal bir kombin yorumu katsin - ayri bir uc/buton
+            # gerekmeden, sadece genel fotograf analizinin bir parcasi olarak.
+            weather = aura_lifestyle.get_current_weather(user)
+            if weather is not None:
+                durum = aura_lifestyle.describe_weather_code(weather["code"])
+                weather_line = (
+                    f"\n\n(Bilgi: su an disarida hava {weather['temp']:.0f} "
+                    f"derece ve {durum}. Fotograf bir kiyafet/kombin "
+                    "seceneği gibi gorunuyorsa bu bilgiyi dogal bir sekilde "
+                    "yorumuna kat - hava durumuna gore ne giyecegi hakkinda "
+                    "gercek bir arkadas gibi fikir belirt. Fotograf kiyafetle "
+                    "ilgili DEGILSE bu bilgiyi hic kullanma, zorlama.)"
+                )
+            else:
+                weather_line = ""
             prompt = (
                 "Bu fotografi iki katmanda analiz et ve Turkce yanit ver:\n\n"
                 "1. NESNEL ANALIZ: Fotografta ne goruyorsun?\n\n"
                 "2. DUYGUSAL YORUM: Bu fotografin atmosferi ve ruh hali ne?\n\n"
                 "Dogal, akici Aura uslubunda yaz. Paragraf olarak yaz."
+                f"{weather_line}"
             )
         message_count = len(database.get_messages(user["id"]))
         response = client.models.generate_content(
@@ -1342,89 +1353,13 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         )
 
 
-@app.post("/api/wardrobe")
-def wardrobe_suggestion(
-    request: WardrobeRequest, authorization: Optional[str] = Header(None)
-):
-    """Kombin onerisi - analyze_image ile AYNI maliyet/guvenlik desenini
-    tasir (gunluk mesaj limiti, sanitize, hafizaya yazma) ama hava durumu
-    (varsa, kullanicinin weather_enabled + konum izniyle) promptun icine
-    kaynastirilir - "arkadasin seni gorup hava durumuna gore kombin
-    onerdigi" hissi burada olusuyor."""
-    user = get_current_user(authorization)
-    if user.get("tier") != "pro" and not database.check_and_increment_message_usage(
-        user["id"], LIMIT_DAILY_MESSAGES
-    ):
-        raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
-    question = request.question.strip()
-    try:
-        file_bytes = base64.b64decode(request.image_base64)
-        weather = aura_lifestyle.get_current_weather(user)
-        if weather is not None:
-            durum = aura_lifestyle.describe_weather_code(weather["code"])
-            weather_line = (
-                f"Su an disarida hava {weather['temp']:.0f} derece ve {durum}. "
-                "Onerini buna gore ver - kullaniciya bunu bir veri gibi degil, "
-                "hava durumunu zaten biliyormus gibi dogal soyle.\n\n"
-            )
-        else:
-            # Konum/hava izni kapaliysa sessizce atla - kullaniciya "hava
-            # durumunu bilmiyorum" gibi eksiklik hissi verme, sadece
-            # gordugune gore yorum yap.
-            weather_line = ""
-        soru_line = f'Kullanicinin sorusu: "{question}"\n\n' if question else ""
-        prompt = (
-            "Kullanici sana kiyafet secenekleri gosteriyor ve bugun ne "
-            "giyecegine birlikte karar vermeni istiyor - bir arkadasindan "
-            "kombin fikri ister gibi.\n\n"
-            f"{weather_line}{soru_line}"
-            "Gordugun secenekler arasindan (ya da tek bir kombin ise onun "
-            "uzerinden) somut bir tercih yap ve KISACA neden onu sectigini "
-            "soyle. Moda editoru gibi degil, gercek bir arkadas gibi konus - "
-            "madde imli liste KULLANMA, akan 2-4 cumlelik dogal bir yanit ver."
-        )
-        message_count = len(database.get_messages(user["id"]))
-        response = client.models.generate_content(
-            model=aura_brain.MODEL_NAME,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part(
-                            inline_data=types.Blob(
-                                mime_type=request.mime_type, data=file_bytes
-                            )
-                        ),
-                        types.Part(text=prompt),
-                    ],
-                )
-            ],
-            config=types.GenerateContentConfig(
-                system_instruction=aura_brain.build_system_instruction(
-                    user, message_count
-                )
-            ),
-        )
-        analysis_text = response.text or ""
-        analysis_text = (
-            aura_brain.sanitize_reply(analysis_text, message_count) or analysis_text
-        )
-        if not analysis_text:
-            raise ValueError("Bos/engellenmis yanit")
-        # analyze_image'daki ayni ilke: hafizaya akmazsa Aura ertesi gun bu
-        # kombin konusmasini hic hatirlamaz. Ham fotograf DEGIL, sadece
-        # metin gidiyor - goruntu hic diske/DB'ye yazilmiyor.
-        user_line = "[Kıyafet seçenekleri paylaştı]"
-        if question:
-            user_line += f" — sorusu: {question}"
-        database.add_message(user["id"], "user", user_line)
-        database.add_message(user["id"], "assistant", analysis_text)
-        return {"analysis": analysis_text}
-    except Exception as e:
-        print(f"WARDROBE ERROR: {type(e).__name__}: {e}")
-        raise HTTPException(
-            status_code=500, detail="Kombini şu an göremedim, tekrar dener misin?"
-        )
+# BULUNDU (2026-09-05, kullanici istegi): "Kombin Onerisi" ayri, gorunur
+# bir uc/buton olarak KALDIRILDI - kullanici bunun ayri bir 'ozellik'
+# gibi one cikmasini istemedi, sadece Aura'nin dogal bir yetenegi olsun
+# istedi. Eski POST /api/wardrobe + WardrobeRequest git gecmisinde duruyor
+# (2ff59f2 civari). Ayni davranis artik analyze_image() icinde, kullanici
+# zaten var olan Kamera/Galeri akisindan bir kiyafet fotografi paylasirsa
+# hava durumu bilgisiyle harmanlanarak dogal olarak ortaya cikiyor.
 
 
 # Sosyal katman (arkadas + story feed) BILEREK kaldirildi (2026-08-25):
