@@ -238,51 +238,6 @@ class ChatNotifier extends Notifier<ChatState> {
     }
   }
 
-  /// Kombin onerisi - sendFileForAnalysis ile AYNI desen (kullanici eki +
-  /// bos asistan mesaji + yerinde degistirme) ama /api/wardrobe'a gider,
-  /// hava durumuna gore ne giyecegi onerisini getirir.
-  Future<void> sendWardrobePhoto(
-    Uint8List bytes, {
-    required String mimeType,
-    String question = '',
-  }) async {
-    final userMessage = Message(
-      id: _newId(),
-      text: question,
-      isUser: true,
-      imageBytes: bytes,
-      animateIn: true,
-    );
-
-    final assistantId = _newId();
-    final assistantMessage = Message(id: assistantId, text: '', isUser: false);
-
-    state = state.copyWith(
-      messages: [...state.messages, userMessage, assistantMessage],
-      isLoading: true,
-      errorMessage: null,
-    );
-
-    Message assistantReply(String text) =>
-        Message(id: assistantId, text: text, isUser: false);
-
-    try {
-      final reply = await _repository.suggestOutfit(
-        base64Encode(bytes),
-        mimeType: mimeType,
-        question: question,
-      );
-      _replaceMessageById(assistantId, assistantReply(reply.text));
-      state = state.copyWith(errorMessage: null);
-    } catch (e) {
-      _replaceMessageById(
-        assistantId,
-        assistantReply('Kombini şu an göremedim, tekrar dener misin?'),
-      );
-      state = state.copyWith(errorMessage: 'Kombin önerisi alınamadı.');
-    }
-  }
-
   void addUserMessage(String text) {
     final cleanText = text.trim();
 
