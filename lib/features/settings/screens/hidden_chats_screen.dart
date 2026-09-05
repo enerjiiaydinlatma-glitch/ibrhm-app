@@ -32,8 +32,9 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
 
   Future<void> _load() async {
     try {
-      final messages =
-          await ref.read(profileNotifierProvider.notifier).getHiddenHistory();
+      final messages = await ref
+          .read(profileNotifierProvider.notifier)
+          .getHiddenHistory();
       if (!mounted) return;
       setState(() => _messages = messages);
     } catch (_) {
@@ -57,12 +58,21 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
   Widget _buildBody() {
     if (_error != null) {
       return Center(
-        child: Text(_error!, style: GoogleFonts.poppins(color: Colors.white54)),
+        child: Semantics(
+          liveRegion: true,
+          child: Text(
+            _error!,
+            style: GoogleFonts.poppins(color: Colors.white54),
+          ),
+        ),
       );
     }
     if (_messages == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: _kIndigoColor),
+      return Center(
+        child: Semantics(
+          label: 'Gizli sohbetler yükleniyor',
+          child: const CircularProgressIndicator(color: _kIndigoColor),
+        ),
       );
     }
     if (_messages!.isEmpty) {
@@ -84,22 +94,28 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
       itemBuilder: (context, i) {
         final msg = _messages![i];
         final isUser = msg['role'] == 'user';
-        return Align(
-          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
-            ),
-            decoration: BoxDecoration(
-              color: isUser ? _kIndigoColor.withValues(alpha: 0.25) : _kCardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _kBorderColor),
-            ),
-            child: Text(
-              (msg['text'] ?? '').toString(),
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        return Semantics(
+          container: true,
+          label: isUser ? 'Senin mesajın' : 'Aura',
+          child: Align(
+            alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? _kIndigoColor.withValues(alpha: 0.25)
+                    : _kCardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _kBorderColor),
+              ),
+              child: Text(
+                (msg['text'] ?? '').toString(),
+                style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+              ),
             ),
           ),
         );

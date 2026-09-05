@@ -9,11 +9,7 @@ import 'services/app_lock_service.dart';
 import 'services/auth_service.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: AuraApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: AuraApp()));
 }
 
 final GlobalKey<NavigatorState> auraNavigatorKey = GlobalKey<NavigatorState>();
@@ -114,35 +110,24 @@ class _AuraAppState extends State<AuraApp> with WidgetsBindingObserver {
             fontWeight: FontWeight.w600,
             letterSpacing: 1.2,
           ),
-          iconTheme: const IconThemeData(
-            color: Colors.white70,
-          ),
+          iconTheme: const IconThemeData(color: Colors.white70),
         ),
 
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color(0xFF1A1A3A),
-          hintStyle: GoogleFonts.poppins(
-            color: Colors.white38,
-            fontSize: 14,
-          ),
+          hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(
-              color: Color(0xFF2A2A4A),
-              width: 1,
-            ),
+            borderSide: const BorderSide(color: Color(0xFF2A2A4A), width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: const BorderSide(
-              color: primaryIndigo,
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: primaryIndigo, width: 1.5),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -215,11 +200,7 @@ class _SplashRouterState extends State<SplashRouter> {
         }
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              token: token,
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
         );
 
         return;
@@ -230,20 +211,20 @@ class _SplashRouterState extends State<SplashRouter> {
       if (!mounted) return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const AuthScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0A0A1A),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A1A),
       body: Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF6C63FF),
+        child: Semantics(
+          label: 'Aura yükleniyor',
+          liveRegion: true,
+          child: const CircularProgressIndicator(color: Color(0xFF6C63FF)),
         ),
       ),
     );
