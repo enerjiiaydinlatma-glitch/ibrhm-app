@@ -148,10 +148,23 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 32),
                                         child: Text(
                                           "Kamera açılamadı. Tarayıcı/telefon ayarlarından "
-                                          "kamera iznini kontrol et — sesli konuşmaya devam "
-                                          "edebilirsin.",
+                                          "kamera iznini ver, sonra tekrar dene — sesli "
+                                          "konuşmaya bu arada devam edebilirsin.",
                                           textAlign: TextAlign.center,
                                           style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      OutlinedButton.icon(
+                                        onPressed: () => ref
+                                            .read(voiceCallProvider.notifier)
+                                            .retryCamera(),
+                                        icon: const Icon(Icons.refresh, size: 18),
+                                        label: Text("Kamerayı tekrar dene",
+                                            style: GoogleFonts.poppins(fontSize: 13)),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(color: Colors.white24),
                                         ),
                                       ),
                                     ]
