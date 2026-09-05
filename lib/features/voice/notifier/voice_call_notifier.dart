@@ -159,6 +159,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   // startCall()'in EN BASINDA, dokunusun hemen ardindan, ses zinciriyle
   // PARALEL yapiliyor.
   bool _videoCaptureStarting = false;
+  // primeCamera() bu arama denemesi icin cagrildi mi? startCall bunu gorup
+  // kamerayi TEKRAR denemez / cameraFailed'i sifirlamaz (prime zaten sonucu
+  // belirledi). endCall/_cleanup'ta sifirlaniyor.
+  bool _cameraPrimeAttempted = false;
   // takePicture() cagrisi zaten devam ederken USTUSTE ikinci bir cagri
   // atmamak icin (bazi platformlarda/donanimlarda "capture already in
   // progress" hatasi/kilitlenmesine yol acabiliyor) - bkz. _sendVideoFrame.
@@ -391,18 +395,18 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     // _isDesktop ile ayni ilke) - masaustunde istense bile sessizce
     // sesli-only'ye duser, kullaniciyi hatayla karsilamiyoruz.
     _videoRequested = video && !_isDesktopPlatform;
+    // primeCamera() zaten cagrildiysa (mobil web'de dokunus icinden) onun
+    // sonucunu (cameraReady / cameraFailed) KORU - sifirlama, tekrar deneme.
     state = state.copyWith(
       status: VoiceCallStatus.connecting,
       videoEnabled: _videoRequested,
-      cameraReady: false,
-      cameraFailed: false,
+      cameraReady: _cameraPrimeAttempted ? state.cameraReady : false,
+      cameraFailed: _cameraPrimeAttempted ? state.cameraFailed : false,
     );
-    // KRITIK (bkz. _videoCaptureStarting yorumu): kamera istegini BURADA,
-    // dokunusun hemen ardindan, ses baglantisiyla PARALEL baslat - butun
-    // ses zincirini bekleyip sonra istersek mobil tarayicida izin penceresi
-    // kapanmis oluyor. _sendVideoFrame zaten _channel yoksa kare gondermeyi
-    // atliyor, yani kamera WebSocket'ten once hazir olsa da sorun yok.
-    if (_videoRequested) {
+    // KRITIK (bkz. _videoCaptureStarting yorumu): prime edilmediyse kamera
+    // istegini BURADA, dokunusun hemen ardindan, ses baglantisiyla PARALEL
+    // baslat. _sendVideoFrame zaten _channel yoksa kare gondermeyi atliyor.
+    if (_videoRequested && !_cameraPrimeAttempted && !state.cameraFailed) {
       unawaited(_startVideoCapture());
     }
     await _connect();
@@ -604,13 +608,38 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
 
     state = state.copyWith(status: VoiceCallStatus.listening);
 
-    // NOT: kamera artik BURADA degil, startCall()'in en basinda (dokunusa
-    // yakin, ses zinciriyle paralel) baslatiliyor - bkz. _videoCaptureStarting
-    // yorumu. Yeniden baglanmalarda (reconnect) _startVideoCapture zaten
-    // acik bir kameray varsa erken donuyor.
-    if (_videoRequested && _cameraController == null && !state.cameraFailed) {
-      unawaited(_startVideoCapture());
+    // Kamera zaten acildiysa (primeCamera / startCall'daki erken cagri) ama
+    // kare gonderme timer'i henuz baslamadiysa (o an _channel yoktu) burada
+    // baslat. Kamera henuz acilmadiysa (nadir) burada dene.
+    if (_videoRequested && !state.cameraFailed) {
+      if (_cameraController != null) {
+        _ensureFrameTimer();
+      } else {
+        unawaited(_startVideoCapture());
+      }
     }
+  }
+
+  void _ensureFrameTimer() {
+    if (_frameTimer != null || _cameraController == null) return;
+    _frameTimer = Timer.periodic(
+      const Duration(milliseconds: 1400),
+      (_) => unawaited(_sendVideoFrame()),
+    );
+  }
+
+  /// iOS Safari (ve mobil web genel): getUserMedia SADECE kullanici
+  /// hareketinin (tap) KENDI cagri yiginindan tetiklenirse calisir - araya
+  /// giren await/microtask/navigation bu zinciri koparabiliyor, ve o
+  /// zaman izin dialogu hic gorunmuyor. Bu yuzden kamera izni ekrana
+  /// GECMEDEN once, dogrudan buton tikin icinde ("_startVideoCall" ->
+  /// buradan) isteniyor. Native/Android'de zararsiz - sadece kamerayi
+  /// biraz erken hazirlar.
+  Future<void> primeCamera() async {
+    if (_isDesktopPlatform) return;
+    _videoRequested = true;
+    _cameraPrimeAttempted = true;
+    await _startVideoCapture(startFrames: false);
   }
 
   /// Kamerayi acar (on kamera tercih edilir) ve dusuk-hizli (~0.7 kare/sn)
@@ -619,7 +648,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   /// {"type":"video_frame","data": base64}). HICBIR ADIMDA ana sesli
   /// aramayi BLOKLAMAZ/BOZMAZ - herhangi bir hata burada sessizce
   /// yutulur, kullanici sesli aramaya (kamerasiz) devam edebilir.
-  Future<void> _startVideoCapture() async {
+  Future<void> _startVideoCapture({bool startFrames = true}) async {
     if (_videoCaptureStarting || _cameraController != null) return;
     _videoCaptureStarting = true;
     try {
@@ -659,7 +688,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       await controller.initialize().timeout(const Duration(seconds: 7));
       // Bu sirada gorusme zaten bitmis olabilir (kullanici hizlica
       // endCall() bastiysa) - o durumda yeni acilan kamerayi hemen kapat.
-      if (state.status == VoiceCallStatus.idle) {
+      // NOT: primeCamera (startFrames=false) DAHA arama baslamadan cagrildigi
+      // icin status HALA idle olur - o durumda dispose ETME, kamera arama
+      // baslayana kadar hazir beklesin.
+      if (startFrames && state.status == VoiceCallStatus.idle) {
         await controller.dispose();
         return;
       }
@@ -667,10 +699,11 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       state = state.copyWith(cameraReady: true);
       _voiceDebugLog("video: kamera hazir (${front.lensDirection})");
 
-      _frameTimer = Timer.periodic(
-        const Duration(milliseconds: 1400),
-        (_) => unawaited(_sendVideoFrame()),
-      );
+      // Kare gonderme timer'ini SADECE arama akisinda (startFrames) ve
+      // _channel varken baslat - primeCamera'da henuz ne arama ne kanal var.
+      if (startFrames) {
+        _ensureFrameTimer();
+      }
     } catch (e) {
       // BULUNDU (2026-09-04, gercek testte kanitlandi): burada eskiden
       // sadece debug loguna yazip SESSIZCE vazgeciliyordu - kullaniciya
@@ -723,6 +756,8 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
   Future<void> _stopVideoCapture() async {
     _frameTimer?.cancel();
     _frameTimer = null;
+    _videoCaptureStarting = false;
+    _cameraPrimeAttempted = false;
     final controller = _cameraController;
     _cameraController = null;
     _captureInFlight = false;
