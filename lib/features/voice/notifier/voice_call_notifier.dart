@@ -652,17 +652,20 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     if (_videoCaptureStarting || _cameraController != null) return;
     _videoCaptureStarting = true;
     try {
-      // BULUNDU (2026-09-04, gercek testte kanitlandi - bir onceki
-      // .timeout() sadece controller.initialize()'i sarmisti ve YETERSIZ
-      // kaldi): bazi tarayici/ortamlarda asili kalan asil cagri BUYMUS -
-      // availableCameras() izin istegini SESSIZCE hic cozmeden bekletiyor,
-      // controller.initialize()'e hic sira gelmiyordu. Artik ikisi de
-      // ayri ayri sinirli. Sureler 8/10 -> 6/7'ye dusuruldu (2026-09-05):
-      // gercek kullanici "kamerada donma" dedi - basarisiz olacaksa ~13sn
-      // beklemek yerine ~13sn'yi ~13sn... yani toplam ~18sn'yi ~13sn'ye
-      // cekiyoruz ki "donma" hissi kisalsin.
+      // BULUNDU (2026-09-05, gercek iOS Safari testi + ekran goruntuleri):
+      // primeCamera dokunus-icinden cagrilinca iOS ARTIK izin dialogunu
+      // gosteriyor (once hic gostermiyordu). Ama web'de availableCameras()
+      // ve initialize()'in ikisi de getUserMedia'yi tetikliyor ve izin
+      // dialogu ACIKKEN cagri blokta bekliyor. Kisa timeout (6/7sn)
+      // kullanici dialogu Turkce okuyup "Izin ver"e BASMADAN once firliyor
+      // -> cameraFailed; sonra izin verilse bile is bitmis oluyordu. Ustelik
+      // iki dialog ust uste geliyor (kamera + mikrofon). Cozum: timeout'lar
+      // SADECE gercekten asili kalan (ne onay ne ret donen) cagriyi
+      // yakalamak icin var - kullanici dialogu icin BOL sure taniyoruz
+      // (30 / 45sn). Bu sirada ekran "frozen" degil; kullanici zaten
+      // dialogla ugrasiyor.
       final cameras =
-          await availableCameras().timeout(const Duration(seconds: 6));
+          await availableCameras().timeout(const Duration(seconds: 30));
       if (cameras.isEmpty) {
         _voiceDebugLog("video: kullanilabilir kamera yok");
         state = state.copyWith(cameraFailed: true);
@@ -679,13 +682,12 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         ResolutionPreset.low,
         enableAudio: false,
       );
-      // BULUNDU (2026-09-04, gercek testte kanitlandi): bazi tarayici/
-      // ortamlarda izin istegi ne acikca reddedilip HATA firlatiyor ne de
-      // onaylaniyor - initialize() Future'i SONSUZA DEK cozulmeden asili
-      // kaliyor, asagidaki catch bloguna hic dusmeden ekran sonsuza dek
-      // "Kamera aciliyor..." gosteriyordu. 10sn'lik acik bir sinir, ne
-      // olursa olsun kullaniciya bir sonuc (cameraFailed) garanti eder.
-      await controller.initialize().timeout(const Duration(seconds: 7));
+      // izin dialogu initialize() icinde de acilabilir ve kullanici
+      // cevaplayana kadar burada beklenir - bu yuzden sure BOL (45sn):
+      // iki ust uste dialogu okuyup onaylamak icin fazlasiyla yeterli,
+      // ama gercekten asili kalan (hic cozulmeyen) bir cagriyi da sonsuza
+      // dek beklemez - sonucta kullaniciya bir cameraFailed garanti eder.
+      await controller.initialize().timeout(const Duration(seconds: 45));
       // Bu sirada gorusme zaten bitmis olabilir (kullanici hizlica
       // endCall() bastiysa) - o durumda yeni acilan kamerayi hemen kapat.
       // NOT: primeCamera (startFrames=false) DAHA arama baslamadan cagrildigi
@@ -699,9 +701,15 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       state = state.copyWith(cameraReady: true);
       _voiceDebugLog("video: kamera hazir (${front.lensDirection})");
 
-      // Kare gonderme timer'ini SADECE arama akisinda (startFrames) ve
-      // _channel varken baslat - primeCamera'da henuz ne arama ne kanal var.
-      if (startFrames) {
+      // Kare gonderme timer'i: normalde SADECE arama akisinda (startFrames).
+      // Ama iOS'ta kullanici izin dialogunu YAVAS onayladiysa prime hala
+      // devam ederken _connect() bitmis, ve o an _cameraController null
+      // oldugu icin timer'i baslatamamis olabilir (_connect sonu ->
+      // _startVideoCapture() cagirir ama ust guard'dan doner). Bu yuzden
+      // prime bitiminde de: arama artik aktifse ve kanal varsa timer'i
+      // BURADA baslat - yoksa onizleme acilir ama Aura'ya hic kare gitmez.
+      if (startFrames ||
+          (_channel != null && state.status != VoiceCallStatus.idle)) {
         _ensureFrameTimer();
       }
     } catch (e) {
