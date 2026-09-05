@@ -60,7 +60,9 @@ class VoiceCallBar extends ConsumerWidget {
         color: const Color(0xFF12122A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isError ? Colors.redAccent.withValues(alpha: 0.5) : _indigoColor.withValues(alpha: 0.4),
+          color: isError
+              ? Colors.redAccent.withValues(alpha: 0.5)
+              : _indigoColor.withValues(alpha: 0.4),
           width: 1,
         ),
       ),
@@ -73,7 +75,7 @@ class VoiceCallBar extends ConsumerWidget {
           // animasyonuna donuluyor - o durumda gosterecek gercek bir
           // girdi sinyali yok.
           if (callState.status == VoiceCallStatus.listening)
-            const _MicLevelBars()
+            const ExcludeSemantics(child: _MicLevelBars())
           else
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.85, end: isSpeaking ? 1.15 : 1.0),
@@ -93,19 +95,22 @@ class VoiceCallBar extends ConsumerWidget {
             ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              // Limit/hata mesaji gibi spesifik bir aciklama varsa (orn.
-              // "gunluk sesli goruşme hakkin doldu") onu goster - yoksa
-              // genel durum metnini.
-              (isError && callState.errorMessage != null)
-                  ? callState.errorMessage!
-                  : "Sesli görüşme • ${_statusText(callState.status)}",
-              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
-              // Teknik hata mesajlari (orn. web/Safari istisna metinleri)
-              // uzun olabiliyor - teshis icin okunabilir kalsin diye 2'den
-              // 4'e cikarildi.
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                // Limit/hata mesaji gibi spesifik bir aciklama varsa (orn.
+                // "gunluk sesli goruşme hakkin doldu") onu goster - yoksa
+                // genel durum metnini.
+                (isError && callState.errorMessage != null)
+                    ? callState.errorMessage!
+                    : "Sesli görüşme • ${_statusText(callState.status)}",
+                style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+                // Teknik hata mesajlari (orn. web/Safari istisna metinleri)
+                // uzun olabiliyor - teshis icin okunabilir kalsin diye 2'den
+                // 4'e cikarildi.
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
           if (isError)
@@ -185,7 +190,8 @@ class _VoiceFallbackButton extends ConsumerStatefulWidget {
   const _VoiceFallbackButton();
 
   @override
-  ConsumerState<_VoiceFallbackButton> createState() => _VoiceFallbackButtonState();
+  ConsumerState<_VoiceFallbackButton> createState() =>
+      _VoiceFallbackButtonState();
 }
 
 class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
@@ -198,10 +204,12 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
   // (_groq_http/elevenlabs_http/_weather_http) duzeltilen "her cagrida
   // yeniden TCP+TLS el sikismesi" israfinin ayni Flutter tarafindaki
   // hali. Tek, kalici bir Dio ile baglanti yeniden kullaniliyor.
-  final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 40),
-  ));
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 40),
+    ),
+  );
   StreamSubscription<Uint8List>? _sub;
   BytesBuilder _buffer = BytesBuilder();
   bool _recording = false;
@@ -224,7 +232,11 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       if (!hasPermission) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Mikrofon izni verilmedi - cihaz ayarlarindan acabilirsin.")),
+            const SnackBar(
+              content: Text(
+                "Mikrofon izni verilmedi - cihaz ayarlarindan acabilirsin.",
+              ),
+            ),
           );
         }
         return;
@@ -306,7 +318,9 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       debugPrint("Yedek sesli mod hatasi: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Ses gönderilemedi, tekrar dener misin?")),
+          const SnackBar(
+            content: Text("Ses gönderilemedi, tekrar dener misin?"),
+          ),
         );
       }
     } finally {
@@ -318,7 +332,11 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
   /// gibi calismasi icin ham PCM16'nin basina standart 44 baytlik bir
   /// WAV basligi ekler - record paketinin startStream() ciktisi HAM
   /// (baslksiz) PCM oldugu icin bu adim sart.
-  Uint8List _pcm16ToWav(List<int> pcmBytes, {int sampleRate = 16000, int numChannels = 1}) {
+  Uint8List _pcm16ToWav(
+    List<int> pcmBytes, {
+    int sampleRate = 16000,
+    int numChannels = 1,
+  }) {
     const bitsPerSample = 16;
     final byteRate = sampleRate * numChannels * bitsPerSample ~/ 8;
     final blockAlign = numChannels * bitsPerSample ~/ 8;
@@ -326,7 +344,12 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
 
     final header = BytesBuilder();
     void writeString(String s) => header.add(s.codeUnits);
-    void writeUint32(int v) => header.add([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]);
+    void writeUint32(int v) => header.add([
+      v & 0xff,
+      (v >> 8) & 0xff,
+      (v >> 16) & 0xff,
+      (v >> 24) & 0xff,
+    ]);
     void writeUint16(int v) => header.add([v & 0xff, (v >> 8) & 0xff]);
 
     writeString("RIFF");
@@ -359,28 +382,40 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPressStart: (_) => _startRecording(),
-      onLongPressEnd: (_) => _stopAndSend(),
-      child: Tooltip(
-        message: "Basılı tut, konuş",
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _recording ? Colors.redAccent : _indigoColor.withValues(alpha: 0.25),
+    return Semantics(
+      button: true,
+      label: _recording
+          ? "Kaydediyor, bırakınca gönderilir"
+          : "Basılı tut ve konuş",
+      hint: "Basılı tutarken konuş, bırak",
+      child: GestureDetector(
+        onLongPressStart: (_) => _startRecording(),
+        onLongPressEnd: (_) => _stopAndSend(),
+        child: Tooltip(
+          message: "Basılı tut, konuş",
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _recording
+                  ? Colors.redAccent
+                  : _indigoColor.withValues(alpha: 0.25),
+            ),
+            child: _sending
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    _recording ? Icons.mic : Icons.mic_none,
+                    color: Colors.white,
+                    size: 18,
+                  ),
           ),
-          child: _sending
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : Icon(
-                  _recording ? Icons.mic : Icons.mic_none,
-                  color: Colors.white,
-                  size: 18,
-                ),
         ),
       ),
     );

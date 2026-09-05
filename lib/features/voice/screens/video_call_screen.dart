@@ -40,10 +40,9 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     // dedigi icin ekstra bir "baslat" tusuna gerek yok, ekranin kendisi
     // zaten o niyeti tasiyor.
     Future.microtask(
-      () => ref.read(voiceCallProvider.notifier).startCall(
-            widget.token,
-            video: true,
-          ),
+      () => ref
+          .read(voiceCallProvider.notifier)
+          .startCall(widget.token, video: true),
     );
   }
 
@@ -74,7 +73,9 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   Future<void> _takePhoto() async {
     if (_capturing) return;
     setState(() => _capturing = true);
-    final ok = await ref.read(voiceCallProvider.notifier).captureAndAnalyzePhoto();
+    final ok = await ref
+        .read(voiceCallProvider.notifier)
+        .captureAndAnalyzePhoto();
     if (!mounted) return;
     setState(() {
       _capturing = false;
@@ -106,8 +107,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
       ];
     } else if (callState.cameraOff) {
       children = [
-        const Icon(Icons.videocam_off_rounded,
-            color: Colors.white38, size: 36),
+        const Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 36),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -124,8 +124,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
               .read(voiceCallProvider.notifier)
               .toggleCameraByUser(off: false),
           icon: const Icon(Icons.videocam_rounded, size: 18),
-          label: Text("Kamerayı aç",
-              style: GoogleFonts.poppins(fontSize: 13)),
+          label: Text("Kamerayı aç", style: GoogleFonts.poppins(fontSize: 13)),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             side: const BorderSide(color: Colors.white24),
@@ -134,8 +133,11 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
       ];
     } else if (callState.cameraFailed) {
       children = [
-        const Icon(Icons.videocam_off_outlined,
-            color: Colors.white38, size: 36),
+        const Icon(
+          Icons.videocam_off_outlined,
+          color: Colors.white38,
+          size: 36,
+        ),
         const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -149,11 +151,12 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
-          onPressed: () =>
-              ref.read(voiceCallProvider.notifier).retryCamera(),
+          onPressed: () => ref.read(voiceCallProvider.notifier).retryCamera(),
           icon: const Icon(Icons.refresh, size: 18),
-          label: Text("Kamerayı tekrar dene",
-              style: GoogleFonts.poppins(fontSize: 13)),
+          label: Text(
+            "Kamerayı tekrar dene",
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             side: const BorderSide(color: Colors.white24),
@@ -178,7 +181,8 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     final callState = ref.watch(voiceCallProvider);
     final controller = ref.watch(voiceCallProvider.notifier).cameraController;
     final isError = callState.status == VoiceCallStatus.error;
-    final cameraLive = callState.cameraReady &&
+    final cameraLive =
+        callState.cameraReady &&
         controller != null &&
         controller.value.isInitialized;
 
@@ -202,27 +206,36 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   children: [
                     // --- UST YARI: AURA ---
                     Expanded(
-                      child: ClipRect(
-                        child: Container(
-                          color: const Color(0xFF0A0A18),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              const Positioned.fill(child: AuraHale()),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 36),
-                                child: Text(
-                                  "AURA",
-                                  style: GoogleFonts.poppins(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.45),
-                                    fontSize: 13,
-                                    letterSpacing: 6,
-                                    fontWeight: FontWeight.w300,
+                      child: Semantics(
+                        container: true,
+                        label: "Aura görüşmede, seni dinliyor",
+                        child: ClipRect(
+                          child: Container(
+                            color: const Color(0xFF0A0A18),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Positioned.fill(
+                                  child: ExcludeSemantics(child: AuraHale()),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 36),
+                                  child: ExcludeSemantics(
+                                    child: Text(
+                                      "AURA",
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.45,
+                                        ),
+                                        fontSize: 13,
+                                        letterSpacing: 6,
+                                        fontWeight: FontWeight.w300,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -237,11 +250,15 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         color: const Color(0xFF05050C),
                         alignment: Alignment.center,
                         child: cameraLive
-                            ? ClipRect(
-                                child: Center(
-                                  child: AspectRatio(
-                                    aspectRatio: controller.value.aspectRatio,
-                                    child: CameraPreview(controller),
+                            ? Semantics(
+                                image: true,
+                                label: "Kendi kameran açık",
+                                child: ClipRect(
+                                  child: Center(
+                                    child: AspectRatio(
+                                      aspectRatio: controller.value.aspectRatio,
+                                      child: CameraPreview(controller),
+                                    ),
                                   ),
                                 ),
                               )
@@ -261,23 +278,34 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      tooltip: "Geri",
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          (isError && callState.errorMessage != null)
-                              ? callState.errorMessage!
-                              : "Görüntülü görüşme • ${_statusText(callState.status)}",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
+                      child: Semantics(
+                        liveRegion: true,
+                        container: true,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            (isError && callState.errorMessage != null)
+                                ? callState.errorMessage!
+                                : "Görüntülü görüşme • ${_statusText(callState.status)}",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
@@ -293,19 +321,28 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   left: 16,
                   right: 16,
                   bottom: 120,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      callState.liveAssistantText.isNotEmpty
-                          ? callState.liveAssistantText
-                          : callState.liveUserText,
-                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        callState.liveAssistantText.isNotEmpty
+                            ? callState.liveAssistantText
+                            : callState.liveUserText,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ),
@@ -315,16 +352,26 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   left: 16,
                   right: 16,
                   bottom: 190,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _indigoColor.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _flashMessage!,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _indigoColor.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _flashMessage!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -338,14 +385,20 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _CircleButton(
-                      onTap: (callState.cameraReady && !_capturing) ? _takePhoto : null,
+                      onTap: (callState.cameraReady && !_capturing)
+                          ? _takePhoto
+                          : null,
                       color: Colors.white.withValues(alpha: 0.15),
                       icon: _capturing ? null : Icons.camera_alt_rounded,
+                      semanticLabel: "Fotoğraf çek",
                       child: _capturing
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : null,
                     ),
@@ -355,13 +408,16 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                       color: Colors.redAccent,
                       icon: Icons.call_end,
                       size: 64,
+                      semanticLabel: "Görüşmeyi bitir",
                     ),
                     const SizedBox(width: 28),
                     if (isError)
                       _CircleButton(
-                        onTap: () => ref.read(voiceCallProvider.notifier).retry(),
+                        onTap: () =>
+                            ref.read(voiceCallProvider.notifier).retry(),
                         color: _indigoColor,
                         icon: Icons.refresh,
+                        semanticLabel: "Yeniden bağlan",
                       )
                     else if (callState.videoEnabled)
                       _CircleButton(
@@ -375,6 +431,9 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         icon: callState.cameraOff
                             ? Icons.videocam_rounded
                             : Icons.videocam_off_rounded,
+                        semanticLabel: callState.cameraOff
+                            ? "Kamerayı aç"
+                            : "Kamerayı kapat",
                       )
                     else
                       const SizedBox(width: 52),
@@ -396,6 +455,7 @@ class _CircleButton extends StatelessWidget {
     this.icon,
     this.child,
     this.size = 52,
+    this.semanticLabel,
   });
 
   final VoidCallback? onTap;
@@ -403,9 +463,20 @@ class _CircleButton extends StatelessWidget {
   final IconData? icon;
   final Widget? child;
   final double size;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: semanticLabel,
+      onTap: onTap,
+      child: ExcludeSemantics(child: _raw(context)),
+    );
+  }
+
+  Widget _raw(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

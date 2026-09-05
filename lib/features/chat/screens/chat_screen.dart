@@ -1,8 +1,9 @@
-﻿import "dart:async";
+import "dart:async";
 import "dart:typed_data";
 import "dart:ui";
 import "package:dio/dio.dart";
-import "package:flutter/foundation.dart" show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import "package:flutter/foundation.dart"
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
@@ -47,7 +48,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ayarlar menusu degil, tek amacli kucuk bir aksiyon (bkz. plan).
   bool _isAnonymous = false;
 
-  static const String _backendUrl = "https://aura-backend-production-bc9c.up.railway.app";
+  static const String _backendUrl =
+      "https://aura-backend-production-bc9c.up.railway.app";
   static const Color _bgColor = Color(0xFF0A0A1A);
   static const Color _indigoColor = Color(0xFF6C63FF);
   static const Color _userBubbleStart = Color(0xFF6C63FF);
@@ -128,21 +130,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             Icon(Icons.mic_none_outlined, color: _indigoColor),
             const SizedBox(width: 10),
-            Text("Sesli görüşme", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text(
+              "Sesli görüşme",
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         content: Text(
           "Aura ile gerçek zamanlı konuşmak üzeresin. Şimdi telefonun/tarayıcın mikrofon izni isteyecek - onaylarsan konuşmaya hemen başlayabilirsin.",
-          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, height: 1.5),
+          style: GoogleFonts.poppins(
+            color: Colors.white70,
+            fontSize: 13,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text("Vazgeç", style: GoogleFonts.poppins(color: Colors.white54)),
+            child: Text(
+              "Vazgeç",
+              style: GoogleFonts.poppins(color: Colors.white54),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text("Devam et", style: GoogleFonts.poppins(color: _indigoColor, fontWeight: FontWeight.w600)),
+            child: Text(
+              "Devam et",
+              style: GoogleFonts.poppins(
+                color: _indigoColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -161,8 +182,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_isDesktop) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Görüntülü görüşme bu cihazda kullanılamıyor.",
-                style: GoogleFonts.poppins())),
+          content: Text(
+            "Görüntülü görüşme bu cihazda kullanılamıyor.",
+            style: GoogleFonts.poppins(),
+          ),
+        ),
       );
       return;
     }
@@ -198,7 +222,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               backgroundColor: const Color(0xFF12122A),
               title: Text(
                 "Hesabını Kaydet",
-                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -206,7 +233,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   Text(
                     "Bu bilgilerle başka bir cihazdan giriş yapıp hafızana ulaşabilirsin.",
-                    style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12),
+                    style: GoogleFonts.poppins(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -220,11 +250,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     controller: passwordController,
                     style: const TextStyle(color: Colors.white),
                     obscureText: true,
-                    decoration: const InputDecoration(hintText: "Şifre (en az 6 karakter)"),
+                    decoration: const InputDecoration(
+                      hintText: "Şifre (en az 6 karakter)",
+                    ),
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 8),
-                    Text(errorText!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                    Text(
+                      errorText!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -239,12 +277,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final password = passwordController.text.trim();
                     if (email.isEmpty || password.length < 6) {
                       setDialogState(() {
-                        errorText = "Geçerli bir email ve en az 6 karakter şifre gir.";
+                        errorText =
+                            "Geçerli bir email ve en az 6 karakter şifre gir.";
                       });
                       return;
                     }
                     try {
-                      await AuthService().claimAccount(widget.token, email, password);
+                      await AuthService().claimAccount(
+                        widget.token,
+                        email,
+                        password,
+                      );
                       if (!dialogContext.mounted) return;
                       Navigator.of(dialogContext).pop();
                       if (!mounted) return;
@@ -254,7 +297,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       );
                     } on DioException catch (e) {
                       final detail = (e.response?.data is Map)
-                          ? (e.response?.data["detail"]?.toString() ?? "Bir hata oluştu.")
+                          ? (e.response?.data["detail"]?.toString() ??
+                                "Bir hata oluştu.")
                           : "Bir hata oluştu.";
                       setDialogState(() => errorText = detail);
                     } catch (e) {
@@ -293,12 +337,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            _attachTile(sheetContext, Icons.photo_library_outlined, "Galeri",
-                _pickImageFromGallery),
-            _attachTile(sheetContext, Icons.photo_camera_outlined, "Kamera",
-                _pickImageFromCamera),
-            _attachTile(sheetContext, Icons.picture_as_pdf_outlined,
-                "Belge (PDF)", _pickPdf),
+            _attachTile(
+              sheetContext,
+              Icons.photo_library_outlined,
+              "Galeri",
+              _pickImageFromGallery,
+            ),
+            _attachTile(
+              sheetContext,
+              Icons.photo_camera_outlined,
+              "Kamera",
+              _pickImageFromCamera,
+            ),
+            _attachTile(
+              sheetContext,
+              Icons.picture_as_pdf_outlined,
+              "Belge (PDF)",
+              _pickPdf,
+            ),
             const SizedBox(height: 12),
           ],
         ),
@@ -307,11 +363,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _attachTile(
-      BuildContext sheetContext, IconData icon, String label, VoidCallback onTap) {
+    BuildContext sheetContext,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       leading: Icon(icon, color: _indigoColor),
-      title: Text(label,
-          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 15)),
+      title: Text(
+        label,
+        style: GoogleFonts.poppins(color: Colors.white70, fontSize: 15),
+      ),
       onTap: () {
         Navigator.pop(sheetContext);
         onTap();
@@ -335,8 +397,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Bu fotoğraf çok büyük (en fazla ~11MB).",
-                style: GoogleFonts.poppins())),
+          content: Text(
+            "Bu fotoğraf çok büyük (en fazla ~11MB).",
+            style: GoogleFonts.poppins(),
+          ),
+        ),
       );
       return;
     }
@@ -344,8 +409,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final mime = n.endsWith(".png")
         ? "image/png"
         : n.endsWith(".webp")
-            ? "image/webp"
-            : "image/jpeg";
+        ? "image/webp"
+        : "image/jpeg";
     await ref
         .read(chatProvider.notifier)
         .sendFileForAnalysis(bytes, mimeType: mime);
@@ -360,10 +425,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           allowedExtensions: ["jpg", "jpeg", "png", "webp"],
         );
         if (files.isEmpty) return;
-        await _sendPickedImage(await files.first.readAsBytes(), files.first.name);
+        await _sendPickedImage(
+          await files.first.readAsBytes(),
+          files.first.name,
+        );
       } else {
-        final picked = await ImagePicker()
-            .pickImage(source: ImageSource.gallery, imageQuality: 85);
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 85,
+        );
         if (picked == null) return;
         await _sendPickedImage(await picked.readAsBytes(), picked.name);
       }
@@ -372,8 +442,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-                Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins())),
+          content: Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins()),
+        ),
       );
     }
   }
@@ -384,14 +454,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_isDesktop) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Kamera bu cihazda kullanılamıyor.",
-                style: GoogleFonts.poppins())),
+          content: Text(
+            "Kamera bu cihazda kullanılamıyor.",
+            style: GoogleFonts.poppins(),
+          ),
+        ),
       );
       return;
     }
     try {
-      final picked = await ImagePicker()
-          .pickImage(source: ImageSource.camera, imageQuality: 85);
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
       if (picked == null) return;
       await _sendPickedImage(await picked.readAsBytes(), picked.name);
     } catch (e) {
@@ -399,7 +474,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Kamera açılamadı.", style: GoogleFonts.poppins())),
+          content: Text("Kamera açılamadı.", style: GoogleFonts.poppins()),
+        ),
       );
     }
   }
@@ -418,12 +494,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text("Bu PDF çok büyük (en fazla ~11MB).",
-                  style: GoogleFonts.poppins())),
+            content: Text(
+              "Bu PDF çok büyük (en fazla ~11MB).",
+              style: GoogleFonts.poppins(),
+            ),
+          ),
         );
         return;
       }
-      await ref.read(chatProvider.notifier).sendFileForAnalysis(
+      await ref
+          .read(chatProvider.notifier)
+          .sendFileForAnalysis(
             bytes,
             mimeType: "application/pdf",
             fileName: file.name,
@@ -434,7 +515,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Belge seçilemedi.", style: GoogleFonts.poppins())),
+          content: Text("Belge seçilemedi.", style: GoogleFonts.poppins()),
+        ),
       );
     }
   }
@@ -459,11 +541,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // (bkz. aura_reminders.py) - yaniti bekleyip hatirlatmalari yeniden
     // senkronize ediyoruz ki yerel bildirim uygulama yeniden acilana
     // kadar beklemeden hemen zamanlansin.
-    ref.read(chatProvider.notifier).sendMessage(text).then((_) => _syncReminders());
+    ref
+        .read(chatProvider.notifier)
+        .sendMessage(text)
+        .then((_) => _syncReminders());
   }
 
   Widget _buildMessageBubble(dynamic message) {
-    final isUser = message is Message ? message.isUser : message["role"] == "user";
+    final isUser = message is Message
+        ? message.isUser
+        : message["role"] == "user";
     final text = message is Message ? message.text : message["text"] as String;
     final imageBytes = message is Message ? message.imageBytes : null;
     final fileName = message is Message ? message.fileName : null;
@@ -489,7 +576,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomRight: Radius.circular(4),
           ),
           boxShadow: [
-            BoxShadow(color: _indigoColor.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: _indigoColor.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
@@ -497,48 +588,74 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (imageBytes != null)
-              AuraImageReveal(
-                play: animateIn,
-                borderRadius: BorderRadius.circular(16),
-                child: Image.memory(
-                  imageBytes,
-                  fit: BoxFit.cover,
-                  height: 180,
+              Semantics(
+                image: true,
+                label: "Gönderdiğin fotoğraf",
+                child: AuraImageReveal(
+                  play: animateIn,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    imageBytes,
+                    fit: BoxFit.cover,
+                    height: 180,
+                  ),
                 ),
               ),
             if (fileName != null)
-              AuraImageReveal(
-                play: animateIn,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.picture_as_pdf_outlined,
-                          color: Colors.white, size: 22),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          fileName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                              color: Colors.white, fontSize: 13),
+              Semantics(
+                label: "Gönderdiğin PDF belgesi: $fileName",
+                child: AuraImageReveal(
+                  play: animateIn,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.picture_as_pdf_outlined,
+                          color: Colors.white,
+                          size: 22,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             if (text.isNotEmpty)
               Padding(
-                padding: EdgeInsets.only(top: hasAttachment ? 8 : 0, left: 10, right: 10),
-                child: SelectableText(text, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, height: 1.5)),
+                padding: EdgeInsets.only(
+                  top: hasAttachment ? 8 : 0,
+                  left: 10,
+                  right: 10,
+                ),
+                child: SelectableText(
+                  text,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
               ),
           ],
         ),
@@ -565,10 +682,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               bottomLeft: Radius.circular(20),
               bottomRight: Radius.circular(20),
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
           ),
-          child: SelectableText(text, style: GoogleFonts.poppins(
-            color: Colors.white.withValues(alpha: 0.92), fontSize: 14, height: 1.5)),
+          child: SelectableText(
+            text,
+            style: GoogleFonts.poppins(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
         ),
       ),
     );
@@ -602,7 +728,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       curve: Curves.easeInOut,
       builder: (_, value, _) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 7, height: 7,
+        width: 7,
+        height: 7,
         decoration: BoxDecoration(
           color: _indigoColor.withValues(alpha: value),
           shape: BoxShape.circle,
@@ -611,29 +738,83 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Giris cubugundaki yuvarlak ikon butonlari - hepsi ayni erisilebilirlik
+  /// desenini paylasir: tek bir Semantics dugumu (button + label + tap),
+  /// altindaki gorsel agac ekran okuyuculardan gizli. Boylece VoiceOver/
+  /// TalkBack "Fotograf ekle, buton" gibi net bir sey soyler (eskiden bu
+  /// GestureDetector+Icon'lar okuyucuya HIC gorunmuyordu).
+  Widget _circleIconButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    Gradient? gradient,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: gradient,
+              color: gradient == null
+                  ? _indigoColor.withValues(alpha: 0.15)
+                  : null,
+              border: gradient == null
+                  ? Border.all(
+                      color: _indigoColor.withValues(alpha: 0.4),
+                      width: 1,
+                    )
+                  : null,
+              boxShadow: gradient != null
+                  ? [
+                      BoxShadow(
+                        color: _indigoColor.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              color: gradient != null ? Colors.white : _indigoColor,
+              size: 21,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInputBar() {
+    final callActive = ref.watch(voiceCallProvider).isActive;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
       decoration: BoxDecoration(
         color: const Color(0xFF0A0A1A).withValues(alpha: 0.95),
-        border: const Border(top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5)),
+        border: const Border(
+          top: BorderSide(color: Color(0xFF1E1E3A), width: 0.5),
+        ),
       ),
       child: Row(
         children: [
-          GestureDetector(
+          _circleIconButton(
+            label: "Fotoğraf veya belge ekle",
+            icon: Icons.add,
             onTap: _showAttachSheet,
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _indigoColor.withValues(alpha: 0.15),
-                border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
-              ),
-              child: Icon(Icons.add, color: _indigoColor, size: 22),
-            ),
           ),
           const SizedBox(width: 6),
-          GestureDetector(
+          _circleIconButton(
+            label: callActive
+                ? "Sesli görüşmeyi bitir"
+                : "Sesli görüşme başlat",
+            icon: callActive ? Icons.call_end : Icons.call_outlined,
             onTap: () {
               final callState = ref.read(voiceCallProvider);
               if (callState.isActive) {
@@ -642,57 +823,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 _startVoiceCallWithPriming();
               }
             },
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _indigoColor.withValues(alpha: 0.15),
-                border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
-              ),
-              child: Icon(Icons.call_outlined, color: _indigoColor, size: 20),
-            ),
           ),
           const SizedBox(width: 6),
-          GestureDetector(
+          _circleIconButton(
+            label: "Görüntülü görüşme başlat",
+            icon: Icons.videocam_outlined,
             onTap: _startVideoCall,
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _indigoColor.withValues(alpha: 0.15),
-                border: Border.all(color: _indigoColor.withValues(alpha: 0.4), width: 1),
-              ),
-              child: Icon(Icons.videocam_outlined, color: _indigoColor, size: 20),
-            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _controller,
               style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: "Mesaj yaz...",
-              ),
+              decoration: const InputDecoration(hintText: "Mesaj yaz..."),
               onSubmitted: (_) => _send(),
             ),
           ),
           const SizedBox(width: 10),
-          GestureDetector(
+          _circleIconButton(
+            label: "Gönder",
+            icon: Icons.send_rounded,
             onTap: _send,
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [_userBubbleStart, _userBubbleEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(color: _indigoColor.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            gradient: const LinearGradient(
+              colors: [_userBubbleStart, _userBubbleEnd],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
         ],
@@ -774,22 +929,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8, height: 8,
-              decoration: const BoxDecoration(color: Color(0xFF00E676), shape: BoxShape.circle),
+        title: Semantics(
+          header: true,
+          label: "Aura, çevrimiçi",
+          child: ExcludeSemantics(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF00E676),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Aura",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              "Aura",
-              style: GoogleFonts.poppins(
-                color: Colors.white, fontSize: 20,
-                fontWeight: FontWeight.w600, letterSpacing: 1.5,
-              ),
-            ),
-          ],
+          ),
         ),
         actions: [
           if (_isAnonymous)
@@ -807,7 +974,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             tooltip: "Ayarlar",
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => SettingsScreen(token: widget.token)),
+                MaterialPageRoute(
+                  builder: (_) => SettingsScreen(token: widget.token),
+                ),
               );
             },
           ),
@@ -818,18 +987,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             // "Aura efekti" - mesaj balonlarinin (frosted-glass) ARKASINDA,
             // sohbetin tonuna gore yavasca renk degistiren yumusak hale.
-            AuraHale(mood: chatState.currentMood),
+            // Tamamen dekoratif - ekran okuyuculardan gizli.
+            ExcludeSemantics(child: AuraHale(mood: chatState.currentMood)),
             Column(
               children: [
-                Expanded(
-                  child: _buildChatView(chatState),
-                ),
+                Expanded(child: _buildChatView(chatState)),
                 if (chatState.errorMessage != null)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: Text(
-                      chatState.errorMessage!,
-                      style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        chatState.errorMessage!,
+                        style: GoogleFonts.poppins(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
                 _buildInputBar(),
@@ -854,15 +1031,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // ekranda, ayni bicimde goruluyor. turn_complete gelince bu gecici
     // baloncuklar kaybolur, yerlerini kalici mesaj alir.
     final callState = ref.watch(voiceCallProvider);
-    final showLiveUser = callState.isActive && callState.liveUserText.isNotEmpty;
-    final showLiveAssistant = callState.isActive && callState.liveAssistantText.isNotEmpty;
+    final showLiveUser =
+        callState.isActive && callState.liveUserText.isNotEmpty;
+    final showLiveAssistant =
+        callState.isActive && callState.liveAssistantText.isNotEmpty;
 
-    final extraCount = (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0) +
+    final extraCount =
+        (chatState.isLoading && chatState.messages.isNotEmpty ? 1 : 0) +
         (showLiveUser ? 1 : 0) +
         (showLiveAssistant ? 1 : 0);
 
     return chatState.messages.isEmpty && chatState.isLoading
-        ? Center(child: CircularProgressIndicator(color: _indigoColor.withValues(alpha: 0.7)))
+        ? Center(
+            child: CircularProgressIndicator(
+              color: _indigoColor.withValues(alpha: 0.7),
+            ),
+          )
         : ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
@@ -873,8 +1057,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Align(
-                    alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: _buildMessageBubble(message),
+                    alignment: message.isUser
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Semantics(
+                      container: true,
+                      label: message.isUser ? "Senin mesajın" : "Aura",
+                      child: _buildMessageBubble(message),
+                    ),
                   ),
                 );
               }
@@ -887,7 +1077,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: _buildMessageBubble({"role": "user", "text": callState.liveUserText}),
+                      child: Semantics(
+                        container: true,
+                        liveRegion: true,
+                        label: "Söylediğin",
+                        child: _buildMessageBubble({
+                          "role": "user",
+                          "text": callState.liveUserText,
+                        }),
+                      ),
                     ),
                   );
                 }
@@ -900,7 +1098,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _buildMessageBubble({"role": "assistant", "text": callState.liveAssistantText}),
+                      child: Semantics(
+                        container: true,
+                        liveRegion: true,
+                        label: "Aura",
+                        child: _buildMessageBubble({
+                          "role": "assistant",
+                          "text": callState.liveAssistantText,
+                        }),
+                      ),
                     ),
                   );
                 }
@@ -911,12 +1117,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: _buildTypingIndicator(),
+                  child: Semantics(
+                    label: "Aura yazıyor",
+                    liveRegion: true,
+                    child: ExcludeSemantics(child: _buildTypingIndicator()),
+                  ),
                 ),
               );
             },
           );
   }
-
 }
-
