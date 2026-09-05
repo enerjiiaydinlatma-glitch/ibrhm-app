@@ -644,6 +644,25 @@ def update_user(user_id: int, **kwargs) -> dict:
     return get_user(user_id)
 
 
+def set_user_tier(email: str, tier: str) -> Optional[dict]:
+    """Bir kullanicinin 'tier' degerini ('free' / 'pro') elle ayarlar.
+    tier='pro' gunluk mesaj/sesli/TTS limitlerinden ve tek-cihaz oturum
+    kuralindan muaf tutar (bkz. main.py). Gercek bir satin alma akisi
+    YOK - bu SADECE admin tarafindan (ADMIN_KEY'li /api/admin/set-tier
+    ucundan) cagrilir. update_user'in whitelist'ine EKLENMEDI: tier
+    degisimi ayri, acikca isimlendirilmis tek bir yol olsun diye.
+    Bulunamazsa None doner."""
+    tier = (tier or "").strip().lower()
+    if tier not in ("free", "pro"):
+        raise ValueError("tier 'free' ya da 'pro' olmali")
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    with db_cursor(commit=True) as conn:
+        conn.execute("UPDATE users SET tier = ? WHERE id = ?", (tier, user["id"]))
+    return get_user(user["id"])
+
+
 # --- OTOMATIK USLUP (STIL VEKTORU) ---
 # Ton dropdown'lari kaldirildi - Aura artik kullanicinin konusma tarzindan
 # 4 ekseni (warmth/formality/humor/directness) kendi kendine cikarip,
