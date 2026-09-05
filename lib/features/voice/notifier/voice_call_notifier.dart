@@ -402,6 +402,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       videoEnabled: _videoRequested,
       cameraReady: _cameraPrimeAttempted ? state.cameraReady : false,
       cameraFailed: _cameraPrimeAttempted ? state.cameraFailed : false,
+      cameraOff: false,
     );
     // KRITIK (bkz. _videoCaptureStarting yorumu): prime edilmediyse kamera
     // istegini BURADA, dokunusun hemen ardindan, ses baglantisiyla PARALEL
@@ -738,6 +739,71 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
     await _startVideoCapture();
   }
 
+  /// Kamerayi kullanici ISTEGIYLE kapatir/acar - hem alt yaridaki
+  /// dokunustan hem sesli komuttan ("kamerayi kapat" / "kamerayi ac")
+  /// cagrilir. Sesli aramayi HIC etkilemez, sadece video katmanini.
+  /// 2026-09-05, kullanici sorusu: "kolunu kullanamayan biri kamerayi
+  /// nasil kapatacak" -> sesle ya da tek dokunusla.
+  Future<void> toggleCameraByUser({required bool off}) async {
+    if (_isDesktopPlatform || !_videoRequested) return;
+    if (off) {
+      if (state.cameraOff) return;
+      state = state.copyWith(cameraOff: true, cameraReady: false);
+      await _stopVideoCapture();
+      // _stopVideoCapture _videoRequested'a dokunmaz ama _cameraPrimeAttempted'i
+      // sifirlar - tekrar acilabilmesi icin niyeti geri koyuyoruz.
+      _videoRequested = true;
+    } else {
+      if (!state.cameraOff && _cameraController != null) return;
+      state = state.copyWith(cameraOff: false, cameraFailed: false, cameraReady: false);
+      await _startVideoCapture();
+    }
+  }
+
+  /// Sesli görüşmede turn_complete ile gelen NIHAI kullanici transkriptini
+  /// kucuk bir komut sozlugune karsi kontrol eder. Eslesirse ilgili yan
+  /// etkiyi yapar (su an sadece kamera ac/kapa). Konusmayi ENGELLEMEZ -
+  /// soz yine sohbet balonuna duser, Aura da normalde yanit verir; sadece
+  /// istemci tarafi bir aksiyon eklenir. Video istenmediyse hic calismaz.
+  void _maybeHandleVoiceCommand(String userText) {
+    if (_isDesktopPlatform || !_videoRequested) return;
+    final t = _foldTr(userText);
+    // Cok uzun cumlelerde (kullanici kamerayi ANLATIYOR ama komut vermiyor)
+    // yanlis tetiklememek icin kisa tutuyoruz.
+    if (t.split(RegExp(r"\s+")).length > 6) return;
+    final subject =
+        t.contains("kamera") || t.contains("goruntu") || t.contains("video");
+    if (!subject) return;
+    final wantsOff = t.contains("kapat") ||
+        t.contains("kapan") ||
+        t.contains("durdur");
+    final wantsOn = t.contains(" ac") ||
+        t.startsWith("ac") ||
+        t.contains("acar mi") ||
+        t.contains("acsana") ||
+        t.contains("geri ac");
+    if (wantsOff && !state.cameraOff) {
+      _voiceDebugLog("sesli komut: kamera kapat ('$userText')");
+      unawaited(toggleCameraByUser(off: true));
+    } else if (wantsOn && !wantsOff && state.cameraOff) {
+      _voiceDebugLog("sesli komut: kamera ac ('$userText')");
+      unawaited(toggleCameraByUser(off: false));
+    }
+  }
+
+  /// Turkce'ye duyarli, aksan-katlayan kucuk normalize edici - SADECE
+  /// sesli komut eslestirmesi icin (backend'deki genel fold'un istemci
+  /// karsiligi degil, ona ihtiyac da yok).
+  String _foldTr(String s) {
+    var r = s.toLowerCase().trim();
+    const map = {
+      "ı": "i", "i̇": "i", "İ": "i", "ş": "s", "ğ": "g",
+      "ü": "u", "ö": "o", "ç": "c", "â": "a", "î": "i", "û": "u",
+    };
+    map.forEach((k, v) => r = r.replaceAll(k, v));
+    return r;
+  }
+
   Future<void> _sendVideoFrame() async {
     final controller = _cameraController;
     if (controller == null ||
@@ -1025,6 +1091,10 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
         final chatNotifier = ref.read(chatProvider.notifier);
         if (userText != null && userText.isNotEmpty) {
           chatNotifier.addUserMessage(userText);
+          // Sesli komut sozlugu (su an: kamera ac/kapa). Konusmayi
+          // engellemez - soz balona dustu, Aura da yanit verecek; sadece
+          // istemci tarafi bir aksiyon EKLER.
+          _maybeHandleVoiceCommand(userText);
         }
         if (assistantText != null && assistantText.isNotEmpty) {
           chatNotifier.addAssistantMessage(assistantText);

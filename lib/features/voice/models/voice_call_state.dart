@@ -33,6 +33,13 @@ class VoiceCallState {
   // hala calisir), sadece kamera onizlemesi yerine anlasilir bir mesaj
   // gosterilir.
   final bool cameraFailed;
+  // Kullanici kamerayi BILEREK kapatti ("kamerayi kapat" sesli komutu ya
+  // da alt yaridaki kapat dokunusu). cameraFailed'dan (izin/donanim hatasi)
+  // AYRI tutuluyor cunku UI mesaji farkli ("Kamera kapali" + "ac" butonu,
+  // "acilamadi" degil) ve otomatik yeniden deneme YOK - kullanici zaten
+  // istemedi. 2026-09-05, kullanici sorusu: "kolu olmayan biri kamerayi
+  // nasil kapatacak" -> sesle.
+  final bool cameraOff;
 
   const VoiceCallState({
     this.status = VoiceCallStatus.idle,
@@ -42,6 +49,7 @@ class VoiceCallState {
     this.videoEnabled = false,
     this.cameraReady = false,
     this.cameraFailed = false,
+    this.cameraOff = false,
   });
 
   bool get isActive => status != VoiceCallStatus.idle;
@@ -54,6 +62,7 @@ class VoiceCallState {
     bool? videoEnabled,
     bool? cameraReady,
     bool? cameraFailed,
+    bool? cameraOff,
   }) {
     return VoiceCallState(
       status: status ?? this.status,
@@ -63,6 +72,7 @@ class VoiceCallState {
       videoEnabled: videoEnabled ?? this.videoEnabled,
       cameraReady: cameraReady ?? this.cameraReady,
       cameraFailed: cameraFailed ?? this.cameraFailed,
+      cameraOff: cameraOff ?? this.cameraOff,
     );
   }
 }
