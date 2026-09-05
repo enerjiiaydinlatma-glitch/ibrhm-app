@@ -29,9 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(token: token),
-        ),
+        MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
       );
     } on SessionKickedOutException {
       if (!mounted) return;
@@ -105,11 +103,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (_isLogin) {
         result = await _authService.login(email, password);
       } else {
-        result = await _authService.register(
-          email,
-          password,
-          name,
-        );
+        result = await _authService.register(email, password, name);
       }
 
       final tokenValue = result['token'];
@@ -131,9 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(token: tokenValue),
-        ),
+        MaterialPageRoute(builder: (_) => ChatScreen(token: tokenValue)),
       );
     } on DioException catch (e) {
       String detail = 'Bir hata oluştu.';
@@ -185,8 +177,12 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_autoLoginInProgress) {
       return Scaffold(
         backgroundColor: _bgColor,
-        body: const Center(
-          child: CircularProgressIndicator(color: _indigoColor),
+        body: Center(
+          child: Semantics(
+            liveRegion: true,
+            label: 'Aura başlatılıyor',
+            child: const CircularProgressIndicator(color: _indigoColor),
+          ),
         ),
       );
     }
@@ -196,11 +192,7 @@ class _AuthScreenState extends State<AuthScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF0A0A1A),
-              Color(0xFF0D0B2A),
-              Color(0xFF0A0A1A),
-            ],
+            colors: [Color(0xFF0A0A1A), Color(0xFF0D0B2A), Color(0xFF0A0A1A)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -211,31 +203,38 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'AURA',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Kişisel yapay zeka asistanın',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white38,
-                    fontSize: 14,
+                Semantics(
+                  header: true,
+                  label: 'Aura, kişisel yapay zeka asistanın',
+                  child: ExcludeSemantics(
+                    child: Column(
+                      children: [
+                        Text(
+                          'AURA',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 8,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Kişisel yapay zeka asistanın',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white38,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 48),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 10,
-                      sigmaY: 10,
-                    ),
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
@@ -250,29 +249,21 @@ class _AuthScreenState extends State<AuthScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: _tabButton(
-                                  'Giriş Yap',
-                                  _isLogin,
-                                  () {
-                                    setState(() {
-                                      _isLogin = true;
-                                      _error = null;
-                                    });
-                                  },
-                                ),
+                                child: _tabButton('Giriş Yap', _isLogin, () {
+                                  setState(() {
+                                    _isLogin = true;
+                                    _error = null;
+                                  });
+                                }),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _tabButton(
-                                  'Kayıt Ol',
-                                  !_isLogin,
-                                  () {
-                                    setState(() {
-                                      _isLogin = false;
-                                      _error = null;
-                                    });
-                                  },
-                                ),
+                                child: _tabButton('Kayıt Ol', !_isLogin, () {
+                                  setState(() {
+                                    _isLogin = false;
+                                    _error = null;
+                                  });
+                                }),
                               ),
                             ],
                           ),
@@ -316,13 +307,16 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           if (_error != null) ...[
                             const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              style: GoogleFonts.poppins(
-                                color: Colors.redAccent,
-                                fontSize: 13,
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                _error!,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.redAccent,
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
                             ),
                           ],
                           const SizedBox(height: 24),
@@ -330,44 +324,60 @@ class _AuthScreenState extends State<AuthScreen> {
                             width: double.infinity,
                             height: 52,
                             child: _loading
-                                ? const Center(
-                                    child: CircularProgressIndicator(
-                                      color: _indigoColor,
+                                ? Center(
+                                    child: Semantics(
+                                      liveRegion: true,
+                                      label: _isLogin
+                                          ? 'Giriş yapılıyor'
+                                          : 'Hesap oluşturuluyor',
+                                      child: const CircularProgressIndicator(
+                                        color: _indigoColor,
+                                      ),
                                     ),
                                   )
-                                : GestureDetector(
+                                : Semantics(
+                                    button: true,
+                                    label: _isLogin
+                                        ? 'Giriş Yap'
+                                        : 'Hesap Oluştur',
                                     onTap: _submit,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Color(0xFF6C63FF),
-                                            Color(0xFF9C8FFF),
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: _indigoColor.withValues(
-                                              alpha: 0.4,
+                                    child: ExcludeSemantics(
+                                      child: GestureDetector(
+                                        onTap: _submit,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [
+                                                Color(0xFF6C63FF),
+                                                Color(0xFF9C8FFF),
+                                              ],
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
                                             ),
-                                            blurRadius: 20,
-                                            offset: const Offset(0, 8),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: _indigoColor.withValues(
+                                                  alpha: 0.4,
+                                                ),
+                                                blurRadius: 20,
+                                                offset: const Offset(0, 8),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          _isLogin
-                                              ? 'Giriş Yap'
-                                              : 'Hesap Oluştur',
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
+                                          child: Center(
+                                            child: Text(
+                                              _isLogin
+                                                  ? 'Giriş Yap'
+                                                  : 'Hesap Oluştur',
+                                              style: GoogleFonts.poppins(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -387,35 +397,35 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _tabButton(
-    String label,
-    bool active,
-    VoidCallback onTap,
-  ) {
+  Widget _tabButton(String label, bool active, VoidCallback onTap) {
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      onTap: onTap,
+      child: ExcludeSemantics(child: _tabButtonVisual(label, active, onTap)),
+    );
+  }
+
+  Widget _tabButtonVisual(String label, bool active, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           color: active
               ? _indigoColor.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: active ? _indigoColor : Colors.white12,
-          ),
+          border: Border.all(color: active ? _indigoColor : Colors.white12),
         ),
         child: Center(
           child: Text(
             label,
             style: GoogleFonts.poppins(
               color: active ? Colors.white : Colors.white38,
-              fontWeight:
-                  active ? FontWeight.w600 : FontWeight.normal,
+              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
               fontSize: 14,
             ),
           ),
@@ -437,22 +447,12 @@ class _AuthScreenState extends State<AuthScreen> {
       obscureText: obscure,
       keyboardType: type,
       autofillHints: autofillHints,
-      style: GoogleFonts.poppins(
-        color: Colors.white,
-        fontSize: 14,
-      ),
+      style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
       onSubmitted: (_) => _submit(),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.poppins(
-          color: Colors.white38,
-          fontSize: 14,
-        ),
-        prefixIcon: Icon(
-          icon,
-          color: Colors.white38,
-          size: 20,
-        ),
+        hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
+        prefixIcon: Icon(icon, color: Colors.white38, size: 20),
         filled: true,
         fillColor: const Color(0xFF1A1A3A),
         border: OutlineInputBorder(
@@ -461,16 +461,11 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: Color(0xFF2A2A4A),
-          ),
+          borderSide: const BorderSide(color: Color(0xFF2A2A4A)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: _indigoColor,
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: _indigoColor, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
