@@ -49,6 +49,7 @@ class ChatRepositoryImpl implements ChatRepository {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text: replyText,
         isUser: false,
+        mood: data['mood']?.toString(),
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {

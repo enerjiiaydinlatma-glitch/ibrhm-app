@@ -163,7 +163,14 @@ class ChatNotifier extends Notifier<ChatState> {
         assistantId,
         Message(id: assistantId, text: reply.text, isUser: false),
       );
-      state = state.copyWith(errorMessage: null);
+      // "Aura efekti": SADECE gercekten yeni bir mood tespit edildiyse
+      // guncelle (bkz. ChatState.currentMood dokumantasyonu) - notr bir
+      // turde hale bir onceki tonunu korur.
+      if (reply.mood != null) {
+        state = state.copyWith(errorMessage: null, currentMood: reply.mood);
+      } else {
+        state = state.copyWith(errorMessage: null);
+      }
     } catch (e) {
       _replaceMessageById(
         assistantId,

@@ -20,6 +20,7 @@ import "../../../services/auth_service.dart";
 import "../../../services/reminder_service.dart";
 import "../../../services/tts_service.dart";
 import "../widgets/sky_background.dart";
+import "../widgets/aura_hale.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -806,6 +807,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: SkyBackground(
         child: Stack(
           children: [
+            // "Aura efekti" - mesaj balonlarinin (frosted-glass) ARKASINDA,
+            // sohbetin tonuna gore yavasca renk degistiren yumusak hale.
+            AuraHale(mood: chatState.currentMood),
             Column(
               children: [
                 Expanded(
