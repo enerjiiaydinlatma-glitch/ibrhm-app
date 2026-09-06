@@ -22,6 +22,7 @@ import "../../../services/reminder_service.dart";
 import "../../../services/tts_service.dart";
 import "../widgets/sky_background.dart";
 import "../widgets/aura_hale.dart";
+import "../../../core/i18n.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String token;
@@ -131,7 +132,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             Icon(Icons.mic_none_outlined, color: _indigoColor),
             const SizedBox(width: 10),
             Text(
-              "Sesli görüşme",
+              I18n.t("chat.voiceIntroTitle"),
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -140,7 +141,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         content: Text(
-          "Aura ile gerçek zamanlı konuşmak üzeresin. Şimdi telefonun/tarayıcın mikrofon izni isteyecek - onaylarsan konuşmaya hemen başlayabilirsin.",
+          I18n.t("chat.voiceIntroBody"),
           style: GoogleFonts.poppins(
             color: Colors.white70,
             fontSize: 13,
@@ -151,14 +152,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(
-              "Vazgeç",
+              I18n.t("common.cancel"),
               style: GoogleFonts.poppins(color: Colors.white54),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
-              "Devam et",
+              I18n.t("common.continue"),
               style: GoogleFonts.poppins(
                 color: _indigoColor,
                 fontWeight: FontWeight.w600,
@@ -183,7 +184,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Görüntülü görüşme bu cihazda kullanılamıyor.",
+            I18n.t("chat.videoUnavailable"),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -221,7 +222,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             return AlertDialog(
               backgroundColor: const Color(0xFF12122A),
               title: Text(
-                "Hesabını Kaydet",
+                I18n.t("chat.claimTitle"),
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -232,7 +233,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Bu bilgilerle başka bir cihazdan giriş yapıp hafızana ulaşabilirsin.",
+                    I18n.t("chat.claimBody"),
                     style: GoogleFonts.poppins(
                       color: Colors.white54,
                       fontSize: 12,
@@ -243,15 +244,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     controller: emailController,
                     style: const TextStyle(color: Colors.white),
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(hintText: "Email"),
+                    decoration: InputDecoration(hintText: I18n.t("auth.email")),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: passwordController,
                     style: const TextStyle(color: Colors.white),
                     obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: "Şifre (en az 6 karakter)",
+                    decoration: InputDecoration(
+                      hintText: I18n.t("chat.pwHint"),
                     ),
                   ),
                   if (errorText != null) ...[
@@ -269,7 +270,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text("Vazgeç"),
+                  child: Text(I18n.t("common.cancel")),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -277,8 +278,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final password = passwordController.text.trim();
                     if (email.isEmpty || password.length < 6) {
                       setDialogState(() {
-                        errorText =
-                            "Geçerli bir email ve en az 6 karakter şifre gir.";
+                        errorText = I18n.t("chat.claimInvalid");
                       });
                       return;
                     }
@@ -293,7 +293,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       if (!mounted) return;
                       setState(() => _isAnonymous = false);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Hesabın kaydedildi.")),
+                        SnackBar(content: Text(I18n.t("chat.accountSaved"))),
                       );
                     } on DioException catch (e) {
                       final detail = (e.response?.data is Map)
@@ -305,7 +305,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       setDialogState(() => errorText = "Bir hata oluştu.");
                     }
                   },
-                  child: const Text("Kaydet"),
+                  child: Text(I18n.t("chat.save")),
                 ),
               ],
             );
@@ -340,19 +340,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             _attachTile(
               sheetContext,
               Icons.photo_library_outlined,
-              "Galeri",
+              I18n.t("chat.attachGallery"),
               _pickImageFromGallery,
             ),
             _attachTile(
               sheetContext,
               Icons.photo_camera_outlined,
-              "Kamera",
+              I18n.t("chat.attachCamera"),
               _pickImageFromCamera,
             ),
             _attachTile(
               sheetContext,
               Icons.picture_as_pdf_outlined,
-              "Belge (PDF)",
+              I18n.t("chat.attachPdf"),
               _pickPdf,
             ),
             const SizedBox(height: 12),
@@ -379,7 +379,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             const SizedBox(height: 14),
             Text(
-              "Bu cevap nasıldı?",
+              I18n.t("chat.feedbackQ"),
               style: GoogleFonts.poppins(
                 color: Colors.white70,
                 fontSize: 14,
@@ -388,7 +388,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              "Aura'yı geliştirmemize yardım eder",
+              I18n.t("chat.feedbackHelp"),
               style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -400,7 +400,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   message,
                   "up",
                   Icons.thumb_up_alt_rounded,
-                  "İyi",
+                  I18n.t("chat.feedbackGood"),
                 ),
                 const SizedBox(width: 20),
                 _feedbackButton(
@@ -408,7 +408,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   message,
                   "down",
                   Icons.thumb_down_alt_rounded,
-                  "Kötü",
+                  I18n.t("chat.feedbackBad"),
                 ),
               ],
             ),
@@ -428,7 +428,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   ) {
     return Semantics(
       button: true,
-      label: "$label cevap olarak işaretle",
+      label: label == I18n.t("chat.feedbackGood")
+          ? I18n.t("chat.a11yMarkGood")
+          : I18n.t("chat.a11yMarkBad"),
       child: ExcludeSemantics(
         child: GestureDetector(
           onTap: () {
@@ -439,7 +441,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  "Teşekkürler, kaydedildi.",
+                  I18n.t("chat.feedbackThanks"),
                   style: GoogleFonts.poppins(),
                 ),
                 duration: const Duration(seconds: 2),
@@ -509,7 +511,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Bu fotoğraf çok büyük (en fazla ~11MB).",
+            I18n.t("chat.photoTooBig"),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -553,7 +555,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Fotoğraf seçilemedi.", style: GoogleFonts.poppins()),
+          content: Text(
+            I18n.t("chat.photoPickFailed"),
+            style: GoogleFonts.poppins(),
+          ),
         ),
       );
     }
@@ -566,7 +571,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Kamera bu cihazda kullanılamıyor.",
+            I18n.t("chat.cameraUnavailable"),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -585,7 +590,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Kamera açılamadı.", style: GoogleFonts.poppins()),
+          content: Text(
+            I18n.t("chat.cameraFailed"),
+            style: GoogleFonts.poppins(),
+          ),
         ),
       );
     }
@@ -606,7 +614,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Bu PDF çok büyük (en fazla ~11MB).",
+              I18n.t("chat.pdfTooBig"),
               style: GoogleFonts.poppins(),
             ),
           ),
@@ -626,7 +634,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Belge seçilemedi.", style: GoogleFonts.poppins()),
+          content: Text(
+            I18n.t("chat.pdfPickFailed"),
+            style: GoogleFonts.poppins(),
+          ),
         ),
       );
     }
@@ -701,7 +712,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (imageBytes != null)
               Semantics(
                 image: true,
-                label: "Gönderdiğin fotoğraf",
+                label: I18n.t("chat.a11ySentPhoto"),
                 child: AuraImageReveal(
                   play: animateIn,
                   borderRadius: BorderRadius.circular(16),
@@ -714,7 +725,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             if (fileName != null)
               Semantics(
-                label: "Gönderdiğin PDF belgesi: $fileName",
+                label: "${I18n.t("chat.a11ySentPdf")}: $fileName",
                 child: AuraImageReveal(
                   play: animateIn,
                   borderRadius: BorderRadius.circular(14),
@@ -916,15 +927,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: Row(
         children: [
           _circleIconButton(
-            label: "Fotoğraf veya belge ekle",
+            label: I18n.t("chat.a11yAddPhoto"),
             icon: Icons.add,
             onTap: _showAttachSheet,
           ),
           const SizedBox(width: 6),
           _circleIconButton(
             label: callActive
-                ? "Sesli görüşmeyi bitir"
-                : "Sesli görüşme başlat",
+                ? I18n.t("chat.a11yVoiceEnd")
+                : I18n.t("chat.a11yVoiceStart"),
             icon: callActive ? Icons.call_end : Icons.call_outlined,
             onTap: () {
               final callState = ref.read(voiceCallProvider);
@@ -937,7 +948,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           const SizedBox(width: 6),
           _circleIconButton(
-            label: "Görüntülü görüşme başlat",
+            label: I18n.t("chat.a11yVideoStart"),
             icon: Icons.videocam_outlined,
             onTap: _startVideoCall,
           ),
@@ -946,13 +957,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: TextField(
               controller: _controller,
               style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(hintText: "Mesaj yaz..."),
+              decoration: InputDecoration(hintText: I18n.t("chat.inputHint")),
               onSubmitted: (_) => _send(),
             ),
           ),
           const SizedBox(width: 10),
           _circleIconButton(
-            label: "Gönder",
+            label: I18n.t("chat.send"),
             icon: Icons.send_rounded,
             onTap: _send,
             gradient: const LinearGradient(
@@ -1042,7 +1053,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         title: Semantics(
           header: true,
-          label: "Aura, çevrimiçi",
+          label: I18n.t("chat.online"),
           child: ExcludeSemantics(
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1074,7 +1085,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             IconButton(
               icon: const Icon(Icons.cloud_outlined, color: Colors.white70),
               onPressed: _showClaimAccountDialog,
-              tooltip: "Hesabını Kaydet",
+              tooltip: I18n.t("chat.saveAccount"),
             ),
           // BULUNDU (kullanici istegi): profil/hafiza yonetimi, gunluk
           // kullanim gorunurlugu ve cikis yapmaya HICBIR erisim yoktu -
@@ -1082,7 +1093,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // ayarlar ekranina goturen giris noktasi.
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white70),
-            tooltip: "Ayarlar",
+            tooltip: I18n.t("chat.settings"),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -1183,7 +1194,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       children: [
                         Semantics(
                           container: true,
-                          label: message.isUser ? "Senin mesajın" : "Aura",
+                          label: message.isUser
+                              ? I18n.t("chat.a11yYou")
+                              : I18n.t("chat.a11yAura"),
                           child: canRate
                               ? GestureDetector(
                                   onLongPress: () =>
@@ -1220,7 +1233,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Semantics(
                         container: true,
                         liveRegion: true,
-                        label: "Söylediğin",
+                        label: I18n.t("chat.a11ySaid"),
                         child: _buildMessageBubble({
                           "role": "user",
                           "text": callState.liveUserText,
@@ -1241,7 +1254,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Semantics(
                         container: true,
                         liveRegion: true,
-                        label: "Aura",
+                        label: I18n.t("chat.a11yAura"),
                         child: _buildMessageBubble({
                           "role": "assistant",
                           "text": callState.liveAssistantText,
@@ -1258,7 +1271,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Semantics(
-                    label: "Aura yazıyor",
+                    label: I18n.t("chat.typing"),
                     liveRegion: true,
                     child: ExcludeSemantics(child: _buildTypingIndicator()),
                   ),
