@@ -434,6 +434,89 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed == true) await _logout();
   }
 
+  /// KVKK/GDPR silme hakki (2026-09-06): hesabi ve TUM verileri kalici
+  /// olarak siler. Iki adimli onay - once uyari, sonra "SIL" yazma.
+  Future<void> _confirmDeleteAccount() async {
+    final confirmController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Hesabı sil',
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tüm sohbet geçmişin, hafızan ve hesabın kalıcı olarak '
+                'silinecek. Bu işlem geri alınamaz.\n\nOnaylamak için '
+                'aşağıya SIL yaz.',
+                style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: confirmController,
+                onChanged: (_) => setDialogState(() {}),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(hintText: 'SIL'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Vazgeç',
+                style: GoogleFonts.poppins(color: Colors.white54),
+              ),
+            ),
+            TextButton(
+              onPressed: confirmController.text.trim().toUpperCase() == 'SIL'
+                  ? () => Navigator.of(dialogContext).pop(true)
+                  : null,
+              child: Text(
+                'Kalıcı olarak sil',
+                style: GoogleFonts.poppins(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await AuthService().deleteAccount(widget.token);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Silme başarısız, tekrar dene.',
+              style: GoogleFonts.poppins(),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   InputDecoration _fieldDecoration(String label, {String? hint}) {
     return InputDecoration(
       labelText: label,
@@ -1176,6 +1259,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       style: GoogleFonts.poppins(
                         color: Colors.white38,
                         fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton(
+                    onPressed: _confirmDeleteAccount,
+                    child: Text(
+                      'Hesabı ve tüm verileri sil',
+                      style: GoogleFonts.poppins(
+                        color: Colors.redAccent.withValues(alpha: 0.75),
+                        fontSize: 12,
                       ),
                     ),
                   ),

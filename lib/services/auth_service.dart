@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -67,7 +67,10 @@ class AuthService {
     // bir dizi.
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final email = 'anonymous_$stamp@aura.local';
-    final randomBytes = List<int>.generate(24, (_) => Random.secure().nextInt(256));
+    final randomBytes = List<int>.generate(
+      24,
+      (_) => Random.secure().nextInt(256),
+    );
     final password = 'Aura_${base64UrlEncode(randomBytes)}!';
 
     final result = await register(
@@ -118,11 +121,7 @@ class AuthService {
     try {
       final response = await _dio.get(
         '/api/auth/me',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       return response.statusCode == 200;
@@ -163,16 +162,10 @@ class AuthService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _dio.post(
       '/api/auth/login',
-      data: {
-        'email': email,
-        'password': password,
-      },
+      data: {'email': email, 'password': password},
     );
 
     return Map<String, dynamic>.from(response.data as Map);
@@ -188,15 +181,8 @@ class AuthService {
   ) async {
     final response = await _dio.post(
       '/api/auth/claim',
-      data: {
-        'email': email,
-        'password': password,
-      },
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
+      data: {'email': email, 'password': password},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
     return Map<String, dynamic>.from(response.data as Map);
@@ -206,17 +192,23 @@ class AuthService {
     try {
       await _dio.post(
         '/api/auth/logout',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (_) {
       // Backend logout başarısız olsa bile
       // yerel token temizlenir.
     }
 
+    await clearToken();
+  }
+
+  /// KVKK/GDPR silme hakki (2026-09-06): hesabi ve TUM verileri kalici
+  /// olarak siler. Basarisiz olursa exception firlatir (cagiran gosterir).
+  Future<void> deleteAccount(String token) async {
+    await _dio.delete(
+      '/api/account',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
     await clearToken();
   }
 }
