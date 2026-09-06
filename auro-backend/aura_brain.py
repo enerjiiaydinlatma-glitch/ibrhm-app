@@ -1372,7 +1372,13 @@ def _extract_with_groq(prompt: str) -> str:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.2,
         },
-        timeout=15,
+        # BULUNDU (2026-09-06, uzun tek-oturum testi + prod kanit: /api/
+        # memories 0 kayit): gpt-oss-120b bazen 15sn'ye sigmiyor, Groq
+        # yogun anlarda 429 donuyor - _extract_with_groq raise ediyor,
+        # extract_memory_candidate'in genis except'i SESSIZCE yutuyor ->
+        # hafiza HIC kaydedilmiyordu. Sure biraz artirildi + asagida
+        # _run_background_extraction ile Gemini yedegi eklendi.
+        timeout=25,
     )
     response.raise_for_status()
     data = response.json()
@@ -1425,6 +1431,36 @@ BACKGROUND_PROVIDERS = {
     "gemini": _extract_with_gemini,
 }
 BACKGROUND_PROVIDER = "groq" if GROQ_API_KEY else "gemini"
+
+
+def _run_background_extraction(prompt: str) -> str:
+    """Arka plan ajani cagrilari (hafiza + hatirlatma cikarimi) icin
+    SAGLAYICI YEDEKLI sarmalayici. BULUNDU (2026-09-06): birincil
+    saglayici (Groq gpt-oss-120b) yogun anlarda 429/timeout donuyordu,
+    cagiran taraflarin genis except'i bunu SESSIZCE yutup hafizayi HIC
+    kaydetmiyordu (prod'da /api/memories 0 kayit). Hafiza Aura'nin
+    cekirdek sutunu - tek bir rate-limit'li saglayiciya, sessiz hatayla
+    bagli olamaz. Once birincil, o coker/bos donerse digeri denenir.
+    "Ses != arka plan ajani" ilkesi korunur (ikisi de mumkun oldugunda
+    farkli model), ama hafizayi kaybetmek pahasina degil."""
+    order = [BACKGROUND_PROVIDER] + [
+        p for p in BACKGROUND_PROVIDERS if p != BACKGROUND_PROVIDER
+    ]
+    last_err = None
+    for name in order:
+        try:
+            text = BACKGROUND_PROVIDERS[name](prompt)
+            if text and text.strip():
+                if name != BACKGROUND_PROVIDER:
+                    print(f"ARKA PLAN AJANI: {BACKGROUND_PROVIDER} basarisiz, "
+                          f"{name} yedegi kullanildi")
+                return text
+        except Exception as e:  # noqa: BLE001 - kasitli genis
+            last_err = e
+            print(f"ARKA PLAN AJANI ({name}) HATASI: {e}")
+    if last_err:
+        raise last_err
+    return ""
 
 
 def _format_existing_memories_for_prompt(user_id: int) -> str:
@@ -1520,7 +1556,7 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
     )
 
     try:
-        text = BACKGROUND_PROVIDERS[BACKGROUND_PROVIDER](prompt)
+        text = _run_background_extraction(prompt)
 
         if not text or text.upper() == "NONE":
             return None
@@ -1723,7 +1759,7 @@ def analyze_patterns(user_id: int, message_count: int) -> None:
             memories=memory_text,
         )
 
-        text = BACKGROUND_PROVIDERS[BACKGROUND_PROVIDER](prompt)
+        text = _run_background_extraction(prompt)
 
         if not text or text.upper() == "NONE":
             return
