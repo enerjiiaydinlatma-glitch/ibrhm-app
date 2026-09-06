@@ -125,7 +125,7 @@ def init_db():
         ):
             try:
                 cursor.execute(migration)
-            except sqlite3.OperationalError:
+            except db_compat.OperationalError:
                 pass  # sutun zaten var
 
         # Tohumlama: kullanicinin ONCEDEN elle sectigi ton (varsa) yeni
@@ -185,7 +185,7 @@ def init_db():
         """)
         try:
             cursor.execute("ALTER TABLE messages ADD COLUMN hidden INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
+        except db_compat.OperationalError:
             pass  # sutun zaten var
 
         cursor.execute("""
@@ -386,7 +386,7 @@ def create_user(
             )
             user_id = cursor.lastrowid
         return get_user(user_id)
-    except sqlite3.IntegrityError:
+    except db_compat.IntegrityError:
         return None
 
 
@@ -488,7 +488,7 @@ def claim_account(user_id: int, email: str, password: str) -> bool:
                 (email.lower().strip(), hash_password(password), user_id),
             )
         return True
-    except sqlite3.IntegrityError:
+    except db_compat.IntegrityError:
         return False
 
 
@@ -1251,7 +1251,7 @@ def delete_user_completely(user_id: int) -> None:
         for tbl, col in tables:
             try:
                 conn.execute(f"DELETE FROM {tbl} WHERE {col} = ?", (user_id,))
-            except sqlite3.OperationalError:
+            except db_compat.OperationalError:
                 pass  # tablo yoksa (eski/farkli sema) gec
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 

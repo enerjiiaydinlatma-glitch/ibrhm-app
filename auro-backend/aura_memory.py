@@ -201,7 +201,7 @@ def init_memory_db():
                 WHERE status = 'active'
                 """
             )
-        except sqlite3.IntegrityError as e:
+        except db_compat.IntegrityError as e:
             # Mevcut veride ZATEN coklanan aktif kayit varsa indeks
             # olusturulamaz - veriyi SESSIZCE silmek/birlestirmek yerine
             # bunu acikca logluyoruz (elle temizlik gerekiyor demektir).
@@ -218,7 +218,7 @@ def init_memory_db():
         # dene/basarisiz-olursa-yoksay.
         try:
             cursor.execute("ALTER TABLE memories ADD COLUMN pinned INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
+        except db_compat.OperationalError:
             pass  # sutun zaten var
 
 
@@ -582,7 +582,7 @@ def promote_candidate_to_memory(
             importance=confidence,
             source_message_id=source_message_id,
         )
-    except sqlite3.IntegrityError:
+    except db_compat.IntegrityError:
         # KENDI KENDINI INCELEME BULGUSU: bugun eklenen kismi UNIQUE
         # indeks (user_id, category, LOWER(memory_key), status='active')
         # TAM DA burada, find_active_memory ile add_memory arasindaki
