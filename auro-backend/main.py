@@ -25,8 +25,14 @@ from google.genai import types
 import database
 import metrics
 import legal
+import observability
 
 load_dotenv()
+
+# Cokme/hata takibi - SENTRY_DSN tanimli degilse tam no-op (bkz.
+# observability.py). load_dotenv'den hemen sonra, diger her seyden once:
+# import/init sirasindaki hatalar da yakalansin.
+observability.init_sentry()
 
 api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
 if not api_key:
@@ -1109,6 +1115,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         # genis yakalıyoruz: bu, kullaniciya HER ZAMAN zarif bir cevap
         # donmesini, ciplak 500'un asla sizmamasini garantiliyor.
         print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
+        observability.capture_exception(e, context="chat_generation")
         reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
         generation_ok = False
     reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
@@ -1224,6 +1231,7 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
             # bkz. /api/chat'teki ayni bulgu - genis yakalama, ciplak
             # 500/kesik akis yerine her zaman zarif bir dusus saglar.
             print(f"CHAT STREAM ERROR: {type(e).__name__}: {e}")
+            observability.capture_exception(e, context="chat_stream")
             if not collected:
                 fallback = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
                 collected.append(fallback)
@@ -1470,6 +1478,7 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         # icerebilir) artik istemciye sizdirilmiyor - detay sadece
         # sunucu logunda kaliyor.
         print(f"ANALYZE ERROR: {type(e).__name__}: {e}")
+        observability.capture_exception(e, context="analyze_attachment")
         raise HTTPException(
             status_code=500,
             detail=(

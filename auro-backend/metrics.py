@@ -46,6 +46,15 @@ def record(event: str, ok: bool = True, detail: str = "") -> None:
     except Exception:
         # metrik toplama ASLA ana akisi bozmaz
         pass
+    # Kalici gorunurluk: bilinen bir hata sinifini Sentry'ye de ilet
+    # (SENTRY_DSN yoksa no-op). Gec/tembel import - dairesel bagimlilik
+    # ve "sentry-sdk henuz deploy edilmedi" durumuna karsi.
+    if not ok:
+        try:
+            import observability
+            observability.capture_failure(event, detail)
+        except Exception:
+            pass
 
 
 def snapshot() -> dict:
