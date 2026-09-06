@@ -12,33 +12,29 @@ class ChatRepositoryImpl implements ChatRepository {
     Dio? dio,
     this.baseUrl = 'https://aura-backend-production-bc9c.up.railway.app',
     required this.token,
-  }) : _dio = dio ??
-            Dio(
-              // Kod sagligi taramasinda bulundu: timeout YOKTU - sunucu
-              // takilirsa istek sonsuza dek asili kalir, "yaziyor..."
-              // gostergesi hic kapanmaz, kullaniciya hicbir hata gorunmez.
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 15),
-                // AI cevabi (Gemini + Groq fallback + fotograf analizi)
-                // uzun surebiliyor, bu yuzden receiveTimeout comert tutuldu.
-                receiveTimeout: const Duration(seconds: 60),
-              ),
-            );
+  }) : _dio =
+           dio ??
+           Dio(
+             // Kod sagligi taramasinda bulundu: timeout YOKTU - sunucu
+             // takilirsa istek sonsuza dek asili kalir, "yaziyor..."
+             // gostergesi hic kapanmaz, kullaniciya hicbir hata gorunmez.
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 15),
+               // AI cevabi (Gemini + Groq fallback + fotograf analizi)
+               // uzun surebiliyor, bu yuzden receiveTimeout comert tutuldu.
+               receiveTimeout: const Duration(seconds: 60),
+             ),
+           );
 
-  Options get _authOptions => Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
+  Options get _authOptions =>
+      Options(headers: {'Authorization': 'Bearer $token'});
 
   @override
   Future<Message> sendMessage(String text) async {
     try {
       final response = await _dio.post(
         '$baseUrl/api/chat',
-        data: {
-          'message': text,
-        },
+        data: {'message': text},
         options: _authOptions,
       );
 
@@ -134,6 +130,30 @@ class ChatRepositoryImpl implements ChatRepository {
       }).toList();
     } on DioException catch (_) {
       throw Exception('Geçmiş yüklenemedi.');
+    }
+  }
+
+  @override
+  Future<void> sendFeedback({
+    required String rating,
+    required String auraReply,
+    String userMessage = '',
+    String note = '',
+  }) async {
+    try {
+      await _dio.post(
+        '$baseUrl/api/feedback',
+        data: {
+          'rating': rating,
+          'aura_reply': auraReply,
+          'user_message': userMessage,
+          'note': note,
+        },
+        options: _authOptions,
+      );
+    } on DioException catch (_) {
+      // Ates-et-unut: geri bildirim gonderilemezse sessizce yut, sohbeti
+      // hicbir sekilde etkileme.
     }
   }
 }

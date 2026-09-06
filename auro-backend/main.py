@@ -566,6 +566,13 @@ class ChatRequest(BaseModel):
 class PinMemoryRequest(BaseModel):
     pinned: bool = True
 
+# Kullanici geri bildirimi (2026-09-06) - bir Aura yanitina 👍/👎.
+class FeedbackRequest(BaseModel):
+    rating: str  # "up" | "down"
+    aura_reply: str = Field(max_length=4000)
+    user_message: str = Field(default="", max_length=4000)
+    note: str = Field(default="", max_length=1000)
+
 # "Basili tut konus" yedek sesli mod (2026-08-26, kullanici istegi) -
 # Gemini Live baglanamadiginda kullanilir. image_base64 ile ayni desen:
 # multipart yerine base64 (python-multipart bagimliligi eklemeye gerek
@@ -768,6 +775,27 @@ def pin_memory(memory_id: int, request: PinMemoryRequest, authorization: Optiona
     if not ok:
         raise HTTPException(status_code=404, detail="Hafiza bulunamadi")
     return {"status": "sabitlendi" if request.pinned else "sabitleme kaldirildi"}
+
+
+@app.post("/api/feedback")
+def submit_feedback(request: FeedbackRequest, authorization: Optional[str] = Header(None)):
+    """Kullanici bir Aura yanitina uzun basip 👍/👎 verdi (2026-09-06,
+    "insan testleri + kendini gelistirme motoru" istegi). Mesaj cifti
+    reply_feedback tablosuna yazilir; brain_service/propose_improvements.py
+    bunu okuyup insan-onayli iyilestirme onerileri uretir. GIZLI MOD
+    aktifse HIC KAYDEDILMEZ (gizli sohbet icerigi admin'in okudugu bir
+    tabloya sizmasin)."""
+    user = get_current_user(authorization)
+    if database.is_hidden_mode_active(user["id"], user=user):
+        return {"status": "gizli modda kaydedilmedi"}
+    try:
+        database.add_reply_feedback(
+            user["id"], request.rating, request.aura_reply,
+            user_message=request.user_message, note=request.note,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "alindi"}
 
 
 @app.get("/api/history")
@@ -1412,6 +1440,22 @@ def admin_set_tier(
     if user is None:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     return {"email": body.email.strip().lower(), "tier": user.get("tier")}
+
+
+@app.get("/api/admin/feedback")
+def admin_feedback(
+    since: Optional[str] = None,
+    limit: int = 500,
+    key: Optional[str] = None,
+    x_admin_key: Optional[str] = Header(None),
+):
+    """brain_service/propose_improvements.py buradan son 👍/👎 geri
+    bildirimlerini ceker (ADMIN_KEY zorunlu). since: ISO tarih (opsiyonel)."""
+    _check_admin_key(x_admin_key or key)
+    return {
+        "counts": database.get_feedback_counts(),
+        "items": database.get_recent_feedback(since_iso=since, limit=limit),
+    }
 
 
 @app.get("/api/admin/stats")

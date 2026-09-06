@@ -362,6 +362,117 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Bir Aura yanitina uzun basildiginda acilir - 👍/👎 (2026-09-06,
+  /// "insan testleri + kendini gelistirme motoru"). "Menusuz" felsefeye
+  /// uygun: her balonda gorunen ikon YOK, sadece uzun basinca cikan
+  /// kucuk bir sayfa.
+  void _showFeedbackSheet(Message message) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF12122A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 14),
+            Text(
+              "Bu cevap nasıldı?",
+              style: GoogleFonts.poppins(
+                color: Colors.white70,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Aura'yı geliştirmemize yardım eder",
+              style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _feedbackButton(
+                  sheetContext,
+                  message,
+                  "up",
+                  Icons.thumb_up_alt_rounded,
+                  "İyi",
+                ),
+                const SizedBox(width: 20),
+                _feedbackButton(
+                  sheetContext,
+                  message,
+                  "down",
+                  Icons.thumb_down_alt_rounded,
+                  "Kötü",
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _feedbackButton(
+    BuildContext sheetContext,
+    Message message,
+    String rating,
+    IconData icon,
+    String label,
+  ) {
+    return Semantics(
+      button: true,
+      label: "$label cevap olarak işaretle",
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: () {
+            Navigator.pop(sheetContext);
+            ref
+                .read(chatProvider.notifier)
+                .sendReplyFeedback(message.id, rating);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "Teşekkürler, kaydedildi.",
+                  style: GoogleFonts.poppins(),
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          child: Container(
+            width: 96,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: _indigoColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _indigoColor.withValues(alpha: 0.35)),
+            ),
+            child: Column(
+              children: [
+                Icon(icon, color: _indigoColor, size: 24),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _attachTile(
     BuildContext sheetContext,
     IconData icon,
@@ -1054,16 +1165,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             itemBuilder: (context, index) {
               if (index < chatState.messages.length) {
                 final message = chatState.messages[index];
+                // Aura yanitlari: uzun basinca 👍/👎 (2026-09-06). Bos/
+                // ilk-yukleniyor balonlarina (text bos) verme.
+                final canRate =
+                    !message.isUser && message.text.trim().isNotEmpty;
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Align(
                     alignment: message.isUser
                         ? Alignment.centerRight
                         : Alignment.centerLeft,
-                    child: Semantics(
-                      container: true,
-                      label: message.isUser ? "Senin mesajın" : "Aura",
-                      child: _buildMessageBubble(message),
+                    child: Column(
+                      crossAxisAlignment: message.isUser
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Semantics(
+                          container: true,
+                          label: message.isUser ? "Senin mesajın" : "Aura",
+                          child: canRate
+                              ? GestureDetector(
+                                  onLongPress: () =>
+                                      _showFeedbackSheet(message),
+                                  child: _buildMessageBubble(message),
+                                )
+                              : _buildMessageBubble(message),
+                        ),
+                        if (canRate && message.feedback != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, left: 6),
+                            child: Icon(
+                              message.feedback == "up"
+                                  ? Icons.thumb_up_alt_rounded
+                                  : Icons.thumb_down_alt_rounded,
+                              size: 13,
+                              color: _indigoColor.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );

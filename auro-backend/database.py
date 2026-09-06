@@ -295,6 +295,26 @@ def init_db():
             )
         """)
 
+        # Kullanici geri bildirimi (2026-09-06, kullanici istegi: "insan
+        # testleri yaptiralim... kendini gelistirme motoru"): kullanici bir
+        # Aura yanitina uzun basip 👍/👎 verebiliyor. Mesaj ciftini burada
+        # KENDI ICINDE saklyoruz (messages tablosuna JOIN gerekmesin, gizli
+        # mod sohbetleri buraya HIC yazilmasin) - brain_service/
+        # propose_improvements.py bunu okuyup insan-onayli iyilestirme
+        # onerileri uretir. rating: 'up' | 'down'.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reply_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rating TEXT NOT NULL,
+                user_message TEXT,
+                aura_reply TEXT NOT NULL,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
         # GECE DENETIMI BULGUSU: init_db() suraya kadar sadece
         # idx_friends_unique_pair'i olusturuyordu - en cok buyuyecek ve
         # en sik WHERE user_id=? ile sorgulanacak tablolarin (messages,
@@ -319,6 +339,10 @@ def init_db():
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_user_patterns_user "
             "ON user_patterns(user_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reply_feedback_created "
+            "ON reply_feedback(created_at DESC)"
         )
 
 
@@ -1142,6 +1166,62 @@ def get_patterns(user_id: int, pattern_type: Optional[str] = None) -> List[dict]
             )
         rows = cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+# --- KULLANICI GERI BILDIRIMI (2026-09-06) ---
+
+def add_reply_feedback(
+    user_id: int,
+    rating: str,
+    aura_reply: str,
+    user_message: str = "",
+    note: str = "",
+) -> None:
+    """Bir Aura yanitina verilen 👍/👎 (+ opsiyonel not). Gizli mod
+    sohbetleri BURAYA yazilmaz (cagiran taraf kontrol eder)."""
+    rating = (rating or "").strip().lower()
+    if rating not in ("up", "down"):
+        raise ValueError("rating 'up' ya da 'down' olmali")
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "INSERT INTO reply_feedback "
+            "(user_id, rating, aura_reply, user_message, note) VALUES (?, ?, ?, ?, ?)",
+            (user_id, rating, aura_reply[:4000], (user_message or "")[:4000],
+             (note or "")[:1000]),
+        )
+
+
+def get_recent_feedback(since_iso: Optional[str] = None, limit: int = 500) -> List[dict]:
+    """propose_improvements.py icin: son geri bildirimler (yeni -> eski).
+    since_iso verilirse o tarihten sonrasi."""
+    limit = max(1, min(limit, 2000))
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        if since_iso:
+            cursor.execute(
+                "SELECT id, user_id, rating, user_message, aura_reply, note, created_at "
+                "FROM reply_feedback WHERE created_at > ? ORDER BY created_at DESC LIMIT ?",
+                (since_iso, limit),
+            )
+        else:
+            cursor.execute(
+                "SELECT id, user_id, rating, user_message, aura_reply, note, created_at "
+                "FROM reply_feedback ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+        rows = cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_feedback_counts() -> dict:
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT rating, COUNT(*) AS n FROM reply_feedback GROUP BY rating"
+        )
+        by = {r["rating"]: r["n"] for r in cursor.fetchall()}
+    return {"up": by.get("up", 0), "down": by.get("down", 0),
+            "total": by.get("up", 0) + by.get("down", 0)}
 
 
 # --- ANALITIK (2026-08-24, reklam kampanyasi sirasinda kullaniciya

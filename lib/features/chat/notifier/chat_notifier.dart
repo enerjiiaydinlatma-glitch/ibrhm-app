@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +7,9 @@ import '../models/chat_state.dart';
 import '../models/message.dart';
 import '../repository/chat_repository_impl.dart';
 
-final chatProvider =
-    NotifierProvider<ChatNotifier, ChatState>(ChatNotifier.new);
+final chatProvider = NotifierProvider<ChatNotifier, ChatState>(
+  ChatNotifier.new,
+);
 
 class ChatNotifier extends Notifier<ChatState> {
   String? _token;
@@ -18,8 +19,7 @@ class ChatNotifier extends Notifier<ChatState> {
   // ve o zaman ID-bazli bulma (indexWhere m.id == ...) yanlis mesaji
   // yakalar. Monotonik bir sayac ekleyerek carpismayi imkansiz kiliyoruz.
   int _idSeq = 0;
-  String _newId() =>
-      '${DateTime.now().microsecondsSinceEpoch}-${_idSeq++}';
+  String _newId() => '${DateTime.now().microsecondsSinceEpoch}-${_idSeq++}';
 
   /// Verilen ID'li mesaji yerinde (nerede olursa olsun) [updated] ile
   /// degistirir; bulunamazsa sona ekler. sendMessage / sendFileForAnalysis
@@ -88,11 +88,7 @@ class ChatNotifier extends Notifier<ChatState> {
         state = state.copyWith(
           messages: [
             ...state.messages,
-            Message(
-              id: _newId(),
-              text: greeting,
-              isUser: false,
-            ),
+            Message(id: _newId(), text: greeting, isUser: false),
           ],
           isLoading: false,
           errorMessage: null,
@@ -119,34 +115,20 @@ class ChatNotifier extends Notifier<ChatState> {
       return;
     }
 
-    final userMessage = Message(
-      id: _newId(),
-      text: cleanText,
-      isUser: true,
-    );
+    final userMessage = Message(id: _newId(), text: cleanText, isUser: true);
 
     state = state.copyWith(
-      messages: [
-        ...state.messages,
-        userMessage,
-      ],
+      messages: [...state.messages, userMessage],
       isLoading: true,
       errorMessage: null,
     );
 
     final assistantId = _newId();
 
-    final assistantMessage = Message(
-      id: assistantId,
-      text: '',
-      isUser: false,
-    );
+    final assistantMessage = Message(id: assistantId, text: '', isUser: false);
 
     state = state.copyWith(
-      messages: [
-        ...state.messages,
-        assistantMessage,
-      ],
+      messages: [...state.messages, assistantMessage],
       isLoading: true,
       errorMessage: null,
     );
@@ -180,9 +162,12 @@ class ChatNotifier extends Notifier<ChatState> {
           isUser: false,
         ),
       );
-      state = state.copyWith(errorMessage: 'Aura bağlantısında bir sorun oluştu.');
+      state = state.copyWith(
+        errorMessage: 'Aura bağlantısında bir sorun oluştu.',
+      );
     }
   }
+
   /// Bir fotograf VEYA PDF gonderip Aura'nin incelemesini alir - sendMessage
   /// ile ayni desen: kullanici (ek) + bos asistan mesaji eklenir, isLoading
   /// acilir, sonuc/hata yerine yazilir.
@@ -235,12 +220,16 @@ class ChatNotifier extends Notifier<ChatState> {
     } catch (e) {
       _replaceMessageById(
         assistantId,
-        assistantReply(isPdf
-            ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
-            : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?'),
+        assistantReply(
+          isPdf
+              ? 'Belgeyi şu an inceleyemedim, tekrar dener misin?'
+              : 'Fotoğrafı şu an inceleyemedim, tekrar dener misin?',
+        ),
       );
       state = state.copyWith(
-        errorMessage: isPdf ? 'Belge incelenemedi.' : 'Fotoğraf analiz edilemedi.',
+        errorMessage: isPdf
+            ? 'Belge incelenemedi.'
+            : 'Fotoğraf analiz edilemedi.',
       );
     }
   }
@@ -255,11 +244,7 @@ class ChatNotifier extends Notifier<ChatState> {
     state = state.copyWith(
       messages: [
         ...state.messages,
-        Message(
-          id: _newId(),
-          text: cleanText,
-          isUser: true,
-        ),
+        Message(id: _newId(), text: cleanText, isUser: true),
       ],
       errorMessage: null,
     );
@@ -275,14 +260,40 @@ class ChatNotifier extends Notifier<ChatState> {
     state = state.copyWith(
       messages: [
         ...state.messages,
-        Message(
-          id: _newId(),
-          text: cleanText,
-          isUser: false,
-        ),
+        Message(id: _newId(), text: cleanText, isUser: false),
       ],
       errorMessage: null,
     );
+  }
+
+  /// Bir Aura mesajina 👍/👎 (2026-09-06). [rating] "up" | "down".
+  /// Ates-et-unut - hata olsa bile sohbet state'ini degistirmez.
+  Future<void> sendReplyFeedback(String messageId, String rating) async {
+    final msgs = state.messages;
+    final idx = msgs.indexWhere((m) => m.id == messageId);
+    if (idx < 0 || msgs[idx].isUser) return;
+    final auraReply = msgs[idx].text;
+    // Bu yanittan hemen ONCEKI kullanici mesajini baglam olarak ekle.
+    String userMessage = '';
+    for (var i = idx - 1; i >= 0; i--) {
+      if (msgs[i].isUser) {
+        userMessage = msgs[i].text;
+        break;
+      }
+    }
+    // Yerel isaret - buton durumunu guncellemek icin.
+    final updated = [...msgs];
+    updated[idx] = msgs[idx].copyWith(feedback: rating);
+    state = state.copyWith(messages: updated);
+    try {
+      await _repository.sendFeedback(
+        rating: rating,
+        auraReply: auraReply,
+        userMessage: userMessage,
+      );
+    } catch (_) {
+      // yut
+    }
   }
 
   void clear() {

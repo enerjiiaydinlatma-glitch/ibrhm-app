@@ -20,6 +20,12 @@ class Message {
   /// tasiyip AuraHale (sohbet arka planindaki ton-reaktif hale) bunu okur.
   final String? mood;
 
+  /// Kullanicinin bu Aura yanitina verdigi geri bildirim (2026-09-06):
+  /// "up" | "down" | null (henuz verilmemis). Sadece yerel UI durumu -
+  /// gonderim backend'e ates-et-unut yapilir (bkz. chat_notifier
+  /// sendReplyFeedback).
+  final String? feedback;
+
   Message({
     required this.id,
     required this.text,
@@ -28,5 +34,19 @@ class Message {
     this.fileName,
     this.animateIn = false,
     this.mood,
+    this.feedback,
   });
+
+  Message copyWith({String? text, String? mood, String? feedback}) {
+    return Message(
+      id: id,
+      text: text ?? this.text,
+      isUser: isUser,
+      imageBytes: imageBytes,
+      fileName: fileName,
+      animateIn: animateIn,
+      mood: mood ?? this.mood,
+      feedback: feedback ?? this.feedback,
+    );
+  }
 }
