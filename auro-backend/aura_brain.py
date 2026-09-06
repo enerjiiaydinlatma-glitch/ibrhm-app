@@ -565,6 +565,29 @@ DOGAL_HAFIZA_ILKESI = (
     "isaret) - sadece o bilgiyi belirsizlikle sunman gerektigini anla."
 )
 
+# BULUNDU (2026-09-06, 22 turluk hafiza regresyon testi): kullanici bu
+# sohbette "kedim var, adi Zeytin" dedi; 10 tur sonra laf arasinda
+# "kopegimi vet'e goturecegim" dedi. Aura celiskiyi fark etmek yerine
+# SESSIZCE kopek versiyonunu benimsedi VE "aklimda hep kopek olarak
+# kalmisti zaten" diye kendine ait SAHTE bir gecmis inanc uydurdu (oysa
+# kullanici bu sohbette ONCE kedi demisti). Ayrica "gecen hafta bana su
+# demistin" (dememisken) tuzagina "oyle dediysem yanlis ifade etmisim"
+# diye tesLim oldu. CeLiski karsisinda dogru refleks: fark et, nazikce
+# sor, ASLA kendine sahte bir gecmis atfetme.
+CELISKI_FARKINDALIGI = (
+    "CELISKI FARKINDALIGI: Kullanici bu konusmada ya da hafizanda kayitli "
+    "bir seyle CELISEN bir sey soylerse (once 'kedim' deyip sonra "
+    "'kopegim' demek; bir ismi/tarihi/yeri farkli soylemek), bunu SESSIZCE "
+    "kabul edip yeni versiyona GECME. Nazikce celiskiye deigin: 'Bir "
+    "saniye, once ... demistin, simdi ... - hangisi dogru?' gibi. "
+    "Kullanici acikca duzeltirse yeni bilgiyi al; duzeltmez/dalginliksa "
+    "eski, yerlesik bilgi gecerli kalir. EN ONEMLISI: bir celiskiyi "
+    "yumusatmak icin KENDINE ait olmayan bir gecmis UYDURMA - 'zaten "
+    "aklimda hep oyle kalmisti', 'sen bana soyle demistin' gibi. "
+    "Soylemedigin bir sozu ('bana su demistin' dediginde) sahiplenme; "
+    "hatirlamiyorsan ya da soylemediysen durustce soyle."
+)
+
 
 # BULUNDU (2026-08-25, 4 AI analizinin evrim onerisi): onceden sadece
 # IKI asama vardi (ilk mesajlar / sonrasi) - uzun sureli, cok konusmus
@@ -759,6 +782,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         KENDINI_TEKRAR_ETME,
         UZUNLUK_UYUMU,
         DOGAL_HAFIZA_ILKESI,
+        CELISKI_FARKINDALIGI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
         "Kullanici derin soru sorarsa derine in, yuzeyde kalma.",
         "Kisa cevap guc demektir, uzun cevap sadece gerektiginde.",
@@ -1337,6 +1361,15 @@ o kaydin CATEGORY ve KEY degerini TAM OLARAK, harfi harfine, listede
 yazdigi gibi kullan. Ayni bilginin guncellemesi icin YENI/FARKLI bir
 CATEGORY veya KEY UYDURMA - listedeki eslesen kaydin kimligini koru, sadece
 VALUE'yu yeni bilgiyle degistir.
+
+COK ONEMLI - CELISKI KORUMASI: Eger kullanicinin mesajindaki bilgi, kayitli
+bir hafiza kaydiyla CELISIYOR (ornek: kayitta "kedisi var" yaziyor ama mesajda
+laf arasinda "kopegimi..." diyor) AMA kullanici bunu ACIKCA duzeltmiyorsa
+("aslinda kedim degil kopegim", "yanlis soylemistim", "duzeltiyorum" gibi bir
+ifade YOKSA), bu buyuk ihtimalle kullanicinin anlik bir dil suru/dalginlik. Bu
+durumda o alani CIKARMA, kayitli degeri OLDUGU GIBI BIRAK - laf arasindaki tek
+bir celiskili deginiyle yerlesik bir bilgiyi EZME. Sadece kullanici acikca
+"artik degisti / yanlismis / su degil bu" derse guncelle.
 
 Eger hafizaya alinmaya deger bir bilgi YOKSA tam olarak:
 NONE
