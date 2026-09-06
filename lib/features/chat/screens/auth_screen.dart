@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../services/auth_service.dart';
-import 'chat_screen.dart';
+import '../../legal/consent_gate.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -29,7 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+        MaterialPageRoute(builder: (_) => ConsentGate(token: token)),
       );
     } on SessionKickedOutException {
       if (!mounted) return;
@@ -125,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => ChatScreen(token: tokenValue)),
+        MaterialPageRoute(builder: (_) => ConsentGate(token: tokenValue)),
       );
     } on DioException catch (e) {
       String detail = 'Bir hata oluştu.';

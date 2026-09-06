@@ -129,6 +129,9 @@ def init_db():
             # (ornek: "instagram_agustos") istemcinin ?src= URL parametresinden
             # yakalayip kayit aninda gonderdigi deger.
             "ALTER TABLE users ADD COLUMN acquisition_source TEXT DEFAULT ''",
+            # Yayin hazirligi (2026-09-06): 18+ / Gizlilik + Sartlar onami.
+            # NULL = henuz onaylamadi. Onboarding onam ekrani doldurur.
+            "ALTER TABLE users ADD COLUMN consent_accepted_at TEXT",
         ):
             try:
                 cursor.execute(migration)
@@ -1229,6 +1232,39 @@ def get_feedback_counts() -> dict:
 # olay izleme eklemek yerine, zaten var olan verilerden [users,
 # messages tablolari] anlamli toplu istatistikler cikariyoruz. Sifir
 # yeni bagimlilik, sifir yeni riskli client kodu.) ---
+
+def set_consent(user_id: int) -> None:
+    """18+ / Gizlilik + Sartlar onami alindi - zaman damgasini yaz."""
+    from datetime import datetime, timezone
+    ts = datetime.now(timezone.utc).isoformat()
+    with db_cursor(commit=True) as conn:
+        conn.execute(
+            "UPDATE users SET consent_accepted_at = ? WHERE id = ?", (ts, user_id)
+        )
+
+
+def delete_user_completely(user_id: int) -> None:
+    """KVKK/GDPR silme hakki: kullaniciyi VE tum bagli satirlarini kalici
+    olarak siler. Geri alinamaz."""
+    tables = [
+        ("messages", "user_id"),
+        ("mood_logs", "user_id"),
+        ("reminders", "user_id"),
+        ("user_patterns", "user_id"),
+        ("sessions", "user_id"),
+        ("reply_feedback", "user_id"),
+        ("memories", "user_id"),
+        ("memory_candidates", "user_id"),
+        ("memory_events", "user_id"),
+    ]
+    with db_cursor(commit=True) as conn:
+        for tbl, col in tables:
+            try:
+                conn.execute(f"DELETE FROM {tbl} WHERE {col} = ?", (user_id,))
+            except sqlite3.OperationalError:
+                pass  # tablo yoksa (eski/farkli sema) gec
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
 
 def count_users() -> int:
     with db_cursor() as conn:

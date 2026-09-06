@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'features/chat/screens/auth_screen.dart';
-import 'features/chat/screens/chat_screen.dart';
+import 'features/legal/consent_gate.dart';
 import 'features/lock/screens/lock_screen.dart';
 import 'services/app_lock_service.dart';
 import 'services/auth_service.dart';
@@ -190,7 +190,9 @@ class _SplashRouterState extends State<SplashRouter> {
               builder: (_) => LockScreen(
                 onUnlocked: () {
                   auraNavigatorKey.currentState?.pushReplacement(
-                    MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+                    MaterialPageRoute(
+                      builder: (_) => ConsentGate(token: token),
+                    ),
                   );
                 },
               ),
@@ -200,7 +202,7 @@ class _SplashRouterState extends State<SplashRouter> {
         }
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => ChatScreen(token: token)),
+          MaterialPageRoute(builder: (_) => ConsentGate(token: token)),
         );
 
         return;

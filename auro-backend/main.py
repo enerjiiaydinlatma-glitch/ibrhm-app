@@ -24,6 +24,7 @@ from google import genai
 from google.genai import types
 import database
 import metrics
+import legal
 
 load_dotenv()
 
@@ -675,12 +676,41 @@ def _safe_user(user: dict) -> dict:
     # bir bool birakiyoruz.
     safe = {k: v for k, v in user.items() if k not in _SENSITIVE_USER_FIELDS}
     safe["has_secret_phrase"] = bool(user.get("secret_phrase_hash"))
+    safe["consent_accepted"] = bool(user.get("consent_accepted_at"))
     return safe
 
 
 @app.get("/")
 def root():
     return {"status": "Aura backend calisiyor", "version": "3.1.0"}
+
+
+@app.get("/legal/{doc}", response_class=HTMLResponse)
+def legal_doc(doc: str, lang: str = "tr"):
+    """Yayin hazirligi: Gizlilik / Kullanim Sartlari / KVKK aydinlatma
+    metinleri (TR + EN). TASLAK - hukuk incelemesi bekliyor."""
+    html_out = legal.render(doc, lang)
+    if html_out.startswith("<h1>404"):
+        raise HTTPException(status_code=404, detail="Belge bulunamadi")
+    return HTMLResponse(html_out)
+
+
+@app.post("/api/auth/consent")
+def accept_consent(authorization: Optional[str] = Header(None)):
+    """Kullanici 18+ oldugunu beyan etti ve Gizlilik + Sartlar'i kabul
+    etti. Onboarding onam ekranindan cagrilir."""
+    user = get_current_user(authorization)
+    database.set_consent(user["id"])
+    return {"status": "onaylandi"}
+
+
+@app.delete("/api/account")
+def delete_account(authorization: Optional[str] = Header(None)):
+    """KVKK/GDPR silme hakki: hesabi ve TUM bagli verileri kalici olarak
+    siler. Geri alinamaz. Istemci once acikca onay almali."""
+    user = get_current_user(authorization)
+    database.delete_user_completely(user["id"])
+    return {"status": "hesap silindi"}
 
 
 # KAPALI BETA KONTENJANI (2026-09-06): BETA_MAX_USERS ortam degiskeni
