@@ -9,6 +9,8 @@ from typing import Optional, List
 
 import os
 
+import db_compat
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # DB_DIR ortam degiskeni verilirse (ornek: Railway'de kalici disk
 # baglantisi /data) veritabani oraya yazilir - aksi halde eskisi gibi
@@ -17,24 +19,12 @@ DB_DIR = os.getenv("DB_DIR", BASE_DIR)
 DB_PATH = os.path.join(DB_DIR, "aura.db")
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    # Kod sagligi taramasinda bulunan bir baska risk: hicbir yerde busy
-    # timeout ayarlanmamisti. Varsayilan (0) ile, ayni anda iki istek ayni
-    # satira yazmaya calisirsa SQLite ANINDA "database is locked" hatasi
-    # firlatiyordu. 5 saniyelik bir bekleme penceresi, kisa sureli
-    # cakismalarin sessizce (retry ile) cozulmesini saglar.
-    conn.execute("PRAGMA busy_timeout = 5000")
-    # GECE DENETIMI BULGUSU: varsayilan rollback-journal modunda TEK bir
-    # yazici TUM okuyuculari kilitliyor - yogun trafikte "database is
-    # locked" hatalarinin busy_timeout'u bile asma riski vardi. WAL
-    # modunda okuyucular yazma sirasinda bloklanmiyor (SQLite'in kendi
-    # onerdigi, es zamanlilik icin standart ayar). Bu PRAGMA veritabani
-    # DOSYASININ kendisinde kalici olarak saklanir - bir kez calismasi
-    # yeterli, ama idempotent oldugu icin her baglantida calistirmak
-    # zararsiz.
-    conn.execute("PRAGMA journal_mode = WAL")
-    return conn
+    # 2026-09-06: baglanti kurulumu db_compat'a tasindi. DATABASE_URL env'i
+    # TANIMLI DEGILKEN bu, eski `sqlite3.connect(DB_PATH)` + WAL + busy_timeout
+    # koduyla BAYT-BAYT ayni davranir (db_compat SQLite yolu tam passthrough).
+    # DATABASE_URL verilirse (Railway PostgreSQL eklentisi) ayni arayuzle
+    # Postgres'e baglanir — yatay olcek icin. Bkz. POSTGRES_MIGRATION.md.
+    return db_compat.get_conn()
 
 
 @contextmanager
