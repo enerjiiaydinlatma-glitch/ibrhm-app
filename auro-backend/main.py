@@ -403,7 +403,46 @@ _CRISIS_KEYWORDS_EN = [
     "no reason to live",
     "better off dead",
 ]
-_CRISIS_KEYWORDS = _CRISIS_KEYWORDS + _CRISIS_KEYWORDS_EN
+# DUNYA HEDEFI (2026-09-06, kullanici: "hedef Turkiye degil, evren"):
+# Aura kullanicinin dilinde konusuyor - kriz LIMIT-ATLAMA guvenlik agi da
+# en yaygin dunya dillerini kapsamali. Kriz YANITININ kendisi zaten
+# dil-bagimsiz (KRIZ_MUDAHALE_KURALI sistem promptunda, Gemini her dilde
+# uygular) - bu liste sadece "gunluk mesaj limitini kriz aninda atla"
+# icin. Her dilden EN GUCLU, tek anlamli birkac ifade (EN listesindeki
+# felsefeyle). Bu liste tek seferlik "bitti" degil - gercek kullanim
+# geldikce genisletilmeli.
+_CRISIS_KEYWORDS_INTL = [
+    # Espanol
+    "quiero morir", "no quiero vivir", "suicidio", "suicidarme",
+    "matarme", "hacerme dano", "acabar con mi vida", "no vale la pena vivir",
+    "estaria mejor muerto",
+    # Portugues
+    "quero morrer", "nao quero viver", "suicidio", "me matar",
+    "acabar com a minha vida", "me machucar", "melhor morto",
+    # Francais
+    "je veux mourir", "je ne veux plus vivre", "suicide", "me suicider",
+    "me faire du mal", "en finir avec la vie", "mieux mort",
+    # Deutsch
+    "ich will sterben", "ich will nicht mehr leben", "selbstmord",
+    "mich umbringen", "mir etwas antun", "mein leben beenden",
+    # Italiano
+    "voglio morire", "non voglio vivere", "suicidio", "uccidermi",
+    "farmi del male", "farla finita",
+    # Russkiy (translit + kiril)
+    "hochu umeret", "ne hochu zhit", "pokoncit s soboy",
+    "хочу умереть", "не хочу жить", "покончить с собой", "самоубийство",
+    # Arabic (translit + arap harfleri)
+    "ureed an amoot", "la ureed an aeesh", "intihar",
+    "أريد أن أموت", "لا أريد العيش", "انتحار", "أؤذي نفسي",
+    # Hindi (translit + devanagari)
+    "main marna chahta hoon", "jeena nahi chahta", "aatmahatya",
+    "मैं मरना चाहता हूं", "जीना नहीं चाहता", "आत्महत्या",
+    # Bahasa Indonesia
+    "ingin mati", "tidak ingin hidup", "bunuh diri", "menyakiti diri",
+    # Turkce ek varyantlar (gunluk konusma)
+    "canima kiymak", "kendimi asmak",
+]
+_CRISIS_KEYWORDS = _CRISIS_KEYWORDS + _CRISIS_KEYWORDS_EN + _CRISIS_KEYWORDS_INTL
 
 
 def _is_crisis_message(text: str) -> bool:
