@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../services/auth_service.dart';
 import '../../legal/consent_gate.dart';
+import '../../../core/i18n.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -42,15 +43,14 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _autoLoginInProgress = false;
         _isLogin = true;
-        _error =
-            'Başka bir cihazdan giriş yapıldığı için oturumun sona erdi. Tekrar giriş yap.';
+        _error = I18n.t('auth.sessionEnded');
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _autoLoginInProgress = false;
-        _error = 'Aura başlatılamadı.';
+        _error = I18n.t('auth.startFailed');
       });
     }
   }
@@ -80,14 +80,14 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       setState(() {
-        _error = 'Email ve şifre gerekli.';
+        _error = I18n.t('auth.needEmailPass');
       });
       return;
     }
 
     if (!_isLogin && name.isEmpty) {
       setState(() {
-        _error = 'İsim gerekli.';
+        _error = I18n.t('auth.needName');
       });
       return;
     }
@@ -128,7 +128,7 @@ class _AuthScreenState extends State<AuthScreen> {
         MaterialPageRoute(builder: (_) => ConsentGate(token: tokenValue)),
       );
     } on DioException catch (e) {
-      String detail = 'Bir hata oluştu.';
+      String detail = I18n.t('auth.genericError');
 
       final responseData = e.response?.data;
 
@@ -148,7 +148,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Bağlantı hatası. Backend çalışıyor mu?';
+          _error = I18n.t('auth.backendError');
         });
       }
     } finally {
@@ -180,7 +180,7 @@ class _AuthScreenState extends State<AuthScreen> {
         body: Center(
           child: Semantics(
             liveRegion: true,
-            label: 'Aura başlatılıyor',
+            label: I18n.t('auth.starting'),
             child: const CircularProgressIndicator(color: _indigoColor),
           ),
         ),
@@ -220,7 +220,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Kişisel yapay zeka asistanın',
+                          I18n.t('auth.subtitle'),
                           style: GoogleFonts.poppins(
                             color: Colors.white38,
                             fontSize: 14,
@@ -249,21 +249,29 @@ class _AuthScreenState extends State<AuthScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: _tabButton('Giriş Yap', _isLogin, () {
-                                  setState(() {
-                                    _isLogin = true;
-                                    _error = null;
-                                  });
-                                }),
+                                child: _tabButton(
+                                  I18n.t('auth.login'),
+                                  _isLogin,
+                                  () {
+                                    setState(() {
+                                      _isLogin = true;
+                                      _error = null;
+                                    });
+                                  },
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _tabButton('Kayıt Ol', !_isLogin, () {
-                                  setState(() {
-                                    _isLogin = false;
-                                    _error = null;
-                                  });
-                                }),
+                                child: _tabButton(
+                                  I18n.t('auth.register'),
+                                  !_isLogin,
+                                  () {
+                                    setState(() {
+                                      _isLogin = false;
+                                      _error = null;
+                                    });
+                                  },
+                                ),
                               ),
                             ],
                           ),
@@ -274,7 +282,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 if (!_isLogin) ...[
                                   _field(
                                     _nameController,
-                                    'İsmin',
+                                    I18n.t('auth.name'),
                                     Icons.person_outline,
                                     autofillHints: const [AutofillHints.name],
                                   ),
@@ -282,7 +290,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ],
                                 _field(
                                   _emailController,
-                                  'Email',
+                                  I18n.t('auth.email'),
                                   Icons.email_outlined,
                                   type: TextInputType.emailAddress,
                                   autofillHints: const [AutofillHints.email],
@@ -290,7 +298,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 const SizedBox(height: 16),
                                 _field(
                                   _passwordController,
-                                  'Şifre',
+                                  I18n.t('auth.password'),
                                   Icons.lock_outline,
                                   obscure: true,
                                   // Giris'te 'password' (kayitli sifreyi
@@ -328,8 +336,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     child: Semantics(
                                       liveRegion: true,
                                       label: _isLogin
-                                          ? 'Giriş yapılıyor'
-                                          : 'Hesap oluşturuluyor',
+                                          ? I18n.t('auth.loggingIn')
+                                          : I18n.t('auth.creatingAccount'),
                                       child: const CircularProgressIndicator(
                                         color: _indigoColor,
                                       ),
@@ -338,8 +346,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                 : Semantics(
                                     button: true,
                                     label: _isLogin
-                                        ? 'Giriş Yap'
-                                        : 'Hesap Oluştur',
+                                        ? I18n.t('auth.login')
+                                        : I18n.t('auth.createAccount'),
                                     onTap: _submit,
                                     child: ExcludeSemantics(
                                       child: GestureDetector(
@@ -370,8 +378,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                           child: Center(
                                             child: Text(
                                               _isLogin
-                                                  ? 'Giriş Yap'
-                                                  : 'Hesap Oluştur',
+                                                  ? I18n.t('auth.login')
+                                                  : I18n.t(
+                                                      'auth.createAccount',
+                                                    ),
                                               style: GoogleFonts.poppins(
                                                 color: Colors.white,
                                                 fontSize: 16,

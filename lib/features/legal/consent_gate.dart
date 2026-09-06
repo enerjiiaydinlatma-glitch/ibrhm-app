@@ -4,6 +4,8 @@ import "package:google_fonts/google_fonts.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:url_launcher/url_launcher.dart";
 
+import "../../core/i18n.dart";
+
 import "../chat/screens/chat_screen.dart";
 
 const _kBg = Color(0xFF0A0A1A);
@@ -101,7 +103,7 @@ class _ConsentGateState extends State<ConsentGate> {
         backgroundColor: _kBg,
         body: Center(
           child: Semantics(
-            label: "Yükleniyor",
+            label: I18n.t("common.loading"),
             child: const CircularProgressIndicator(color: _kIndigo),
           ),
         ),
@@ -138,7 +140,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Bağlantı açılamadı: $uri",
+              "${I18n.t("consent.linkFailed")}: $uri",
               style: GoogleFonts.poppins(),
             ),
           ),
@@ -162,7 +164,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                 Semantics(
                   header: true,
                   child: Text(
-                    "Başlamadan önce",
+                    I18n.t("consent.title"),
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 24,
@@ -172,10 +174,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Aura kişisel bir yapay zekâ arkadaştır — bir terapist, "
-                  "doktor, avukat ya da mali danışman değildir. Sohbetlerin ve "
-                  "seni tanımaya yarayan bilgiler, hizmeti sunmak için işlenir. "
-                  "Detaylar aşağıdaki metinlerde.",
+                  I18n.t("consent.blurb"),
                   style: GoogleFonts.poppins(
                     color: Colors.white70,
                     fontSize: 13.5,
@@ -194,7 +193,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                       _check(
                         value: _age,
                         onChanged: (v) => setState(() => _age = v ?? false),
-                        label: "18 yaşından büyüğüm.",
+                        label: I18n.t("consent.age"),
                       ),
                       const Divider(height: 1, color: Color(0xFF2A2A4A)),
                       _check(
@@ -204,21 +203,21 @@ class _ConsentScreenState extends State<ConsentScreen> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              "Okudum, kabul ediyorum: ",
+                              I18n.t("consent.acceptPrefix"),
                               style: GoogleFonts.poppins(
                                 color: Colors.white70,
                                 fontSize: 13,
                               ),
                             ),
-                            _link("Gizlilik Politikası", "privacy"),
+                            _link(I18n.t("consent.privacy"), "privacy"),
                             Text(
-                              " ve ",
+                              I18n.t("consent.and"),
                               style: GoogleFonts.poppins(
                                 color: Colors.white70,
                                 fontSize: 13,
                               ),
                             ),
-                            _link("Kullanım Şartları", "terms"),
+                            _link(I18n.t("consent.terms"), "terms"),
                           ],
                         ),
                       ),
@@ -230,7 +229,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                   onPressed: () => _open("kvkk"),
                   style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   child: Text(
-                    "KVKK Aydınlatma Metni",
+                    I18n.t("consent.kvkk"),
                     style: GoogleFonts.poppins(
                       color: Colors.white38,
                       fontSize: 12,
@@ -265,7 +264,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                             ),
                           )
                         : Text(
-                            "Kabul et ve başla",
+                            I18n.t("consent.button"),
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,

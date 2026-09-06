@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/i18n.dart';
 import 'features/chat/screens/auth_screen.dart';
 import 'features/legal/consent_gate.dart';
 import 'features/lock/screens/lock_screen.dart';
@@ -9,6 +10,8 @@ import 'services/app_lock_service.dart';
 import 'services/auth_service.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  I18n.init(); // cihaz dili -> tr | en (arayuz kabugu icin)
   runApp(const ProviderScope(child: AuraApp()));
 }
 
@@ -224,7 +227,7 @@ class _SplashRouterState extends State<SplashRouter> {
       backgroundColor: const Color(0xFF0A0A1A),
       body: Center(
         child: Semantics(
-          label: 'Aura yükleniyor',
+          label: I18n.t('splash.loading'),
           liveRegion: true,
           child: const CircularProgressIndicator(color: Color(0xFF6C63FF)),
         ),
