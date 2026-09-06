@@ -29,6 +29,7 @@ from google.genai import errors as genai_errors
 import aura_lifestyle
 import aura_memory
 import database
+import metrics
 
 load_dotenv()
 
@@ -1240,22 +1241,31 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
     primary_error = None
     try:
         text = TEXT_PROVIDERS[TEXT_PROVIDER](contents, system_instruction, max_attempts)
+        metrics.record(f"text_gen.{TEXT_PROVIDER}", ok=True)
         return _TextResponse(text)
     except Exception as e:
         primary_error = e
+        metrics.record(f"text_gen.{TEXT_PROVIDER}", ok=False,
+                       detail=f"{type(e).__name__}: {e}")
         print(f"TEXT FALLBACK: {TEXT_PROVIDER} basarisiz ({type(e).__name__})")
 
     for name, fn in _reasoning_fallback_chain():
         try:
             text = fn(contents, system_instruction)
             if text:
+                metrics.record(f"text_gen.{name}", ok=True)
+                metrics.record("text_gen.fallback_used", ok=True)
                 print(f"TEXT FALLBACK: '{name}' kullanildi", flush=True)
                 return _TextResponse(text)
         except Exception as e:
+            metrics.record(f"text_gen.{name}", ok=False,
+                           detail=f"{type(e).__name__}: {e}")
             print(f"TEXT FALLBACK '{name}' basarisiz: {type(e).__name__}: {e}", flush=True)
 
     # Butun zincir coktu - cagiran (main.py) zaten genis yakalayip zarif bir
     # mesaj donduruyor.
+    metrics.record("text_gen.total_failure", ok=False,
+                   detail=f"{type(primary_error).__name__}: {primary_error}")
     raise primary_error
 
 
@@ -1508,12 +1518,15 @@ def _run_background_extraction(prompt: str) -> str:
         try:
             text = BACKGROUND_PROVIDERS[name](prompt)
             if text and text.strip():
+                metrics.record(f"bg_extraction.{name}", ok=True)
                 if name != BACKGROUND_PROVIDER:
                     print(f"ARKA PLAN AJANI: {BACKGROUND_PROVIDER} basarisiz, "
                           f"{name} yedegi kullanildi")
                 return text
         except Exception as e:  # noqa: BLE001 - kasitli genis
             last_err = e
+            metrics.record(f"bg_extraction.{name}", ok=False,
+                           detail=f"{type(e).__name__}: {e}")
             print(f"ARKA PLAN AJANI ({name}) HATASI: {e}")
     if last_err:
         raise last_err
@@ -1733,9 +1746,11 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
                 )
             )
 
+        metrics.record("memory_write", ok=True)
         return saved or None
 
     except Exception as e:
+        metrics.record("memory_write", ok=False, detail=f"{type(e).__name__}: {e}")
         print(f"MEMORY CANDIDATE ERROR: {e}")
         return None
 

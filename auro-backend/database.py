@@ -1230,6 +1230,13 @@ def get_feedback_counts() -> dict:
 # messages tablolari] anlamli toplu istatistikler cikariyoruz. Sifir
 # yeni bagimlilik, sifir yeni riskli client kodu.) ---
 
+def count_users() -> int:
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        return int(cursor.fetchone()[0])
+
+
 def get_admin_stats() -> dict:
     with db_cursor() as conn:
         cursor = conn.cursor()

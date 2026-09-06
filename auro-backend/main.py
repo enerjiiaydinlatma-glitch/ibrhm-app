@@ -23,6 +23,7 @@ from typing import Literal, Optional
 from google import genai
 from google.genai import types
 import database
+import metrics
 
 load_dotenv()
 
@@ -682,10 +683,28 @@ def root():
     return {"status": "Aura backend calisiyor", "version": "3.1.0"}
 
 
+# KAPALI BETA KONTENJANI (2026-09-06): BETA_MAX_USERS ortam degiskeni
+# tanimliysa, toplam kullanici sayisi o degere ulasinca YENI kayit
+# kapanir (mevcut kullanicilar etkilenmez). Tanimli DEGILSE sinir yok
+# (bugunku davranis). Amac: kapali betada kullanici sayisini - dolayisyla
+# API maliyetini - kontrol altinda tutmak. Yayin genisledikce arttir/kaldir.
+try:
+    BETA_MAX_USERS = int(os.getenv("BETA_MAX_USERS", "0"))
+except ValueError:
+    BETA_MAX_USERS = 0
+
+BETA_FULL_MESSAGE = (
+    "Aura su an kapali beta'da ve kontenjan doldu. Kisa surede daha fazla "
+    "kisiyi aliyoruz - biraz sonra tekrar dener misin?"
+)
+
+
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Sifre en az 6 karakter olmali.")
+    if BETA_MAX_USERS > 0 and database.count_users() >= BETA_MAX_USERS:
+        raise HTTPException(status_code=503, detail=BETA_FULL_MESSAGE)
     user = database.create_user(
         req.email, req.password, req.name, is_anonymous=req.is_anonymous_bootstrap,
         acquisition_source=req.acquisition_source,
@@ -981,7 +1000,10 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # gosterilirdi. Acik bir kriz ifadesi tespit edilirse limit BILEREK
     # atlaniyor - bir kac ekstra ucretsiz Gemini cagrisi, gozden kacan
     # bir krizden cok daha ucuz bir bedel.
+    metrics.record("chat_request", ok=True)
     is_crisis = _is_crisis_message(message_text)
+    if is_crisis:
+        metrics.record("crisis_detected", ok=True)
     if (
         not is_crisis
         and user.get("tier") != "pro"
@@ -989,6 +1011,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
             user["id"], LIMIT_DAILY_MESSAGES
         )
     ):
+        metrics.record("daily_limit_hit", ok=True)
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True, "mood": mood}
 
     if not hidden_now:
@@ -1479,6 +1502,26 @@ def admin_set_tier(
     if user is None:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     return {"email": body.email.strip().lower(), "tier": user.get("tier")}
+
+
+@app.get("/api/admin/health")
+def admin_health(key: Optional[str] = None, x_admin_key: Optional[str] = Header(None)):
+    """Anlik sistem sagligi (2026-09-06, "sessiz ariza" sinifini kapatir).
+    Saglayici cagri sonuclari (Gemini/Groq basari orani), hafiza yazma
+    basarisi, hata orani, kriz/limit sayaclari. Kalicilik YOK - restart'ta
+    sifirlanir; tarihsel analitik icin /api/admin/stats. ADMIN_KEY zorunlu.
+
+    IZLEME IPUCU: `bg_extraction.groq` success_rate belirgin dususe gecerse
+    (bu oturumda oldu gibi) Gemini yedegi devreye giriyor demektir - kritik
+    degil ama Groq tarafinda bir sorun var; `memory_write` success_rate
+    <0.9 ise ACIL (hafiza kaydedilemiyor). `text_gen.total_failure` sayaci
+    artiyorsa kullanicilar cevap alamiyor."""
+    _check_admin_key(x_admin_key or key)
+    snap = metrics.snapshot()
+    snap["users_total"] = database.count_users()
+    snap["beta_max_users"] = BETA_MAX_USERS or None
+    snap["feedback"] = database.get_feedback_counts()
+    return snap
 
 
 @app.get("/api/admin/feedback")
