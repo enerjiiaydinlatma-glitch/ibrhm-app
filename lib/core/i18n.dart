@@ -116,5 +116,207 @@ class I18n {
       "tr": "Bağlantı hatası. Backend çalışıyor mu?",
       "en": "Connection error. Is the server reachable?",
     },
+
+    // --- Sohbet ekrani (kabuk) ---
+    "chat.online": {"tr": "Aura, çevrimiçi", "en": "Aura, online"},
+    "chat.settings": {"tr": "Ayarlar", "en": "Settings"},
+    "chat.saveAccount": {"tr": "Hesabını Kaydet", "en": "Save your account"},
+    "chat.inputHint": {"tr": "Mesaj yaz...", "en": "Type a message..."},
+    "chat.send": {"tr": "Gönder", "en": "Send"},
+    "chat.a11yAddPhoto": {
+      "tr": "Fotoğraf veya belge ekle",
+      "en": "Add a photo or document",
+    },
+    "chat.a11yVoiceStart": {
+      "tr": "Sesli görüşme başlat",
+      "en": "Start voice call",
+    },
+    "chat.a11yVoiceEnd": {
+      "tr": "Sesli görüşmeyi bitir",
+      "en": "End voice call",
+    },
+    "chat.a11yVideoStart": {
+      "tr": "Görüntülü görüşme başlat",
+      "en": "Start video call",
+    },
+    "chat.a11yYou": {"tr": "Senin mesajın", "en": "Your message"},
+    "chat.a11yAura": {"tr": "Aura", "en": "Aura"},
+    "chat.a11ySaid": {"tr": "Söylediğin", "en": "What you said"},
+    "chat.typing": {"tr": "Aura yazıyor", "en": "Aura is typing"},
+    "chat.a11ySentPhoto": {
+      "tr": "Gönderdiğin fotoğraf",
+      "en": "Photo you sent",
+    },
+    "chat.a11ySentPdf": {"tr": "Gönderdiğin PDF belgesi", "en": "PDF you sent"},
+    "chat.attachGallery": {"tr": "Galeri", "en": "Gallery"},
+    "chat.attachCamera": {"tr": "Kamera", "en": "Camera"},
+    "chat.attachPdf": {"tr": "Belge (PDF)", "en": "Document (PDF)"},
+    "chat.voiceIntroTitle": {"tr": "Sesli görüşme", "en": "Voice call"},
+    "chat.voiceIntroBody": {
+      "tr":
+          "Aura ile gerçek zamanlı konuşmak üzeresin. Şimdi telefonun/"
+          "tarayıcın mikrofon izni isteyecek - onaylarsan konuşmaya hemen "
+          "başlayabilirsin.",
+      "en":
+          "You're about to talk with Aura in real time. Your phone/browser "
+          "will now ask for microphone permission - once you allow it you "
+          "can start talking right away.",
+    },
+    "chat.claimTitle": {"tr": "Hesabını Kaydet", "en": "Save your account"},
+    "chat.claimBody": {
+      "tr":
+          "Bu bilgilerle başka bir cihazdan giriş yapıp hafızana "
+          "ulaşabilirsin.",
+      "en":
+          "With these details you can sign in from another device and reach "
+          "your memory.",
+    },
+    "chat.claimInvalid": {
+      "tr": "Geçerli bir email ve en az 6 karakter şifre gir.",
+      "en": "Enter a valid email and a password of at least 6 characters.",
+    },
+    "chat.pwHint": {
+      "tr": "Şifre (en az 6 karakter)",
+      "en": "Password (at least 6 characters)",
+    },
+    "chat.save": {"tr": "Kaydet", "en": "Save"},
+    "chat.accountSaved": {
+      "tr": "Hesabın kaydedildi.",
+      "en": "Your account is saved.",
+    },
+    "chat.genericError": {
+      "tr": "Bir hata oluştu.",
+      "en": "Something went wrong.",
+    },
+    "chat.feedbackQ": {"tr": "Bu cevap nasıldı?", "en": "How was this reply?"},
+    "chat.feedbackHelp": {
+      "tr": "Aura'yı geliştirmemize yardım eder",
+      "en": "It helps us improve Aura",
+    },
+    "chat.feedbackGood": {"tr": "İyi", "en": "Good"},
+    "chat.feedbackBad": {"tr": "Kötü", "en": "Bad"},
+    "chat.feedbackThanks": {
+      "tr": "Teşekkürler, kaydedildi.",
+      "en": "Thanks, noted.",
+    },
+    "chat.a11yMarkGood": {
+      "tr": "İyi cevap olarak işaretle",
+      "en": "Mark as a good reply",
+    },
+    "chat.a11yMarkBad": {
+      "tr": "Kötü cevap olarak işaretle",
+      "en": "Mark as a bad reply",
+    },
+    "chat.photoTooBig": {
+      "tr": "Bu fotoğraf çok büyük (en fazla ~11MB).",
+      "en": "This photo is too large (max ~11MB).",
+    },
+    "chat.pdfTooBig": {
+      "tr": "Bu PDF çok büyük (en fazla ~11MB).",
+      "en": "This PDF is too large (max ~11MB).",
+    },
+    "chat.photoPickFailed": {
+      "tr": "Fotoğraf seçilemedi.",
+      "en": "Couldn't pick a photo.",
+    },
+    "chat.pdfPickFailed": {
+      "tr": "Belge seçilemedi.",
+      "en": "Couldn't pick a document.",
+    },
+    "chat.cameraUnavailable": {
+      "tr": "Kamera bu cihazda kullanılamıyor.",
+      "en": "The camera isn't available on this device.",
+    },
+    "chat.cameraFailed": {
+      "tr": "Kamera açılamadı.",
+      "en": "Couldn't open the camera.",
+    },
+    "chat.videoUnavailable": {
+      "tr": "Görüntülü görüşme bu cihazda kullanılamıyor.",
+      "en": "Video calls aren't available on this device.",
+    },
+
+    // --- Sesli / goruntulu gorusme ---
+    "call.connecting": {"tr": "Bağlanıyor...", "en": "Connecting..."},
+    "call.listening": {"tr": "Dinliyorum", "en": "Listening"},
+    "call.auraSpeaking": {"tr": "Aura konuşuyor", "en": "Aura is speaking"},
+    "call.connectionIssue": {"tr": "Bağlantı sorunu", "en": "Connection issue"},
+    "call.back": {"tr": "Geri", "en": "Back"},
+    "call.videoTitle": {"tr": "Görüntülü görüşme", "en": "Video call"},
+    "call.voiceTitle": {"tr": "Sesli görüşme", "en": "Voice call"},
+    "call.startFailed": {
+      "tr": "Görüşme başlatılamadı.",
+      "en": "Couldn't start the call.",
+    },
+    "call.auraListeningYou": {
+      "tr": "Aura görüşmede, seni dinliyor",
+      "en": "Aura is on the call, listening to you",
+    },
+    "call.yourCameraOn": {
+      "tr": "Kendi kameran açık",
+      "en": "Your camera is on",
+    },
+    "call.takePhoto": {"tr": "Fotoğraf çek", "en": "Take a photo"},
+    "call.endCall": {"tr": "Görüşmeyi bitir", "en": "End call"},
+    "call.reconnect": {"tr": "Yeniden bağlan", "en": "Reconnect"},
+    "call.cameraOpening": {
+      "tr": "Kamera açılıyor...",
+      "en": "Opening camera...",
+    },
+    "call.cameraRetry": {
+      "tr": "Kamerayı tekrar dene",
+      "en": "Try the camera again",
+    },
+    "call.cameraOn": {"tr": "Kamerayı aç", "en": "Turn camera on"},
+    "call.cameraOff": {"tr": "Kamerayı kapat", "en": "Turn camera off"},
+    "call.cameraFailedLong": {
+      "tr":
+          "Kamera açılamadı. Tarayıcı/telefon ayarlarından kamera iznini "
+          "ver, sonra tekrar dene — sesli konuşmaya bu arada devam "
+          "edebilirsin.",
+      "en":
+          "Couldn't open the camera. Grant camera permission in your "
+          "browser/phone settings, then try again — you can keep talking "
+          "meanwhile.",
+    },
+    "call.cameraOffLong": {
+      "tr":
+          "Kamera kapalı. \"Kamerayı aç\" diyebilir ya da aşağıdaki butona "
+          "dokunabilirsin — sesli konuşma açık.",
+      "en":
+          "Camera is off. Say \"turn camera on\" or tap the button below — "
+          "voice is still on.",
+    },
+    "call.photoAdded": {
+      "tr": "Fotoğraf sohbete eklendi ✨",
+      "en": "Photo added to the chat ✨",
+    },
+    "call.photoFailed": {
+      "tr": "Fotoğraf çekilemedi, tekrar dener misin?",
+      "en": "Couldn't take the photo, try again?",
+    },
+    "call.retryBtn": {"tr": "Tekrar Dene", "en": "Retry"},
+    "call.endBtn": {"tr": "Görüşmeyi Bitir", "en": "End Call"},
+    "call.pushToTalk": {"tr": "Basılı tut, konuş", "en": "Hold to talk"},
+    "call.pushToTalkA11y": {
+      "tr": "Basılı tut ve konuş",
+      "en": "Hold and speak",
+    },
+    "call.pushToTalkHint": {
+      "tr": "Basılı tutarken konuş, bırak",
+      "en": "Speak while holding, then release",
+    },
+    "call.recording": {
+      "tr": "Kaydediyor, bırakınca gönderilir",
+      "en": "Recording, sends when you release",
+    },
+    "call.micDenied": {
+      "tr": "Mikrofon izni verilmedi - cihaz ayarlarından açabilirsin.",
+      "en": "Microphone permission denied - you can enable it in settings.",
+    },
+    "call.audioSendFailed": {
+      "tr": "Ses gönderilemedi, tekrar dener misin?",
+      "en": "Couldn't send audio, try again?",
+    },
   };
 }

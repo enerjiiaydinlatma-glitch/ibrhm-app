@@ -15,6 +15,7 @@ import "../../../services/tts_service.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/mic_level_notifier.dart";
 import "../notifier/voice_call_notifier.dart";
+import "../../../core/i18n.dart";
 
 /// Chat ekraninin ustune gomulu, kucuk sesli-gorusme durum cubugu.
 /// Cagri aktif degilken hic yer kaplamaz (SizedBox.shrink) - chat ekrani
@@ -29,13 +30,13 @@ class VoiceCallBar extends ConsumerWidget {
       case VoiceCallStatus.idle:
         return "";
       case VoiceCallStatus.connecting:
-        return "Bağlanıyor...";
+        return I18n.t("call.connecting");
       case VoiceCallStatus.listening:
-        return "Dinliyorum";
+        return I18n.t("call.listening");
       case VoiceCallStatus.auraSpeaking:
-        return "Aura konuşuyor";
+        return I18n.t("call.auraSpeaking");
       case VoiceCallStatus.error:
-        return "Bağlantı sorunu";
+        return I18n.t("call.connectionIssue");
     }
   }
 
@@ -103,7 +104,7 @@ class VoiceCallBar extends ConsumerWidget {
                 // genel durum metnini.
                 (isError && callState.errorMessage != null)
                     ? callState.errorMessage!
-                    : "Sesli görüşme • ${_statusText(callState.status)}",
+                    : "${I18n.t("call.voiceTitle")} • ${_statusText(callState.status)}",
                 style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
                 // Teknik hata mesajlari (orn. web/Safari istisna metinleri)
                 // uzun olabiliyor - teshis icin okunabilir kalsin diye 2'den
@@ -116,7 +117,7 @@ class VoiceCallBar extends ConsumerWidget {
           if (isError)
             IconButton(
               icon: const Icon(Icons.refresh, color: _indigoColor, size: 20),
-              tooltip: "Tekrar Dene",
+              tooltip: I18n.t("call.retryBtn"),
               onPressed: () => ref.read(voiceCallProvider.notifier).retry(),
             ),
           // Kullanici istegi (2026-08-26): "Aura beyin, digerleri ajan"
@@ -127,7 +128,7 @@ class VoiceCallBar extends ConsumerWidget {
           if (isError) const _VoiceFallbackButton(),
           IconButton(
             icon: const Icon(Icons.call_end, color: Colors.redAccent, size: 20),
-            tooltip: "Görüşmeyi Bitir",
+            tooltip: I18n.t("call.endBtn"),
             onPressed: () => ref.read(voiceCallProvider.notifier).endCall(),
           ),
         ],
@@ -232,11 +233,7 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       if (!hasPermission) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Mikrofon izni verilmedi - cihaz ayarlarindan acabilirsin.",
-              ),
-            ),
+            SnackBar(content: Text(I18n.t("call.micDenied"))),
           );
         }
         return;
@@ -318,9 +315,7 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
       debugPrint("Yedek sesli mod hatasi: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Ses gönderilemedi, tekrar dener misin?"),
-          ),
+          SnackBar(content: Text(I18n.t("call.audioSendFailed"))),
         );
       }
     } finally {
@@ -385,14 +380,14 @@ class _VoiceFallbackButtonState extends ConsumerState<_VoiceFallbackButton> {
     return Semantics(
       button: true,
       label: _recording
-          ? "Kaydediyor, bırakınca gönderilir"
-          : "Basılı tut ve konuş",
-      hint: "Basılı tutarken konuş, bırak",
+          ? I18n.t("call.recording")
+          : I18n.t("call.pushToTalkA11y"),
+      hint: I18n.t("call.pushToTalkHint"),
       child: GestureDetector(
         onLongPressStart: (_) => _startRecording(),
         onLongPressEnd: (_) => _stopAndSend(),
         child: Tooltip(
-          message: "Basılı tut, konuş",
+          message: I18n.t("call.pushToTalk"),
           child: Container(
             width: 32,
             height: 32,

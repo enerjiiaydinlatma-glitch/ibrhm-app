@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:google_fonts/google_fonts.dart";
 
+import "../../../core/i18n.dart";
 import "../../chat/widgets/aura_hale.dart";
 import "../models/voice_call_state.dart";
 import "../notifier/voice_call_notifier.dart";
@@ -60,13 +61,13 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
       case VoiceCallStatus.idle:
         return "";
       case VoiceCallStatus.connecting:
-        return "Bağlanıyor...";
+        return I18n.t("call.connecting");
       case VoiceCallStatus.listening:
-        return "Dinliyorum";
+        return I18n.t("call.listening");
       case VoiceCallStatus.auraSpeaking:
-        return "Aura konuşuyor";
+        return I18n.t("call.auraSpeaking");
       case VoiceCallStatus.error:
-        return "Bağlantı sorunu";
+        return I18n.t("call.connectionIssue");
     }
   }
 
@@ -80,8 +81,8 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     setState(() {
       _capturing = false;
       _flashMessage = ok
-          ? "Fotoğraf sohbete eklendi ✨"
-          : "Fotoğraf çekilemedi, tekrar dener misin?";
+          ? I18n.t("call.photoAdded")
+          : I18n.t("call.photoFailed");
     });
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _flashMessage = null);
@@ -99,7 +100,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            callState.errorMessage ?? "Görüşme başlatılamadı.",
+            callState.errorMessage ?? I18n.t("call.startFailed"),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
           ),
@@ -112,8 +113,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            "Kamera kapalı. \"Kamerayı aç\" diyebilir ya da aşağıdaki "
-            "butona dokunabilirsin — sesli konuşma açık.",
+            I18n.t("call.cameraOffLong"),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
           ),
@@ -124,7 +124,10 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
               .read(voiceCallProvider.notifier)
               .toggleCameraByUser(off: false),
           icon: const Icon(Icons.videocam_rounded, size: 18),
-          label: Text("Kamerayı aç", style: GoogleFonts.poppins(fontSize: 13)),
+          label: Text(
+            I18n.t("call.cameraOn"),
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             side: const BorderSide(color: Colors.white24),
@@ -142,9 +145,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            "Kamera açılamadı. Tarayıcı/telefon ayarlarından kamera iznini "
-            "ver, sonra tekrar dene — sesli konuşmaya bu arada devam "
-            "edebilirsin.",
+            I18n.t("call.cameraFailedLong"),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
           ),
@@ -154,7 +155,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
           onPressed: () => ref.read(voiceCallProvider.notifier).retryCamera(),
           icon: const Icon(Icons.refresh, size: 18),
           label: Text(
-            "Kamerayı tekrar dene",
+            I18n.t("call.cameraRetry"),
             style: GoogleFonts.poppins(fontSize: 13),
           ),
           style: OutlinedButton.styleFrom(
@@ -168,7 +169,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
         const CircularProgressIndicator(color: _indigoColor),
         const SizedBox(height: 14),
         Text(
-          "Kamera açılıyor...",
+          I18n.t("call.cameraOpening"),
           style: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
         ),
       ];
@@ -220,7 +221,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                     Expanded(
                       child: Semantics(
                         container: true,
-                        label: "Aura görüşmede, seni dinliyor",
+                        label: I18n.t("call.auraListeningYou"),
                         child: ClipRect(
                           child: Container(
                             color: const Color(0xFF0A0A18),
@@ -264,7 +265,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                         child: cameraLive
                             ? Semantics(
                                 image: true,
-                                label: "Kendi kameran açık",
+                                label: I18n.t("call.yourCameraOn"),
                                 child: ClipRect(
                                   child: Center(
                                     child: AspectRatio(
@@ -290,7 +291,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      tooltip: "Geri",
+                      tooltip: I18n.t("call.back"),
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                     Expanded(
@@ -309,7 +310,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                           child: Text(
                             (isError && callState.errorMessage != null)
                                 ? callState.errorMessage!
-                                : "Görüntülü görüşme • ${_statusText(callState.status)}",
+                                : "${I18n.t("call.videoTitle")} • ${_statusText(callState.status)}",
                             textAlign: TextAlign.center,
                             style: GoogleFonts.poppins(
                               color: Colors.white,
@@ -402,7 +403,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                           : null,
                       color: Colors.white.withValues(alpha: 0.15),
                       icon: _capturing ? null : Icons.camera_alt_rounded,
-                      semanticLabel: "Fotoğraf çek",
+                      semanticLabel: I18n.t("call.takePhoto"),
                       child: _capturing
                           ? const SizedBox(
                               width: 20,
@@ -420,7 +421,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                       color: Colors.redAccent,
                       icon: Icons.call_end,
                       size: 64,
-                      semanticLabel: "Görüşmeyi bitir",
+                      semanticLabel: I18n.t("call.endCall"),
                     ),
                     const SizedBox(width: 28),
                     if (isError)
@@ -429,7 +430,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                             ref.read(voiceCallProvider.notifier).retry(),
                         color: _indigoColor,
                         icon: Icons.refresh,
-                        semanticLabel: "Yeniden bağlan",
+                        semanticLabel: I18n.t("call.reconnect"),
                       )
                     else if (callState.videoEnabled)
                       _CircleButton(
@@ -444,8 +445,8 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                             ? Icons.videocam_rounded
                             : Icons.videocam_off_rounded,
                         semanticLabel: callState.cameraOff
-                            ? "Kamerayı aç"
-                            : "Kamerayı kapat",
+                            ? I18n.t("call.cameraOn")
+                            : I18n.t("call.cameraOff"),
                       )
                     else
                       const SizedBox(width: 52),
