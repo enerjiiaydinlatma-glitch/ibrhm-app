@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/i18n.dart';
 import '../../../services/app_lock_service.dart';
 
 const _kPinLength = 4;
@@ -60,7 +61,7 @@ class _SetPinScreenState extends State<SetPinScreen> {
       _entered = '';
       _first = '';
       _confirming = false;
-      _error = 'PIN\'ler eşleşmedi, baştan dene';
+      _error = I18n.t('pin.mismatch');
     });
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) setState(() => _shaking = false);
@@ -73,7 +74,7 @@ class _SetPinScreenState extends State<SetPinScreen> {
       backgroundColor: _kBgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('PIN Belirle', style: GoogleFonts.poppins()),
+        title: Text(I18n.t('pin.appBarTitle'), style: GoogleFonts.poppins()),
       ),
       body: SafeArea(
         child: Column(
@@ -86,7 +87,7 @@ class _SetPinScreenState extends State<SetPinScreen> {
             Semantics(
               header: true,
               child: Text(
-                _confirming ? 'PIN\'i tekrar gir' : '4 haneli bir PIN belirle',
+                _confirming ? I18n.t('pin.reenter') : I18n.t('pin.choose'),
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontSize: 16,
@@ -96,7 +97,9 @@ class _SetPinScreenState extends State<SetPinScreen> {
             ),
             const SizedBox(height: 24),
             Semantics(
-              label: '4 haneli PIN, ${_entered.length} hane girildi',
+              label:
+                  '${I18n.t('pin.a11yField')}, ${_entered.length} '
+                  '${I18n.t('pin.a11yDigitsEntered')}',
               liveRegion: true,
               child: ExcludeSemantics(
                 child: AnimatedContainer(
@@ -168,7 +171,7 @@ class _SetPinScreenState extends State<SetPinScreen> {
                 height: 60,
                 child: Semantics(
                   button: true,
-                  label: isBackspace ? 'Sil' : key,
+                  label: isBackspace ? I18n.t('pin.a11yBackspace') : key,
                   onTap: () => isBackspace ? _onBackspace() : _onDigit(key),
                   child: ExcludeSemantics(
                     child: Material(

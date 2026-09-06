@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/i18n.dart';
 import '../models/memory_item.dart';
 import '../notifier/memory_notifier.dart';
 import '../widgets/memory_tree_painter.dart';
@@ -57,7 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Bilinen tum varyantlari (Turkce+Ingilizce, hem cikarim promptunun
   // kendi ornekleri hem gercek testlerde gorulenler) burada topluyoruz;
   // eslesmeyenler icin asagidaki _prettifyCategory() devreye giriyor.
-  static const _categoryLabels = {
+  static const _categoryLabelsTr = {
     'isim': 'İsim',
     'identity': 'Kimlik',
     'yer': 'Yaşadığı Yer',
@@ -97,6 +98,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'kullanilmayan_esya': 'Kullanılmayan Eşya',
     'istenen_urun': 'İstenen Ürün',
   };
+
+  static const _categoryLabelsEn = {
+    'isim': 'Name',
+    'identity': 'Identity',
+    'yer': 'Location',
+    'location': 'Location',
+    'meslek': 'Occupation',
+    'work': 'Occupation',
+    'job': 'Occupation',
+    'hobiler': 'Hobbies',
+    'hobby': 'Hobbies',
+    'hobbies': 'Hobbies',
+    'ilgi_alanlari': 'Interests',
+    'interests': 'Interests',
+    'hedefler': 'Goals',
+    'goals': 'Goals',
+    'goal': 'Goals',
+    'tercihler': 'Preferences',
+    'preference': 'Preferences',
+    'preferences': 'Preferences',
+    'projeler': 'Projects',
+    'important_projects': 'Projects',
+    'projects': 'Projects',
+    'planlar': 'Plans',
+    'plans': 'Plans',
+    'upcoming_event': 'Upcoming',
+    'gundem': 'Upcoming',
+    'korkular': 'Fears',
+    'iletisim_tercihleri': 'Communication Preferences',
+    'communication_preferences': 'Communication Preferences',
+    'routine': 'Routine',
+    'rutin': 'Routine',
+    'evcil_hayvan': 'Pet',
+    'pet': 'Pet',
+    'pet_info': 'Pet',
+    'en_buyuk_korku': 'Fears',
+    'fear': 'Fears',
+    'pattern_insight': 'Noticed Pattern',
+    'kullanilmayan_esya': 'Unused Item',
+    'istenen_urun': 'Wishlist Item',
+  };
+
+  static Map<String, String> get _categoryLabels =>
+      I18n.lang == 'en' ? _categoryLabelsEn : _categoryLabelsTr;
 
   /// Yukaridaki sabit listede olmayan (LLM'in uretebilecegi herhangi bir)
   /// kategori icin ham "important_projects" yerine en azindan okunabilir
@@ -177,23 +222,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: _cardColor,
         title: Text(
-          'Kilidi kaldır',
+          I18n.t('settings.lockRemoveTitle'),
           style: GoogleFonts.poppins(color: Colors.white),
         ),
         content: Text(
           hasSecretPhrase
-              ? 'Uygulama kilidini kapatmak istediğine emin misin? Gizli mod kod cümlen de birlikte kaldırılacak (gizli sohbetlere bir daha erişilemez).'
-              : 'Uygulama kilidini kapatmak istediğine emin misin?',
+              ? I18n.t('settings.lockRemoveBodyWithPhrase')
+              : I18n.t('settings.lockRemoveBody'),
           style: GoogleFonts.poppins(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç'),
+            child: Text(I18n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Kaldır'),
+            child: Text(I18n.t('common.remove')),
           ),
         ],
       ),
@@ -238,7 +283,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Gizli mod kodu ayarlandı',
+              I18n.t('settings.secretPhraseSet'),
               style: GoogleFonts.poppins(),
             ),
           ),
@@ -249,7 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Kod ayarlanamadı, tekrar dene',
+              I18n.t('settings.secretPhraseSetFailed'),
               style: GoogleFonts.poppins(),
             ),
           ),
@@ -266,21 +311,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: _cardColor,
         title: Text(
-          'Gizli mod kodunu kaldır',
+          I18n.t('settings.secretPhraseRemoveTitle'),
           style: GoogleFonts.poppins(color: Colors.white),
         ),
         content: Text(
-          'Kod kaldırılınca gizli mod bir daha tetiklenemez. Zaten kaydedilmiş gizli sohbetler etkilenmez.',
+          I18n.t('settings.secretPhraseRemoveBody'),
           style: GoogleFonts.poppins(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç'),
+            child: Text(I18n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Kaldır'),
+            child: Text(I18n.t('common.remove')),
           ),
         ],
       ),
@@ -322,7 +367,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Ayarlar kaydedildi', style: GoogleFonts.poppins()),
+        content: Text(I18n.t('settings.saved'), style: GoogleFonts.poppins()),
       ),
     );
   }
@@ -334,7 +379,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '"${memory.memoryValue}" unutuldu',
+            '"${memory.memoryValue}" ${I18n.t('settings.memoryForgottenSuffix')}',
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -344,7 +389,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Silinemedi, tekrar dene',
+            I18n.t('settings.deleteFailed'),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -363,8 +408,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SnackBar(
           content: Text(
             memory.pinned
-                ? 'Sabitleme kaldırıldı, zamanla soluklaşabilir'
-                : 'Sabitlendi, hep net hatırlanacak',
+                ? I18n.t('settings.unpinnedMsg')
+                : I18n.t('settings.pinnedMsg'),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -374,7 +419,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'İşlem başarısız, tekrar dene',
+            I18n.t('settings.actionFailed'),
             style: GoogleFonts.poppins(),
           ),
         ),
@@ -403,28 +448,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: _cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Çıkış yap',
+          I18n.t('settings.logout'),
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
         content: Text(
-          'Hesabın kaydedilmediyse (anonimse) bu cihazdan çıktığında geçmişine bir daha erişemeyebilirsin.',
+          I18n.t('settings.logoutBody'),
           style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(
-              'Vazgeç',
+              I18n.t('common.cancel'),
               style: GoogleFonts.poppins(color: Colors.white54),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
-              'Çıkış yap',
+              I18n.t('settings.logout'),
               style: GoogleFonts.poppins(color: Colors.redAccent),
             ),
           ),
@@ -447,7 +492,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            'Hesabı sil',
+            I18n.t('settings.deleteAccountTitle'),
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontWeight: FontWeight.w600,
@@ -458,9 +503,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Tüm sohbet geçmişin, hafızan ve hesabın kalıcı olarak '
-                'silinecek. Bu işlem geri alınamaz.\n\nOnaylamak için '
-                'aşağıya SIL yaz.',
+                I18n.t('settings.deleteAccountBody').replaceAll(
+                  '{word}',
+                  I18n.t('settings.deleteConfirmWord'),
+                ),
                 style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
               ),
               const SizedBox(height: 14),
@@ -468,7 +514,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 controller: confirmController,
                 onChanged: (_) => setDialogState(() {}),
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(hintText: 'SIL'),
+                decoration: InputDecoration(
+                  hintText: I18n.t('settings.deleteConfirmWord'),
+                ),
               ),
             ],
           ),
@@ -476,16 +524,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: Text(
-                'Vazgeç',
+                I18n.t('common.cancel'),
                 style: GoogleFonts.poppins(color: Colors.white54),
               ),
             ),
             TextButton(
-              onPressed: confirmController.text.trim().toUpperCase() == 'SIL'
+              onPressed:
+                  confirmController.text.trim().toUpperCase() ==
+                      I18n.t('settings.deleteConfirmWord')
                   ? () => Navigator.of(dialogContext).pop(true)
                   : null,
               child: Text(
-                'Kalıcı olarak sil',
+                I18n.t('settings.deletePermanently'),
                 style: GoogleFonts.poppins(color: Colors.redAccent),
               ),
             ),
@@ -501,7 +551,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Silme başarısız, tekrar dene.',
+              I18n.t('settings.deleteAccountFailed'),
               style: GoogleFonts.poppins(),
             ),
           ),
@@ -578,7 +628,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Pro hesap - günlük kullanım sınırın yok.',
+                I18n.t('settings.proNoLimit'),
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
               ),
             ),
@@ -602,7 +652,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Bugünkü ücretsiz kullanım',
+                  I18n.t('settings.usageToday'),
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -611,27 +661,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               Text(
-                'yarın sıfırlanır',
+                I18n.t('settings.resetsTomorrow'),
                 style: GoogleFonts.poppins(fontSize: 11, color: Colors.white38),
               ),
             ],
           ),
           const SizedBox(height: 14),
           _usageRow(
-            'Mesaj',
+            I18n.t('settings.usageMessages'),
             profile.dailyMessageCount,
             _freeMessageLimit,
             msgRatio,
-            '$msgLeft mesaj kaldı',
+            '$msgLeft ${I18n.t('settings.messagesLeftSuffix')}',
           ),
           const SizedBox(height: 12),
           _usageRow(
-            'Sesli görüşme',
+            I18n.t('call.voiceTitle'),
             profile.dailyVoiceSeconds ~/ 60,
             _freeVoiceSecondsLimit ~/ 60,
             voiceRatio,
-            '${(voiceLeftSec / 60).ceil()} dk kaldı',
-            unit: 'dk',
+            '${(voiceLeftSec / 60).ceil()} ${I18n.t('settings.minutesLeftSuffix')}',
+            unit: I18n.t('settings.unitMin'),
           ),
         ],
       ),
@@ -671,7 +721,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 6),
         Semantics(
-          label: '$label: $used$unit / $max$unit kullanıldı, $remainingText',
+          label:
+              '$label: $used$unit / $max$unit '
+              '${I18n.t('settings.a11yUsed')}, $remainingText',
           child: ExcludeSemantics(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -713,7 +765,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
               ),
               Text(
-                v < 0.35 ? lowLabel : (v > 0.65 ? highLabel : 'Dengeli'),
+                v < 0.35
+                    ? lowLabel
+                    : (v > 0.65 ? highLabel : I18n.t('settings.styleBalanced')),
                 style: GoogleFonts.poppins(
                   color: _indigoColor,
                   fontSize: 12,
@@ -743,7 +797,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Gizlilik'),
+        _sectionTitle(I18n.t('settings.sectionPrivacy')),
         _card(
           child: Column(
             children: [
@@ -751,11 +805,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 activeThumbColor: _indigoColor,
                 title: Text(
-                  'Uygulama kilidi (PIN)',
+                  I18n.t('settings.lockToggleTitle'),
                   style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
                 ),
                 subtitle: Text(
-                  'Aura\'yı her açışında PIN sorulsun',
+                  I18n.t('settings.lockToggleSub'),
                   style: GoogleFonts.poppins(
                     color: Colors.white38,
                     fontSize: 12,
@@ -769,11 +823,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 activeThumbColor: _indigoColor,
                 title: Text(
-                  'Bildirim önizlemesini gizle',
+                  I18n.t('settings.hidePreviewTitle'),
                   style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
                 ),
                 subtitle: Text(
-                  'Kilit ekranında hatırlatma içeriği yerine "Aura" yazsın',
+                  I18n.t('settings.hidePreviewSub'),
                   style: GoogleFonts.poppins(
                     color: Colors.white38,
                     fontSize: 12,
@@ -787,7 +841,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    'PIN\'i değiştir',
+                    I18n.t('settings.changePin'),
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 14,
@@ -805,14 +859,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     activeThumbColor: _indigoColor,
                     title: Text(
-                      'Biyometrik ile aç',
+                      I18n.t('lock.unlockBiometric'),
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 14,
                       ),
                     ),
                     subtitle: Text(
-                      'Parmak izi / yüz tanıma ile hızlı giriş',
+                      I18n.t('settings.biometricSub'),
                       style: GoogleFonts.poppins(
                         color: Colors.white38,
                         fontSize: 12,
@@ -829,7 +883,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Gizli mod kod cümlesi',
+                        I18n.t('settings.secretPhraseTitle'),
                         style: GoogleFonts.poppins(
                           color: Colors.white,
                           fontSize: 14,
@@ -838,8 +892,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         profile.hasSecretPhrase
-                            ? 'Bir kod belirlendi. Sohbette bu cümleyi tek başına gönderirsen gizli mod açılır/kapanır.'
-                            : 'Kendi cümleni belirle. Sohbette bunu tek başına bir mesaj olarak gönderirsen, o andan sonraki konuşma normal geçmişte görünmez.',
+                            ? I18n.t('settings.secretPhraseSetInfo')
+                            : I18n.t('settings.secretPhraseUnsetInfo'),
                         style: GoogleFonts.poppins(
                           color: Colors.white38,
                           fontSize: 12,
@@ -851,7 +905,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Expanded(
                             child: Semantics(
                               textField: true,
-                              label: 'Gizli mod kod cümlesi',
+                              label: I18n.t('settings.secretPhraseTitle'),
                               child: TextField(
                                 controller: _secretPhraseController,
                                 style: GoogleFonts.poppins(
@@ -860,7 +914,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 ),
                                 decoration: _fieldDecoration(
                                   '',
-                                  hint: 'örn: bugün ay çok parlak',
+                                  hint: I18n.t('settings.secretPhraseHint'),
                                 ),
                               ),
                             ),
@@ -871,7 +925,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   width: 20,
                                   height: 20,
                                   child: Semantics(
-                                    label: 'Kaydediliyor',
+                                    label: I18n.t('common.saving'),
                                     child: const CircularProgressIndicator(
                                       strokeWidth: 2,
                                       color: _indigoColor,
@@ -880,7 +934,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 )
                               : IconButton(
                                   onPressed: _saveSecretPhrase,
-                                  tooltip: 'Gizli mod kodunu kaydet',
+                                  tooltip: I18n.t(
+                                    'settings.secretPhraseSaveTooltip',
+                                  ),
                                   icon: const Icon(
                                     Icons.check_circle_outline,
                                     color: _indigoColor,
@@ -899,7 +955,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               color: Colors.white54,
                             ),
                             label: Text(
-                              'Gizli sohbetleri gör',
+                              I18n.t('settings.viewHiddenChats'),
                               style: GoogleFonts.poppins(
                                 color: Colors.white54,
                                 fontSize: 12,
@@ -910,7 +966,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             TextButton(
                               onPressed: _clearSecretPhrase,
                               child: Text(
-                                'Kodu kaldır',
+                                I18n.t('settings.removeCode'),
                                 style: GoogleFonts.poppins(
                                   color: Colors.redAccent.withValues(
                                     alpha: 0.8,
@@ -938,9 +994,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Hafızam'),
+        _sectionTitle(I18n.t('settings.sectionMemory')),
         Text(
-          'Aura senin hakkında bunları hatırlıyor. İstemediğini silebilirsin.',
+          I18n.t('settings.memoryBlurb'),
           style: GoogleFonts.poppins(fontSize: 12, color: Colors.white54),
         ),
         const SizedBox(height: 12),
@@ -949,13 +1005,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Center(
               child: Semantics(
-                label: 'Hafıza yükleniyor',
+                label: I18n.t('settings.memoryLoading'),
                 child: const CircularProgressIndicator(color: _indigoColor),
               ),
             ),
           ),
           error: (err, st) => Text(
-            'Hafıza yüklenemedi: $err',
+            '${I18n.t('settings.memoryLoadFailed')}: $err',
             style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12),
           ),
           data: (memories) {
@@ -963,7 +1019,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Henüz hiçbir şey hatırlamıyor.',
+                  I18n.t('settings.memoryEmpty'),
                   style: GoogleFonts.poppins(
                     color: Colors.white38,
                     fontSize: 12,
@@ -980,7 +1036,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // hala gerekli) - agac SADECE bir gorsel ozet, ustune.
                 Semantics(
                   label:
-                      'Hafıza ağacı — ${memories.length} kayıt, kategorilere göre görsel özet',
+                      '${I18n.t('settings.memoryTreeA11yPre')} '
+                      '${memories.length} '
+                      '${I18n.t('settings.memoryTreeA11yPost')}',
                   child: ExcludeSemantics(
                     child: _card(child: MemoryTreeWidget(memories: memories)),
                   ),
@@ -1032,8 +1090,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               size: 20,
                             ),
                             tooltip: memory.pinned
-                                ? 'Sabitlemeyi kaldır'
-                                : 'Hep hatırla (sabitle)',
+                                ? I18n.t('settings.unpinTooltip')
+                                : I18n.t('settings.pinTooltip'),
                             onPressed: () => _togglePinMemory(memory),
                           ),
                           IconButton(
@@ -1042,7 +1100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               color: Colors.white38,
                               size: 20,
                             ),
-                            tooltip: 'Unut',
+                            tooltip: I18n.t('settings.forgetTooltip'),
                             onPressed: () => _deleteMemory(memory),
                           ),
                         ],
@@ -1068,7 +1126,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: _bgColor,
         elevation: 0,
         title: Text(
-          'Ayarlar',
+          I18n.t('chat.settings'),
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -1079,7 +1137,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: profileAsync.when(
         loading: () => Center(
           child: Semantics(
-            label: 'Ayarlar yükleniyor',
+            label: I18n.t('settings.loading'),
             child: const CircularProgressIndicator(color: _indigoColor),
           ),
         ),
@@ -1087,7 +1145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Semantics(
             liveRegion: true,
             child: Text(
-              'Hata: $err',
+              '${I18n.t('common.error')}: $err',
               style: GoogleFonts.poppins(color: Colors.white54),
             ),
           ),
@@ -1096,7 +1154,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (profile == null) {
             return Center(
               child: Semantics(
-                label: 'Ayarlar yükleniyor',
+                label: I18n.t('settings.loading'),
                 child: const CircularProgressIndicator(color: _indigoColor),
               ),
             );
@@ -1109,7 +1167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 _buildUsageSection(profile),
                 const SizedBox(height: 24),
-                _sectionTitle('Kişisel Bilgiler'),
+                _sectionTitle(I18n.t('settings.sectionPersonal')),
                 _card(
                   child: TextField(
                     controller: _nameController,
@@ -1117,11 +1175,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       color: Colors.white,
                       fontSize: 14,
                     ),
-                    decoration: _fieldDecoration('Adın'),
+                    decoration: _fieldDecoration(I18n.t('auth.name')),
                   ),
                 ),
                 const SizedBox(height: 24),
-                _sectionTitle('Aura Nasıl Davransın'),
+                _sectionTitle(I18n.t('settings.sectionBehavior')),
                 _card(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1137,8 +1195,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Artık burada elle ayar yok — Aura, konuşma tarzından '
-                              'kendi kendine öğreniyor ve zamanla sana uyum sağlıyor.',
+                              I18n.t('settings.behaviorBlurb'),
                               style: GoogleFonts.poppins(
                                 color: Colors.white70,
                                 fontSize: 13,
@@ -1157,27 +1214,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       if (profile.styleSampleCount >= 5) ...[
                         const SizedBox(height: 16),
                         _buildStyleBar(
-                          'Sıcaklık',
+                          I18n.t('settings.styleWarmth'),
                           profile.styleWarmth,
-                          'Mesafeli',
-                          'Sıcak',
+                          I18n.t('settings.styleDistant'),
+                          I18n.t('settings.styleWarm'),
                         ),
                         _buildStyleBar(
-                          'Resmiyet',
+                          I18n.t('settings.styleFormality'),
                           profile.styleFormality,
-                          'Resmi',
-                          'Samimi',
+                          I18n.t('settings.styleFormal'),
+                          I18n.t('settings.styleCasual'),
                         ),
                         _buildStyleBar(
-                          'Mizah',
+                          I18n.t('settings.styleHumor'),
                           profile.styleHumor,
-                          'Düz',
-                          'Şakacı',
+                          I18n.t('settings.stylePlain'),
+                          I18n.t('settings.stylePlayful'),
                         ),
                       ] else ...[
                         const SizedBox(height: 10),
                         Text(
-                          'Henüz öğreniyor — birkaç mesaj sonra burada nasıl bir uyum sağladığını görebileceksin.',
+                          I18n.t('settings.styleLearning'),
                           style: GoogleFonts.poppins(
                             color: Colors.white38,
                             fontSize: 11.5,
@@ -1191,11 +1248,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 24),
                 _buildPrivacySection(profile),
                 const SizedBox(height: 24),
-                _sectionTitle('Serbest Talimat'),
+                _sectionTitle(I18n.t('settings.sectionFreeInstruction')),
                 _card(
                   child: Semantics(
                     textField: true,
-                    label: 'Aura için serbest talimat',
+                    label: I18n.t('settings.freeInstructionA11y'),
                     child: TextField(
                       controller: _notesController,
                       maxLines: 4,
@@ -1205,8 +1262,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       decoration: _fieldDecoration(
                         '',
-                        hint:
-                            'Örnek: Beni şakacı bul ama iş konularında ciddi ol.',
+                        hint: I18n.t('settings.freeInstructionHint'),
                       ),
                     ),
                   ),
@@ -1225,7 +1281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       child: Text(
-                        'Kaydet',
+                        I18n.t('chat.save'),
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1255,7 +1311,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             color: Colors.white38,
                           ),
                     label: Text(
-                      'Çıkış yap',
+                      I18n.t('settings.logout'),
                       style: GoogleFonts.poppins(
                         color: Colors.white38,
                         fontSize: 13,
@@ -1268,7 +1324,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: TextButton(
                     onPressed: _confirmDeleteAccount,
                     child: Text(
-                      'Hesabı ve tüm verileri sil',
+                      I18n.t('settings.deleteAccountLink'),
                       style: GoogleFonts.poppins(
                         color: Colors.redAccent.withValues(alpha: 0.75),
                         fontSize: 12,

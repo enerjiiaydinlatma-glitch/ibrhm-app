@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/i18n.dart';
 import '../../../services/app_lock_service.dart';
 
 const _kPinLength = 4;
@@ -101,10 +102,10 @@ class _LockScreenState extends State<LockScreen> {
     setState(() {
       _shaking = true;
       _entered = '';
-      _error = 'Yanlış PIN';
+      _error = I18n.t('lock.wrongPin');
       if (_wrongAttempts >= 5) {
         _lockedUntil = DateTime.now().add(const Duration(seconds: 30));
-        _error = '5 kez yanlış girdin, 30 saniye bekle';
+        _error = I18n.t('lock.tooManyAttempts');
         _tickTimer?.cancel();
         _tickTimer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (!mounted) return;
@@ -143,7 +144,7 @@ class _LockScreenState extends State<LockScreen> {
             Semantics(
               header: true,
               child: Text(
-                'Aura kilitli',
+                I18n.t('lock.title'),
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontSize: 20,
@@ -153,7 +154,9 @@ class _LockScreenState extends State<LockScreen> {
             ),
             const SizedBox(height: 24),
             Semantics(
-              label: '4 haneli PIN, ${_entered.length} hane girildi',
+              label:
+                  '${I18n.t('pin.a11yField')}, ${_entered.length} '
+                  '${I18n.t('pin.a11yDigitsEntered')}',
               liveRegion: true,
               child: ExcludeSemantics(
                 child: AnimatedContainer(
@@ -185,7 +188,7 @@ class _LockScreenState extends State<LockScreen> {
                 liveRegion: true,
                 child: Text(
                   _isLockedOut
-                      ? '${_error ?? ""} ($remaining sn)'
+                      ? '${_error ?? ""} ($remaining ${I18n.t('lock.secondsShort')})'
                       : (_error ?? ''),
                   style: GoogleFonts.poppins(
                     color: Colors.redAccent,
@@ -202,7 +205,7 @@ class _LockScreenState extends State<LockScreen> {
                 onPressed: _isLockedOut ? null : _tryBiometric,
                 icon: const Icon(Icons.fingerprint, color: Colors.white54),
                 label: Text(
-                  'Biyometrik ile aç',
+                  I18n.t('lock.unlockBiometric'),
                   style: GoogleFonts.poppins(
                     color: Colors.white54,
                     fontSize: 13,
@@ -241,7 +244,7 @@ class _LockScreenState extends State<LockScreen> {
                 child: Semantics(
                   button: true,
                   enabled: !_isLockedOut,
-                  label: isBackspace ? 'Sil' : key,
+                  label: isBackspace ? I18n.t('pin.a11yBackspace') : key,
                   onTap: _isLockedOut
                       ? null
                       : () => isBackspace ? _onBackspace() : _onDigit(key),

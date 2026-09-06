@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/i18n.dart';
 import '../notifier/profile_notifier.dart';
 
 const _kBgColor = Color(0xFF0A0A1A);
@@ -39,7 +40,7 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
       setState(() => _messages = messages);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Gizli sohbetler yüklenemedi.');
+      setState(() => _error = I18n.t('hidden.loadFailed'));
     }
   }
 
@@ -49,7 +50,7 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
       backgroundColor: _kBgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Gizli Sohbetler', style: GoogleFonts.poppins()),
+        title: Text(I18n.t('hidden.appBarTitle'), style: GoogleFonts.poppins()),
       ),
       body: _buildBody(),
     );
@@ -70,7 +71,7 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
     if (_messages == null) {
       return Center(
         child: Semantics(
-          label: 'Gizli sohbetler yükleniyor',
+          label: I18n.t('hidden.loading'),
           child: const CircularProgressIndicator(color: _kIndigoColor),
         ),
       );
@@ -80,8 +81,7 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Text(
-            'Henüz gizli bir sohbet yok. Kod cümleni tek başına bir mesaj '
-            'olarak gönderirsen, o andan sonraki konuşma burada saklanır.',
+            I18n.t('hidden.empty'),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(color: Colors.white38, fontSize: 13),
           ),
@@ -96,7 +96,7 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
         final isUser = msg['role'] == 'user';
         return Semantics(
           container: true,
-          label: isUser ? 'Senin mesajın' : 'Aura',
+          label: isUser ? I18n.t('chat.a11yYou') : I18n.t('chat.a11yAura'),
           child: Align(
             alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
