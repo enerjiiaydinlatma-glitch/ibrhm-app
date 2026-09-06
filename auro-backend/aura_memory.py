@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 # SONRA burada hic kullanilmamisti (2 bagimsiz kod-inceleme acisinin
 # BAGIMSIZ olarak yakaladigi bir tutarsizlik).
 import database
+import db_compat
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # database.py ile ayni sozlesme: DB_DIR verilirse (Railway kalici disk)
@@ -24,17 +25,10 @@ DB_PATH = os.path.join(DB_DIR, "aura.db")
 # ============================================================
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    # database.py'deki ayni gerekce: ayni anda iki istek ayni satira
-    # yazmaya calisirsa SQLite'in ANINDA "database is locked" hatasi
-    # vermesini onlemek icin bir bekleme penceresi taniyoruz.
-    conn.execute("PRAGMA busy_timeout = 5000")
-    # database.py'deki ayni gerekce: WAL modu yazicilarin okuyuculari
-    # kilitlemesini onluyor - dosya duzeyinde kalici bir ayar, hangi
-    # modulun once baglandigindan bagimsiz her ikisinde de aciyoruz.
-    conn.execute("PRAGMA journal_mode = WAL")
-    return conn
+    # 2026-09-06: database.get_db ile ayni — baglanti kurulumu db_compat'a
+    # tasindi. DATABASE_URL YOKKEN eski SQLite davranisiyla bayt-bayt ayni;
+    # VARSA Postgres. Bkz. POSTGRES_MIGRATION.md.
+    return db_compat.get_conn()
 
 
 @contextmanager
