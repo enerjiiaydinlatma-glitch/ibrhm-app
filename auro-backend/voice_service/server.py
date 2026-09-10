@@ -10,17 +10,24 @@ Calistirma:
     python server.py                       # veya: uvicorn server:app --host 0.0.0.0 --port 8123
 
 Uclar:
-    GET  /health                 -> {status, model_loaded, device, sr}
-    POST /tts   {text, stream}   -> audio/wav (16-bit PCM). stream=true ise
-                                    cumle cumle StreamingResponse.
+    GET  /health                 -> {status, model_loaded, device, sr, speakers}
+    POST /tts   {text, stream,    -> stream=false: tam audio/wav (16-bit PCM).
+                 speaker}            stream=true: HAM PCM akisi (s16le/24kHz/mono,
+                                     header YOK) - cumle cumle uretilir, ilk ses
+                                     ~2-3s'de baslar. Istemci `ffmpeg -f s16le
+                                     -ar 24000 -ac 1 -i pipe:0` ile tuketir.
 Kimlik: X-Voice-Key basligi AURA_VOICE_KEY ile eslesecek (bos ise kontrol yok).
+
+Cok-karakter: `voices/<isim>.wav` referans seslerinden secim. `speaker` alani
+bos/bilinmiyorsa "aura"ya duser. Boylece TEK Chatterbox modeli (tek GPU kopyasi)
+hem Aura APP'ine hem Sign Council podcast'ine hizmet eder - iki ayri model
+yuklemeden kaynakli CUDA OOM ortadan kalkar.
 """
 from __future__ import annotations
 
 import io
 import os
 import re
-import struct
 import time
 import threading
 import wave
@@ -32,14 +39,77 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 VOICE_KEY = os.getenv("AURA_VOICE_KEY", "").strip()
-REF_WAV = os.path.join(os.path.dirname(__file__), "aura_voice.wav")
+_HERE = os.path.dirname(__file__)
+REF_WAV = os.path.join(_HERE, "aura_voice.wav")  # varsayilan (Aura) - geriye donuk uyum
+VOICES_DIR = os.getenv("AURA_VOICE_VOICES_DIR", os.path.join(_HERE, "voices"))
+DEFAULT_SPEAKER = os.getenv("AURA_VOICE_DEFAULT_SPEAKER", "aura").strip().lower()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SR = 24000  # Chatterbox cikis ornekleme hizi
 
+
+def _speaker_map() -> dict[str, str]:
+    """voices/<isim>.wav -> {isim: tam_yol}. 'aura' her zaman var (aura_voice.wav)."""
+    out: dict[str, str] = {"aura": REF_WAV}
+    try:
+        for fn in os.listdir(VOICES_DIR):
+            if fn.lower().endswith(".wav"):
+                out[os.path.splitext(fn)[0].lower()] = os.path.join(VOICES_DIR, fn)
+    except OSError:
+        pass
+    return out
+
+
+def _resolve_ref(speaker: str | None) -> str:
+    name = (speaker or DEFAULT_SPEAKER).strip().lower()
+    m = _speaker_map()
+    return m.get(name) or m.get(DEFAULT_SPEAKER) or REF_WAV
+
 # Chatterbox uretim parametreleri - Turkce'de token tekrari/erken kesme
-# gozlemlendigi icin muhafazakar. Kullanici geri bildirimiyle ayarlanacak.
+# gozlemlendigi icin muhafazakar.
+#
+# BULUNDU (2026-09-10, kullanici geri bildirimi "ses tonu bir kadin bir
+# erkek bir robot gibi kayiyor"): asil sebep KARARSIZLIK'ti -
+#   1. seed hic sabitlenmiyordu -> her generate() cagrisi farkli rastgele
+#      ornekleme -> ayni cevabin cumleleri farkli tinilarda cikip
+#      birlestiriliyordu (cevap ortasinda ses degisimi).
+#   2. temperature varsayilan 0.8 (yuksek) -> tini oynamasi fazla.
+#   3. cfg_weight 0.5 kimligi referansa yeterince kilitlemiyordu.
+# Duzeltme: sabit seed + dusuk sicaklik + biraz yuksek cfg_weight.
+# Hepsi env ile ayarlanabilir (referans/donanim degisirse geri alinir).
+SEED = int(os.getenv("AURA_TTS_SEED", "12345"))
 EXAGGERATION = float(os.getenv("AURA_TTS_EXAGGERATION", "0.4"))
-CFG_WEIGHT = float(os.getenv("AURA_TTS_CFG_WEIGHT", "0.5"))
+CFG_WEIGHT = float(os.getenv("AURA_TTS_CFG_WEIGHT", "0.6"))
+TEMPERATURE = float(os.getenv("AURA_TTS_TEMPERATURE", "0.6"))
+# Kisa cumleleri ~bu uzunluga kadar birlestirip TEK generate cagrisina ver
+# -> daha az ek yeri, cumleler arasi daha az prozodi/tini sicramasi.
+PACK_TARGET = int(os.getenv("AURA_TTS_PACK_CHARS", "300"))
+
+
+def _seed_everything(seed: int) -> None:
+    """Her uretimden once ayni RNG durumundan basla -> ayni cevabin
+    cumleleri tutarli tinida, ayni metin her seferinde ayni ses."""
+    import random
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def _pack_sentences(sentences: list[str], target: int = PACK_TARGET) -> list[str]:
+    """Ardisik cumleleri hedef uzunluga kadar tek parcada topla."""
+    out: list[str] = []
+    buf = ""
+    for s in sentences:
+        if buf and len(buf) + 1 + len(s) > target:
+            out.append(buf)
+            buf = s
+        else:
+            buf = f"{buf} {s}".strip()
+    if buf:
+        out.append(buf)
+    return out
 
 app = FastAPI(title="Aura Voice Mesh - TTS")
 
@@ -47,6 +117,16 @@ _model = None
 _model_lock = threading.Lock()
 # Chatterbox tek GPU'da ayni anda tek uretim - istekleri seri hale getir.
 _gen_lock = threading.Lock()
+
+# YUK KORUMASI (2026-09-03, yuk simulasyonunda bulundu): 6 es zamanli istek
+# geldiginde _gen_lock hepsini sıraya diziyor, sonuncusu ~31s bekliyordu -
+# cagiran tarafin (main.py _aura_voice_tts) 45s timeout'unu asip bosuna
+# bekletiyor. Artik "kac istek islemde/kuyrukta" sayiliyor; esik asilirsa
+# YENI istek hemen 503 aliyor -> cagiran hizlica yedege (ElevenLabs) duser,
+# 45s asili beklemez. AURA_TTS_MAX_QUEUE=0 ile kapatilabilir (sinirsiz kuyruk).
+MAX_QUEUE = int(os.getenv("AURA_TTS_MAX_QUEUE", "3"))
+_inflight = 0
+_inflight_lock = threading.Lock()
 
 
 def _load_model():
@@ -68,6 +148,34 @@ def _load_model():
 def _check_key(x_voice_key: str | None):
     if VOICE_KEY and (x_voice_key or "") != VOICE_KEY:
         raise HTTPException(status_code=401, detail="gecersiz anahtar")
+
+
+# --- Metin temizleme ---
+# Chatterbox'in tokenizer'i bazi Unicode noktalama isaretlerini tanimiyor;
+# tanimadigi bir karakterde model dogal bir "bitis" noktasina hic ulasamayip
+# GPU'yu %100'de tutarak dakikalarca ayni sesi tekrar edebiliyor (Sign
+# Council'da 2026-09-02 Bolum 10 render'inda gozlendi - kok neden U+2011
+# bitisik tire + akilli tirnaklardi; ayni ders `council-backend/render_audio.py`
+# `_PUNCT_FIXES`'te de var). Prod app'ten VEYA Sign Council'dan gelen metin
+# bu karakterleri tasiyabildigi icin uretimden ONCE ASCII'ye sabitliyoruz.
+_PUNCT_FIXES = {
+    "‑": "-", "‒": "-", "–": "-", "—": "-", "―": "-",
+    "‘": "'", "’": "'", "‚": "'", "‛": "'",
+    "“": '"', "”": '"', "„": '"', "‟": '"',
+    "…": "...",  # yatay ucnokta (_SENT_END "..."i de tanir)
+    "·": ".", "•": ".",  # orta nokta / madde imi -> cumle sonu gibi
+}
+# Sifir-genislikli / yon isaretleri: tokenizer'i sessizce kaydirabilir.
+_ZERO_WIDTH = dict.fromkeys(map(ord, "​‌‍‎‏﻿"), None)
+
+
+def sanitize_text(text: str) -> str:
+    for bad, good in _PUNCT_FIXES.items():
+        text = text.replace(bad, good)
+    text = text.translate(_ZERO_WIDTH)
+    # kontrol karakterleri (satir sonlari haric) -> bosluk
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text)
+    return text
 
 
 # --- Turkce cumle bolucu (kisaltmalara toleransli, basit ve dayanikli) ---
@@ -134,26 +242,34 @@ def _pcm_bytes(samples: np.ndarray) -> bytes:
     return (pcm * 32767.0).astype("<i2").tobytes()
 
 
-def _wav_header(data_len: int) -> bytes:
-    """Streaming icin onden gonderilecek WAV header. data_len bilinmiyorsa
-    buyuk bir deger yazip (0xFFFFFFFF) oynaticilarin yine de calmasina birak."""
-    n = data_len if data_len > 0 else 0xFFFFFFFF - 44
-    return (
-        b"RIFF" + struct.pack("<I", n + 36) + b"WAVE"
-        + b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, SR, SR * 2, 2, 16)
-        + b"data" + struct.pack("<I", n)
-    )
+def _try_enter() -> bool:
+    """Islemdeki+kuyruktaki istek sayisi esigi asmadiysa kabul et (sayaci
+    artir), astiysa reddet. MAX_QUEUE=0 -> sinirsiz (her zaman kabul)."""
+    global _inflight
+    with _inflight_lock:
+        if MAX_QUEUE and _inflight >= 1 + MAX_QUEUE:
+            return False
+        _inflight += 1
+        return True
 
 
-def _generate(text: str) -> np.ndarray:
+def _leave() -> None:
+    global _inflight
+    with _inflight_lock:
+        _inflight = max(0, _inflight - 1)
+
+
+def _generate(text: str, ref_wav: str = REF_WAV) -> np.ndarray:
     model = _load_model()
     with _gen_lock:
+        _seed_everything(SEED)
         wav = model.generate(
             text,
             language_id="tr",
-            audio_prompt_path=REF_WAV,
+            audio_prompt_path=ref_wav,
             exaggeration=EXAGGERATION,
             cfg_weight=CFG_WEIGHT,
+            temperature=TEMPERATURE,
         )
     return wav.squeeze(0).detach().cpu().numpy().astype("float32")
 
@@ -161,6 +277,7 @@ def _generate(text: str) -> np.ndarray:
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     stream: bool = False
+    speaker: str | None = None  # voices/<isim>.wav; bos -> "aura"
 
 
 @app.get("/health")
@@ -170,36 +287,79 @@ def health():
         "model_loaded": _model is not None,
         "device": DEVICE,
         "sr": SR,
+        "speakers": sorted(_speaker_map().keys()),
+        "default_speaker": DEFAULT_SPEAKER,
+        "inflight": _inflight,
+        "max_queue": MAX_QUEUE,
     }
 
 
 @app.post("/tts")
 def tts(req: TTSRequest, x_voice_key: str | None = Header(default=None)):
     _check_key(x_voice_key)
-    sentences = split_sentences(req.text) or [req.text.strip()]
 
-    if not req.stream:
-        chunks = [_generate(s) for s in sentences]
-        audio = np.concatenate(chunks) if chunks else np.zeros(1, "float32")
-        return Response(content=_wav_bytes(audio), media_type="audio/wav")
+    # Yuk koruması: kuyruk doluysa HEMEN 503 - cagiran 45s beklemeden yedege
+    # dusebilsin (bkz. _try_enter aciklamasi).
+    if not _try_enter():
+        raise HTTPException(
+            status_code=503,
+            detail=f"mesh mesgul ({_inflight} islemde, kuyruk {MAX_QUEUE})",
+            headers={"Retry-After": "5"},
+        )
+    # Bu noktadan sonra _leave() SART: non-stream'de finally, stream'de
+    # jeneratorun finally'si sorumlu (StreamingResponse fonksiyon donunce
+    # bitmez - govde tuketilene kadar surer).
+    released = False
+    try:
+        ref_wav = _resolve_ref(req.speaker)
+        clean = sanitize_text(req.text)
+        sentences = [s for s in (split_sentences(clean) or [clean.strip()]) if s.strip()]
+        if not sentences:
+            raise HTTPException(status_code=400, detail="seslendirilecek metin yok")
+        # Kisa cumleleri birlestir -> daha az generate cagrisi, cumleler
+        # arasi daha az tini/prozodi sicramasi (bkz. _pack_sentences).
+        sentences = _pack_sentences(sentences)
 
-    def gen():
-        # Once header (uzunluk bilinmiyor - 0xFFFFFFFF), sonra her cumle
-        # uretildikce ham PCM govdesi. Oynaticilarin cogu bunu sorunsuz calar.
-        yield _wav_header(0)
-        for s in sentences:
-            t0 = time.time()
-            audio = _generate(s)
-            print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
-            yield _pcm_bytes(audio)
+        if not req.stream:
+            chunks = [_generate(s, ref_wav) for s in sentences]
+            audio = np.concatenate(chunks) if chunks else np.zeros(1, "float32")
+            return Response(content=_wav_bytes(audio), media_type="audio/wav")
 
-    return StreamingResponse(gen(), media_type="audio/wav")
+        def gen():
+            # HAM PCM (s16le, 24kHz, mono) - header YOK, cumle siniri isareti
+            # YOK. Istemci tek uzun-omurlu ffmpeg'e (`-f s16le -ar 24000 -ac 1
+            # -i pipe:0`) akitir. Uretim cumle cumle (ilk ses ~2-3s), cikti
+            # kesintisiz tek PCM akisi. Sahte WAV header bilerek yok (ffmpeg
+            # pipe'ta kirilgandi, faz-2 2026-09-03).
+            try:
+                for s in sentences:
+                    t0 = time.time()
+                    audio = _generate(s, ref_wav)
+                    print(f"[voice] '{s[:40]}...' {len(audio)/SR:.1f}s ses / {time.time()-t0:.1f}s", flush=True)
+                    yield _pcm_bytes(audio)
+            finally:
+                _leave()
+
+        released = True  # sorumluluk gen()'e gecti
+        return StreamingResponse(
+            gen(),
+            media_type="audio/L16; rate=24000; channels=1",
+            headers={
+                "X-Audio-Format": "s16le",
+                "X-Sample-Rate": str(SR),
+                "X-Channels": "1",
+            },
+        )
+    finally:
+        if not released:
+            _leave()
 
 
 if __name__ == "__main__":
     import uvicorn
 
     port = int(os.getenv("AURA_VOICE_PORT", "8123"))
-    print(f"[voice] Aura Voice Mesh baslatiliyor :{port}  (ref: {REF_WAV})", flush=True)
+    _spk = ", ".join(sorted(_speaker_map().keys()))
+    print(f"[voice] Aura Voice Mesh baslatiliyor :{port}  (sesler: {_spk} / varsayilan: {DEFAULT_SPEAKER})", flush=True)
     _load_model()  # baslangicta yukle - ilk istek beklemesin
     uvicorn.run(app, host="0.0.0.0", port=port)

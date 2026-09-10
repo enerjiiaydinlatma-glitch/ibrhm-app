@@ -16,6 +16,7 @@ ayni havuzu besler.
 import asyncio
 import base64
 import json
+import os
 import time
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -26,6 +27,15 @@ import aura_brain
 import database
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
+
+# BULUNDU (2026-09-10, kullanici geri bildirimi "ses tonu bir kadin bir
+# erkek bir robot gibi"): speech_config'te voice_name HIC ayarlanmamisti -
+# Gemini her oturumda kendi varsayilan sesini seciyordu (bilincli bir
+# kadin/erkek/karakter karari yok). Artik tek, sabit bir ses kilitli.
+# Varsayilan "Kore" (sicak, dogal, kadin) - eski istemci TTS varsayilani
+# da "female" idi, sureklilik icin. Tek satirla degistirilir:
+# AURA_LIVE_VOICE=Charon (erkek) / Aoede (kadin, daha genc) / Puck / Orus ...
+LIVE_VOICE = (os.getenv("AURA_LIVE_VOICE") or "Kore").strip()
 
 # Gemini Live'a baglanma (websocket el sikismasi) icin ust sinir. Bkz.
 # handle_voice_session'daki asyncio.wait_for(live_ctx.__aenter__(), ...) -
@@ -224,7 +234,14 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         "system_instruction": system_instruction,
         "input_audio_transcription": {},
         "output_audio_transcription": {},
-        "speech_config": {"language_code": "tr-TR"},
+        "speech_config": {
+            "language_code": "tr-TR",
+            # Tek, sabit ses kimligi (bkz. LIVE_VOICE aciklamasi). Onceden
+            # bu satir yoktu -> her oturum farkli/varsayilan ses.
+            "voice_config": {
+                "prebuilt_voice_config": {"voice_name": LIVE_VOICE},
+            },
+        },
         # Masaustunde (kulaksiz, hoparlorle) Aura'nin kendi sesi mikrofona
         # sizip "kullanici konusuyor" sanilip kendi kendini kesiyor olabilir
         # (yanki/echo geri besleme). Hassasiyeti dusurup, konusma baslangicinin
