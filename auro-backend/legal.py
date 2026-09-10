@@ -1,9 +1,13 @@
-"""Yasal metinler (2026-09-06, yayin hazirligi B adimi).
+"""Yasal metinler (2026-09-06 taslak; 2026-09-10 sahis isletmesi bilgileri).
 
 DIKKAT - TASLAK: Bu metinler bir hukukcu tarafindan INCELENMEDI. Yayindan
-once KVKK/GDPR uzmanı bir avukata gozden gecirtilmeli. Sirket unvani, veri
-saklama suresi, saklama bolgesi ve iletisim adresi gibi [KOSELI PARANTEZ]
-alanlar doldurulmali.
+once KVKK/GDPR uzmanı bir avukata gozden gecirtilmeli.
+
+Isleten: Aura uygulamasi bir SAHIS ISLETMESI tarafindan isletilir. Iletisim
+e-postasi dolduruldu (enerjiiaydinlatma@gmail.com). Saklama suresi,
+sorumluluk siniri ve yetkili hukuk metinleri yazildi. GERIYE KALAN iki alan
+(isletme sahibinin yasal AD SOYAD'i ve ACIK ADRES'i) sadece kullanici
+doldurabilir - kod bunlari uydurmaz: `[AD SOYAD]` ve `[ACIK ADRES]`.
 
 Iceriik Aura'nin GERCEK veri islemesini yansitir:
 - Toplanan: e-posta (hesap kaydedilirse) + sifre hash'i, isim, sohbet
@@ -40,8 +44,9 @@ _DOCS = {
 Nihai sürüm yayından önce onaylanacaktır.</div>
 <h2>1. Kimiz</h2>
 <p>Aura, kişisel bir yapay zekâ arkadaş uygulamasıdır. Bu politikada
-"biz" ifadesi uygulamayı işleten [ŞİRKET/KİŞİ UNVANI]'nı belirtir. İletişim:
-[E-POSTA ADRESİ].</p>
+"biz" ifadesi, Aura'yı işleten şahıs işletmesini — <b>[AD SOYAD]</b>
+([AÇIK ADRES]) — belirtir. Veri sorumlusuna ulaşmak için:
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>2. Hangi verileri işliyoruz</h2>
 <ul>
 <li><b>Hesap:</b> Hesabını kaydedersen e‑posta adresin ve şifrenin
@@ -72,15 +77,20 @@ sağlayıcı olarak şu taraflarla çalışıyoruz: <b>Google</b> (Gemini),
 kendi barındırdığımız ses motoru. Barındırma: <b>Railway</b>. Bu sağlayıcılar
 verini yalnızca hizmeti sunmak için işler.</p>
 <h2>5. Ne kadar saklıyoruz</h2>
-<p>Sohbet geçmişin ve hafızan, sen silene ya da hesabını kapatana kadar
-saklanır. Hesabını sildiğinde tüm verilerin kalıcı olarak silinir.
-[SAKLAMA SÜRESİ DETAYI — hukuk incelemesinde netleştirilecek.]</p>
+<p>Sohbet geçmişin, hafızan, ruh hâli ve hatırlatma kayıtların; sen silene
+ya da hesabını kapatana kadar saklanır. Hesabını sildiğinde bu veriler
+sistemden derhâl kaldırılır ve düzenli yedeklerden en geç 30 gün içinde
+kalıcı olarak silinir. Analiz için gönderilen fotoğraf/PDF dosyaları işlem
+biter bitmez sunucudan silinir. Güvenlik ve kötüye kullanımı önleme amacıyla
+tutulan teknik kayıtlar (ör. IP adresi, istek sayaçları) en fazla 90 gün
+saklanır. Yürürlükteki mevzuat bir kaydı daha uzun saklamamızı zorunlu
+kılıyorsa, yalnızca o kayıt ilgili yasal süre boyunca saklanır.</p>
 <h2>6. Haklarını nasıl kullanırsın</h2>
 <p>KVKK md. 11 ve ilgili mevzuat uyarınca verilerine erişme, düzeltme,
 silme ve işlenmesine itiraz etme hakkın var. Uygulama içinden:
 Ayarlar > Hafızam (hafıza silme), Ayarlar > Çıkış, ve <b>hesap silme</b>
 seçenekleriyle bunların çoğunu doğrudan yapabilirsin. Diğer talepler için:
-[E‑POSTA ADRESİ].</p>
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>7. Güvenlik</h2>
 <p>Şifreler hash'lenerek saklanır. Bağlantılar şifrelidir (HTTPS). Gizli
 mod'da işaretlediğin sohbetler normal geçmişte görünmez.</p>
@@ -95,8 +105,9 @@ bildiririz.</p>
 <div class="draft">DRAFT — this text has not been reviewed by a lawyer. A
 final version will be approved before public launch.</div>
 <h2>1. Who we are</h2>
-<p>Aura is a personal AI companion app. "We" refers to [COMPANY/OPERATOR
-NAME]. Contact: [EMAIL].</p>
+<p>Aura is a personal AI companion app. "We" refers to the sole
+proprietorship operating Aura — <b>[FULL NAME]</b> ([FULL ADDRESS]). To
+reach the data controller: <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>2. What we process</h2>
 <ul>
 <li><b>Account:</b> If you save an account, your email and a hashed form of
@@ -125,14 +136,19 @@ processors: <b>Google</b> (Gemini), <b>Groq</b> (background tasks),
 <b>ElevenLabs</b> or our self‑hosted voice engine for speech. Hosting:
 <b>Railway</b>. They process your data only to provide the service.</p>
 <h2>5. Retention</h2>
-<p>Your chat history and memory are kept until you delete them or close your
-account. Deleting your account permanently erases your data.
-[RETENTION DETAIL — to be finalised in legal review.]</p>
+<p>Your chat history, memory, mood and reminder records are kept until you
+delete them or close your account. When you delete your account these data
+are removed from the system immediately and purged from routine backups
+within 30 days at the latest. Photos/PDFs sent for analysis are deleted from
+the server as soon as processing finishes. Technical logs kept for security
+and abuse prevention (e.g. IP address, request counters) are retained for at
+most 90 days. If applicable law requires a record to be kept longer, only
+that record is retained for the relevant statutory period.</p>
 <h2>6. Your rights</h2>
 <p>Under GDPR / Turkish KVKK you can access, rectify, erase and object to
 processing. In‑app: Settings &gt; My Memory (delete memories),
 Settings &gt; Log out, and <b>delete account</b>. Other requests:
-[EMAIL].</p>
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>7. Security</h2>
 <p>Passwords are stored hashed. Connections are encrypted (HTTPS). Chats you
 mark as hidden do not appear in normal history.</p>
@@ -169,13 +185,22 @@ izin vermiş olursun (bkz. Gizlilik Politikası).</p>
 etmeyiz. Ücretsiz kullanım için günlük sınırlar uygulanabilir.</p>
 <h2>7. Sorumluluğun sınırı</h2>
 <p>Yürürlükteki hukukun izin verdiği ölçüde, Aura'nın verdiği yanıtlara
-dayanarak aldığın kararlardan doğan zararlardan sorumlu değiliz.
-[SORUMLULUK SINIRI — hukuk incelemesinde netleştirilecek.]</p>
+dayanarak aldığın kararlardan doğan zararlardan sorumlu değiliz. İşletmenin
+toplam sorumluluğu, ilgili talebe konu olan hizmet için son 12 ayda bize
+fiilen ödediğin tutarla (ücretsiz kullanımda sıfır) sınırlıdır. Dolaylı,
+arızi, özel veya sonuç niteliğindeki zararlardan (veri kaybı, kâr kaybı,
+manevi zarar dâhil) sorumlu tutulamayız. Tüketici mevzuatından doğan ve
+sözleşmeyle sınırlanamayan yasal hakların ile kasıt veya ağır kusurdan
+doğan sorumluluk saklıdır.</p>
 <h2>8. Fesih</h2>
 <p>Hesabını istediğin zaman silebilirsin. Şartları ihlal eden hesapları
 askıya alabilir veya kapatabiliriz.</p>
 <h2>9. Uygulanacak hukuk</h2>
-<p>[YETKİLİ HUKUK VE MAHKEME — doldurulacak.]</p>
+<p>Bu şartlara ve uygulamanın kullanımına Türkiye Cumhuriyeti hukuku
+uygulanır. Tüketici işlemlerinde, ilgili parasal sınırlara göre kullanıcının
+yerleşim yerindeki tüketici hakem heyetleri veya tüketici mahkemeleri;
+bunun dışındaki uyuşmazlıklarda Türkiye Cumhuriyeti mahkemeleri ve icra
+daireleri yetkilidir.</p>
 """),
         "en": ("Terms of Use", """
 <div class="draft">DRAFT — not reviewed by a lawyer.</div>
@@ -201,13 +226,22 @@ app (see Privacy Policy).</p>
 uninterrupted or error‑free. Daily limits may apply to free use.</p>
 <h2>7. Limitation of liability</h2>
 <p>To the extent permitted by applicable law, we are not liable for decisions
-you make relying on Aura's responses.
-[LIABILITY CAP — to be finalised in legal review.]</p>
+you make relying on Aura's responses. Our total liability is limited to the
+amount you actually paid us for the service giving rise to the claim in the
+preceding 12 months (zero for free use). We are not liable for indirect,
+incidental, special or consequential damages (including loss of data, loss
+of profit or non‑pecuniary loss). Your mandatory statutory rights under
+consumer law, and liability for intent or gross negligence, are unaffected.</p>
 <h2>8. Termination</h2>
 <p>You can delete your account at any time. We may suspend or close accounts
 that breach these terms.</p>
 <h2>9. Governing law</h2>
-<p>[GOVERNING LAW AND JURISDICTION — to be filled in.]</p>
+<p>These terms and your use of the app are governed by the laws of the
+Republic of Türkiye. For consumer transactions, the consumer arbitration
+committees or consumer courts at the user's place of residence have
+jurisdiction according to the applicable monetary thresholds; for other
+disputes, the courts and enforcement offices of the Republic of Türkiye
+have jurisdiction.</p>
 """),
     },
     "kvkk": {
@@ -215,7 +249,8 @@ that breach these terms.</p>
 <div class="draft">TASLAK — 6698 sayılı KVKK kapsamında hazırlanmış olup
 bir hukukçu tarafından incelenmemiştir.</div>
 <h2>Veri Sorumlusu</h2>
-<p>[ŞİRKET/KİŞİ UNVANI], [ADRES]. İletişim: [E‑POSTA].</p>
+<p>Aura uygulamasını işleten şahıs işletmesi: <b>[AD SOYAD]</b>,
+[AÇIK ADRES]. İletişim: <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>İşlenen Kişisel Veriler</h2>
 <p>Kimlik (ad), iletişim (e‑posta), işlem güvenliği (şifre hash'i, oturum),
 kullanıcı içerikleri (sohbet mesajları, gönderilen fotoğraf/PDF), çıkarılan
@@ -238,13 +273,15 @@ zorunludur ve KVKK md. 9 çerçevesinde yapılır.</p>
 <p>Kişisel verilerinizin işlenip işlenmediğini öğrenme, bilgi talep etme,
 amacına uygun kullanılıp kullanılmadığını öğrenme, düzeltilmesini veya
 silinmesini isteme, aktarıldığı üçüncü kişileri bilme ve zararın
-giderilmesini talep etme haklarına sahipsiniz. Başvuru: [E‑POSTA].</p>
+giderilmesini talep etme haklarına sahipsiniz. Başvuru:
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 """),
         "en": ("Data Processing Notice (KVKK/GDPR)", """
 <div class="draft">DRAFT — prepared under Turkish KVKK (Law 6698) / GDPR
 principles; not reviewed by a lawyer.</div>
 <h2>Data controller</h2>
-<p>[COMPANY/OPERATOR NAME], [ADDRESS]. Contact: [EMAIL].</p>
+<p>The sole proprietorship operating Aura: <b>[FULL NAME]</b>,
+[FULL ADDRESS]. Contact: <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>Personal data processed</h2>
 <p>Identity (name), contact (email), transaction security (password hash,
 session), user content (chat messages, submitted photos/PDFs), derived
@@ -264,7 +301,7 @@ necessary to deliver the service technically.</p>
 <h2>Your rights</h2>
 <p>You may ask whether your data is processed, request information, ask for
 correction or erasure, learn the third parties it is shared with, and
-request remedy for damage. Requests: [EMAIL].</p>
+request remedy for damage. Requests: <b>enerjiiaydinlatma@gmail.com</b>.</p>
 """),
     },
 }
@@ -281,7 +318,7 @@ def render(doc: str, lang: str = "tr") -> str:
     title, body = entry[lang]
     other = "en" if lang == "tr" else "tr"
     other_label = "English" if lang == "tr" else "Türkçe"
-    updated = "2026-09-06"
+    updated = "2026-09-10"
     foot_tr = ("Bu bir taslaktır ve yayından önce hukuki incelemeden "
                "geçirilecektir. Son güncelleme: ")
     foot_en = ("This is a draft and will undergo legal review before public "
