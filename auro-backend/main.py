@@ -200,7 +200,13 @@ RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_ANON_PER_MIN", "30"))
 RATE_LIMIT_MAX_REQUESTS_AUTH = int(os.getenv("RATE_LIMIT_USER_PER_MIN", "90"))
 request_log = defaultdict(deque)
 
-MAX_HISTORY_MESSAGES = 20
+# BULUNDU (2026-09-10, kullanici geri bildirimi "uzun konusmalarda sorunlar
+# var"): modele SADECE son bu kadar mesaj gidiyor. Sesli-yedek + yazili
+# ic ice oldugunda 20 mesaj ~8-10 tur = Aura ayni oturumda konunun
+# iplikini kaybedip sordugunu tekrar soruyor. 20 -> 30 kismi rahatlama
+# (her tur ~birkac yuz token daha - kabul edilebilir). ASIL cozum
+# yuvarlanan konusma ozeti (henuz yok, ayri is). Env ile ayarlanir.
+MAX_HISTORY_MESSAGES = int(os.getenv("AURA_MAX_HISTORY_MESSAGES", "30"))
 
 
 # GECE DENETIMI BULGUSU + CANLIDA DOGRULANDI (2026-08-25): once "Procfile

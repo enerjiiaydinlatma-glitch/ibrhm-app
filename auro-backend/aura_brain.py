@@ -118,6 +118,14 @@ TANISMA_THRESHOLD = 6
 PATTERN_ANALYSIS_INTERVAL = 15
 PATTERN_INSIGHT_CONFIDENCE_THRESHOLD = 0.85
 
+# BULUNDU (2026-09-10, kullanici geri bildirimi "konusmasi civik gibi"):
+# Gemini metin uretimi HIC temperature almiyordu -> model varsayilani (~1.0,
+# yuksek) -> dagilan/sakaci/ton kayan cevaplar. Groq yedegi zaten 0.8
+# kullaniyordu. Tek bir sabite baglandi; hepsi biraz dusuruldu. Sadece
+# ANA sohbet uretimi - hafiza cikarimi (0.0) ve gorsel analizi (0.2)
+# kendi degerlerinde kaliyor. Env ile ayarlanir.
+TEXT_TEMPERATURE = float(os.getenv("AURA_TEXT_TEMPERATURE", "0.75"))
+
 BANNED_EARLY_NICKNAMES = [
     "dostum", "dostumm", "kanka", "kankam", "patron", "patronum",
     "abi", "abicim", "abim", "reis", "reisim", "kral",
@@ -503,6 +511,23 @@ UZUNLUK_UYUMU = (
     "analizle doldurma."
 )
 
+# BULUNDU (2026-09-10, kullanici geri bildirimi "Aura'nin konusmasi biraz
+# civik gibi geldi"): sistem promptu call-center/asistan tonuna karsi cok
+# iyi savunulmus ama asiri-teklifsiz, savruk, her cumleyi sakaya baglayan
+# tona karsi HICBIR kural yoktu. Ustelik get_familiarity_note ilerledikce
+# ("artik samimi olabilirsin" -> "kisa/kesik konus") bu yone ITIYOR.
+# Sicaklik ile laubaliligi ayiran bir sinir eklendi.
+LAUBALILIK_SINIRI = (
+    "LAUBALILIK SINIRI: Sicaklik ve yakinlik, laubalilik DEGILDIR. "
+    "Kullaniciyla ne kadar eski olursaniz olun: argoya kacma, her cumleyi "
+    "sakaya/espriye baglama, asiri-teklifsiz bir enerjiye girme ('hadi "
+    "bakalim', 'eee anlat bakalim', 'kanka moduna gectik' gibi). Yakinlik "
+    "= daha az kelime, daha cok guven, yarim cumleden anlasilmak - "
+    "savrukluk ya da surekli sululuk degil. Kullanici ciddi/durgun "
+    "yazdiysa senin de bir agirligin olsun. Mizahin yuksek oldugu "
+    "durumlarda bile toparli kal: gulduren ama dagilmayan."
+)
+
 
 # BULUNDU (2026-09-05, 2. cok-turlu zorlayici kosum - "finansal karar
 # baskisi" senaryosu): kullanici "senden yorum bekliyorum / sorumluluk
@@ -640,7 +665,9 @@ def get_familiarity_note(message_count: int) -> str:
         "var - fazla aciklama yapmana, arka plan vermene gerek yok, "
         "kisa ve guvenli konusabilirsin, sanki cumleyi bitirmeden "
         "anlasilacagini bilir gibi. Yine de sicakligini kaybetme - "
-        "kisalik sogukluk demek degil, yakinlik demek."
+        "kisalik sogukluk demek degil, yakinlik demek. Ama kisalik "
+        "savrukluk da degil: teklifsizlesme, argoya kayma ya da her "
+        "seyi hafife alma anlamina GELMEZ (bkz. LAUBALILIK SINIRI)."
     )
 
 
@@ -806,6 +833,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         KACIS_KAPISI_KISITI,
         KENDINI_TEKRAR_ETME,
         UZUNLUK_UYUMU,
+        LAUBALILIK_SINIRI,
         DOGAL_HAFIZA_ILKESI,
         CELISKI_FARKINDALIGI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
@@ -883,7 +911,8 @@ def _gemini_text(contents, system_instruction, max_attempts=3):
                 model=MODEL_NAME,
                 contents=contents,
                 config=types.GenerateContentConfig(
-                    system_instruction=system_instruction
+                    system_instruction=system_instruction,
+                    temperature=TEXT_TEMPERATURE,
                 ),
             ).text
 
@@ -1085,7 +1114,7 @@ def _aura_brain_remote(contents, system_instruction, route=None):
     response = _groq_http.post(
         f"{AURA_BRAIN_URL}/v1/chat/completions",
         headers=headers,
-        json={"model": model, "messages": messages, "temperature": 0.8},
+        json={"model": model, "messages": messages, "temperature": TEXT_TEMPERATURE},
         timeout=AURA_BRAIN_TIMEOUT_S,
     )
     response.raise_for_status()
@@ -1112,7 +1141,7 @@ def _groq_text(contents, system_instruction, max_attempts=1):
         json={
             "model": GROQ_MODEL,
             "messages": messages,
-            "temperature": 0.8,
+            "temperature": TEXT_TEMPERATURE,
         },
         timeout=30,
     )
@@ -1128,7 +1157,7 @@ def _openai_compatible_text(base_url, api_key, model, contents, system_instructi
     r = _groq_http.post(
         f"{base_url}/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={"model": model, "messages": messages, "temperature": 0.8},
+        json={"model": model, "messages": messages, "temperature": TEXT_TEMPERATURE},
         timeout=timeout,
     )
     r.raise_for_status()
@@ -1282,7 +1311,8 @@ def generate_stream(contents, system_instruction):
         model=MODEL_NAME,
         contents=contents,
         config=types.GenerateContentConfig(
-            system_instruction=system_instruction
+            system_instruction=system_instruction,
+            temperature=TEXT_TEMPERATURE,
         ),
     )
 
