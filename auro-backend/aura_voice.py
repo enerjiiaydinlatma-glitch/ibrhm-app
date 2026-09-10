@@ -309,6 +309,10 @@ async def handle_voice_session(websocket: WebSocket) -> None:
             database.update_style_vector(user["id"], aura_brain.extract_style_signals(user_text))
         if assistant_text:
             database.add_message(user["id"], "assistant", assistant_text, hidden=hidden_now)
+        # Yuvarlanan konusma ozeti - yazili sohbetle ayni (varsayilan KAPALI;
+        # kapi/tetik aura_brain'de). 30 = yazili taraftaki MAX_HISTORY_MESSAGES
+        # ile ayni "canli pencere" buyuklugu.
+        aura_brain.maybe_refresh_conversation_summary(user, hidden_now, 30)
 
     # Es zamanlilik rezervasyonu, artik gercekten baglanmaya calismadan
     # HEMEN once yapiliyor - bundan sonrasi zaten mevcut try/finally

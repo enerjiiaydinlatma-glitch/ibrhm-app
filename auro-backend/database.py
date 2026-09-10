@@ -122,6 +122,15 @@ def init_db():
             # Yayin hazirligi (2026-09-06): 18+ / Gizlilik + Sartlar onami.
             # NULL = henuz onaylamadi. Onboarding onam ekrani doldurur.
             "ALTER TABLE users ADD COLUMN consent_accepted_at TEXT",
+            # Yuvarlanan konusma ozeti (2026-09-10, "uzun konusmalarda
+            # sorunlar" geri bildirimi - bkz. ROLLING_SUMMARY_DESIGN.md).
+            # canli pencere (MAX_HISTORY_MESSAGES) disinda kalan konusmanin
+            # kompakt notr ozeti. _upto = ozet uretilirken kapsanan TOPLAM
+            # (gorunur) mesaj sayisi - yenileme tetigi bununla kiyaslanir.
+            # VARSAYILAN OLARAK ETKISIZ: main.py'de AURA_SUMMARY_ENABLED
+            # (varsayilan '0') acilana kadar ne yazilir ne okunur.
+            "ALTER TABLE users ADD COLUMN conversation_summary TEXT DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN conversation_summary_upto INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(migration)
@@ -775,6 +784,26 @@ def get_messages(user_id: int, limit: int = 100, include_hidden: bool = True) ->
             )
         rows = cursor.fetchall()
     return [dict(row) for row in reversed(rows)]
+
+
+def count_messages(user_id: int, include_hidden: bool = False) -> int:
+    """Kullanicinin TOPLAM mesaj sayisi. get_messages `limit` (100) ile
+    kapali oldugu icin len(get_messages(...)) gercek toplami vermez -
+    yuvarlanan konusma ozetinin yenileme tetigi gercek toplama muhtac
+    (bkz. ROLLING_SUMMARY_DESIGN.md)."""
+    with db_cursor() as conn:
+        cursor = conn.cursor()
+        if include_hidden:
+            cursor.execute(
+                "SELECT COUNT(*) FROM messages WHERE user_id = ?", (user_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM messages WHERE user_id = ? AND hidden = 0",
+                (user_id,),
+            )
+        row = cursor.fetchone()
+    return int(row[0]) if row else 0
 
 
 def get_hidden_messages(user_id: int, limit: int = 200) -> List[dict]:

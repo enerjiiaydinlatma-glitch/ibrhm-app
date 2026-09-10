@@ -208,6 +208,11 @@ request_log = defaultdict(deque)
 # yuvarlanan konusma ozeti (henuz yok, ayri is). Env ile ayarlanir.
 MAX_HISTORY_MESSAGES = int(os.getenv("AURA_MAX_HISTORY_MESSAGES", "30"))
 
+# Yuvarlanan konusma ozeti: kapi + tetik + yenileme mantigi
+# aura_brain.maybe_refresh_conversation_summary'de (tek yer). VARSAYILAN
+# KAPALI - AURA_SUMMARY_ENABLED=1 olmadan no-op. Bkz.
+# auro-backend/ROLLING_SUMMARY_DESIGN.md.
+
 
 # GECE DENETIMI BULGUSU + CANLIDA DOGRULANDI (2026-08-25): once "Procfile
 # --forwarded-allow-ips='*' oldugu icin X-Forwarded-For istemci tarafindan
@@ -1130,6 +1135,9 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # KAPALI, AURA_DISTILL_LOG=1 ile acilir). Gizli mod turleri ASLA loglanmaz.
     if generation_ok and not hidden_now:
         aura_brain.log_distill_sample(system_instruction, contents, reply_text)
+    # Yuvarlanan konusma ozetini gerekiyorsa tazele (post-reply, gecikmesiz;
+    # varsayilan KAPALI - bkz. AURA_SUMMARY_ENABLED).
+    aura_brain.maybe_refresh_conversation_summary(user, hidden_now, MAX_HISTORY_MESSAGES)
     return {"reply": reply_text, "mood": mood}
 
 
@@ -1247,6 +1255,9 @@ def chat_stream(request: ChatRequest, authorization: Optional[str] = Header(None
             if full:
                 full = aura_brain.sanitize_reply(full, message_count)
                 database.add_message(user["id"], "assistant", full, hidden=hidden_now)
+                aura_brain.maybe_refresh_conversation_summary(
+                    user, hidden_now, MAX_HISTORY_MESSAGES
+                )
 
     return StreamingResponse(event_generator(), media_type="text/plain; charset=utf-8")
 

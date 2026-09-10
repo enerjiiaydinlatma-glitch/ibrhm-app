@@ -1,7 +1,23 @@
 # Yuvarlanan Konusma Ozeti — Tasarim Notu
 
-**Durum:** TASLAK — kullanici onayi bekliyor. Kod YAZILMADI.
+**Durum:** UYGULANDI (feat dali, deploy EDILMEDI, `AURA_SUMMARY_ENABLED`
+varsayilan `0` = etkisiz). Canli acmadan once kullanici gozden gecirmeli.
 **Tarih:** 2026-09-10
+
+## Uygulanan (bu nottan sapmalar)
+
+- `database.py`: 2 kolon migration listesine eklendi + yeni `count_messages(user_id, include_hidden=False)` (gercek toplam - `get_messages` `limit=100` ile kapali oldugu icin `len(...)` yetmez).
+- `aura_brain.py`: `_conversation_summary_note(user)` (okuma, `build_system_instruction` parts'a `context`'ten once) + `refresh_conversation_summary(user_id, live_window_size, total_visible)` (yazma, `_run_background_extraction` ile saglayici-yedekli) + `maybe_refresh_conversation_summary(user, hidden_now, live_window_size)` (kapi+tetik TEK yer: `SUMMARY_ENABLED` + gizli mod + cadence).
+- Kaynak secimi: son `SUMMARY_SOURCE_WINDOW` (60) gorunur mesajin `[:-live_window_size]` kismi (bant), onceki ozet tohum. Range-query yok - bounded + ustuste binme kabul.
+- `main.py`: `_process_chat_message` + `chat_stream` post-reply `aura_brain.maybe_refresh_conversation_summary(...)`.
+- `aura_voice.py`: `persist_transcripts` icinde ayni cagri (live window 30).
+- Env: `AURA_SUMMARY_ENABLED` (0), `AURA_SUMMARY_REFRESH_EVERY` (12), `AURA_SUMMARY_MAX_CHARS` (1200), `AURA_SUMMARY_SOURCE_WINDOW` (60).
+- Hata/metrik: `metrics.record("conversation_summary", ...)` -> Sentry koprusu.
+
+**Canli acmadan once:** kolon migration'i deploy edilmeli (PG'de idempotent DDL zaten var); sonra `AURA_SUMMARY_ENABLED=1`; >=15 turluk gercek konusma + gizli-mod sizinti testi.
+
+---
+### Ilk tasarim notu (referans):
 **Sebep:** Kullanici geri bildirimi — "uzun konusmalarda sorunlar var". Aura ayni
 oturumda ~10 turdan eskisini unutup sordugunu tekrar soruyor, kendiyle celisiyor.
 

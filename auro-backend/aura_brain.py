@@ -747,6 +747,102 @@ def get_context_summary(user_id: int) -> str:
     return ""
 
 
+# --- Yuvarlanan konusma ozeti (bkz. ROLLING_SUMMARY_DESIGN.md) ---
+# Uzun konusmada Aura'nin "ipligi kaybetmesi" sorunu icin: canli mesaj
+# penceresinin (main.MAX_HISTORY_MESSAGES) DISINDA kalan konusmanin
+# kompakt, notr bir ozeti. VARSAYILAN OLARAK ETKISIZ - yenileme SADECE
+# main.py'de AURA_SUMMARY_ENABLED='1' iken cagrilir; okuma tarafi
+# (asagidaki not) kolon bos oldugu surece zaten no-op.
+SUMMARY_ENABLED = os.getenv("AURA_SUMMARY_ENABLED", "0") == "1"
+SUMMARY_REFRESH_EVERY = int(os.getenv("AURA_SUMMARY_REFRESH_EVERY", "12"))
+SUMMARY_MAX_CHARS = int(os.getenv("AURA_SUMMARY_MAX_CHARS", "1200"))
+SUMMARY_SOURCE_WINDOW = int(os.getenv("AURA_SUMMARY_SOURCE_WINDOW", "60"))
+
+_SUMMARY_PROMPT = (
+    "Asagida bir kullanici ile Aura arasindaki konusmanin ESKI kismi ve "
+    "(varsa) bu kisma dair onceki bir ozet var. Gorevin: guncel, tek "
+    "parca, NOTR (3. sahis) bir 'konusma ozeti' uretmek - Aura'nin "
+    "sesinden DEGIL. Amac, canli sohbette artik gorunmeyen ama sonraki "
+    "turlarda gerekebilecek baglami korumak: hangi konular konusuldu, "
+    "kullanici ne anlatti/ne karar verdi/neye karsi cikti, cozulmemis "
+    "ne kaldi. Eskiyen ya da artik gecerli olmayan detaylari AT, "
+    "degismeyen onemli baglami TUT. En fazla {limit} karakter. Sadece "
+    "ozet metnini yaz, baslik/aciklama/madde imi yok.\n\n"
+    "ONCEKI OZET:\n{prev}\n\nKONUSMANIN ESKI KISMI:\n{convo}\n\nGUNCEL OZET:"
+)
+
+
+def _conversation_summary_note(user: dict) -> str:
+    s = (user.get("conversation_summary") or "").strip()
+    if not s:
+        return ""
+    return (
+        "[BURAYA KADARKI KONUSMANIN OZETI]: " + s + " Bu ozeti yalnizca "
+        "arka plan baglami olarak kullan; icinden alinti yapma, 'ozete "
+        "gore' / 'kayitlarima gore' gibi ifadeler kullanma."
+    )
+
+
+def refresh_conversation_summary(
+    user_id: int, live_window_size: int, total_visible: int
+) -> None:
+    """Post-reply cagrilir (kullanici gecikmesine etkisi YOK). GIZLI MOD:
+    kaynak HER ZAMAN include_hidden=False - gizli icerik ozete asla girmez
+    (mod sonradan kapansa bile). Her hata sessizce yutulur."""
+    try:
+        msgs = database.get_messages(
+            user_id, limit=SUMMARY_SOURCE_WINDOW, include_hidden=False
+        )
+        # Canli baglamda zaten gorunen en son mesajlari cikar - sadece
+        # "artik pencerede olmayan" kismi ozetle.
+        older = msgs[:-live_window_size] if live_window_size < len(msgs) else []
+        if not older:
+            return
+        prev = (database.get_user(user_id).get("conversation_summary") or "").strip()
+        convo = "\n".join(
+            ("Kullanici" if m["role"] != "assistant" else "Aura") + ": " + (m["text"] or "")
+            for m in older
+        )
+        prompt = _SUMMARY_PROMPT.format(
+            limit=SUMMARY_MAX_CHARS, prev=(prev or "(yok)"), convo=convo
+        )
+        summary = (_run_background_extraction(prompt) or "").strip()
+        if not summary:
+            return
+        database.update_user(
+            user_id,
+            conversation_summary=summary[: SUMMARY_MAX_CHARS + 200],
+            conversation_summary_upto=total_visible,
+        )
+        metrics.record("conversation_summary", ok=True)
+    except Exception as e:  # noqa: BLE001 - ozet ASLA ana akisi bozmaz
+        metrics.record(
+            "conversation_summary", ok=False, detail=f"{type(e).__name__}: {e}"
+        )
+        print(f"KONUSMA OZETI HATASI: {type(e).__name__}: {e}")
+
+
+def maybe_refresh_conversation_summary(
+    user: dict, hidden_now: bool, live_window_size: int
+) -> None:
+    """Post-reply cagrilir (chat + sesli gorusme). Kapi + tetik burada,
+    tek yerde: SUMMARY_ENABLED kapali ya da gizli mod aktifse hicbir sey
+    yapmaz; degilse toplam gorunur mesaj sayisi ile son ozetin kapsadigi
+    sayi arasindaki fark SUMMARY_REFRESH_EVERY'yi asinca yeniler.
+    Her hata yutulur."""
+    if not SUMMARY_ENABLED or hidden_now:
+        return
+    try:
+        total_visible = database.count_messages(user["id"], include_hidden=False)
+        if total_visible <= live_window_size:
+            return
+        upto = user.get("conversation_summary_upto") or 0
+        if total_visible - upto >= SUMMARY_REFRESH_EVERY:
+            refresh_conversation_summary(user["id"], live_window_size, total_visible)
+    except Exception as e:  # noqa: BLE001
+        print(f"KONUSMA OZETI TETIK HATASI: {type(e).__name__}: {e}")
+
+
 def build_system_instruction(user: dict, message_count: int = 0) -> str:
     isim_notu = ""
     if user.get("name"):
@@ -860,6 +956,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         "OLMAZ. (Bu kisit sadece metin sohbeti icin; sesli goruşmede Aura "
         "gercekten tonu algilayabiliyor, o ayri.)",
         "Notlar: " + str(user.get("notes", "yok")) + ".",
+        _conversation_summary_note(user),
         context,
         memory_context,
         lifestyle_nudges,
