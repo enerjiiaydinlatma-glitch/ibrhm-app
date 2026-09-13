@@ -1247,13 +1247,17 @@ def _groq_text(contents, system_instruction, max_attempts=1):
     return (data["choices"][0]["message"]["content"] or "").strip()
 
 
-def _openai_compatible_text(base_url, api_key, model, contents, system_instruction, timeout=30):
+def _openai_compatible_text(base_url, api_key, model, contents, system_instruction,
+                             timeout=30, extra_headers=None):
     """Herhangi bir OpenAI-uyumlu /chat/completions ucu (Cerebras, OpenRouter,
     Mistral, DeepSeek...). Hepsi ayni sekil - tek fonksiyon."""
     messages = _contents_to_groq_messages(contents, system_instruction)
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
     r = _groq_http.post(
         f"{base_url}/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers=headers,
         json={"model": model, "messages": messages, "temperature": TEXT_TEMPERATURE},
         timeout=timeout,
     )
@@ -1274,8 +1278,21 @@ def _reasoning_fallback_chain():
         chain.append(("mistral", lambda c, s: _openai_compatible_text(
             "https://api.mistral.ai/v1", MISTRAL_API_KEY, MISTRAL_MODEL, c, s, timeout=30)))
     if OPENROUTER_API_KEY:
+        # BULUNDU (2026-09-13, kod incelemesi - Sentry'de text_gen.openrouter
+        # HTTPStatusError yakalandiktan sonra): OpenRouter'a HTTP-Referer/
+        # X-Title basliklari HIC gonderilmiyordu. OpenRouter belgelerine gore
+        # bu basliklar (ozellikle ":free" uzantili ucretsiz modellerde) kimlik/
+        # siralama icin onerilir - eksikligi bazi hesaplarda/modellerde
+        # reddedilme ya da daha dusuk oncelikli kuyruklamaya yol acabiliyor.
+        # Kesin kok neden degilse bile zararsiz, dogru pratik.
         chain.append(("openrouter", lambda c, s: _openai_compatible_text(
-            "https://openrouter.ai/api/v1", OPENROUTER_API_KEY, OPENROUTER_MODEL, c, s, timeout=40)))
+            "https://openrouter.ai/api/v1", OPENROUTER_API_KEY, OPENROUTER_MODEL, c, s,
+            timeout=40,
+            extra_headers={
+                "HTTP-Referer": "https://aura-backend-production-bc9c.up.railway.app",
+                "X-Title": "Aura",
+            },
+        )))
     return chain
 
 
