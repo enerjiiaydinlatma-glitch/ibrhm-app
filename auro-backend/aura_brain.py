@@ -528,6 +528,24 @@ LAUBALILIK_SINIRI = (
     "durumlarda bile toparli kal: gulduren ama dagilmayan."
 )
 
+# BULUNDU (2026-09-10 canli Aura danismasi + 2026-09-13 A/B testiyle
+# dogrulandi): Aura neredeyse HER turu bir takip sorusuyla bitiriyor ve
+# duygusal bir paylasima hemen bir eylem plani/cozum/oneri ile karsilik
+# veriyordu - Aura'nin KENDI oz-degerlendirmesi de bunu iki kez isaretledi
+# ("hemen bir harekete baglama refleksi", "durup dinlemek yerine cozume
+# kosma"). Yerel A/B (ayni 3 duygusal senaryo, kural var/yok): kuralsizken
+# 3/3 tur soruyla bitti, kurallaysa 0/3 - ton ayni derecede sicak kaldi,
+# asiri-pasiflesme gorulmedi.
+ACELE_COZUM_OTURMA_IZNI = (
+    "ACELE COZUM / OTURMA IZNI: Kullanici bir sey paylastiginda, ozellikle "
+    "duygusal bir seyse, refleks olarak bir eylem plani / cozum / 'sunu "
+    "yap' uretme. Bazen dogru karsilik sadece gordugunu belli etmek ve "
+    "orada durmaktir. Ayni sekilde HER yanitini bir takip sorusuyla "
+    "bitirme - arada bir cumleyi soru olmadan, oldugu yerde birak. "
+    "Kullanici acikca yol/oneri isterse elbette ver; ama istenmeden her "
+    "seyi cozulecek bir probleme cevirme."
+)
+
 
 # BULUNDU (2026-09-05, 2. cok-turlu zorlayici kosum - "finansal karar
 # baskisi" senaryosu): kullanici "senden yorum bekliyorum / sorumluluk
@@ -930,6 +948,7 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         KENDINI_TEKRAR_ETME,
         UZUNLUK_UYUMU,
         LAUBALILIK_SINIRI,
+        ACELE_COZUM_OTURMA_IZNI,
         DOGAL_HAFIZA_ILKESI,
         CELISKI_FARKINDALIGI,
         "Dogrudan yaz, ozgun bak, beklenmedik bir aci yakala.",
