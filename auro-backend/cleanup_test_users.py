@@ -1,9 +1,16 @@
-"""Test hesaplarini (email'i @test.local ile biten) ve onlara bagli TUM
-satirlari veritabanindan siler.
+"""Test hesaplarini (email'i @test.local veya @example.com ile biten) ve
+onlara bagli TUM satirlari veritabanindan siler.
 
 QA sirasinda gercek /api/auth/register ucuna acilan test hesaplari
 (fulltest+..., deployck+... hepsi @test.local) production SQLite'ta
 birikiyor - bunlari toplu temizler.
+
+BULUNDU (2026-09-13): canli sistem denetimi/test turlarinda acilan test
+hesaplari (consult_..., r2_..., pgcheck_... vb.) @example.com kullanmisti -
+eski varsayilan desen (%@test.local) bunlari YAKALAMIYORDU. @example.com,
+RFC 2606'da rezerve edilmis bir "asla gercek kullaniciya ait olmayan" alan
+adi - o yuzden varsayilan desen listesine eklendi, gercek kullanici
+silinmesi riski yok.
 
 Kullanim (auro-backend/ icinden, veya Railway shell'de):
     python cleanup_test_users.py            # KURU CALISMA - sadece raporlar
@@ -41,7 +48,7 @@ _USER_REFS = [
     ("location_gifts", "recipient_id"),
 ]
 
-EMAIL_PATTERN = "%@test.local"
+EMAIL_PATTERNS = ["%@test.local", "%@example.com"]
 
 
 def _table_exists(conn, name: str) -> bool:
@@ -55,17 +62,23 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="gercekten sil (yoksa kuru calisma)")
     ap.add_argument("--max-delete", type=int, default=500, help="bu sayidan fazla kullanici eslersirse dur")
     ap.add_argument("--force", action="store_true", help="--max-delete sinirini yoksay")
-    ap.add_argument("--pattern", default=EMAIL_PATTERN, help="email LIKE deseni (varsayilan %%@test.local)")
+    ap.add_argument(
+        "--pattern", action="append", default=None,
+        help="email LIKE deseni (birden fazla kez verilebilir; varsayilan: "
+             f"{' ve '.join(EMAIL_PATTERNS)})",
+    )
     args = ap.parse_args()
+    patterns = args.pattern or EMAIL_PATTERNS
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     print(f"DB: {DB_PATH}")
-    print(f"Desen: email LIKE {args.pattern!r}\n")
+    print(f"Desenler: email LIKE {' VEYA '.join(map(repr, patterns))}\n")
 
+    where = " OR ".join(["email LIKE ?"] * len(patterns))
     rows = conn.execute(
-        "SELECT id, email, name, created_at FROM users WHERE email LIKE ? ORDER BY id",
-        (args.pattern,),
+        f"SELECT id, email, name, created_at FROM users WHERE {where} ORDER BY id",
+        patterns,
     ).fetchall()
     if not rows:
         print("Eslesen test hesabi yok - yapacak bir sey yok.")
