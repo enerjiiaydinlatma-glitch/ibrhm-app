@@ -91,6 +91,28 @@ LIMIT_REACHED_REPLY = (
     "Yarın kaldığımız yerden devam ederiz."
 )
 
+# BULUNDU (2026-09-13, LLM Council + manuel dogrulama - bkz. hafiza
+# aura-llm-council-verdict-2026-09-13): tum saglayici zinciri (Gemini +
+# Groq + Cerebras + OpenRouter) AYNI ANDA basarisiz olabiliyor (canlida
+# dogrulandi) - ve boyle bir anda _process_chat_message'in except blogu
+# HERKESE ayni jenerik "su an biraz yogunum" mesajini donuyordu. Kriz
+# ifadesi tespit edilmis (is_crisis=True) bir kullanici icin bu KABUL
+# EDILEMEZ: LLM tamamen erisilemezken bile, kriz anindaki birine "yogunum"
+# demek yerine somut bir guvenlik yonlendirmesi gitmeli - bu, HICBIR
+# saglayiciya ihtiyac duymayan, sabit bir metin. Kullanicinin yazdigi dil
+# bilinmiyor (LLM cagirilamadigi icin tespit edilemiyor) - TR+EN birlikte.
+CRISIS_FALLBACK_REPLY = (
+    "Şu anda teknik bir sorun yaşıyorum ve düzgün cevap veremiyorum, ama "
+    "söylediğin şey önemli: kendine zarar vermeyi düşünüyorsan ya da "
+    "güvende değilsen, lütfen hemen 112'yi ara ya da güvendiğin birine "
+    "ulaş. Yalnız değilsin.\n\n"
+    "(I'm having a technical problem right now and can't respond "
+    "properly, but what you said matters: if you're thinking about "
+    "harming yourself or you're not safe, please call your local "
+    "emergency number right now, or reach out to someone you trust. "
+    "You are not alone.)"
+)
+
 # bkz. aura_brain.py'deki ayni degisiklik - generate_content() zaman
 # asimi olmadan sonsuza kadar asili kalabiliyordu, production'da
 # dogrulandi.
@@ -1127,7 +1149,14 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         # donmesini, ciplak 500'un asla sizmamasini garantiliyor.
         print(f"CHAT GENERATION ERROR: {type(e).__name__}: {e}")
         observability.capture_exception(e, context="chat_generation")
-        reply_text = "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
+        # Kriz ifadesi tespit edilmisse ASLA jenerik "yogunum" mesaji -
+        # butun saglayici zinciri cokmus olsa bile guvenlik yonlendirmesi
+        # sabit metinle garanti edilir (bkz. CRISIS_FALLBACK_REPLY notu).
+        reply_text = (
+            CRISIS_FALLBACK_REPLY
+            if is_crisis
+            else "Su an biraz yogunum, bir dakika sonra tekrar dener misin?"
+        )
         generation_ok = False
     reply_text = aura_brain.sanitize_reply(reply_text, message_count) or reply_text
     database.add_message(user["id"], "assistant", reply_text, hidden=hidden_now)
