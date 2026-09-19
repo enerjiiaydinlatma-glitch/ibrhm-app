@@ -176,6 +176,9 @@ def _aura_voice_tts(text: str) -> tuple[Optional[bytes], str]:
 
 database.init_db()
 aura_memory.init_memory_db()
+# BULUNDU (2026-09-19, tam kapsamli denetim): SQLite icin hicbir
+# yedekleme mekanizmasi yoktu - bkz. database.py'deki YEDEKLEME bolumu.
+database.start_backup_scheduler()
 app = FastAPI()
 
 app.add_middleware(

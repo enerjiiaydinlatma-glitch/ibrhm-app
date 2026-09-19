@@ -1436,9 +1436,19 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
                 f"-> {TEXT_PROVIDER}'e duseluyor"
             )
 
+    # BULUNDU (2026-09-19, tam kapsamli denetim): asagidaki iki blok, bir
+    # saglayici hata FIRLATMADAN bos/engellenmis bir metin donduren
+    # (ornek: Gemini'nin guvenlik/recitation nedeniyle .text=None donmesi)
+    # durumu "basarili" sayiyordu (ilk blok) ya da hicbir sinyal
+    # kaydetmiyordu (ikinci blok, `if text:` disina hic dusmuyordu). Sonuc:
+    # /api/admin/health'teki saglayici basari orani, sessizce bozulan bir
+    # saglayiciyi YAKALAYAMIYORDU - tam da founder'in guvendigi gosterge.
+    # Artik bos/engellenmis metin de ok=False olarak kaydediliyor.
     primary_error = None
     try:
         text = TEXT_PROVIDERS[TEXT_PROVIDER](contents, system_instruction, max_attempts)
+        if not text:
+            raise ValueError(f"{TEXT_PROVIDER} bos/engellenmis yanit dondu")
         metrics.record(f"text_gen.{TEXT_PROVIDER}", ok=True)
         return _TextResponse(text)
     except Exception as e:
@@ -1455,6 +1465,7 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
                 metrics.record("text_gen.fallback_used", ok=True)
                 print(f"TEXT FALLBACK: '{name}' kullanildi", flush=True)
                 return _TextResponse(text)
+            metrics.record(f"text_gen.{name}", ok=False, detail="bos/engellenmis yanit")
         except Exception as e:
             metrics.record(f"text_gen.{name}", ok=False,
                            detail=f"{type(e).__name__}: {e}")

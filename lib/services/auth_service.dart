@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Bu cihazda daha once gecerli bir oturum vardi ama artik gecersiz -
@@ -21,6 +22,16 @@ class AuthService {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
 
+  // BULUNDU (2026-09-19, tam kapsamli denetim): oturum token'i - bir
+  // kullanicinin TUM sohbet gecmisine/hafizasina erisim saglayan tek
+  // kimlik bilgisi - duz SharedPreferences'ta duruyordu (Android'de
+  // app-private XML, Windows'ta duz dosya, web'de localStorage - hicbiri
+  // sifreli degil). Proje zaten flutter_secure_storage kullaniyor (bkz.
+  // app_lock_service.dart, PIN icin) - ayni deseni token icin de
+  // uyguluyoruz (Android Keystore / Windows DPAPI / web'de sarmalanmis
+  // depolama).
+  static const _secureStorage = FlutterSecureStorage();
+
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: _baseUrl,
@@ -34,8 +45,24 @@ class AuthService {
   );
 
   Future<String?> getToken() async {
+    final secureToken = await _secureStorage.read(key: _tokenKey);
+    if (secureToken != null && secureToken.isNotEmpty) {
+      return secureToken;
+    }
+
+    // GERIYE UYUMLULUK: bu degisiklikten ONCE yuklenmis bir uygulamada
+    // token hala eski (sifresiz) SharedPreferences'ta olabilir - onu
+    // sessizce guvenli depoya tasiyoruz, kullanici oturumdan atilmasin.
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final legacyToken = prefs.getString(_tokenKey);
+
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      await _secureStorage.write(key: _tokenKey, value: legacyToken);
+      await prefs.remove(_tokenKey);
+      return legacyToken;
+    }
+
+    return null;
   }
 
   Future<String> getOrCreateAnonymousToken() async {
@@ -100,13 +127,14 @@ class AuthService {
   }
 
   Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await _secureStorage.write(key: _tokenKey, value: token);
   }
 
   Future<void> clearToken() async {
-    final prefs = await SharedPreferences.getInstance();
+    await _secureStorage.delete(key: _tokenKey);
 
+    // Eski (sifresiz) konumda kalinti kalmasin diye burasi da temizleniyor.
+    final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
   }

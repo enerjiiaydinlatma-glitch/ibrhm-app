@@ -7,7 +7,10 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Optional, List
 
+import glob
 import os
+import threading
+import time
 
 import db_compat
 
@@ -1409,3 +1412,81 @@ def get_admin_stats() -> dict:
         "day1_retention_pct": day1_retention_pct,
         "day1_eligible": day1_eligible,
     }
+
+
+# ============================================================
+# YEDEKLEME (2026-09-19, tam kapsamli denetim BULGUSU)
+# ============================================================
+# Kod tabaninda hicbir yedekleme mekanizmasi YOKTU - ama Gizlilik
+# Politikasi (legal.py) "duzenli yedeklerden en gec 30 gun icinde
+# silinir" diyerek yedeklerin VAR OLDUGUNU iddia ediyordu (tutulamayan
+# bir soz, tipki bugun duzeltilen diger durustluk bulgulari gibi).
+# Railway'in tek diski kaybolursa/bozulursa bu, TUM kullanicilarin
+# sohbet gecmisinin/hafizasinin kalici kaybi demekti.
+#
+# DURUST SINIR: asagidaki mekanizma AYNI diskte (ayni Railway volume)
+# donemsel bir SQLite "hot backup" dosyasi tutar - bu, uygulama-
+# seviyesi bozulmaya/yanlis bir yaziya karsi koruma saglar (bir onceki
+# saglikli yedege donebilirsin), ama diskin/volume'un TAMAMEN kaybolmasi
+# senaryosuna karsi KORUMA SAGLAMAZ (o zaman yedek de onunla gider).
+# Gercek disk-disi (off-site) yedek icin ayri bir depolama servisi
+# (ornek: Cloudflare R2) gerekir - bu, kullanicinin kendi karari/kurulumu
+# olmali, burada sessizce varsayilmiyor.
+BACKUP_DIR = os.path.join(DB_DIR, "backups")
+BACKUP_INTERVAL_SECONDS = 6 * 3600  # gunde 4 kez
+BACKUP_RETENTION_DAYS = 30  # legal.py'deki "en gec 30 gun" iddiasiyla tutarli
+
+
+def _run_sqlite_backup() -> str:
+    """SQLite'in kendi .backup() API'si - dosyayi elle kopyalamaktan
+    farkli olarak, ayni anda yazma/okuma olsa bile TUTARLI bir anlik
+    goruntu alir (WAL modunda bile guvenli)."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    dest_path = os.path.join(BACKUP_DIR, f"aura-{ts}.db")
+    src_conn = sqlite3.connect(DB_PATH)
+    try:
+        dest_conn = sqlite3.connect(dest_path)
+        try:
+            src_conn.backup(dest_conn)
+        finally:
+            dest_conn.close()
+    finally:
+        src_conn.close()
+    return dest_path
+
+
+def _cleanup_old_backups() -> None:
+    cutoff = time.time() - (BACKUP_RETENTION_DAYS * 86400)
+    for path in glob.glob(os.path.join(BACKUP_DIR, "aura-*.db")):
+        try:
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+        except OSError:
+            pass
+
+
+def _backup_worker() -> None:
+    while True:
+        try:
+            path = _run_sqlite_backup()
+            _cleanup_old_backups()
+            print(f"[backup] yedek alindi: {path}", flush=True)
+        except Exception as e:
+            # Yedekleme ASLA ana uygulamayi etkilemez - sadece loglanir.
+            print(f"DB BACKUP ERROR: {type(e).__name__}: {e}", flush=True)
+            try:
+                import observability
+                observability.capture_exception(e, context="db_backup")
+            except Exception:
+                pass
+        time.sleep(BACKUP_INTERVAL_SECONDS)
+
+
+def start_backup_scheduler() -> None:
+    """main.py baslangicta bir kez cagirir. Postgres modunda (DATABASE_URL
+    tanimli) hicbir sey yapmaz - bu mekanizma SQLite'e ozel, ve su an
+    production zaten SQLite kullaniyor (bkz. POSTGRES_MIGRATION.md)."""
+    if db_compat.IS_PG:
+        return
+    threading.Thread(target=_backup_worker, daemon=True).start()
