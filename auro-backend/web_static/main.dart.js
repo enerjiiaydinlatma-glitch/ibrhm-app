@@ -97096,7 +97096,7 @@ s=6
 break
 case 4:p=3
 e=o.pop()
-n.Cf(m,new A.du(m,"\u015eu anda Aura'ya ula\u015fam\u0131yorum - bu senin hatan de\u011fil, teknik bir sorun var ve en k\u0131sa s\xfcrede d\xfczelecek. E\u011fer kendine zarar vermeyi d\xfc\u015f\xfcn\xfcyorsan ya da g\xfcvende de\u011filsen, l\xfctfen hemen 112'yi ara ya da g\xfcvendi\u011fin birine ula\u015f.",!1,null,null,!1,null,null))
+n.Cf(m,new A.du(m,"Aura \u015fu an cevap veremiyor. Biraz sonra tekrar deneyelim.",!1,null,null,!1,null,null))
 n.sa3(n.ga3().DV("Aura ba\u011flant\u0131s\u0131nda bir sorun olu\u015ftu."))
 s=6
 break

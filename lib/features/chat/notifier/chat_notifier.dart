@@ -154,24 +154,11 @@ class ChatNotifier extends Notifier<ChatState> {
         state = state.copyWith(errorMessage: null);
       }
     } catch (e) {
-      // BULUNDU (2026-09-18, LLM Council "Sessizlik Protokolu" analizi):
-      // sunucu tarafindaki CRISIS_FALLBACK_REPLY (main.py) SADECE LLM
-      // zinciri coktugunde devreye giriyor - istek Railway'e hic
-      // ULASAMAZSA (tam kesinti/elektrik/DNS) bu mesaj hicbir zaman
-      // gonderilmez, client burada sessizce jenerik bir metinle kaliyordu.
-      // Bu, konseyin butun senaryoda yakalayabildigi TEK gercek kod
-      // boslugu - bir kriz ifadesi tam bu anda yazilirsa kullaniciya
-      // hicbir guvenlik yonlendirmesi gorunmuyordu. Sabit metin, sunucudaki
-      // kardesiyle ayni ruhta: TR, 112 + guvendigin biri.
       _replaceMessageById(
         assistantId,
         Message(
           id: assistantId,
-          text:
-              'Şu anda Aura\'ya ulaşamıyorum - bu senin hatan değil, teknik '
-              'bir sorun var ve en kısa sürede düzelecek. Eğer kendine zarar '
-              'vermeyi düşünüyorsan ya da güvende değilsen, lütfen hemen '
-              '112\'yi ara ya da güvendiğin birine ulaş.',
+          text: 'Aura şu an cevap veremiyor. Biraz sonra tekrar deneyelim.',
           isUser: false,
         ),
       );
