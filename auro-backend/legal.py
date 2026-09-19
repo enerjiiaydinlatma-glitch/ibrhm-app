@@ -1,13 +1,16 @@
-"""Yasal metinler (2026-09-06 taslak; 2026-09-10 sahis isletmesi bilgileri).
+"""Yasal metinler (2026-09-06 taslak; 2026-09-10 sahis isletmesi bilgileri;
+2026-09-19 isletme sahibinin AD SOYAD/ACIK ADRES bilgileri kullanicinin
+kendisinden alinip dolduruldu - tam kapsamli denetimde bulunan bir bulgu).
 
 DIKKAT - TASLAK: Bu metinler bir hukukcu tarafindan INCELENMEDI. Yayindan
 once KVKK/GDPR uzmanı bir avukata gozden gecirtilmeli.
 
 Isleten: Aura uygulamasi bir SAHIS ISLETMESI tarafindan isletilir. Iletisim
 e-postasi dolduruldu (enerjiiaydinlatma@gmail.com). Saklama suresi,
-sorumluluk siniri ve yetkili hukuk metinleri yazildi. GERIYE KALAN iki alan
-(isletme sahibinin yasal AD SOYAD'i ve ACIK ADRES'i) sadece kullanici
-doldurabilir - kod bunlari uydurmaz: `[AD SOYAD]` ve `[ACIK ADRES]`.
+sorumluluk siniri ve yetkili hukuk metinleri yazildi. Isletme sahibinin
+yasal AD SOYAD'i ve ACIK ADRES'i (2026-09-19'da kullanicinin kendisinden
+alinip dolduruldu - kod bunu asla uydurmaz) TR+EN, 3 belgenin (Gizlilik,
+Sartlar, KVKK) hepsinde tutarli.
 
 Iceriik Aura'nin GERCEK veri islemesini yansitir:
 - Toplanan: e-posta (hesap kaydedilirse) + sifre hash'i, isim, sohbet
@@ -44,8 +47,9 @@ _DOCS = {
 Nihai sürüm yayından önce onaylanacaktır.</div>
 <h2>1. Kimiz</h2>
 <p>Aura, kişisel bir yapay zekâ arkadaş uygulamasıdır. Bu politikada
-"biz" ifadesi, Aura'yı işleten şahıs işletmesini — <b>[AD SOYAD]</b>
-([AÇIK ADRES]) — belirtir. Veri sorumlusuna ulaşmak için:
+"biz" ifadesi, Aura'yı işleten şahıs işletmesini — <b>İbrahim Uğur</b>
+(Reşadiye Mahallesi, Şehit İsmail Güler Sokak, No: 30-34/C, Zöhre Karaca
+Apartmanı, Çorlu, Tekirdağ) — belirtir. Veri sorumlusuna ulaşmak için:
 <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>2. Hangi verileri işliyoruz</h2>
 <ul>
@@ -106,8 +110,10 @@ bildiririz.</p>
 final version will be approved before public launch.</div>
 <h2>1. Who we are</h2>
 <p>Aura is a personal AI companion app. "We" refers to the sole
-proprietorship operating Aura — <b>[FULL NAME]</b> ([FULL ADDRESS]). To
-reach the data controller: <b>enerjiiaydinlatma@gmail.com</b>.</p>
+proprietorship operating Aura — <b>İbrahim Uğur</b> (Reşadiye Mahallesi,
+Şehit İsmail Güler Sokak, No: 30-34/C, Zöhre Karaca Apartmanı, Çorlu,
+Tekirdağ, Türkiye). To reach the data controller:
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>2. What we process</h2>
 <ul>
 <li><b>Account:</b> If you save an account, your email and a hashed form of
@@ -249,8 +255,9 @@ have jurisdiction.</p>
 <div class="draft">TASLAK — 6698 sayılı KVKK kapsamında hazırlanmış olup
 bir hukukçu tarafından incelenmemiştir.</div>
 <h2>Veri Sorumlusu</h2>
-<p>Aura uygulamasını işleten şahıs işletmesi: <b>[AD SOYAD]</b>,
-[AÇIK ADRES]. İletişim: <b>enerjiiaydinlatma@gmail.com</b>.</p>
+<p>Aura uygulamasını işleten şahıs işletmesi: <b>İbrahim Uğur</b>,
+Reşadiye Mahallesi, Şehit İsmail Güler Sokak, No: 30-34/C, Zöhre Karaca
+Apartmanı, Çorlu, Tekirdağ. İletişim: <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>İşlenen Kişisel Veriler</h2>
 <p>Kimlik (ad), iletişim (e‑posta), işlem güvenliği (şifre hash'i, oturum),
 kullanıcı içerikleri (sohbet mesajları, gönderilen fotoğraf/PDF), çıkarılan
@@ -280,8 +287,10 @@ giderilmesini talep etme haklarına sahipsiniz. Başvuru:
 <div class="draft">DRAFT — prepared under Turkish KVKK (Law 6698) / GDPR
 principles; not reviewed by a lawyer.</div>
 <h2>Data controller</h2>
-<p>The sole proprietorship operating Aura: <b>[FULL NAME]</b>,
-[FULL ADDRESS]. Contact: <b>enerjiiaydinlatma@gmail.com</b>.</p>
+<p>The sole proprietorship operating Aura: <b>İbrahim Uğur</b>,
+Reşadiye Mahallesi, Şehit İsmail Güler Sokak, No: 30-34/C, Zöhre Karaca
+Apartmanı, Çorlu, Tekirdağ, Türkiye. Contact:
+<b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>Personal data processed</h2>
 <p>Identity (name), contact (email), transaction security (password hash,
 session), user content (chat messages, submitted photos/PDFs), derived
