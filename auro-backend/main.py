@@ -1468,6 +1468,11 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         raise HTTPException(status_code=429, detail=LIMIT_REACHED_REPLY)
     is_pdf = request.mime_type == "application/pdf"
     question = request.question.strip()
+    # BULUNDU (2026-09-19, tam kapsamli denetim): bu uc, kullanicinin
+    # soru metninde kriz ifadesi olsa bile bunu HIC kontrol etmiyordu -
+    # tek istisna Gemini basarisiz olursa jenerik "inceleyemedim" hatasi
+    # donmesiydi, /api/chat'teki gibi bir guvenlik yonlendirmesi YOKTU.
+    is_crisis = bool(question) and _is_crisis_message(question)
     try:
         file_bytes = base64.b64decode(request.image_base64)
         if is_pdf and question:
@@ -1515,12 +1520,14 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
                 f"{weather_line}"
             )
         message_count = len(database.get_messages(user["id"]))
-        response = client.models.generate_content(
-            # Kod sagligi taramasinda bulundu: burada aura_brain.py'deki
-            # guncel modelden (gemini-3.7-flash) FARKLI, eski bir model
-            # adi ("gemini-3.6-flash") kullaniliyordu - tutarli hale
-            # getirildi.
-            model=aura_brain.MODEL_NAME,
+        # BULUNDU (2026-09-19, tam kapsamli denetim): eskiden dogrudan
+        # client.models.generate_content() cagriliyordu - hicbir yeniden-
+        # deneme yoktu, Gemini'nin gecici bir hatasi bile ciplak
+        # "inceleyemedim" hatasina donuyordu. Artik en azindan Gemini'nin
+        # kendi gecici hatalarina karsi retry+backoff uygulaniyor (tam
+        # coklu-saglayici zinciri gorsel/PDF girdide desteklenmiyor,
+        # bkz. aura_brain.generate_multimodal_with_retry).
+        response = aura_brain.generate_multimodal_with_retry(
             contents=[
                 types.Content(
                     role="user",
@@ -1535,10 +1542,8 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
             # HIC GECMIYORDU - ciplak bir prompt'la cagriliyordu, yani
             # fotograf/PDF yanitlari jenerik asistan tonunda geliyordu.
             # Artik ayni sistem talimatindan geciyor.
-            config=types.GenerateContentConfig(
-                system_instruction=aura_brain.build_system_instruction(
-                    user, message_count
-                )
+            system_instruction=aura_brain.build_system_instruction(
+                user, message_count
             ),
         )
         analysis_text = response.text or ""
@@ -1573,6 +1578,25 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
         # sunucu logunda kaliyor.
         print(f"ANALYZE ERROR: {type(e).__name__}: {e}")
         observability.capture_exception(e, context="analyze_attachment")
+        # BULUNDU (2026-09-19, tam kapsamli denetim): bu uc, kriz ifadesi
+        # tespit edilse bile HER ZAMAN jenerik "inceleyemedim" hatasi
+        # donduruyordu - /api/chat'teki CRISIS_FALLBACK_REPLY guvenlik agi
+        # buraya hic uygulanmiyordu. Bir kullanici bir belge/fotografla
+        # ilgili soru sorarken kriz ifadesi kullanip Gemini o an basarisiz
+        # olursa, sifir guvenlik yonlendirmesi goruyordu.
+        if is_crisis:
+            if is_pdf:
+                fname = request.file_name.strip()
+                user_line = (
+                    f"[Bir PDF paylaştı: {fname}]" if fname else "[Bir PDF paylaştı]"
+                )
+                if question:
+                    user_line += f" — sorusu: {question}"
+            else:
+                user_line = "[Bir fotoğraf paylaştı]"
+            database.add_message(user["id"], "user", user_line)
+            database.add_message(user["id"], "assistant", CRISIS_FALLBACK_REPLY)
+            return {"analysis": CRISIS_FALLBACK_REPLY}
         raise HTTPException(
             status_code=500,
             detail=(

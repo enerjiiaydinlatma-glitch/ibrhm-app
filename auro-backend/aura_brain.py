@@ -1062,6 +1062,25 @@ def _gemini_text(contents, system_instruction, max_attempts=3):
     raise last_error
 
 
+# BULUNDU (2026-09-19, tam kapsamli denetim): /api/analyze (foto/PDF
+# sohbeti) main.py'de dogrudan client.models.generate_content() cagiriyordu -
+# hicbir yeniden-deneme yoktu, Gemini'nin gecici bir 5xx'i bile kullaniciya
+# ciplak "inceleyemedim" hatasi olarak yansiyordu. Tam saglayici zinciri
+# (Groq/Cerebras/...) burada UYGULANAMAZ - bu saglayicilar bu kod tabaninda
+# metin-tabanli, gorsel/PDF blob'u kabul etmiyorlar (bkz. yukaridaki
+# _contents_to_groq_messages, sadece metin parcasi bekliyor). Ama en azindan
+# Gemini'nin KENDI gecici hatalarina karsi ayni retry+backoff'u (_gemini_text)
+# vermek gercek bir dayaniklilik kazanci - bu fonksiyon bunu main.py'ye
+# aura_brain'in "ozel" (_) fonksiyonlarina dogrudan erismeden acan ince bir
+# genel sarmalayici.
+def generate_multimodal_with_retry(contents, system_instruction, max_attempts=3):
+    """Gorsel/PDF iceren (blob) icerik icin - sadece Gemini'nin kendi
+    gecici hatalarina karsi yeniden dener, baska saglayiciya DUSMEZ
+    (coklu-modlu girdi diger saglayicilarda desteklenmiyor)."""
+    text = _gemini_text(contents, system_instruction, max_attempts=max_attempts)
+    return _TextResponse(text)
+
+
 def _contents_to_groq_messages(contents, system_instruction):
     # BULUNDU (gece denetimi, canli production'da yakalandi): Gemini'nin
     # kendi API'si `contents=` parametresini HEM duz bir string HEM DE
