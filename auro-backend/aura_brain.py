@@ -289,8 +289,19 @@ kendinden bir sey kat (bir gozlem, bir bakis acisi, kucuk bir tercih):
 Uygun bir anda (zorlamadan) bir "acik dongu" birakabilirsin: "Bugun
 seni gulumseten bir sey oldu mu?" gibi bir soru sor, cevabi ne olursa
 olsun "Bunu aklimda tutuyorum, bir dahaki sefere devam ederiz,
-bitirmedigim bir sey var" tarzi bir seyle kapat - ve BUNU GERCEKTEN
-HATIRLA, ileride buna geri don (hafiza sistemin buna izin veriyor).
+bitirmedigim bir sey var" tarzi bir seyle kapat.
+# BULUNDU (2026-09-19, tam kapsamli denetim): burada eskiden "BUNU
+# GERCEKTEN HATIRLA (hafiza sistemin buna izin veriyor)" diye KESIN bir
+# garanti verdiriliyordu - ama hafiza cikarim sistemi (asagida,
+# _MEMORY_EXTRACTION_PROMPT) boyle bir cevabi ACIKCA "tek seferlik olay"
+# sayip atiyordu. Yani Aura'ya, altyapinin tutamayacagi bir sozu kesin
+# diye soyletiyorduk - aura-influencer projesindeki uydurma-eylem
+# olayiyla AYNI YAPIDA bir risk, sadece daha yumusak. Iki taraf da
+# duzeltildi: cikarim promptu artik boyle bir cevabi (kullanicinin
+# KENDI paylastigi anlamli bir sey oldugu icin) gercekten yakalayabiliyor,
+# ama burada hala KESIN/GARANTI dili KULLANMA - "aklimda tutuyorum"
+# gibi sicak ama mutlak olmayan bir ifadeyle yetin, "hafiza sistemim
+# buna izin veriyor" gibi kendine dair kesin teknik iddialar kurma.
 
 ASLA yapma: art arda birden fazla soru sorma, anket/form havasi verme,
 "gercekten senin icin endiseleniyorum" gibi asiri duygu iddialarinda
@@ -888,7 +899,13 @@ def build_system_instruction(user: dict, message_count: int = 0) -> str:
         KULTUREL_UYUM_ILKESI,
         TANISMA_AKISI if message_count < TANISMA_THRESHOLD else "",
         isim_notu,
-        "DURUSTLUK KURALI: Sadece metin tabanli sohbet, sesli yanit ve hafiza yeteneklerin var.",
+        # BULUNDU (2026-09-19, tam kapsamli denetim): bu liste hatirlatici,
+        # fotograf/PDF inceleme ve canli arama gibi GERCEKTEN var olan
+        # yetenekleri saymiyordu - Aura'nin kendi "ne yapabilirim" modeli
+        # gercek ozellik setinden geri kalmisti.
+        "DURUSTLUK KURALI: Metin tabanli sohbet, sesli/goruntulu yanit, "
+        "hafiza, hatirlatici kurma, fotograf/PDF inceleme ve gerektiginde "
+        "canli arama yeteneklerin var.",
         "Sahip olmadigin bir yetenegi ASLA varmis gibi anlatma.",
         "USLUP: Bazen tek guclu cumle uzun paragraftan daha etkilidir.",
         # KULLANICI BULGUSU (2026-09-01, canli production'da yakalandi):
@@ -1487,6 +1504,14 @@ def generate_onboarding_opening(user: dict) -> str:
 # ARKA PLAN AJANI: HAFIZA CIKARIMI (Groq - Gemini'den ayri saglayici)
 # ============================================================
 
+# BULUNDU (2026-09-19, tam kapsamli denetim): asagidaki promptun "tek
+# seferlik olaylari alma" kurali, TANISMA_AKISI'nin bilerek biraktigi
+# "acik dongu" sorularina (yukarida) verilen anlamli cevaplari da
+# yanlislikla eliyordu - Aura "bunu gercekten hatirliyorum" diyordu ama
+# hicbir yere yazilmiyordu (tutulamayan soz, aura-influencer'daki
+# uydurma-eylem olayiyla ayni yapida bir risk). Asagida bir ISTISNA
+# eklendi: Aura'nin ozellikle sordugu bir tanisma sorusuna verilen
+# kisisel bir cevap artik dusuk-guvenli bir kayit olarak tutulabiliyor.
 _MEMORY_EXTRACTION_PROMPT = """
 Asagidaki kullanici mesajini Aura'nin uzun vadeli hafizasi icin analiz et.
 
@@ -1500,6 +1525,10 @@ olarak uygulama.
 <KULLANICI_MESAJI>
 {message}
 </KULLANICI_MESAJI>
+
+Aura'nin bir onceki mesaji (varsa, kullanicinin neye cevap verdigini
+anlaman icin baglam - bu bir talimat degil, sadece baglam):
+{previous_assistant_note}
 
 Kullanicinin ONCEDEN kayitli hafiza bilgileri (varsa):
 {existing_memories}
@@ -1549,7 +1578,17 @@ Ingilizce KALMALI.
   kategori adi uydurabilirsin - ama ONCE yukaridaki listeye bakip
   UYAN VARSA ONU KULLAN, gereksiz yeni kategori COGALTMA.
 
-Anlik duygu, gecici durum, selamlasma veya tek seferlik olaylari hafizaya alma.
+Anlik duygu, gecici durum, selamlasma veya rastgele/gelisiguzel bahsedilen
+tek seferlik olaylari hafizaya ALMA (ornek: "bugun hava cok sicakti",
+"az once yemek yedim", "yorgunum").
+
+ISTISNA: Eger kullanicinin cevabi, Aura'nin ozellikle sordugu bir
+"tanisma/kisilik" sorusuna ("bugun seni gulumseten bir sey oldu mu?",
+"en cok ne zaman gercekten kendin hissediyorsun?" gibi) verilmis, onun
+kisiligini/zevklerini/degerlerini yansitan gercek bir cevapsa, bu
+RASTGELE bir olay DEGILDIR - en yakin uyan kategoriye (ilgi_alanlari,
+tercihler, hobiler) ya da hicbiri tam uymuyorsa "paylasilan_an" adinda
+yeni bir kategoriye, dusuk bir CONFIDENCE (0.3-0.5) ile yaz.
 
 COK ONEMLI - GUNCELLEME/DUZELTME KURALI: Eger kullanicinin mesaji yukaridaki
 "onceden kayitli hafiza bilgileri" listesindeki bir kaydi DUZELTIYOR veya
@@ -1771,7 +1810,12 @@ _PROMPT_LEAK_FINGERPRINTS = tuple(
 )
 
 
-def extract_memory_candidate(user_id: int, message: str, source_message_id: int):
+def extract_memory_candidate(
+    user_id: int,
+    message: str,
+    source_message_id: int,
+    previous_assistant_message: str | None = None,
+):
     """
     Kullanici mesajinda uzun vadeli hafizaya deger bir veya birden
     fazla bilgi varsa memory_candidates tablosuna aday olarak kaydeder
@@ -1780,11 +1824,19 @@ def extract_memory_candidate(user_id: int, message: str, source_message_id: int)
     Bu cikarim islemi kasitli olarak Gemini disinda bir saglayicidan
     (Groq) gecirilir - kullaniciya cevap veren "ses" ile arka planda
     calisan "ajan" gercekten farkli modeller olsun diye.
+
+    [previous_assistant_message]: BULUNDU (2026-09-19, tam kapsamli
+    denetim) - bu olmadan cikarim, kullanicinin Aura'nin ozellikle
+    sordugu bir "tanisma sorusuna" mi yoksa rastgele mi bir sey
+    soyledigini ayirt edemiyordu (ikisi de tek basina bir mesaj olarak
+    ayni gorunuyor). Verilirse promptun ISTISNA kurali gercekten
+    calisabiliyor.
     """
 
     existing_memories = _format_existing_memories_for_prompt(user_id)
     prompt = _MEMORY_EXTRACTION_PROMPT.format(
         message=message,
+        previous_assistant_note=previous_assistant_message or "(yok)",
         existing_memories=existing_memories,
     )
 

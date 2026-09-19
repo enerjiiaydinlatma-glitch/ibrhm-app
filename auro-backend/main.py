@@ -1083,11 +1083,6 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         metrics.record("daily_limit_hit", ok=True)
         return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True, "mood": mood}
 
-    if not hidden_now:
-        aura_brain.extract_memory_candidate(user["id"], message_text, user_message_id)
-        # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
-        # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
-        aura_reminders.extract_reminder_candidate(user["id"], message_text)
     # Ton dropdown'lari kaldirildi - Aura kendi uslubunu buradan ogreniyor.
     # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
     # kelime taramasi) - bu, hafiza/hatirlatma gibi KALICI bir kayit
@@ -1101,6 +1096,31 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # yanitta dolayli olarak yuzeye cikabilirdi (bkz. yukaridaki bulgu).
     past_messages = database.get_messages(user["id"], include_hidden=hidden_now)
     message_count = len(past_messages)
+
+    reminder_result = None
+    if not hidden_now:
+        # BULUNDU (2026-09-19, tam kapsamli denetim): hafiza cikarimi
+        # eskiden past_messages'tan ONCE cagriliyordu, yani Aura'nin bir
+        # onceki turde ne sordugunu (ornek: TANISMA_AKISI'nin "acik dongu"
+        # sorusu) hic bilmiyordu - "anlamli bir tanisma cevabi" ile
+        # "rastgele tek seferlik olay"i ayirt edemiyordu. Artik bir onceki
+        # asistan mesaji da geciliyor.
+        previous_assistant_message = next(
+            (m["text"] for m in reversed(past_messages) if m["role"] == "assistant"),
+            None,
+        )
+        aura_brain.extract_memory_candidate(
+            user["id"], message_text, user_message_id,
+            previous_assistant_message=previous_assistant_message,
+        )
+        # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
+        # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
+        # BULUNDU (2026-09-19, tam kapsamli denetim): sonuc eskiden hep
+        # atiliyordu - Aura o turde bir hatirlatici gercekten kurulup
+        # kurulmadigini hicbir zaman bilmiyordu, "hatirlatirim" derken
+        # temelsiz bir soz veriyordu. Artik asagida sistem talimatina
+        # eklenip cevabi gercege dayandiriyor.
+        reminder_result = aura_reminders.extract_reminder_candidate(user["id"], message_text)
     aura_brain.analyze_patterns(user["id"], message_count)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
     contents = [
@@ -1124,6 +1144,34 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
                     f"\n\n[ARAC BILGISI ({route['wants_tool']})]: {tool_note}\n"
                     "Bu bilgiyi kullanarak dogal, kendi uslubunla yanitla; "
                     "'araca gore', 'sistemden' gibi ifadeler KULLANMA."
+                )
+        # BULUNDU (2026-09-19, tam kapsamli denetim): hatirlatici sozlerini
+        # gercege dayandirmak icin - bkz. reminder_result ataması yukarida.
+        if reminder_result:
+            status = reminder_result.get("status")
+            if status == "created":
+                system_instruction += (
+                    f"\n\n[HATIRLATICI DURUMU]: '{reminder_result['topic']}' icin "
+                    f"{reminder_result['event_date']} tarihine hatirlatici GERCEKTEN "
+                    f"kuruldu (hatirlatma tarihi: {reminder_result['remind_date']}). "
+                    "Bunu dogal bir sekilde onaylayabilirsin (ornek: 'not aldim, "
+                    "hatirlaticim var artik' gibi) - 'sistem' ya da 'arac' gibi "
+                    "ifadeler KULLANMA."
+                )
+            elif status == "duplicate":
+                system_instruction += (
+                    f"\n\n[HATIRLATICI DURUMU]: '{reminder_result['topic']}' icin "
+                    f"{reminder_result['event_date']} tarihinde zaten aktif bir "
+                    "hatirlatici var, yenisi kurulmadi (coklamayi onlemek icin). "
+                    "Istersen bunu dogal bir sekilde belirtebilirsin."
+                )
+            elif status in ("not_found", "error"):
+                system_instruction += (
+                    "\n\n[HATIRLATICI DURUMU]: Kullanicinin mesaji bir hatirlatma/"
+                    "randevu gibi gorunse de net bir tarih/konu cikaramadim, hicbir "
+                    "hatirlatici KURULMADI. 'Hatirlatirim', 'not aldim' gibi KESIN "
+                    "bir soz VERME - eger konu gercekten onemliyse tarihi netlestirmek "
+                    "icin dogal bir soru sorabilirsin, ama sozde bulunma."
                 )
         response = aura_brain.generate_with_retry(contents, system_instruction, route=route)
         reply_text = response.text

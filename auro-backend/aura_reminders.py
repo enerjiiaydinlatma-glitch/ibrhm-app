@@ -89,10 +89,22 @@ Kullanici mesaji: "{message}"
 _TURKISH_WEEKDAYS = ["Pazartesi", "Sali", "Carsamba", "Persembe", "Cuma", "Cumartesi", "Pazar"]
 
 
-def extract_reminder_candidate(user_id: int, message: str) -> None:
-    """Sinyal yoksa (on-eleme gecmezse) HICBIR API cagrisi yapmadan cikar."""
+# BULUNDU (2026-09-19, tam kapsamli denetim): bu fonksiyon hep None
+# donuyordu - cagiran main.py sonucu hic gormuyordu, yani Aura o turde
+# bir hatirlatici gercekten kurulup kurulmadigini asla bilmiyordu. Kendi
+# "ne yapabilirim" listesinde hatirlatici bile yoktu (ayri duzeltildi).
+# Sonuc: kullanici "hatirlat" dedigi an Aura dogal refleksle "hatirlatirim"
+# diyebiliyordu - cogu zaman dogru cikiyordu ama o anki denemenin
+# gercekten basarili olup olmadigindan tamamen bagimsizdi (temelsiz soz).
+# Artik bir sonuc DONDURULUYOR ve main.py bunu ayni turun sistem
+# talimatina ekleyip Aura'nin cevabini gercege dayandiriyor.
+def extract_reminder_candidate(user_id: int, message: str) -> dict | None:
+    """On-eleme gecmezse (sinyal yok) None doner - bu durumda main.py
+    hicbir sey eklemez, Aura'nin hatirlaticidan hic bahsetmesi gerekmez.
+    On-eleme gectiginde HER ZAMAN bir sonuc sozlugu doner (basarili/
+    basarisiz), boylece Aura o turde ne olduguna dayanarak konusabilir."""
     if not _looks_schedulable(message):
-        return
+        return None
 
     today = date.today()
     prompt = _REMINDER_EXTRACTION_PROMPT.format(
@@ -105,10 +117,10 @@ def extract_reminder_candidate(user_id: int, message: str) -> None:
         text = aura_brain.BACKGROUND_PROVIDERS[aura_brain.BACKGROUND_PROVIDER](prompt)
     except Exception as e:
         print(f"REMINDER EXTRACTION ERROR: {type(e).__name__}: {e}")
-        return
+        return {"status": "error"}
 
     if not text or text.strip().upper() == "YOK":
-        return
+        return {"status": "not_found"}
 
     data = {}
     for line in text.strip().splitlines():
@@ -122,7 +134,7 @@ def extract_reminder_candidate(user_id: int, message: str) -> None:
     remind_str = data.get("HATIRLATMA_TARIHI", "").strip()
 
     if not topic or not event_str or not remind_str:
-        return
+        return {"status": "not_found"}
 
     try:
         event_at = datetime.strptime(event_str, "%Y-%m-%d").date()
@@ -130,13 +142,13 @@ def extract_reminder_candidate(user_id: int, message: str) -> None:
     except ValueError:
         # LLM bekleneni yazmadi (bosluklu/hatali format) - sessizce vazgec,
         # gecersiz bir hatirlatma olusturmaktan iyidir.
-        return
+        return {"status": "not_found"}
 
     # SAGLAMLIK KONTROLLERI (LLM ciktisina korkoruce guvenmiyoruz):
     # - Gecmis bir tarih icin hatirlatma olusturma (bugun ya da sonrasi olmali).
     # - Hatirlatma, etkinlikten SONRAYA denk gelmemeli (mantik hatasi olur).
     if event_at < today:
-        return
+        return {"status": "not_found"}
     if remind_at > event_at:
         remind_at = event_at
     if remind_at < today:
@@ -147,6 +159,16 @@ def extract_reminder_candidate(user_id: int, message: str) -> None:
     # ... "unutma persembe mac var") her ikisi de ayri ayri cikarilip
     # coklanan yerel bildirime yol aciyordu.
     if database.has_active_reminder_on_date(user_id, event_at.isoformat()):
-        return
+        return {
+            "status": "duplicate",
+            "topic": topic,
+            "event_date": event_at.isoformat(),
+        }
 
     database.add_reminder(user_id, topic, event_at.isoformat(), remind_at.isoformat())
+    return {
+        "status": "created",
+        "topic": topic,
+        "event_date": event_at.isoformat(),
+        "remind_date": remind_at.isoformat(),
+    }
