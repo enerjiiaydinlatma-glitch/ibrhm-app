@@ -9,6 +9,7 @@ from typing import Optional, List
 
 import glob
 import os
+import shutil
 import threading
 import time
 
@@ -1481,6 +1482,24 @@ def _backup_worker() -> None:
             except Exception:
                 pass
         time.sleep(BACKUP_INTERVAL_SECONDS)
+
+
+# BULUNDU (2026-09-19, tam kapsamli denetim): SQLite diski icin hicbir
+# doluluk izleme yoktu - disk dolarsa ilk belirti kullanicilarin sohbet
+# kirilmasi olurdu (opak "disk I/O error"), proaktif bir uyari degil.
+# /api/admin/health'e eklenip founder'in zaten baktigi tek yere tasindi -
+# ayri bir servis/cron GEREKMIYOR.
+def get_disk_usage() -> dict:
+    try:
+        usage = shutil.disk_usage(DB_DIR)
+        return {
+            "total_gb": round(usage.total / (1024 ** 3), 2),
+            "used_gb": round(usage.used / (1024 ** 3), 2),
+            "free_gb": round(usage.free / (1024 ** 3), 2),
+            "used_pct": round(usage.used / usage.total * 100, 1),
+        }
+    except OSError:
+        return {"error": "disk kullanimi okunamadi"}
 
 
 def start_backup_scheduler() -> None:

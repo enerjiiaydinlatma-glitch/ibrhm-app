@@ -1647,14 +1647,19 @@ class SetTierRequest(BaseModel):
 @app.post("/api/admin/set-tier")
 def admin_set_tier(
     body: SetTierRequest,
-    key: Optional[str] = None,
     x_admin_key: Optional[str] = Header(None),
 ):
     # Bir kullaniciyi elle 'pro' (ya da geri 'free') yapar - gercek bir
     # satin alma akisi YOK (bkz. LIMIT_REACHED_REPLY yorumu), tier sadece
     # buradan ayarlanabiliyor. ADMIN_KEY tanimli degilse _check_admin_key
     # 404 dondurur (endpoint'in varligini bile sizdirmaz).
-    _check_admin_key(x_admin_key or key)
+    # BULUNDU (2026-09-19, tam kapsamli denetim): bu API-sekilli uc, /admin
+    # HTML panosunun aksine tarayici navigasyonuyla ACILMIYOR - script/curl
+    # ile cagriliyor, yani ?key= sorgu parametresi fallback'ine hic ihtiyaci
+    # yok. Query string Railway erisim loglarina/Referer basligina sizabilir
+    # (ayni sinif risk /api/admin/stats'ta zaten bir kez bulunup duzeltilmisti,
+    # simdi ayni mantik diger 3 API ucuna da uygulaniyor) - artik SADECE header.
+    _check_admin_key(x_admin_key)
     try:
         user = database.set_user_tier(body.email, body.tier)
     except ValueError as e:
@@ -1665,22 +1670,24 @@ def admin_set_tier(
 
 
 @app.get("/api/admin/health")
-def admin_health(key: Optional[str] = None, x_admin_key: Optional[str] = Header(None)):
+def admin_health(x_admin_key: Optional[str] = Header(None)):
     """Anlik sistem sagligi (2026-09-06, "sessiz ariza" sinifini kapatir).
     Saglayici cagri sonuclari (Gemini/Groq basari orani), hafiza yazma
     basarisi, hata orani, kriz/limit sayaclari. Kalicilik YOK - restart'ta
-    sifirlanir; tarihsel analitik icin /api/admin/stats. ADMIN_KEY zorunlu.
+    sifirlanir; tarihsel analitik icin /api/admin/stats. ADMIN_KEY zorunlu
+    (SADECE header - bkz. asagidaki BULUNDU notu).
 
     IZLEME IPUCU: `bg_extraction.groq` success_rate belirgin dususe gecerse
     (bu oturumda oldu gibi) Gemini yedegi devreye giriyor demektir - kritik
     degil ama Groq tarafinda bir sorun var; `memory_write` success_rate
     <0.9 ise ACIL (hafiza kaydedilemiyor). `text_gen.total_failure` sayaci
     artiyorsa kullanicilar cevap alamiyor."""
-    _check_admin_key(x_admin_key or key)
+    _check_admin_key(x_admin_key)
     snap = metrics.snapshot()
     snap["users_total"] = database.count_users()
     snap["beta_max_users"] = BETA_MAX_USERS or None
     snap["feedback"] = database.get_feedback_counts()
+    snap["disk"] = database.get_disk_usage()
     return snap
 
 
@@ -1688,12 +1695,12 @@ def admin_health(key: Optional[str] = None, x_admin_key: Optional[str] = Header(
 def admin_feedback(
     since: Optional[str] = None,
     limit: int = 500,
-    key: Optional[str] = None,
     x_admin_key: Optional[str] = Header(None),
 ):
     """brain_service/propose_improvements.py buradan son 👍/👎 geri
-    bildirimlerini ceker (ADMIN_KEY zorunlu). since: ISO tarih (opsiyonel)."""
-    _check_admin_key(x_admin_key or key)
+    bildirimlerini ceker (ADMIN_KEY zorunlu, SADECE header - zaten oyle
+    cagiriyordu). since: ISO tarih (opsiyonel)."""
+    _check_admin_key(x_admin_key)
     return {
         "counts": database.get_feedback_counts(),
         "items": database.get_recent_feedback(since_iso=since, limit=limit),
@@ -1701,14 +1708,19 @@ def admin_feedback(
 
 
 @app.get("/api/admin/stats")
-def admin_stats(key: Optional[str] = None, x_admin_key: Optional[str] = Header(None)):
+def admin_stats(x_admin_key: Optional[str] = Header(None)):
     # GECE DENETIMI BULGUSU: anahtar sadece URL query string'inde
     # gonderilebiliyordu - bu, Railway/uvicorn erisim loglarina, tarayici
     # gecmisine ve Referer basligina sizabilir. Header artik tercih
-    # ediliyor (script/curl kullanimi icin); /admin HTML panosu tarayici
-    # navigasyonuyla acildigindan (ozel header eklenemez) query string
-    # orada hala tek pratik yol - bu yuzden SADECE bu API ucunda ekledik.
-    _check_admin_key(x_admin_key or key)
+    # ediliyor (script/curl kullanimi icin).
+    # BULUNDU (2026-09-19, tam kapsamli denetim): query fallback bu
+    # BULUNDU'nun ardindan bile hala vardi ("script/curl icin" diye) - ama
+    # script/curl zaten header GONDEREBILIR (bkz. propose_improvements.py,
+    # X-Admin-Key kullaniyor), yani fallback hicbir gercek kullanim
+    # senaryosuna hizmet etmiyordu, sadece sizinti riskini acik birakiyordu.
+    # Kaldirildi - sadece /admin (tarayici navigasyonuyla acilan, ozel
+    # header EKLEYEMEYEN HTML sayfasi) query string kullanmaya devam eder.
+    _check_admin_key(x_admin_key)
     return database.get_admin_stats()
 
 
