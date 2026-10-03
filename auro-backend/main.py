@@ -993,13 +993,26 @@ def clear_history(authorization: Optional[str] = Header(None)):
 def chat_greeting(authorization: Optional[str] = Header(None)):
     """
     Kullanicinin gecmisi bomsa Aura'nin ilk sozu kendisinin almasi icin.
-    Gecmis doluysa hicbir sey uretmez (reply: null) - tanisma akisi
-    sadece gercekten ilk kez gelen kullanicida tetiklenir.
+    Gecmis DOLUYSA (donen kullanici): BULUNDU (2026-10-03, "kademeli
+    proaktiflik") - eskiden burada HER ZAMAN sessizce None donuluyordu,
+    yani Aura uygulama acilista ASLA ilk sozu almiyordu. Artik gercek bir
+    hatirlatici/oruntu-farkindaligi/deger-fisiltisi "yasam ipucu"
+    (aura_lifestyle.get_lifestyle_nudges - zaten var, sohbet SIRASINDA
+    dogal olarak kullanilan ayni mekanizma) varsa, SADECE o zaman kisa bir
+    acilis cumlesi uretilir - yoksa eski sessiz davranis (None) korunur,
+    her acilista zorla bir sey soylenmez.
     """
     user = get_current_user(authorization)
     past_messages = database.get_messages(user["id"])
+    message_count = len(past_messages)
+
     if past_messages:
-        return {"reply": None}
+        nudge = aura_lifestyle.get_lifestyle_nudges(user)
+        if not nudge:
+            return {"reply": None}
+    else:
+        nudge = None
+
     # GUVENLIK TARAMASI BULGUSU: bu endpoint gunluk mesaj limitinden
     # muafti - DELETE /api/history (limitsiz) ile birlikte dongude
     # cagirilirsa sinirsiz ucretsiz Gemini cagrisi uretilebiliyordu.
@@ -1008,7 +1021,22 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
         user["id"], LIMIT_DAILY_MESSAGES
     ):
         return {"reply": None}
-    reply_text = aura_brain.generate_onboarding_opening(user)
+
+    if nudge is not None:
+        # Donen kullanici yolu: basarisiz olursa (bos metin) sessizce
+        # None don - bu KRITIK olmayan, "varsa iyi olur" bir ozellik,
+        # asla ciplak bir hataya ya da zorlama bir mesaja donusmemeli.
+        try:
+            reply_text = aura_brain.generate_return_opening(user, message_count, nudge)
+        except Exception as e:
+            print(f"RETURN OPENING ERROR: {type(e).__name__}: {e}")
+            observability.capture_exception(e, context="return_opening")
+            reply_text = ""
+        if not reply_text:
+            return {"reply": None}
+    else:
+        reply_text = aura_brain.generate_onboarding_opening(user)
+
     database.add_message(user["id"], "assistant", reply_text)
     return {"reply": reply_text}
 

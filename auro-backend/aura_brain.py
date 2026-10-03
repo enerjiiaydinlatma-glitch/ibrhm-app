@@ -1530,6 +1530,39 @@ def generate_onboarding_opening(user: dict) -> str:
     return sanitize_reply(text, message_count=0)
 
 
+# BULUNDU (2026-10-03, "kademeli proaktiflik" ozelligi - 18 Eylul'de
+# konusulan "proaktif zeka" fikrinin guvenli/sohbet-ici versiyonu, LLM
+# Council'in "once guvenilirlik, sonra kademeli buyume" sirasina uygun):
+# gecmisi DOLU (donen) bir kullanici /api/chat/greeting'den HER ZAMAN
+# None aliyordu - hatirlatici/oruntu-farkindaligi gibi "yasam ipuclari"
+# zaten var ve sohbet SIRASINDA dogal olarak yuzeye cikabiliyordu ama
+# kullanici uygulamayi actiginda Aura ASLA ilk sozu almiyordu, bos bir
+# yazi kutusuyla karsilasiyordu. Bu fonksiyon SADECE gercekten soylenecek
+# bir sey varsa (nudge bos degilse) cagrilir - yoksa eski sessiz davranis
+# (None) aynen koruniyor, her acilista zorla bir sey soylemiyor.
+_RETURN_OPENING_TRIGGER = (
+    "(Kullanici az once uygulamayi acti, henuz bir sey yazmadi - bu "
+    "mesaj kutusu bos. Asagidaki YASAM IPUCU'nu (varsa) dogal, kisa, "
+    "TEK bir acilis cumlesiyle/kucuk bir paragrafla gundeme getir - "
+    "anket gibi art arda soru sorma, zorlama, 'Merhaba' ile baslamak "
+    "SART degil. Eger soyleyecek somut bir sey yoksa bile sicak, kisa "
+    "bir 'seni dusunuyordum' tonu tutturabilirsin ama UYDURMA bir olay "
+    "anlatma.)"
+)
+
+
+def generate_return_opening(user: dict, message_count: int, nudge: str) -> str:
+    """Gecmisi DOLU bir kullanici icin - SADECE nudge (hatirlatici/oruntu/
+    deger-fisiltisi) bos degilse cagiran taraf (main.py) bunu cagirir."""
+    system_instruction = build_system_instruction(user, message_count)
+    system_instruction += f"\n\n[{_RETURN_OPENING_TRIGGER}]\nYASAM IPUCU: {nudge}"
+    response = generate_with_retry("(sessiz acilis)", system_instruction)
+    text = response.text
+    if not text:
+        return ""
+    return sanitize_reply(text, message_count)
+
+
 # ============================================================
 # ARKA PLAN AJANI: HAFIZA CIKARIMI (Groq - Gemini'den ayri saglayici)
 # ============================================================

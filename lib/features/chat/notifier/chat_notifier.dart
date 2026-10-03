@@ -75,11 +75,25 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   /// Kullanicinin gecmisi bomsa Aura'nin ilk sozu kendisinin almasi
-  /// icin cagrilir. Gecmis doluysa sessizce hicbir sey yapmaz.
+  /// icin cagrilir.
+  ///
+  /// BULUNDU (2026-10-03, "kademeli proaktiflik"): eskiden gecmis DOLUYSA
+  /// (donen kullanici) bu fonksiyon erkenden cikip sunucuyu HIC
+  /// cagirmiyordu - sunucu tarafinda bir "donen kullaniciya proaktif
+  /// acilis" ozelligi eklensa bile, istemci onu hicbir zaman istemeyecekti.
+  /// Artik HER ZAMAN sunucuya soruluyor; sunucu zaten SADECE gercekten
+  /// soylenecek bir sey varsa (hatirlatici/oruntu-farkindaligi) dolu bir
+  /// cevap donuyor, yoksa null - yani normal/sessiz durumda davranis
+  /// degismedi, sadece yeni durumda (nudge varsa) artik bir seyler oluyor.
   Future<void> fetchGreeting() async {
-    if (state.messages.isNotEmpty) return;
-
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    final wasEmpty = state.messages.isEmpty;
+    // Gecmisi bos olan (gercekten ilk kez gelen) kullanicida eski
+    // yukleniyor-gostergesi davranisi korunuyor. Gecmisi dolu donen
+    // kullanicida bu sessizce, arka planda calisir - zaten yuklu
+    // gecmisin uzerine bir yukleniyor doner-gostergesi yanip sonmesin.
+    if (wasEmpty) {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+    }
 
     try {
       final greeting = await _repository.getGreeting();
@@ -93,18 +107,23 @@ class ChatNotifier extends Notifier<ChatState> {
           isLoading: false,
           errorMessage: null,
         );
-      } else {
+      } else if (wasEmpty) {
         state = state.copyWith(isLoading: false);
       }
     } catch (_) {
       // Kod sagligi taramasinda bulundu: bu catch diger tum catch
       // bloklarindan farkli olarak errorMessage set etmiyordu - agdan
       // kaynakli bir hata olursa kullanici bomboş bir sohbet ekraniyla
-      // kaliyor, hicbir uyari gormuyordu.
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'Karşılama mesajı alınamadı.',
-      );
+      // kaliyor, hicbir uyari gormuyordu. SADECE gercekten bos (ilk kez
+      // gelen) kullanicida gecerli - donen kullanicida bu sessiz, arka
+      // plan bir "varsa iyi olur" kontrolu, basarisiz olursa zaten
+      // yuklu olan gecmisin uzerine gereksiz bir hata banner'i COKMEMELI.
+      if (wasEmpty) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Karşılama mesajı alınamadı.',
+        );
+      }
     }
   }
 
