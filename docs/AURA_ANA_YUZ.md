@@ -1,6 +1,6 @@
-# Aura — Ana Yüz Tasarımı (TASLAK v0)
+# Aura — Ana Yüz Tasarımı (TASLAK v1)
 
-Durum: **taslak, onay bekliyor.** Kod değişmedi. Amaç: Aura'nın "yüzünü" tek
+Durum: **kararlar alınıyor, uygulama YOK.** Kod değişmedi. Amaç: Aura'nın "yüzünü" tek
 bir fikir etrafında toplamak; sonra ekranları bu fikre göre sadeleştirmek.
 
 ## 1. Mevcut durum (koddan tespit)
@@ -75,15 +75,53 @@ Haller:
 5. Ses/görüntü ekranlarını aynı yüzeyin hali yap.
 6. Hafıza ağacını ana yüzden erişilebilir yap (şu an ayarlarda gömülü).
 
-## 6. Açık kararlar (senin cevabın gerekli)
+## 6. Alınan kararlar
 
-1. **Kimlik:** Aura'nın duygusu ne? Sakin arkadaş / koç / sırdaş / karma.
-   (Mevcut hale metni "bağırmadan hissettiren, sakin bir nefes" diyor → sakin
-   arkadaş öneriyorum.)
-2. **Aura'nın görünür bir yüzü olacak mı?** (A) Sadece hale/ışık — öneri;
-   (B) soyut bir figür; (C) avatar/karakter. A en sade ve rakiplerden ayrışan seçenek.
-3. **Önce hangi platform cilalanacak?** Web canlı; mobil mağaza varlıkları da var.
-4. **Pro/ödeme** bu işin dışında, ana yüz oturunca geri dönülecek.
+| # | Karar | Kaynak |
+|---|---|---|
+| K1 | **Kimlik: karma.** Sırdaş + yaşam koçu + asistan + yakın arkadaş + dost, tek konuşan kişilik. Bağlama göre öne çıkan rol değişir (gece sırdaş, sabah koç, iş sırasında asistan). Risk: beş rol birden jenerikleşebilir. | Kullanıcı |
+| K2 | **Platform:** web + mobil; önce web, mobili kullanıcı kendi dener. | Kullanıcı |
+| K3 | **Süreç:** önce kararlar, uygulama sonra, kullanıcı "başla" demeden kod yok. | Kullanıcı |
+| K4 | **Görünür yüz = "Odak Halası".** İnsansı yüz/avatar YOK. Uygulamanın merkezinde nefes alan, Flutter shader ile çizilen tek bir hale. | Konsey (oy birliği: Aura/Alpha/Beta/Gamma/Delta) |
+| K5 | **Açılış anı:** ilk 3 sn'de gökyüzü canlı saatle eşleşir, hale tek bir derin "nefes"le genişler ve kullanıcının son durumuna göre ana rengine oturur. | Konsey |
+| K6 | **Hale ses ve metin ritmine göre biçim değiştirir** (organik, soyut). | Konsey |
+| K7 | **Şeffaflık ilkesi:** hale bir duygu *simülasyonu* olduğu her an net olmalı; hiçbir tasarım kararı bunun önüne geçmez. | Gamma, Konsey |
+| K8 | **Mimari:** hale bağımsız animasyon değil; arka plandaki hafıza + duygu motoruyla eşzamanlı, cihazı yormayan dinamik arayüz. | Delta, Konsey |
+
+## 6b. Konseyin işaret ettiği riskler (tasarıma girmeli)
+
+- **Gamma (etik):** Kronik yalnızlık/sosyal kaygısı olan kullanıcıda ışık gerçek
+  insan ilişkisinin yerine geçebilir. Hale "üzgün" renge döndüğünde kullanıcı
+  suçluluk duymamalı; ara vermek/silmek duygusal olarak zorlaşmamalı.
+  → **Kural önerisi:** hale kullanıcıya suçluluk/özlem *göstermez*; uzun
+  yokluktan sonra "kızgın/kırgın" değil, nötr-sıcak açılır.
+- **Alpha (performans):** sürekli hareket düşük cihazlarda sorun çıkarır.
+  → düşük güç modu: shader yerine statik gradyan + yavaş opaklık.
+- **Beta (algı):** "ışık ruh olur mu" — tutarlı deneyim, parlak görselden
+  önemli. Hale tek başına yetmez; Aura'nın tutarlılığı (hafıza, ton) esas.
+
+## 6c. Konsey kararının EKSİKLERİ (dürüst not)
+
+Konsey 3 somut yüz önerisi, duygu başına davranış kuralı ve gerçekçi metrik
+istenen soruya genel cevap verdi:
+- "Odak Halası" mevcut `aura_hale.dart` ile **neredeyse aynı** fikir; shader
+  dışında yeni bir şey söylemiyor. "Kimsede olmayan" iddiası kanıtlanmadı.
+- Duygu başına hareket kuralı verilmedi (mutlu/üzgün/yorgun/stresli ne yapar?).
+- **%40 organik paylaşım oranı gerçekçi değil** (tipik: tek haneli %). Bu
+  hedef kullanılmayacak; yerine aşağıdaki metrikler önerilir.
+- Alpha'nın "kullanıcı etkileşim süresi" metriği, Gamma'nın bağımlılık
+  uyarısıyla çelişiyor (daha uzun kullanım ≠ daha iyi). Bırakılmalı.
+
+## 6d. Açık kararlar
+
+1. **Hale'yi gerçekten ayıran şey ne?** (Fikir adayları: hafızadan beslenen
+   biçim — her kullanıcının halesi zamanla kendine özgü bir desen alır;
+   konuşma ritmini yansıtan dalga; saat + duygu + ilişki yaşı katmanları.)
+   Bunun için konseye ikinci, daha dar bir soru gerekir.
+2. **Duygu → hareket tablosu** (her duygu için renk, hız, biçim).
+3. **Düşük güç modu eşiği.**
+4. **Başarı metrikleri** (gerçekçi): ilk-3-sn sonrası kalma oranı, 30. gün
+   geri dönüş, ekran görüntüsü paylaşımı (hedef yüzde yerine ilk ölçüm).
 
 ## 7. Başarı ölçütü
 
