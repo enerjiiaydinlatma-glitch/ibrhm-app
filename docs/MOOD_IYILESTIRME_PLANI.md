@@ -52,7 +52,13 @@ Yanlış rengi azaltmak. "Neden bu renk?" özelliği ancak bundan sonra anlamlı
 - **Plana eklenen ek düzeltme (bulgu):** `"sad"` düz alt-dize eşleşiyordu, "sadece/sade/sadık"
   içeren her mesaj "üzgün" oluyordu. Kısa/İngilizce kelimeler artık tam kelime eşleşir.
 - Testler: `auro-backend/tests/test_mood_detection.py` (53 test geçti). Kriz kelimeleri modülde yok, testle doğrulanır.
-- İstemci (adım 4-5: harman ve coşku hâli) YAPILMADI.
+- **İstemci (adım 4-5) YAPILDI:** `aura_hale.dart` (harman + coşku hâli), `message.dart`, `chat_state.dart`,
+  `chat_notifier.dart`, `chat_repository_impl.dart`, `chat_screen.dart`. Eski backend (`moods` yok) ile de çalışır.
+  - Harman: iki ton yan yana (ışıklar birbirinden uzak ve küçük; yakın olunca gri-çamura dönüyordu, çizimle görüldü ve düzeltildi).
+  - Coşku (mutlu/enerjik): daha parlak, sıcak altın-mercan-pembe; duygu YENİ yakalanınca 5 sn'lik açılış (nefes + ince ışık
+    parçacıkları), sonra sabit parlak. 2 dk bekleme süresi var; hareket azaltma açıksa açılış oynamaz; ilk açılışta oynamaz.
+  - Test: `test/aura_hale_test.dart` (26 test) + mevcut smoke test, `flutter analyze` temiz.
+  - Görsel kontrol: hale çizilip bakıldı. Etki bilerek sakin; gerçek cihazda ve gerçek sohbette gözle görülmedi.
 
 ## 4. Kabul ölçütü
 - Test setinin tamamı geçer.
