@@ -255,6 +255,44 @@ Sonuçlar:
 - Mood tespitinin iyileştirilmesi nasıl yapılacak (kural tabanlı mı, LLM mi) → ayrı karar.
 - Hale kartı render yeri (cihaz/sunucu).
 
+## 6h. Danışma Odası 2. oturum (çapraz eleştiri + takip)
+
+> Not: bu oturumun kör turu geçersizdi (bkz. 6g). Çapraz eleştiri ve takip
+> turlarından yalnızca gerekçeli, kendi başına doğru olan maddeler alındı.
+
+**Süreç dersi:** üyeler `detect_mood`'u koddan görmedikleri için hepsi
+"bilmiyorum" dedi ve var olmayan sinyaller (mesaj uzunluğu, yazma hızı, ton,
+`[Gece vakti]` çipi) önerdi. Danışma Odası'na koddan **satır aralığı** verme
+özelliği eklendi (`auro-backend/main.py:361-390`). Kod gerektiren sorularda
+ilgili satırlar veri paketine konmalı.
+
+**Kabul edilenler**
+- Hale durum makinesi büyüyor (5 hal + kapalı + kriz-yakın = 7-8 durum): geçiş
+  matrisi çıkar, ayrı PR'larda test et (Anthropic). `chat_screen.dart` bölünmeden
+  yeni özellik eklenmesin (zaten Bölüm 5 adım 1).
+- "Yanlış" sayacı ilk 2 hafta **yalnızca backend loguna** yazılsın, kullanıcıya
+  "deney tavşanı" hissi vermesin; eşik yüzdesi gerçek veriyi gördükten sonra (Anthropic).
+- Düşük güç modu: cihaz listesi yerine **çalışma zamanında FPS ölçümü** (ilk 3 sn);
+  sabit eşik (45 FPS) henüz YAZILMAZ, A/B ile doğrulanacak (Anthropic).
+- Saat → 4 dilim dönüşümü backend'de yapılsın, istemciye yalnızca dilim etiketi (Anthropic).
+- Hale kapalıyken ana ekran gökyüzünü korur, sade düzene geçer (Gemini).
+- Tanı koyan/klinik etiket YOK; açıklama yalnızca gerçek tetikleyiciyi söyler (Gemini).
+
+**Reddedilenler**
+- **"%20 hata → model revize" (Groq, OpenAI tekrarladı):** dayanaksız eşik; çapraz
+  eleştiride Gemini ve Anthropic de reddetti.
+- **"FPS<30 veya bellek>150 MB" (Groq):** kaynaksız sayı.
+- **"Ham saat damgası cihazdan hiç çıkmamalı" (Anthropic):** yanlış; sunucu mesajları
+  zaten zaman damgasıyla saklıyor. Doğrusu: dışarıya (kart/paylaşım) ham saat çıkmaz.
+- **"'Sıfır içerik sızdırma garantisi'ni pazarlamada kullanın" (Groq):** hiçbir
+  gizlilik garantisi verilmemeli; yasal/etik risk. Kullanılmayacak.
+- **"[Gece vakti], [Yazma temposu] çipleri" (Gemini):** bu sinyaller hesaplanmıyor.
+  Çip yalnızca gerçek tetikleyiciyi gösterebilir (örn. mesajda geçen kelime).
+- **"Rakiplerde yok" (Groq/Gemini):** hâlâ doğrulanmadı; karar belgesine girmez.
+
+**Not:** "Yanlış oranı yükselirse mood bildirimi otomatik pasife geçsin" (Groq)
+mantıklı bir fikir, ama eşik olmadan uygulanamaz; 2 haftalık veriden sonra tekrar bak.
+
 ## 7. Başarı ölçütü
 
 Kullanıcı uygulamayı açtığında 3 saniye içinde: *"biri burada, beni

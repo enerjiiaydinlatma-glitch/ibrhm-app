@@ -98,26 +98,41 @@ def probe_all():
 
 
 # --------------------------------------------------------------- veri paketi
+def _split_range(spec):
+    """'dosya.py:361-390' -> ('dosya.py', 361, 390); aralik yoksa (spec, None, None)."""
+    m = re.match(r"^(.*?):(\d+)-(\d+)$", spec)
+    if m:
+        return m.group(1), int(m.group(2)), int(m.group(3))
+    return spec, None, None
+
+
 def load_context(paths):
-    """Repo icinden dosya okur; repo disina cikmayi engeller."""
+    """Repo icinden dosya okur; repo disina cikmayi engeller.
+    Satir araligi destekler: 'auro-backend/main.py:361-390' (1 tabanli, dahil)."""
     chunks, used = [], 0
-    for rel in paths:
-        rel = rel.strip().replace("\\", "/")
-        if not rel:
+    for spec in paths:
+        spec = spec.strip().replace("\\", "/")
+        if not spec:
             continue
+        rel, a, b = _split_range(spec)
         full = os.path.abspath(os.path.join(REPO_ROOT, rel))
         if not full.startswith(REPO_ROOT + os.sep) or not os.path.isfile(full):
-            chunks.append(f"### {rel}\n[DOSYA BULUNAMADI]")
+            chunks.append(f"### {spec}\n[DOSYA BULUNAMADI]")
             continue
         with open(full, encoding="utf-8", errors="replace") as f:
-            body = f.read()
+            lines = f.read().splitlines()
+        if a is not None:
+            a, b = max(a, 1), max(b, a)
+            body = "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines[a - 1:b], start=a))
+        else:
+            body = "\n".join(lines)
         room = MAX_CONTEXT_CHARS - used
         if room <= 0:
-            chunks.append(f"### {rel}\n[LIMIT ASILDI, atlandi]")
+            chunks.append(f"### {spec}\n[LIMIT ASILDI, atlandi]")
             continue
         body = body[:room]
         used += len(body)
-        chunks.append(f"### {rel}\n{body}")
+        chunks.append(f"### {spec}\n{body}")
     return "\n\n".join(chunks)
 
 
