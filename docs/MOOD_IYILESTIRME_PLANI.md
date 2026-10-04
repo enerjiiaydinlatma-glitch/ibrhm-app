@@ -46,6 +46,14 @@ Yanlış rengi azaltmak. "Neden bu renk?" özelliği ancak bundan sonra anlamlı
   yalnızca sabit parlak hâl gösterilir.
 - Seçenek A: yalnızca sabit parlak hâl (en sade). Seçenek B (önerim): kısa açılış + sabit parlak.
 
+## 3c. Uygulama durumu (backend adımları 1-3 TAMAM, dal `claude/mood-tespiti-backend`)
+- Yeni modül: `auro-backend/mood_detection.py` (`detect_moods`, `detect_mood`); `main.py` buradan içe aktarır.
+- `/api/chat` yanıtına `moods` listesi eklendi; `mood` eskisi gibi (ilk duygu).
+- **Plana eklenen ek düzeltme (bulgu):** `"sad"` düz alt-dize eşleşiyordu, "sadece/sade/sadık"
+  içeren her mesaj "üzgün" oluyordu. Kısa/İngilizce kelimeler artık tam kelime eşleşir.
+- Testler: `auro-backend/tests/test_mood_detection.py` (53 test geçti). Kriz kelimeleri modülde yok, testle doğrulanır.
+- İstemci (adım 4-5: harman ve coşku hâli) YAPILMADI.
+
 ## 4. Kabul ölçütü
 - Test setinin tamamı geçer.
 - `_CRISIS_KEYWORDS` ve kriz akışı **değişmemiş** (diff'te yok).
