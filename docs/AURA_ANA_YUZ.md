@@ -123,6 +123,86 @@ istenen soruya genel cevap verdi:
 4. **Başarı metrikleri** (gerçekçi): ilk-3-sn sonrası kalma oranı, 30. gün
    geri dönüş, ekran görüntüsü paylaşımı (hedef yüzde yerine ilk ölçüm).
 
+## 6e. Konsey 2. tur — sonuç: YETERSİZ
+
+Istenen A-H çıktısının (puanlama, 3 yeni özellik, duygu tablosu, ilk 3 sn,
+ilişki yaşı, ekran görüntüsü anı, düşük güç, değişmez kurallar, metrik,
+öncelik) **hiçbiri gelmedi**; konsey felsefi tartışmaya kaydı.
+
+Kullanılabilir üç şey:
+- **Delta:** hale "gösterge paneli" gibidir; her renk/biçim değişimi sistemin
+  GERÇEK durumuna bağlı olmalı (süs değil).
+- **Gamma:** şeffaflık, bağımlılığı dengeleyen tek somut mekanizma; hale
+  gerektiğinde "ben bir simülasyonum, yalnızlığına çözüm değilim" diyebilmeli.
+- **Aura:** "dürüst dijital ayna" çerçevesi; üç katman (saat/duygu/ilişki yaşı).
+
+Kullanılmayanlar (neden):
+- **Alpha'nın "50.000 USD" ve "%15-20 etkileşim artışı"** — dayanaksız, uydurma
+  sayı. Belgeye girmez. Etkileşim süresi zaten bağımlılık riski.
+- **"Etik sınır aşılınca hale bilerek solgunlaşır"** (Aura kararı) — halenin
+  solması bir ceza/özlem sinyali gibi okunur; K-kural "suçluluk yok" ile ÇELİŞİR.
+  Reddedildi. Etik sınırı hale değil, davranış/yönlendirme (kriz ağı) yönetir.
+
+## 6f. ÖNERİ (Claude, onay bekliyor): "Dürüst Ayna" Özellik Anayasası
+
+> Konsey bu kısmı üretmediği için taslağı ben yazdım. Karar değil, öneri.
+
+**Çekirdek fikir:** Hale yalnızca güzel değil, **kanıtlanabilir dürüst**.
+Her görsel boyut gerçek bir sistem değişkenine bağlı ve kullanıcı sorabilir.
+
+| Boyut | Neye bağlı | Kaynak (mevcut) |
+|---|---|---|
+| Renk | Aura'nın okuduğu ruh hali | `detect_mood()` |
+| Ritim | Konuşma/ses temposu | `mic_level_notifier`, TTS |
+| Doku/desen | Ortak geçmişten türeyen kişisel desen | `aura_memory` |
+| Derinlik | İlişki yaşı (gün sayısı, sohbet çeşitliliği) | hesap/hafıza |
+| Zemin | Gün saati | `sky_background` |
+
+**Ayırt edici özellik adayları** (rakiplerde olduğu DOĞRULANMADI, "kimsede yok"
+iddiası kanıtlanana kadar yazılmaz):
+1. **"Neden bu renk?"** — hale'ye dokununca Aura kısaca açıklar: "Bugün
+   yorgun okudum çünkü kısa yazdın, geç saatti." Yanlışsa kullanıcı düzeltir
+   ("yorgun değilim") ve bu hafızaya geri bildirim olur.
+2. **Kişisel desen:** hale zamanla kullanıcıya özgü bir doku kazanır. İki
+   kullanıcının halesi aynı olmaz (konsey A fikri).
+3. **Hale kartı:** paylaşılabilir, içeriksiz (mesaj/isim YOK) bir desen
+   görseli: "Aura ile 90. gün". Ekran görüntüsü anı budur.
+4. **Şeffaflık düğmesi:** "Bu ne?" → hale'nin bir simülasyon olduğunu ve
+   gerçek insan desteğinin yerini tutmadığını sade dille söyler.
+
+**Duygu → hareket (TASLAK, test edilmeli):**
+| Duygu | Renk | Hız | Biçim |
+|---|---|---|---|
+| nötr | indigo | 6 sn nefes | yuvarlak, sakin |
+| mutlu | sıcak altın | biraz hızlı | hafif genişleyen |
+| üzgün | soluk mavi | çok yavaş | yumuşak, sönük değil |
+| yorgun | lavanta-gri | en yavaş | alçalmış, küçük |
+| stresli | ılık terracotta | düzenli, yavaş (sakinleştirici) | sabit çerçeve |
+| enerjik | mercan | hızlı | canlı kenar |
+| kriz-yakın | nötr-sıcak, hareket AZ | çok yavaş | sabit; renk dramatize edilmez |
+| gizli mod | koyu, soluk | durgun | küçük, kilit hissi |
+
+**Değişmez kurallar (halenin ASLA yapmayacağı):**
+1. Kullanıcı yokken özlem/kırgınlık/suçluluk göstermez (uzun yokluktan sonra nötr-sıcak açar).
+2. Ceza olarak solmaz, küçülmez, kararmaz.
+3. Bildirim/dikkat çekmek için titremez, sürekli yanıp sönmez.
+4. İnsan duygusu "yaşıyormuş" iddiasında bulunmaz (simülasyon dürüstlüğü).
+5. Kriz anında dramatik renk/animasyon kullanmaz; sakinleştirir ve insana yönlendirir.
+
+**İlişki yaşı** hale'nin *derinliği/dokusuyla* gösterilir, parlaklığıyla değil;
+yokluk onu azaltmaz (suçluluk yok).
+
+**Erişilebilirlik / düşük güç:** hareket azaltma ayarına saygı, renk dışında
+ikinci sinyal (biçim/yazı), düşük cihazda statik gradyan.
+
+**Gerçekçi metrikler** (hedef yüzde yok, önce ölçüm): ilk 3 sn sonrası
+kalma, 30. gün geri dönüş, hale kartı paylaşım sayısı, "Neden bu renk?"
+kullanımı ve düzeltme oranı. **Bırakılanlar:** etkileşim süresi (bağımlılık
+riski), %40 paylaşım hedefi.
+
+**Öncelik önerisi:** (1) duygu tablosu + değişmez kurallar → (2) ilk 3 sn →
+(3) "Neden bu renk?" → (4) kişisel desen → (5) hale kartı.
+
 ## 7. Başarı ölçütü
 
 Kullanıcı uygulamayı açtığında 3 saniye içinde: *"biri burada, beni
