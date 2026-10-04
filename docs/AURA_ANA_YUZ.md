@@ -203,6 +203,58 @@ riski), %40 paylaşım hedefi.
 **Öncelik önerisi:** (1) duygu tablosu + değişmez kurallar → (2) ilk 3 sn →
 (3) "Neden bu renk?" → (4) kişisel desen → (5) hale kartı.
 
+## 6g. Danışma Odası 1. oturum (kör tur) — değerlendirme
+
+Oturum `20261004-200059` geçerli kör turdur (Gemini, OpenAI, Anthropic, Groq).
+Oturum `20261004-200201` **geçersiz**: soru kutusuna Claude'un cevabı da
+yapıştırılmış, üyeler kör değil, Claude'un cevabını değerlendirmiş. Yalnızca
+Anthropic'in iki ilavesi kullanıldı (aşağıda).
+
+### KOD BULGUSU (üyelerin hepsi "bilmiyorum" dedi, koddan doğrulandı)
+`auro-backend/main.py` `detect_mood()`:
+- Yalnızca **o anki tek mesajda anahtar kelime eşleşmesi** (`MOOD_KEYWORDS`: 5 etiket).
+- **İlk eşleşen kazanır**; skor yok, güven yok.
+- **Olumsuzlama yok:** "yorgun değilim" → `yorgun`.
+- Mesaj uzunluğu, yazma hızı, saat, ses tonu gibi **sinyaller yok**.
+- Önceki mesajlara bakmaz → hale her mesajda sıçrayabilir.
+- Kriz tespiti ayrı bir listedir (`_CRISIS_KEYWORDS`); mood'da kriz durumu yok.
+
+Sonuçlar:
+1. Konseyin (Gemini/Groq/Anthropic) "mesaj uzunluğu, saat, ton sinyallerinden
+   açıklama üret" önerisi **mevcut sistemde karşılıksız**; bu sinyaller hesaplanmıyor.
+2. "Neden bu renk?" bugün dürüstçe şunu diyebilir: *"Mesajında 'yorgun' kelimesi
+   geçti."* Doğru ama basit; ve yanlış çıkarımlar sık olacak (olumsuzlama).
+3. **Öncelik değişmeli:** "Neden bu renk?"den ÖNCE mood tespiti iyileştirilmeli
+   (olumsuzlama, birkaç mesajlık yumuşatma). Aksi halde "Dürüst Ayna" yanlış
+   bir aynayı dürüstçe açıklar.
+4. Hale'nin mood'la sıçrayıp titremesi kuralı (dikkat çekmek için yanıp sönmez)
+   ile çelişir → geçişler yavaş ve yumuşatılmış olmalı.
+
+### Kabul edilenler (üyeler arası yakınsama / sağlam gerekçe)
+- "Neden bu renk?" + **"Duygumu düzelt"** (5 duygu çipi); kendiliğinden değil, dokununca. (Gemini, Anthropic, Groq)
+- Açıklamayı **LLM'siz, şablonla** üret (maliyet/gecikme); LLM sonraki faz. (Anthropic)
+- Kişisel desen **yalnızca meta veriden** (saat dilimi, oturum uzunluğu, gün sayısı), içerikten asla. (hepsi)
+- Saat ham değil **4 dilim** (gece/sabah/öğle/akşam); hale kartında saat YOK, önizleme zorunlu, varsayılan kapalı. (Anthropic, Gemini)
+- **Yeni kural 6:** durum asla yalnızca renkle iletilmez (biçim/yazı desteği). (Gemini)
+- **Yeni kural 7:** hale tamamen kapatılabilir: Canlı / Statik / Kapalı. (Gemini, Anthropic)
+- Değişmez kurallar **test edilebilir** yazılmalı (golden/widget test; örn. 7 gün yokluk sonrası renk nötr-sıcak). (Anthropic)
+- Dokunulan anda yanlış etiket → hangi anahtar kelimenin tetiklediği loglanır; "Yanlış" oranı sayaç, ilk eşik için 2 hafta ham veri. (Anthropic)
+
+### Reddedilenler
+- **Groq: "kişisel deseni hafıza vektörlerinin SHA-256 hash'inden türet"** — hash içerikten
+  türer (meta veri ilkesiyle çelişir), açıklanamaz ve desen kullanıcı için anlamsız olur.
+- **Groq: "solma ceza değil, enerji tasarrufu sinyali"** — K-kural 2 (ceza olarak solmaz)
+  ile çelişir; kullanıcı ayırt edemez.
+- **Groq: "kural 2-3 çelişkili"** — gerekçesiz; çelişki bulunamadı.
+- **Groq (2. oturum): "%20 üstü hatalı geri bildirimde model revize"** — dayanaksız eşik.
+- **OpenAI** — anlamlı katkı yok; 3. ve 5. soruya "bilmiyorum"; jenerik.
+
+### Açık kalanlar
+- Rakiplerde benzer özellik var mı: **hâlâ doğrulanmadı** (hiçbir üye kanıt gösteremedi).
+- Shader'ın düşük cihaz performansı: ölçülmeli.
+- Mood tespitinin iyileştirilmesi nasıl yapılacak (kural tabanlı mı, LLM mi) → ayrı karar.
+- Hale kartı render yeri (cihaz/sunucu).
+
 ## 7. Başarı ölçütü
 
 Kullanıcı uygulamayı açtığında 3 saniye içinde: *"biri burada, beni
