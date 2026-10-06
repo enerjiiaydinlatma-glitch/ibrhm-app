@@ -3,9 +3,11 @@ import html
 import os
 import re
 import secrets
+import threading
 import time
 import httpx
 import aura_brain
+import aura_council
 import aura_lifestyle
 import aura_memory
 import aura_reminders
@@ -1665,6 +1667,52 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
 # felsefesiyle (Hikaye Modu ozelligi de daha once ayni gerekceyle
 # kaldirilmisti) uyumsuzdu. StoryRequest/StoryHistoryItem modelleri de
 # birlikte kaldirildi - git gecmisinde duruyor.
+
+
+# ----------------------------------------------------------------------
+# Konsey ucu: Aura'yi sahibin kisisel "danisma odasi" toplantisina UYE olarak
+# katar. KAYIT YOK (bkz. aura_council.py): gecmis, hafiza, ruh hali, kullanim
+# sayaci, distile-ornek hicbirine yazilmaz; kisiye ozel veri okunmaz. Yalnizca
+# ADMIN_KEY ile cagrilir (yoksa/yanlissa 404 - ucun varligini bile sizdirmaz).
+# Maliyet korumasi: saatte en fazla COUNCIL_OPINION_PER_HOUR cagri (varsayilan 20).
+COUNCIL_OPINION_PER_HOUR = int(os.getenv("COUNCIL_OPINION_PER_HOUR", "20"))
+_council_opinion_times: deque = deque()
+_council_opinion_lock = threading.Lock()
+
+
+def _council_opinion_allowed() -> bool:
+    now = time.time()
+    with _council_opinion_lock:
+        while _council_opinion_times and now - _council_opinion_times[0] > 3600:
+            _council_opinion_times.popleft()
+        if len(_council_opinion_times) >= COUNCIL_OPINION_PER_HOUR:
+            return False
+        _council_opinion_times.append(now)
+        return True
+
+
+class CouncilOpinionRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=aura_council.MAX_TOPIC)
+    transcript: str = Field(default="", max_length=aura_council.MAX_TRANSCRIPT)
+    question: str = Field(default="", max_length=aura_council.MAX_QUESTION)
+
+
+@app.post("/api/council/opinion")
+def council_opinion(
+    body: CouncilOpinionRequest,
+    x_admin_key: Optional[str] = Header(None),
+):
+    _check_admin_key(x_admin_key)
+    if not _council_opinion_allowed():
+        raise HTTPException(status_code=429, detail="Konsey cagri sinirina ulasildi.")
+    try:
+        reply = aura_council.get_opinion(body.topic, body.transcript, body.question)
+    except Exception as e:
+        # Icerik (konu/konusma) loga YAZILMAZ - yalnizca hata turu.
+        print(f"COUNCIL OPINION ERROR: {type(e).__name__}")
+        observability.capture_exception(e, context="council_opinion")
+        raise HTTPException(status_code=502, detail="Aura su an cevap veremiyor.")
+    return {"reply": reply, "source": "aura-persona", "saved": False}
 
 
 class SetTierRequest(BaseModel):
