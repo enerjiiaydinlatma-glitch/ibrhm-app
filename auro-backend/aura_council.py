@@ -12,7 +12,7 @@ kullanici deneyimine ve hafizasina karismaz.
 KRIZ_MUDAHALE_KURALI BILEREK dahil degil: o kural bir KULLANICININ krizine
 karsi yazildi; konsey metni "kriz anindaki hale tasarimi" gibi konulari
 tartisirken Aura'yi gereksiz yere mudahale moduna sokardi. Bu uc yalnizca
-sahibin ADMIN_KEY'iyle cagrilir, son kullaniciya acik degildir.
+sahibin COUNCIL_API_KEY'iyle cagrilir, son kullaniciya acik degildir.
 """
 from google.genai import types
 

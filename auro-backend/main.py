@@ -1672,12 +1672,26 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
 # ----------------------------------------------------------------------
 # Konsey ucu: Aura'yi sahibin kisisel "danisma odasi" toplantisina UYE olarak
 # katar. KAYIT YOK (bkz. aura_council.py): gecmis, hafiza, ruh hali, kullanim
-# sayaci, distile-ornek hicbirine yazilmaz; kisiye ozel veri okunmaz. Yalnizca
-# ADMIN_KEY ile cagrilir (yoksa/yanlissa 404 - ucun varligini bile sizdirmaz).
+# sayaci, distile-ornek hicbirine yazilmaz; kisiye ozel veri okunmaz.
+# YETKI: yalnizca bu uca ozel COUNCIL_API_KEY ile cagrilir (yoksa/yanlissa 404 -
+# ucun varligini bile sizdirmaz). ADMIN_KEY BILEREK kabul EDILMEZ: konsey
+# aracinin tam yonetici yetkisi (set-tier, istatistik, geri bildirim) olmamali,
+# ve ADMIN_KEY'i tanimlamak /admin panelini de acardi. Basliktaki ad
+# (X-Admin-Key) konsey aracinin mevcut kodu bozulmasin diye ayni birakildi.
 # Maliyet korumasi: saatte en fazla COUNCIL_OPINION_PER_HOUR cagri (varsayilan 20).
+COUNCIL_API_KEY = os.getenv("COUNCIL_API_KEY", "").strip()
 COUNCIL_OPINION_PER_HOUR = int(os.getenv("COUNCIL_OPINION_PER_HOUR", "20"))
 _council_opinion_times: deque = deque()
 _council_opinion_lock = threading.Lock()
+
+
+def _check_council_key(key: Optional[str]):
+    try:
+        valid = bool(COUNCIL_API_KEY) and bool(key) and secrets.compare_digest(key, COUNCIL_API_KEY)
+    except (TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=404)
 
 
 def _council_opinion_allowed() -> bool:
@@ -1702,7 +1716,7 @@ def council_opinion(
     body: CouncilOpinionRequest,
     x_admin_key: Optional[str] = Header(None),
 ):
-    _check_admin_key(x_admin_key)
+    _check_council_key(x_admin_key)
     if not _council_opinion_allowed():
         raise HTTPException(status_code=429, detail="Konsey cagri sinirina ulasildi.")
     try:

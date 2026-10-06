@@ -10,6 +10,7 @@ _TMP = tempfile.mkdtemp(prefix="aura_council_test_")
 os.environ["DB_DIR"] = _TMP
 os.environ.setdefault("GEMINI_API_KEY", "test-key-not-real")
 os.environ["ADMIN_KEY"] = "test-admin-key"
+os.environ["COUNCIL_API_KEY"] = "test-council-key"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest  # noqa: E402
@@ -21,7 +22,7 @@ import aura_memory  # noqa: E402
 import database  # noqa: E402
 import main  # noqa: E402
 
-KEY = {"X-Admin-Key": "test-admin-key"}
+KEY = {"X-Admin-Key": "test-council-key"}
 BODY = {"topic": "Hale nasil gorunmeli?", "transcript": "Gemini: sakin bir isik.", "question": "Gorusun?"}
 
 
@@ -35,6 +36,7 @@ def _reset(monkeypatch):
     main._council_opinion_times.clear()
     monkeypatch.setattr(main, "COUNCIL_OPINION_PER_HOUR", 20)
     monkeypatch.setattr(main, "ADMIN_KEY", "test-admin-key")
+    monkeypatch.setattr(main, "COUNCIL_API_KEY", "test-council-key")
     yield
 
 
@@ -64,9 +66,27 @@ def test_wrong_key_is_404(client):
     assert r.status_code == 404
 
 
-def test_admin_key_unset_is_404(client, monkeypatch):
-    monkeypatch.setattr(main, "ADMIN_KEY", "")
+def test_council_key_unset_is_404(client, monkeypatch):
+    monkeypatch.setattr(main, "COUNCIL_API_KEY", "")
     r = client.post("/api/council/opinion", json=BODY, headers={"X-Admin-Key": ""})
+    assert r.status_code == 404
+    r = client.post("/api/council/opinion", json=BODY, headers=KEY)
+    assert r.status_code == 404
+
+
+def test_admin_key_is_NOT_accepted(client, monkeypatch):
+    """Konsey ucu yonetici anahtariyla ACILMAZ (en az yetki ilkesi)."""
+    monkeypatch.setattr(aura_brain, "generate_with_retry", lambda *a, **k: _Resp("x"))
+    r = client.post("/api/council/opinion", json=BODY, headers={"X-Admin-Key": "test-admin-key"})
+    assert r.status_code == 404
+
+
+def test_council_key_does_not_open_admin_endpoints(client):
+    r = client.post(
+        "/api/admin/set-tier",
+        json={"email": "a@b.c", "tier": "pro"},
+        headers={"X-Admin-Key": "test-council-key"},
+    )
     assert r.status_code == 404
 
 
