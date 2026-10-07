@@ -66,6 +66,13 @@ def test_wrong_key_is_404(client):
     assert r.status_code == 404
 
 
+@pytest.mark.parametrize("body", [{}, {"topic": ""}, {"topic": "x" * (aura_council.MAX_TOPIC + 1)}])
+@pytest.mark.parametrize("headers", [{}, {"X-Admin-Key": "yanlis"}])
+def test_bad_body_without_valid_key_is_404_not_422(client, body, headers):
+    """Anahtar kontrolu govde dogrulamasindan ONCE: ucun varligi sizmaz."""
+    assert client.post("/api/council/opinion", json=body, headers=headers).status_code == 404
+
+
 def test_council_key_unset_is_404(client, monkeypatch):
     monkeypatch.setattr(main, "COUNCIL_API_KEY", "")
     r = client.post("/api/council/opinion", json=BODY, headers={"X-Admin-Key": ""})

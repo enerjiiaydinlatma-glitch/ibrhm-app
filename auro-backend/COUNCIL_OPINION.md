@@ -14,7 +14,7 @@ kaydı — hiçbirine yazılmaz; kişiye özel veri (hafıza, ad, üslup) okunma
 Not: arkada ayrı bir "Aura modeli" yok; cevap Aura karakteriyle yönlendirilmiş mevcut modelden (Gemini, yedekte Groq…) gelir.
 
 ## Güvenlik
-- `X-Admin-Key` başlığı = sunucudaki **`COUNCIL_API_KEY`** (bu uca özel, ayrı bir anahtar). Yok/yanlış/`COUNCIL_API_KEY` tanımsız → **404** (ucun varlığı sızmaz).
+- `X-Admin-Key` başlığı = sunucudaki **`COUNCIL_API_KEY`** (bu uca özel, ayrı bir anahtar). Yok/yanlış/`COUNCIL_API_KEY` tanımsız → **404**; anahtar kontrolü istek gövdesinin doğrulanmasından ÖNCE yapılır, yani anahtarsız biri bozuk gövdeyle bile ucun var olduğunu öğrenemez (422 yerine hep 404).
 - **`ADMIN_KEY` bu uçta KABUL EDİLMEZ**, `COUNCIL_API_KEY` de yönetici uçlarını (`set-tier`, istatistik, geri bildirim) AÇMAZ. Böylece konsey aracı yalnızca "Aura'nın görüşünü al" yapabilir. (Başlık adı `X-Admin-Key`, konsey aracının mevcut kodu bozulmasın diye aynı bırakıldı.)
 - Anahtar yalnızca **header** ile gider, URL'ye yazılmaz. Anahtar ASCII olmalı (Türkçe karakter yok).
 - Maliyet sınırı: saatte `COUNCIL_OPINION_PER_HOUR` çağrı (varsayılan 20) → aşınca **429**.
@@ -53,6 +53,6 @@ Bu uç hafıza okumaz. Yine de Aura'nın cevabı konsey aracında **diğer üyel
 konsey toplantısına kişisel/hassas içerik koyma.
 
 ## Test
-`auro-backend/tests/test_council_opinion.py` (16 test): yetkisiz erişim, doğrulama, hız sınırı, hata davranışı,
+`auro-backend/tests/test_council_opinion.py` (22 test): yetkisiz erişim, doğrulama, hız sınırı, hata davranışı,
 "hiçbir şey kaydedilmez/okunmaz" (kayıt ve kişiye özel okuma fonksiyonları çağrılırsa test patlar).
 Çalıştırma: `python -m pytest tests/test_council_opinion.py -q` (auro-backend klasöründen).

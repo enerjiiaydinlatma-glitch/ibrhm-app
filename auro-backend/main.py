@@ -16,7 +16,7 @@ import aura_voice
 import base64
 from collections import defaultdict, deque
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
+from fastapi import Depends, FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1694,6 +1694,13 @@ def _check_council_key(key: Optional[str]):
         raise HTTPException(status_code=404)
 
 
+def _require_council_key(x_admin_key: Optional[str] = Header(None)) -> None:
+    # Bagimlilik olarak calisir: FastAPI istek GOVDESINI dogrulamadan ONCE bunu
+    # cozer. Boylece anahtarsiz biri bozuk govdeyle 422 alip ucun var oldugunu
+    # ogrenemez - hep 404.
+    _check_council_key(x_admin_key)
+
+
 def _council_opinion_allowed() -> bool:
     now = time.time()
     with _council_opinion_lock:
@@ -1714,9 +1721,8 @@ class CouncilOpinionRequest(BaseModel):
 @app.post("/api/council/opinion")
 def council_opinion(
     body: CouncilOpinionRequest,
-    x_admin_key: Optional[str] = Header(None),
+    _auth: None = Depends(_require_council_key),
 ):
-    _check_council_key(x_admin_key)
     if not _council_opinion_allowed():
         raise HTTPException(status_code=429, detail="Konsey cagri sinirina ulasildi.")
     try:
