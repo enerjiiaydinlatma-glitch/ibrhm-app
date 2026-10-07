@@ -511,7 +511,7 @@ if __name__ == "__main__":
                     help="Koordineli dusum: hemen public yerine belirtilen saatte "
                          "(veya +3s) otomatik yayina koy - tum abonelere ayni anda bildirim")
     ap.add_argument("--force", action="store_true",
-                    help="Bugun zaten bir video yuklendiyse bile IKINCI bir video uret (gunde-1-video kilidini asar)")
+                    help="Gunluk sert sinira (daily_limit.MAX_DAILY=2) KADAR kasitli video uret; siniri asamaz")
     a = ap.parse_args()
     run(short_upload=a.short_upload, public=a.public, learn=a.learn, plan_only=a.plan_only,
         leaderboard=a.leaderboard, hottake=a.hottake, evergreen=a.evergreen,
