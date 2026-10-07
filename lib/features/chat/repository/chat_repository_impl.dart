@@ -46,6 +46,9 @@ class ChatRepositoryImpl implements ChatRepository {
         text: replyText,
         isUser: false,
         mood: data['mood']?.toString(),
+        moods: (data['moods'] is List)
+            ? (data['moods'] as List).map((e) => e.toString()).toList()
+            : const [],
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {

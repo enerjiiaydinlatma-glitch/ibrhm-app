@@ -14,11 +14,16 @@ class ChatState {
   /// tespit edildiginde degisir - bkz. chat_notifier.sendMessage.
   final String? currentMood;
 
+  /// [currentMood] ile AYNI "onceki tonu koru" kuralina tabi - son tespit
+  /// edilen TUM ruh halleri (karisik duygu: hale iki tonu harmanlar).
+  final List<String> currentMoods;
+
   ChatState({
     this.messages = const [],
     this.isLoading = false,
     this.errorMessage,
     this.currentMood,
+    this.currentMoods = const [],
   });
 
   ChatState copyWith({
@@ -26,12 +31,14 @@ class ChatState {
     bool? isLoading,
     String? errorMessage,
     String? currentMood,
+    List<String>? currentMoods,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       currentMood: currentMood ?? this.currentMood,
+      currentMoods: currentMoods ?? this.currentMoods,
     );
   }
 }
