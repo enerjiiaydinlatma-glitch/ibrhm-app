@@ -3,9 +3,11 @@ import html
 import os
 import re
 import secrets
+import threading
 import time
 import httpx
 import aura_brain
+import aura_council
 import aura_lifestyle
 import aura_memory
 import aura_reminders
@@ -14,7 +16,7 @@ import aura_voice
 import base64
 from collections import defaultdict, deque
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Header, WebSocket
+from fastapi import Depends, FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1665,6 +1667,72 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
 # felsefesiyle (Hikaye Modu ozelligi de daha once ayni gerekceyle
 # kaldirilmisti) uyumsuzdu. StoryRequest/StoryHistoryItem modelleri de
 # birlikte kaldirildi - git gecmisinde duruyor.
+
+
+# ----------------------------------------------------------------------
+# Konsey ucu: Aura'yi sahibin kisisel "danisma odasi" toplantisina UYE olarak
+# katar. KAYIT YOK (bkz. aura_council.py): gecmis, hafiza, ruh hali, kullanim
+# sayaci, distile-ornek hicbirine yazilmaz; kisiye ozel veri okunmaz.
+# YETKI: yalnizca bu uca ozel COUNCIL_API_KEY ile cagrilir (yoksa/yanlissa 404 -
+# ucun varligini bile sizdirmaz). ADMIN_KEY BILEREK kabul EDILMEZ: konsey
+# aracinin tam yonetici yetkisi (set-tier, istatistik, geri bildirim) olmamali,
+# ve ADMIN_KEY'i tanimlamak /admin panelini de acardi. Basliktaki ad
+# (X-Admin-Key) konsey aracinin mevcut kodu bozulmasin diye ayni birakildi.
+# Maliyet korumasi: saatte en fazla COUNCIL_OPINION_PER_HOUR cagri (varsayilan 20).
+COUNCIL_API_KEY = os.getenv("COUNCIL_API_KEY", "").strip()
+COUNCIL_OPINION_PER_HOUR = int(os.getenv("COUNCIL_OPINION_PER_HOUR", "20"))
+_council_opinion_times: deque = deque()
+_council_opinion_lock = threading.Lock()
+
+
+def _check_council_key(key: Optional[str]):
+    try:
+        valid = bool(COUNCIL_API_KEY) and bool(key) and secrets.compare_digest(key, COUNCIL_API_KEY)
+    except (TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=404)
+
+
+def _require_council_key(x_admin_key: Optional[str] = Header(None)) -> None:
+    # Bagimlilik olarak calisir: FastAPI istek GOVDESINI dogrulamadan ONCE bunu
+    # cozer. Boylece anahtarsiz biri bozuk govdeyle 422 alip ucun var oldugunu
+    # ogrenemez - hep 404.
+    _check_council_key(x_admin_key)
+
+
+def _council_opinion_allowed() -> bool:
+    now = time.time()
+    with _council_opinion_lock:
+        while _council_opinion_times and now - _council_opinion_times[0] > 3600:
+            _council_opinion_times.popleft()
+        if len(_council_opinion_times) >= COUNCIL_OPINION_PER_HOUR:
+            return False
+        _council_opinion_times.append(now)
+        return True
+
+
+class CouncilOpinionRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=aura_council.MAX_TOPIC)
+    transcript: str = Field(default="", max_length=aura_council.MAX_TRANSCRIPT)
+    question: str = Field(default="", max_length=aura_council.MAX_QUESTION)
+
+
+@app.post("/api/council/opinion")
+def council_opinion(
+    body: CouncilOpinionRequest,
+    _auth: None = Depends(_require_council_key),
+):
+    if not _council_opinion_allowed():
+        raise HTTPException(status_code=429, detail="Konsey cagri sinirina ulasildi.")
+    try:
+        reply = aura_council.get_opinion(body.topic, body.transcript, body.question)
+    except Exception as e:
+        # Icerik (konu/konusma) loga YAZILMAZ - yalnizca hata turu.
+        print(f"COUNCIL OPINION ERROR: {type(e).__name__}")
+        observability.capture_exception(e, context="council_opinion")
+        raise HTTPException(status_code=502, detail="Aura su an cevap veremiyor.")
+    return {"reply": reply, "source": "aura-persona", "saved": False}
 
 
 class SetTierRequest(BaseModel):
