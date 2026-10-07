@@ -106,7 +106,7 @@ def _drop_time(hhmm=""):
 
 def run(short_upload=False, public=False, learn=False, plan_only=False, leaderboard=False,
         hottake=False, evergreen=False, verdict=False, council_decides=False, drop=None,
-        force=False):
+        force=False, topic_override=None, angle_override=None):
     day = datetime.date.today().isoformat()
     run_dir = os.path.join(RUN_ROOT, day)
     os.makedirs(run_dir, exist_ok=True)
@@ -165,13 +165,20 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
             _step("Etkilesim sinyali (yorum+paylasim agirlikli)", _eng)
         open(_housekeep_flag, "w").close()
 
-    # 1) Aura karar + plan
-    from aura_editorial import run_editorial_plan, ask_aura_studio
-    plan = _step("Aura gundemi seciyor + planliyor (5-eksen puanlama)", run_editorial_plan)
-    if not plan:
-        print("\nAura karar veremedi - motor durdu.")
-        return
-    plan["studio_verdict"] = _step("Aura studio'yu degerlendiriyor", ask_aura_studio)
+    # 1) Aura karar + plan  (veya --topic ile ELLE konu: Aura toplantisi atlanir)
+    if topic_override:
+        from manual_topic import build_plan, lint_plan
+        plan = build_plan(topic_override, angle_override)
+        print(f"\n[manuel] Konu operator tarafindan verildi: {plan['decision']}")
+        for _name, _hits, _why in lint_plan(plan):
+            print(f"[claim_lint] {_name}: {', '.join(_hits)} -> {_why}")
+    else:
+        from aura_editorial import run_editorial_plan, ask_aura_studio
+        plan = _step("Aura gundemi seciyor + planliyor (5-eksen puanlama)", run_editorial_plan)
+        if not plan:
+            print("\nAura karar veremedi - motor durdu.")
+            return
+        plan["studio_verdict"] = _step("Aura studio'yu degerlendiriyor", ask_aura_studio)
     result["steps"]["plan"] = plan
     with open(os.path.join(run_dir, "plan.json"), "w", encoding="utf-8") as f:
         json.dump(plan, f, ensure_ascii=False, indent=2)
@@ -285,6 +292,17 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
                          lambda: assess(topic, short.get("script", ""), short.get("title", "")))
             gate = gate or {"sensitive": True, "reason": "kapi calismadi - guvenli taraf",
                             "entity": "", "severity": "high", "checked_by": "error"}
+        try:
+            from claim_lint import lint, BLOCKING
+            _txt = " | ".join([short.get("title", ""), short.get("script", ""), short.get("description", "")])
+            _flags = [f for f in lint(_txt) if f[0] in BLOCKING]
+            if _flags:
+                _why = "; ".join(f"{n}: {', '.join(h)}" for n, h, _ in _flags)
+                print(f"    [claim_lint] ENGELLEYICI ISARET -> private'a dusuyor: {_why}")
+                gate = {**gate, "sensitive": True, "severity": gate.get("severity") or "high",
+                        "reason": (gate.get("reason") or "") + f" | claim_lint: {_why}"}
+        except Exception as _e:
+            print(f"    [claim_lint calismadi: {type(_e).__name__}]")
         short["sensitivity"] = gate
         effective_public = public and not gate.get("sensitive")
         # Koordineli dusum: video 'private' yuklenir, drop aninda otomatik
@@ -510,9 +528,12 @@ if __name__ == "__main__":
     ap.add_argument("--drop", nargs="?", const="", default=None, metavar="HH:MM",
                     help="Koordineli dusum: hemen public yerine belirtilen saatte "
                          "(veya +3s) otomatik yayina koy - tum abonelere ayni anda bildirim")
+    ap.add_argument("--topic", default=None, help="ELLE konu (tek net cumle). Aura editoryal toplantisini atlar.")
+    ap.add_argument("--angle", default=None, help="--topic ile birlikte: tartisma acisi (opsiyonel)")
     ap.add_argument("--force", action="store_true",
                     help="Gunluk sert sinira (daily_limit.MAX_DAILY=2) KADAR kasitli video uret; siniri asamaz")
     a = ap.parse_args()
     run(short_upload=a.short_upload, public=a.public, learn=a.learn, plan_only=a.plan_only,
         leaderboard=a.leaderboard, hottake=a.hottake, evergreen=a.evergreen,
-        verdict=a.verdict, council_decides=a.council_decides, drop=a.drop, force=a.force)
+        verdict=a.verdict, council_decides=a.council_decides, drop=a.drop, force=a.force,
+        topic_override=a.topic, angle_override=a.angle)

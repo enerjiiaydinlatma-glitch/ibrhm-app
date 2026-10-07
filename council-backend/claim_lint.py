@@ -19,6 +19,8 @@ NUMBER = r"\$\s?\d[\d.,]*\s?(?:[kKmMbB]|million|billion|thousand)?|\b\d[\d.,]*\s
 COMPARE = r"\b(?:\w+er|more|less|worse|better) [\w\- ]{0,25}\bthan\b|\bis not (?:open|free|real|safe)\b|\bnot (?:really )?open\b"
 ABSOLUTE = r"\b(?:always|never|permanently|every(?:one|body)?|all developers|no one|nobody|impossible)\b"
 
+BLOCKING = {"NIYET ATFI", "SUC DILI", "KARSILASTIRMA/ETIKET"}  # yayinda private'a dusurur (RAKAM/MUTLAK sadece uyarir)
+
 RULES = [
     ("NIYET ATFI", re.compile(INTENT, re.I), "Niyet/gizlilik ima eder. Yapiyi anlat, niyeti yorumlama."),
     ("SUC DILI", re.compile(CRIME, re.I), "Suc iddiasi: sensitivity_gate 'critical' kapsaminda olabilir."),
