@@ -117,14 +117,18 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
     # video yuklendi - strateji karariyla celisti VE plan.json ikinci calisma
     # tarafindan ustune yazildi. Bugun zaten bir video yuklendiyse ikinci
     # calistirma SESSIZCE atlanir; kasitli ikinci video icin --force kullan.)
+    # GUNDE-2-VIDEO KILIDI (Ekim 2026): sinir daily_limit.MAX_DAILY (=2). Sinira
+    # ulasinca --force dahil yeni yukleme YAPILMAZ.
+    from daily_limit import can_upload, MAX_DAILY
     _uploaded_flag = os.path.join(run_dir, ".uploaded_today.json")
-    if short_upload and os.path.exists(_uploaded_flag) and not force:
-        info = json.load(open(_uploaded_flag, encoding="utf-8"))
-        print(f"[guard] Bugun ({day}) zaten bir video uretilip yuklendi: "
-              f"https://youtu.be/{info['video_id']}  ({info['ts']})\n"
-              "[guard] Gunde-1-video stratejisi geregi IKINCI VIDEO URETILMIYOR. "
-              "Kasitliyse: python aura_engine.py ... --force")
-        return result
+    if short_upload:
+        _ok, info = can_upload(_uploaded_flag, force=force)
+        if not _ok:
+            last = info.get("video_id", "?")
+            print(f"[guard] Bugun ({day}) {info['count']}/{MAX_DAILY} video yuklendi "
+                  f"(son: https://youtu.be/{last}  {info.get('ts', '?')})\n"
+                  "[guard] Gunluk sinira ulasildi - YENI VIDEO URETILMIYOR (--force sert siniri asamaz).")
+            return result
 
     # 0) OMURGA: aylik editoryal yay (birbiri uzerine insa olan 4 haftalik tema)
     #    + haftalik performans-ayrimi (gercek Analytics). Ikisi de editoryal
@@ -448,8 +452,8 @@ def _print_checklist(result, run_dir, short, ab):
         print(f"  Short: {short['file']}  (~{short['seconds']}s)")
         if vid:
             try:
-                json.dump({"video_id": vid, "ts": datetime.datetime.now().isoformat(timespec="seconds")},
-                          open(os.path.join(run_dir, ".uploaded_today.json"), "w", encoding="utf-8"))
+                from daily_limit import record_upload
+                record_upload(os.path.join(run_dir, ".uploaded_today.json"), vid)
             except Exception:
                 pass
         if vid and gate.get("sensitive"):
