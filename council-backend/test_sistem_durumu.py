@@ -30,6 +30,7 @@ class Temizlik(unittest.TestCase):
         mk(b, "output/shorts/topic/00_frame_base.png")
         mk(b, "output/shorts/topic/00.mp3")
         mk(b, "output/shorts/topic/final-video.mp4")
+        mk(b, "output/shorts/hottake/eski-video.mp4", age_days=40)
         # korunacaklar
         for rel in ("_engine/predictions.json", "_engine/mission_token.txt", "_engine/operator_rules.md", "youtube_token.json",
                     ".voice_key", "REVIEW_MODE", "aura_engine.py", "daily_auto.bat", "receipts/r.json", "analysis/a.md",
@@ -44,7 +45,7 @@ class Temizlik(unittest.TestCase):
         n = self.names(sd.candidates(self.b))
         for beklenen in ("__pycache__/x.pyc", "assets/thumbnails/episode_old_A.png", "_daily_auto_20260801.log",
                          "_engine/kaynak_old.json", f"_engine/{self.eski}", "output/shorts/topic/00_frame_base.png",
-                         "output/shorts/topic/00.mp3", "eski.bak"):
+                         "output/shorts/topic/00.mp3", "eski.bak", "output/shorts/hottake/eski-video.mp4"):
             self.assertIn(beklenen, n)
 
     def test_korunanlar_aday_degil(self):

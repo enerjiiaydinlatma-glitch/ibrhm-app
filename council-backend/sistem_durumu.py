@@ -86,6 +86,15 @@ def cat_kisa_ara_dosyalar(base):
     return out
 
 
+def cat_output_eski(base, days=14):
+    """output/ altinda 14 gunden eski her sey (eski Short mp4/json/png/mp3). Son 14 gun KALIR.
+    NOT: videolar YouTube'da; yine de silinmez, _arsiv'e tasinir."""
+    d = os.path.join(base, "output")
+    if not os.path.isdir(d):
+        return []
+    return [p for p in _walk_files_all(d) if _age_days(p) > days]
+
+
 def cat_motor_gunleri_eski(base, days=30):
     """_engine/YYYY-MM-DD klasorleri (plan/run kayitlari). Yasi KLASOR ADINDAKI tarihten hesaplanir;
     son 30 gun KALIR (editoryal tekrar kontrolu icin)."""
@@ -108,6 +117,7 @@ CATEGORIES = {
     "kaynak_paketi_eski": ("7 gunden eski kaynak paketleri", cat_kaynak_paketi_eski),
     "kapak_paketleri": ("7 gunden eski A/B kapak paketleri (assets/thumbnails/episode_*)", cat_kapak_paketleri),
     "kisa_ara_dosyalar": ("Short uretim ara dosyalari (kareler, ses parcalari)", cat_kisa_ara_dosyalar),
+    "output_eski": ("14 gunden eski output/ dosyalari (eski Short mp4/json/kareler)", cat_output_eski),
     "motor_gunleri_eski": ("30 gunden eski _engine/<tarih> klasorleri", cat_motor_gunleri_eski),
 }
 
