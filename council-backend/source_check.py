@@ -37,9 +37,15 @@ def _significant(tok):
     return "." in k or tok.endswith("%") or tok.startswith("$") or len(k) >= 2
 
 
+_DATE = re.compile(r"\b(19|20)\d\d-\d{2}-\d{2}\b")
+_URL = re.compile(r"https?://\S+|\b[\w.-]+\.(?:ai|com|org|io|net)/\S*")
+
+
 def check(texts, packet):
-    """texts: baslik/senaryo/aciklama listesi. Donus: sorun listesi (bos = temiz)."""
+    """texts: baslik/senaryo/aciklama listesi. Donus: sorun listesi (bos = temiz).
+    ISO tarihler (2026-10-06) ve URL'ler sayi kontrolunden muaf (yanlis alarm)."""
     body = ascii_norm(" ".join(t for t in texts if t))
+    body = _DATE.sub(" ", _URL.sub(" ", body))
     corp = corpus(packet)
     issues = []
     for q in _Q.findall(body):

@@ -76,5 +76,17 @@ class Kaynak(unittest.TestCase):
         self.assertEqual(sc.check(["It is fluent in 160+ languages."], p), [])
 
 
+
+class TarihMuaf(unittest.TestCase):
+    def test_iso_tarih_ve_url_yanlis_alarm_vermez(self):
+        p = packet()
+        txt = "Page published 2026-10-06, read 2026-10-08. Source: https://mistral.ai/news/mistral-large-4/ and mistral.ai/news/x-4"
+        self.assertEqual(sc.check([txt], p), [])
+
+    def test_gercek_sahte_sayi_yine_yakalanir(self):
+        p = packet()
+        self.assertTrue(sc.check(["Page published 2026-10-06 and it fails by 22%."], p))
+
+
 if __name__ == "__main__":
     unittest.main()
