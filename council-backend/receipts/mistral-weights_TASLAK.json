@@ -1,0 +1,55 @@
+{
+ "company": "Mistral",
+ "product": "Mistral Large 4",
+ "source_name": "mistral.ai/news/mistral-large-4",
+ "source_date": "2026-10-06",
+ "url": "https://mistral.ai/news/mistral-large-4/",
+ "title": "Mistral's 'Open-Weight' Label vs Its Own Page",
+ "hookthumb": "OPEN WEIGHT?",
+ "beats": [
+  {
+   "who": "aura",
+   "screen": "OPEN WEIGHT?",
+   "label": "THE CLAIM",
+   "line": "Mistral's launch page describes Mistral Large 4 as an {q1}.",
+   "quotes": [
+    "Open-weight hybrid instruct-and-reasoning MoE"
+   ]
+  },
+  {
+   "who": "alpha",
+   "screen": "THE FINE PRINT",
+   "label": "EVIDENCE: RELEASE",
+   "line": "Further down, the same page says: {q1}.",
+   "quotes": [
+    "We will release the weights by the end of the month"
+   ]
+  },
+  {
+   "who": "gamma",
+   "screen": "STILL AHEAD",
+   "label": "EVIDENCE: TIMELINE",
+   "line": "Another line says: {q1}.",
+   "quotes": [
+    "As we work toward releasing the weights"
+   ]
+  },
+  {
+   "who": "beta",
+   "screen": "FAIR POINT",
+   "label": "THE STEELMAN",
+   "line": "Fair point: the page gives a date window, {q1}, and promises more details.",
+   "quotes": [
+    "by the end of the month"
+   ]
+  },
+  {
+   "who": "aura",
+   "screen": "OUR READING",
+   "label": "VERDICT",
+   "stamp": "PARTLY SUPPORTED",
+   "line": "Our reading: partly supported. According to this page, the weights are a plan, not yet a download. Open now or open later: which counts?",
+   "quotes": []
+  }
+ ]
+}
