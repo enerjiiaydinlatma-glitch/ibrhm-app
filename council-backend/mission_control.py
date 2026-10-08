@@ -977,6 +977,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
   <button class="act" onclick="maintOrphans()">Öksüz yayın süreçlerini temizle</button>
   <button class="act" onclick="voiceStart()">Ses sunucusunu başlat</button>
   <button class="act risky" onclick="voiceStop()">Ses sunucusunu durdur</button>
+  <span id="voicePill" class="pill" style="margin-left:8px">...</span>
   <div id="maintOut" style="margin-top:8px;font-size:12px;color:#8b949e"></div>
  </div>
  <div class="card">
@@ -1229,8 +1230,20 @@ async function loadInterventions(){
   }).join('') : '(kayıt yok - hiç otomatik yedeğe düşülmedi)';
 }
 
-async function voiceStart(){ await api('/api/voice/start',{method:'POST'}); refreshStatus(); }
-async function voiceStop(){ await api('/api/voice/stop',{method:'POST'}); refreshStatus(); }
+var _voiceWant = null, _voiceTimer = null;
+function voicePaint(up){
+  const el = $('#voicePill'); if(!el) return;
+  if(_voiceWant==='up' && !up){ el.className='pill'; el.style.cssText='margin-left:8px;background:#d29922;color:#000'; el.textContent='BAŞLATILIYOR… (40-90 sn)'; return; }
+  if(_voiceWant==='down' && up){ el.className='pill'; el.style.cssText='margin-left:8px;background:#d29922;color:#000'; el.textContent='DURDURULUYOR…'; return; }
+  _voiceWant = null; el.style.cssText='margin-left:8px';
+  el.className = 'pill ' + (up ? 'ok' : 'bad'); el.textContent = up ? 'ÇALIŞIYOR' : 'DURDU';
+}
+async function voicePoll(){
+  try { const s = await api('/api/status'); voicePaint(!!s.voice_up); } catch(e){}
+  if(_voiceWant && !_voiceTimer){ _voiceTimer = setInterval(async()=>{ await voicePoll(); if(!_voiceWant){ clearInterval(_voiceTimer); _voiceTimer=null; loadPorts(); } }, 3000); }
+}
+async function voiceStart(){ _voiceWant='up'; voicePaint(false); await api('/api/voice/start',{method:'POST'}); voicePoll(); refreshStatus(); }
+async function voiceStop(){ _voiceWant='down'; voicePaint(true); await api('/api/voice/stop',{method:'POST'}); voicePoll(); refreshStatus(); }
 
 async function liveStart(test){
   const body = JSON.stringify({
@@ -1449,7 +1462,7 @@ async function pollReconnect(jid){
 function onTab(name){
   if(name==='telefon') phoneRefresh();
   if(name==='onay'){ loadUretBugun(); loadPending(); }
-  if(name==='bakim'){ atLoad(); loadPorts(); loadTasks(); loadLogs(); loadAutostart(); loadLastGood(); }
+  if(name==='bakim'){ atLoad(); voicePoll(); loadPorts(); loadTasks(); loadLogs(); loadAutostart(); loadLastGood(); }
   if(name==='asistan') loadCatalog();
   if(name==='analiz') anLoad();
   if(name==='takip') tkLoad();
