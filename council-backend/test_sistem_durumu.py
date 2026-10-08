@@ -68,6 +68,22 @@ class Temizlik(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.b, "eski.bak")))
         self.assertTrue(os.path.exists(os.path.join(self.b, "_engine", self.eski, "plan.json")))
 
+    def test_ayni_dakikada_iki_tasima_manifesti_ezmez(self):
+        a = [p for v in sd.candidates(self.b, only=["eski_yok"]).values() for p in v]  # bos
+        items1 = [os.path.join(self.b, "eski.bak")]
+        sd.move_to_archive(items1, self.b, stamp="T2")
+        mk(self.b, "__pycache__/y.pyc")
+        sd.move_to_archive([os.path.join(self.b, "__pycache__", "y.pyc")], self.b, stamp="T2")
+        m = json.load(open(os.path.join(self.b, "_arsiv", "T2", "manifest.json")))
+        self.assertIn("eski.bak", m["files"])
+        self.assertEqual(len(m["files"]), 2)
+
+    def test_geri_al_manifeste_bagli_degil(self):
+        sd.move_to_archive([os.path.join(self.b, "eski.bak")], self.b, stamp="T3")
+        os.remove(os.path.join(self.b, "_arsiv", "T3", "manifest.json"))
+        self.assertEqual(sd.restore("T3", self.b), 1)
+        self.assertTrue(os.path.exists(os.path.join(self.b, "eski.bak")))
+
     def test_kategori_filtresi(self):
         res = sd.candidates(self.b, only=["pycache"])
         self.assertEqual(list(res), ["pycache"])

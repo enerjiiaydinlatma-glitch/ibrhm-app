@@ -154,28 +154,42 @@ def candidates(base=HERE, only=None):
 
 # ------------------------------------------------------------------ tasima / geri alma
 def move_to_archive(items, base=HERE, stamp=None):
+    """Ogeleri _arsiv/<stamp>/ altina tasir. Ayni dakikada ikinci cagri manifest'i EZMEZ, birlestirir."""
     stamp = stamp or datetime.datetime.now().strftime("%Y%m%d_%H%M")
     root = os.path.join(base, "_arsiv", stamp)
+    os.makedirs(root, exist_ok=True)
+    mpath = os.path.join(root, "manifest.json")
     manifest = []
+    if os.path.exists(mpath):
+        try:
+            manifest = json.load(open(mpath, encoding="utf-8")).get("files", [])
+        except (OSError, ValueError):
+            manifest = []
+    moved = 0
     for p in items:
         rel = os.path.relpath(p, base)
         dst = os.path.join(root, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(dst):  # ayni yol zaten arsivde: ustune yazma, ismi degistir
+            dst = dst + f".{int(time.time())}"
         shutil.move(p, dst)
         manifest.append(rel)
-    os.makedirs(root, exist_ok=True)
-    with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump({"stamp": stamp, "files": manifest}, f, indent=1)
-    return stamp, len(manifest)
+        moved += 1
+    with open(mpath, "w", encoding="utf-8") as f:
+        json.dump({"stamp": stamp, "files": sorted(set(manifest))}, f, indent=1)
+    return stamp, moved
 
 
 def restore(stamp, base=HERE):
+    """Arsiv klasorunu GEZEREK (manifest'e guvenmeden) her dosyayi eski yerine koyar; hedef doluysa atlar."""
     root = os.path.join(base, "_arsiv", stamp)
-    m = json.load(open(os.path.join(root, "manifest.json"), encoding="utf-8"))
     n = 0
-    for rel in m["files"]:
-        src, dst = os.path.join(root, rel), os.path.join(base, rel)
-        if os.path.exists(src) and not os.path.exists(dst):
+    for src in list(_walk_files_all(root)):
+        rel = os.path.relpath(src, root)
+        if rel == "manifest.json":
+            continue
+        dst = os.path.join(base, rel)
+        if not os.path.exists(dst):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.move(src, dst)
             n += 1
