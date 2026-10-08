@@ -106,7 +106,14 @@ def _drop_time(hhmm=""):
 
 def run(short_upload=False, public=False, learn=False, plan_only=False, leaderboard=False,
         hottake=False, evergreen=False, verdict=False, council_decides=False, drop=None,
-        force=False, topic_override=None, angle_override=None):
+        force=False, topic_override=None, angle_override=None, source_path=None):
+    _source = None
+    if source_path:
+        from source_check import load_packet
+        _source = load_packet(source_path)
+        topic_override = topic_override or _source.get("topic")
+        angle_override = angle_override or _source.get("angle")
+        print(f"[kaynak] paket: {source_path} ({_source.get('url')})")
     day = datetime.date.today().isoformat()
     run_dir = os.path.join(RUN_ROOT, day)
     os.makedirs(run_dir, exist_ok=True)
@@ -303,6 +310,20 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
                         "reason": (gate.get("reason") or "") + f" | claim_lint: {_why}"}
         except Exception as _e:
             print(f"    [claim_lint calismadi: {type(_e).__name__}]")
+        if _source is not None:
+            try:
+                from source_check import check as _src_check
+                _issues = _src_check([short.get("title", ""), short.get("script", ""), short.get("description", "")], _source)
+                if _issues:
+                    _why = "; ".join(_issues[:6])
+                    print(f"    [source_check] KAYNAKTA OLMAYAN ICERIK -> private'a dusuyor: {_why}")
+                    gate = {**gate, "sensitive": True, "severity": gate.get("severity") or "high",
+                            "reason": (gate.get("reason") or "") + f" | source_check: {_why}"}
+                else:
+                    print("    [source_check] TEMIZ: tum alinti ve sayilar kaynak paketinde var")
+            except Exception as _e:
+                print(f"    [source_check calismadi: {type(_e).__name__}] -> guvenli taraf: private")
+                gate = {**gate, "sensitive": True, "severity": "high", "reason": (gate.get("reason") or "") + " | source_check hata"}
         short["sensitivity"] = gate
         effective_public = public and not gate.get("sensitive")
         # Koordineli dusum: video 'private' yuklenir, drop aninda otomatik
@@ -529,6 +550,7 @@ if __name__ == "__main__":
                     help="Koordineli dusum: hemen public yerine belirtilen saatte "
                          "(veya +3s) otomatik yayina koy - tum abonelere ayni anda bildirim")
     ap.add_argument("--topic", default=None, help="ELLE konu (tek net cumle). Aura editoryal toplantisini atlar.")
+    ap.add_argument("--source", default=None, help="kaynak_cek.py paketi (JSON): konu+aci paketten gelir, uretilen alinti/sayilar pakete karsi dogrulanir")
     ap.add_argument("--angle", default=None, help="--topic ile birlikte: tartisma acisi (opsiyonel)")
     ap.add_argument("--force", action="store_true",
                     help="Gunluk sert sinira (daily_limit.MAX_DAILY=2) KADAR kasitli video uret; siniri asamaz")
@@ -536,4 +558,4 @@ if __name__ == "__main__":
     run(short_upload=a.short_upload, public=a.public, learn=a.learn, plan_only=a.plan_only,
         leaderboard=a.leaderboard, hottake=a.hottake, evergreen=a.evergreen,
         verdict=a.verdict, council_decides=a.council_decides, drop=a.drop, force=a.force,
-        topic_override=a.topic, angle_override=a.angle)
+        topic_override=a.topic, angle_override=a.angle, source_path=a.source)

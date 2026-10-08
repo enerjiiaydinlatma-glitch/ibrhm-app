@@ -22,7 +22,7 @@ if (-not (Test-Path $Py)) { $Py = "python" }
 Adim 1 "Klasor ve Python"
 Tamam "Klasor: $PSScriptRoot"
 try { $v = & $Py --version 2>&1; Tamam "Python: $v" } catch { Dur "Python calismiyor ($Py)." }
-foreach ($f in @("aura_engine.py","daily_limit.py","claim_lint.py","manual_topic.py","explain_run.py","daily_check.py","publish_youtube.py")) {
+foreach ($f in @("aura_engine.py","daily_limit.py","claim_lint.py","manual_topic.py","explain_run.py","daily_check.py","publish_youtube.py","kaynak_cek.py","source_check.py")) {
     if (-not (Test-Path $f)) { Dur "Eksik dosya: $f  (git pull gerekebilir - Adim 2)" }
 }
 Tamam "Gerekli dosyalar var"
@@ -41,7 +41,7 @@ Tamam "git pull tamam"
 Adim 3 "Inceleme modu (REVIEW_MODE) ve testler"
 if (-not (Test-Path "REVIEW_MODE")) { New-Item REVIEW_MODE -ItemType File | Out-Null; Tamam "REVIEW_MODE olusturuldu (zamanli video private cikar)" } else { Tamam "REVIEW_MODE var" }
 $ErrorActionPreference = "Continue"
-& $Py -m unittest test_daily_limit test_manual_topic 2>&1 | ForEach-Object { Write-Host "    $_" }
+& $Py -m unittest test_daily_limit test_manual_topic test_kaynak 2>&1 | ForEach-Object { Write-Host "    $_" }
 $testSonuc = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($testSonuc -ne 0) { Dur "Birim testleri basarisiz." }
@@ -74,38 +74,31 @@ else {
 }
 
 # ---------------------------------------------------------------- ADIM 6
-Adim 6 "Konu ve KAYNAK CUMLELERI (uydurma alinti riskine karsi)"
-Write-Host "  Konu: tek net cumle (ne, kim, hangi belge). Ornek:"
-Write-Host "    Mistral Large 4 license: what the published terms say about hosting and redistribution"
-$konu = (Read-Host "  KONU").Trim()
-if ($konu.Length -lt 25) { Dur "Konu cok kisa. Tek net cumle yaz." }
-$yer = '(?i)GERCEK|KONU CUMLESI|<.*>|cumle ?\d|ornek|placeholder|xxx'
-if ($konu -match $yer) { Dur "Konu yer tutucu gibi gorunuyor." }
-Write-Host "  Resmi kaynaktan (lisans/rapor/duyuru) KOPYALADIGIN 2-3 cumle. Bitince bos birak + Enter."
-$cumleler = @()
-while ($true) {
-    $c = (Read-Host "  Cumle $($cumleler.Count + 1)").Trim()
-    if ($c -eq "") { break }
-    if ($c.Length -lt 25) { Uyari "Cok kisa, gercek bir cumle gir."; continue }
-    if ($c -match $yer) { Uyari "Yer tutucu gibi gorunuyor, gercek metni yapistir."; continue }
-    $cumleler += ($c -replace '"', "'")
-}
-if ($cumleler.Count -lt 1) { Dur "En az 1 gercek kaynak cumlesi gerekli. Yoksa bugunu atla veya baska konu sec." }
-$kaynakAdi = (Read-Host "  Kaynagin adi ve tarihi (ornek: Mistral license page, 2026-10-08)").Trim()
-if ($kaynakAdi.Length -lt 6) { Dur "Kaynak adi/tarihi gerekli (kaynak karti icin)." }
-$angle = "Use ONLY these verbatim clauses from [" + $kaynakAdi + "] and add no other factual claim, number or motive: " + (($cumleler | ForEach-Object { "'" + $_ + "'" }) -join " / ")
-Write-Host ""
-Write-Host "  Konu : $konu"
-Write-Host "  Aci  : $angle"
+Adim 6 "KAYNAK (kodla cekilir; alinti elle kopyalanmaz)"
+$url = (Read-Host "  Kaynak sayfa adresi (ornek: https://mistral.ai/news/mistral-large-4/)").Trim()
+if ($url -notmatch '^https?://') { Dur "Adres http:// veya https:// ile baslamali." }
 $ErrorActionPreference = "Continue"
-& $Py claim_lint.py $konu $angle 2>&1 | ForEach-Object { Write-Host "    $_" }
+& $Py kaynak_cek.py $url
+$kcSonuc = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($kcSonuc -ne 0) { Dur "Kaynak cekilemedi (yukaridaki mesaja bak)." }
+$paketYol = (Get-Content "_engine\kaynak_son.txt" -Raw).Trim()
+if (-not (Test-Path $paketYol)) { Dur "Kaynak paketi bulunamadi: $paketYol" }
+$paket = Get-Content $paketYol -Raw -Encoding UTF8 | ConvertFrom-Json
+if (-not $paket.claim) { Uyari "Sayfada iddia cumlesi bulunamadi. Video 'sayfa ne diyor' tarzinda olur." }
+if ($paket.evidence.Count -lt 1) { Dur "Hic kanit cumlesi secilmedi." }
+Write-Host ""
+Write-Host "  Konu : $($paket.topic)"
+Write-Host "  Kanit: $($paket.evidence.Count) cumle | Paket: $paketYol"
+$ErrorActionPreference = "Continue"
+& $Py claim_lint.py $paket.topic 2>&1 | ForEach-Object { Write-Host "    $_" }
 $ErrorActionPreference = "Stop"
 Devam "Plan dogru mu? Devam edilsin mi"
 
 # ---------------------------------------------------------------- ADIM 7
 Adim 7 "Plan onizleme (hicbir sey yuklenmez)"
 $ErrorActionPreference = "Continue"
-& $Py aura_engine.py --plan-only --topic $konu --angle $angle 2>&1 | ForEach-Object { Write-Host "    $_" }
+& $Py aura_engine.py --plan-only --source $paketYol 2>&1 | ForEach-Object { Write-Host "    $_" }
 if ($LASTEXITCODE -ne 0) { Dur "Plan adimi hata verdi." }
 $ErrorActionPreference = "Stop"
 Devam "Uretime (private yukleme) gecilsin mi"
@@ -114,7 +107,7 @@ Devam "Uretime (private yukleme) gecilsin mi"
 Adim 8 "Uretim (2-4 dk). Pencereyi kapatma, bilgisayari kilitleme/uyutma."
 $log = "_gunluk_$(Get-Date -Format 'yyyyMMdd_HHmm').log"
 $ErrorActionPreference = "Continue"
-& $Py -u aura_engine.py --short-upload --topic $konu --angle $angle 2>&1 | Tee-Object -FilePath $log | ForEach-Object { Write-Host "    $_" }
+& $Py -u aura_engine.py --short-upload --source $paketYol 2>&1 | Tee-Object -FilePath $log | ForEach-Object { Write-Host "    $_" }
 $ErrorActionPreference = "Stop"
 Tamam "Cikti kaydedildi: $log"
 
@@ -137,7 +130,8 @@ Tamam "Yuklenen video: https://youtu.be/$vid  (PRIVATE ise Studio'da Ozel gorunu
 # ---------------------------------------------------------------- ADIM 10
 Adim 10 "Yayin karari (sadece SEN)"
 Write-Host "  Kontrol listesi:"
-Write-Host "   1) Metindeki HER alinti, verdigin kaynak cumlelerle birebir ayni mi?"
+Write-Host "   0) Motorun [source_check] satiri TEMIZ mi? (degilse video zaten private; nedenini oku)"
+Write-Host "   1) Metindeki HER alinti kaynak sayfadaki cumlelerle birebir ayni mi?"
 Write-Host "   2) Niyet atfi (gizlice / orttu / tuzak / kasten) yok mu?"
 Write-Host "   3) Kaynaksiz rakam veya ucuncu sirket adi yok mu?"
 Write-Host "   4) Baslik soru-ima degil, nesnel mi?"
