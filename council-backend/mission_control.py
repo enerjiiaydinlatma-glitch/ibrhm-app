@@ -58,6 +58,7 @@ import autotest  # noqa: E402
 import maintenance  # noqa: E402
 import security  # noqa: E402
 import bugun  # noqa: E402
+import analiz  # noqa: E402
 import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
@@ -221,6 +222,42 @@ def bugun_durum_full():
     return d
 
 
+def _council_debate(briefing, plan):
+    """Gunun analizi icin Konsey turu: ask_council ile AYNI motor/kilit; yalniz sistem talimati gecici Turkce."""
+    with _ASK_LOCK:
+        originals = {k: p["system_instruction"] for k, p in PERSONAS.items()}
+        try:
+            for p in PERSONAS.values():
+                p["system_instruction"] += _TR_OVERRIDE
+            transcript = run_episode(briefing, plan)
+        finally:
+            for k, orig in originals.items():
+                PERSONAS[k]["system_instruction"] = orig
+    return [{"speaker": t["speaker"], "name": PERSONAS[t["speaker"]]["display_name"], "text": t["text"]} for t in transcript]
+
+
+def _watch_ihlal(jid):
+    """Uretim ciktisinda motorun engel mesaji varsa 'ihlal' olarak kaydet (guven olcutu icin)."""
+    def _go():
+        while _JOBS.get(jid, {}).get("status") == "running":
+            time.sleep(2)
+        out = _JOBS.get(jid, {}).get("out", "")
+        if "ENGELLEYICI ISARET" in out or "KAYNAKTA OLMAYAN ICERIK" in out:
+            analiz.log({"olay": "ihlal", "job": jid})
+    threading.Thread(target=_go, daemon=True).start()
+
+
+def bugun_analiz_baslat():
+    def _is():
+        def _rapor():
+            try:
+                return analytics_report.load_report()
+            except Exception:
+                return None
+        return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor())
+    return {"job": _run_py_job(_is)}
+
+
 def bugun_job(kind, receipt_name=""):
     paket = bugun._son_paket()
     if kind in ("plan", "uret") and not paket:
@@ -237,8 +274,9 @@ def bugun_job(kind, receipt_name=""):
         if not (voice_health() or {}).get("model_loaded"):
             return {"error": "Ses sunucusu hazir degil. Bakim sekmesinden baslat, YESIL 'CALISIYOR' gorunce tekrar dene."}
         bugun.gecmis_yaz({"olay": "uretim", "paket": paket, "receipt": receipt_name})
-        return {"job": _run_job(["aura_engine.py", "--short-upload", "--source", paket, *rec],
-                                env=_bugun_env(), timeout=1500)}
+        jid = _run_job(["aura_engine.py", "--short-upload", "--source", paket, *rec], env=_bugun_env(), timeout=1500)
+        _watch_ihlal(jid)
+        return {"job": jid}
     if kind == "rapor":
         return {"job": _run_job(["explain_run.py"], env=_bugun_env(), timeout=120)}
     return {"error": "bilinmeyen adim"}
@@ -252,7 +290,7 @@ def bugun_yayinla(video_id, onay, isaretli):
     if video_id not in ids:
         return {"error": "Bu video bugunun yukleme kaydinda yok."}
     from publish_youtube import publish_video
-    bugun.gecmis_yaz({"olay": "yayin", "video_id": video_id})
+    analiz.log({"olay": "yayin", "video_id": video_id})
     return {"job": _run_py_job(publish_video, video_id)}
 
 
@@ -826,7 +864,9 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
  nav button{background:none;border:1px solid #30363d;color:#8b949e;border-radius:6px;padding:7px 12px;font-size:13px;cursor:pointer}
  nav button.active{background:#1f6feb22;color:#58a6ff;border-color:#1f6feb}
  main{padding:18px 20px;max-width:900px}
- .tab{display:none} .tab.active{display:block}
+ .tab{display:none} .tab.active{display:block} .tab.guest{display:block}
+ details.fold{margin:14px 0;border:1px solid #30363d;border-radius:8px;padding:6px 12px;background:#0d1117}
+ details.fold>summary{cursor:pointer;font-weight:600;padding:6px 0;color:#c9d1d9}
  .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px 16px;margin-bottom:14px}
  .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #21262d}
  .row:last-child{border-bottom:none}
@@ -873,19 +913,9 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
 <div id="alertBar"></div>
 <nav>
  <button data-tab="bugun" class="active">🚀 Bugün</button>
- <button data-tab="durum">🏠 Durum</button>
- <button data-tab="onay">🎬 Üret &amp; Yayınla</button>
- <button data-tab="takip">📈 Büyüme Kararları</button>
  <button data-tab="analiz">📊 Performans</button>
- <button data-tab="live">📡 Canlı Yayın</button>
- <button data-tab="kararlar">🗂 Konsey Arşivi</button>
- <button data-tab="tahmin">🔮 Tahmin Defteri</button>
- <button data-tab="dagitim">🔁 Dağıtım</button>
- <button data-tab="asistan">🛠 Sistem Komutları</button>
- <button data-tab="hesap">Hesap</button>
- <button data-tab="telefon">Telefon</button>
- <button data-tab="bakim">Bakım</button>
- <button data-tab="yardim">Yardım</button>
+ <button data-tab="sistem">⚙ Sistem</button>
+ <button data-tab="asistan">🛠 Asistan</button>
  <button data-tab="kod">Kod</button>
 </nav>
 <main>
@@ -897,7 +927,13 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
   <div id="bgDurum" style="margin-top:8px;font-size:13px"></div>
  </div>
  <div class="card wide">
-  <h2>1 · Gündem <span style="font-weight:normal;color:#8b949e;font-size:12px">(son 24 saat haberleri; puan = kanal kuralına uyum + tazelik, "viral olur" tahmini değil)</span></h2>
+  <h2>0 · Günün analizi <span style="font-weight:normal;color:#8b949e;font-size:12px">(konular → kanal verisi → çıktılar → Konsey tartışması → karar; paylaşımdan hemen önce çalıştır)</span></h2>
+  <button class="act primary" style="font-size:15px;padding:12px 20px" onclick="bgAnaliz()">🔎 Analizi başlat (1-3 dk)</button> <span id="bgAnalizSt" style="font-size:13px;color:#8b949e"></span>
+  <div id="bgAnalizBox" style="margin-top:10px"></div>
+  <div id="bgGuven" style="margin-top:12px;font-size:13px"></div>
+ </div>
+ <div class="card wide">
+  <h2>1 · Gündem (elle bakmak istersen) <span style="font-weight:normal;color:#8b949e;font-size:12px">(son 24 saat haberleri; puan = kanal kuralına uyum + tazelik, "viral olur" tahmini değil)</span></h2>
   <button class="act primary" onclick="bgGundem()">Gündemi yenile (10-30 sn)</button> <span id="bgGundemSt" style="font-size:12px;color:#8b949e"></span>
   <div id="bgAdaylar" style="margin-top:8px"></div>
  </div>
@@ -930,7 +966,15 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
   <button class="act risky" onclick="bgYayinla()">Yayınla</button> <span id="bgYayinSt" style="font-size:12px;color:#8b949e"></span>
   <div style="font-size:12px;color:#8b949e;margin-top:6px">Yayınlamazsan video özel kalır; Studio'dan silebilir veya sonra yayınlayabilirsin.</div>
  </div>
+ <div class="card wide">
+  <h2>6 · Paylaş <span style="font-weight:normal;color:#8b949e;font-size:12px">(hazır metin; otomatik gönderilmez, sen kopyalayıp paylaşırsın; etkisi ölçülür)</span></h2>
+  <button class="act" onclick="bgPaylas('reddit')">Reddit taslağı</button>
+  <button class="act" onclick="bgPaylas('x')">X taslağı</button>
+  <div id="bgPaylasBox" style="margin-top:8px"></div>
+ </div>
 </div>
+
+<div class="tab" id="tab-sistem"></div>
 
 <div class="tab" id="tab-durum">
  <div class="card"><h2>Sistem Durumu</h2><div id="statusBox">yukleniyor...</div></div>
@@ -1654,8 +1698,90 @@ async function bgYayinla(){
   if(r.error){ $('#bgYayinSt').textContent='HATA: '+r.error; return; }
   await bgJob(r.job, $('#bgYayinSt')); $('#bgOnay').value=''; bgLoad();
 }
+var _bgAnalizTimer = null;
+async function bgAnaliz(){
+  $('#bgAnalizSt').textContent = 'başlıyor…';
+  const r = await api('/api/bugun/analiz',{method:'POST'});
+  if(r.error){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
+  bgAnalizPoll();
+}
+async function bgAnalizPoll(){
+  clearTimeout(_bgAnalizTimer);
+  const d = await api('/api/bugun/analiz');
+  bgAnalizCiz(d);
+  if(d.durum==='calisiyor') _bgAnalizTimer = setTimeout(bgAnalizPoll, 3000);
+}
+function bgAnalizCiz(d){
+  const AD = {konu:'1/4 Konular analiz ediliyor…', veri:'2/4 Kanal verisi analiz ediliyor…', tartisma:'3/4 Konsey tartışıyor…', bitti:'Bitti'};
+  $('#bgAnalizSt').textContent = d.durum==='calisiyor' ? (AD[d.adim]||'çalışıyor…') : (d.durum==='yok'?'':'');
+  { const n=new Date(), yy=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); if(d.basladi && d.basladi.slice(0,10)!==yy) $('#bgAnalizSt').textContent = '(son analiz '+d.basladi.slice(0,10)+' tarihli, bugün için yeniden başlat)'; }
+  const box = $('#bgAnalizBox'); if(!d.adaylar && d.durum!=='aday_yok'){ box.innerHTML=''; return; }
+  const k = d.karar||{}, ad = d.adaylar||[];
+  const bul = id => ad.find(a=>a.id===id);
+  let h = '';
+  if(d.durum==='aday_yok') h += '<div>Uygun aday bulunamadı. Gündemi biraz sonra yenile ya da aşağıdan adres yapıştır.</div>';
+  if(k.secim && bul(k.secim)){
+    const a = bul(k.secim);
+    h += '<div style="border:1px solid #1f6feb;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">'+(k.kaynak==='konsey'?'KONSEY ÖNERİSİ':'KURAL TABANLI ÖNERİ (Konsey geçerli seçim üretmedi)')+'</div>'
+      + '<div style="font-size:16px;margin:4px 0"><b>'+bgEsc(a.title)+'</b></div><div style="font-size:12px;color:#8b949e">'+bgEsc(a.alan)+' · puan '+a.puan+'</div>'
+      + '<div style="margin-top:6px"><b>Gerekçe:</b> '+bgEsc(k.gerekce)+'</div>'+(k.aci?'<div><b>Açı:</b> '+bgEsc(k.aci)+'</div>':'')
+      + '<div style="margin-top:8px"><button class="act primary" onclick="bgOnay(\''+k.secim+'\')">Onayla ve kaynağı çek</button> '
+      + (k.alternatif||[]).map(i=>bul(i)?'<button class="act" onclick="bgOnay(\''+i+'\')">Bunu seç: '+bgEsc(bul(i).title.slice(0,40))+'…</button>':'').join(' ')
+      + ' <button class="act" onclick="bgRed()">Hiçbiri, yeniden analiz</button></div>'
+      + (d.onay?'<div style="font-size:12px;color:#8b949e;margin-top:6px">Onaylanan: '+bgEsc(d.onay.secim)+(d.onay.degisti?' (Konsey önerisinden farklı)':'')+'</div>':'')+'</div>';
+  }
+  h += '<details><summary>Adaylar ('+ad.length+')</summary>'+ad.map(a=>'<div style="font-size:13px;padding:3px 0"><b>'+a.id+'</b> '+bgEsc(a.title)+' <span style="color:#8b949e">('+bgEsc(a.alan)+', puan '+a.puan+')</span></div>').join('')+'</details>';
+  if(d.veri) h += '<details><summary>Kanal verisi özeti</summary><pre style="white-space:pre-wrap;font-size:12px">'+bgEsc(JSON.stringify(d.veri.sinyaller||d.veri,null,1))+(d.veri.kanal_ok?'':'\nUYARI: kanal verisi alınamadı: '+bgEsc(d.veri.kanal_hata||''))+'</pre></details>';
+  if(d.transcript && d.transcript.length) h += '<details><summary>Konsey tartışması</summary>'+d.transcript.map(t=>'<div style="margin:6px 0;font-size:13px"><b>'+bgEsc(t.name||t.speaker)+':</b> '+bgEsc(t.text)+'</div>').join('')+'</details>';
+  if(d.tartisma_hata) h += '<div style="color:#f85149;font-size:12px">Tartışma hatası: '+bgEsc(d.tartisma_hata)+'</div>';
+  box.innerHTML = h;
+}
+async function bgOnay(id){
+  const r = await api('/api/bugun/onay',{method:'POST',headers:JH,body:JSON.stringify({secim:id})});
+  if(!r.ok){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
+  $('#bgUrl').value = r.url; bgAnalizPoll(); bgGuven(); bgKaynak();
+  $('#bgUrl').scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function bgRed(){ await api('/api/bugun/red',{method:'POST'}); bgAnaliz(); }
+async function bgGuven(){
+  const g = await api('/api/bugun/guven'); if(g.error) return;
+  const c = ok => ok?'<span class="pill ok">✓</span>':'<span class="pill bad">✗</span>';
+  $('#bgGuven').innerHTML = '<b>Otomatiğe geçiş ölçütü</b> (son '+g.gun+' gün): '
+    + c(g.sartlar.ihlal_yok)+' koruma ihlali '+g.ihlal+' · '
+    + c(g.sartlar.onay_orani)+' öneri onayı '+g.degismeden_onay+'/'+g.oneri+' (en az %70 ve '+g.gun+' öneri) · '
+    + c(g.sartlar.retention)+' izlemeye devam '+(g.retention==null?'(Studio\'dan gir)':g.retention+'%')+' (taban %'+g.taban+') '
+    + '<input id="bgRet" placeholder="%" style="width:60px"> <button class="act" onclick="bgRetKaydet()">Kaydet</button>'
+    + (g.otomatige_hazir?' · <b style="color:#3fb950">Üçü de tamam: otomatiğe geçiş önerilebilir.</b>':'');
+}
+async function bgRetKaydet(){ const r = await api('/api/bugun/guven/retention',{method:'POST',headers:JH,body:JSON.stringify({deger:$('#bgRet').value})}); if(!r.ok) alert(r.error); bgGuven(); }
+async function bgPaylas(pl){
+  const r = await api('/api/bugun/paylas',{method:'POST',headers:JH,body:JSON.stringify({platform:pl})});
+  if(!r.ok){ $('#bgPaylasBox').textContent = 'HATA: '+r.error; return; }
+  const f = (e,t)=> t ? '<div style="margin:6px 0"><div style="font-size:12px;color:#8b949e">'+e+'</div><textarea readonly rows="3" style="width:100%;max-width:640px" onclick="this.select()">'+bgEsc(t)+'</textarea></div>' : '';
+  $('#bgPaylasBox').innerHTML = f('Başlık',r.baslik)+f('Metin',r.govde)+f('İlk yorum',r.ilk_yorum)
+    + (r.uyari&&r.uyari.length?'<div style="color:#f85149">UYARI (paylaşma, düzelt): '+bgEsc(r.uyari.join(' | '))+'</div>':'')
+    + '<div style="font-size:12px;color:#8b949e">'+bgEsc(r.not||'')+'</div>'
+    + '<button class="act" onclick="bgPaylastim(\''+pl+'\')">Paylaştım (kaydet)</button>';
+}
+async function bgPaylastim(pl){ await api('/api/bugun/paylastim',{method:'POST',headers:JH,body:JSON.stringify({platform:pl})}); $('#bgPaylasBox').insertAdjacentHTML('beforeend','<div style="color:#3fb950">Kaydedildi.</div>'); }
+
+function foldTab(hostId, guests){
+  const host = $('#tab-'+hostId);
+  guests.forEach(([id,title,open])=>{
+    const g = $('#tab-'+id); if(!g) return;
+    const d = document.createElement('details'); d.className='fold'; d.dataset.guest=id;
+    const sm = document.createElement('summary'); sm.textContent = title; d.appendChild(sm);
+    g.classList.add('guest'); d.appendChild(g); host.appendChild(d);
+    d.addEventListener('toggle', ()=>{ if(d.open && typeof onTab==='function') onTab(id); });
+    if(open) d.open = true;
+  });
+}
+foldTab('sistem', [['durum','Durum',true],['bakim','Bakım ve onarım',false],['hesap','Hesap (YouTube bağlantısı)',false],['telefon','Telefon bağlantısı',false]]);
+foldTab('analiz', [['takip','Büyüme kararları',false],['tahmin','Tahmin defteri (motorun kendini sınaması)',false]]);
+foldTab('bugun', [['kararlar','Konsey arşivi (geçmiş tartışmalar)',false],['dagitim','Gelişmiş paylaşım araçları (Dağıtım)',false]]);
+
 function onTab(name){
-  if(name==='bugun') bgLoad();
+  if(name==='bugun'){ bgLoad(); bgGuven(); bgAnalizPoll(); }
   if(name==='telefon') phoneRefresh();
   if(name==='onay'){ loadUretBugun(); loadPending(); }
   if(name==='bakim'){ atLoad(); voicePoll(); loadPorts(); loadTasks(); loadLogs(); loadAutostart(); loadLastGood(); }
@@ -1782,7 +1908,13 @@ async function loadManual(){ if($('#manualBox').textContent) return; const d=awa
 
 
 /* ---- uyari cubugu ---- */
-function gotoTab(name){ const b=document.querySelector('nav button[data-tab="'+name+'"]'); if(b) b.click(); }
+const _FOLD_HOST = {durum:'sistem',bakim:'sistem',hesap:'sistem',telefon:'sistem',takip:'analiz',tahmin:'analiz',kararlar:'bugun',dagitim:'bugun',onay:'bugun',live:'sistem',yardim:'sistem'};
+function gotoTab(name){
+  const host = _FOLD_HOST[name] || name;
+  const b = document.querySelector('nav button[data-tab="'+host+'"]'); if(b) b.click();
+  const g = document.querySelector('#tab-'+name); const d = g && g.closest && g.closest('details');
+  if(d){ d.open = true; setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),50); }
+}
 async function loadAlerts(){
   const rows = await api('/api/alerts');
   const bar = $('#alertBar'); bar.innerHTML='';
@@ -2164,7 +2296,7 @@ async function anSaveCfg(){
 attachMic($('#asstMic'), $('#asstText'));
 attachMic($('#kodMic'), $('#kodInstr'));
 
-bgLoad(); refreshStatus(); loadDays(); loadChat(); loadPredictions(); loadUretBugun(); loadPending(); loadAccount(); loadFreshness(); loadIssues(); loadInterventions(); loadAlerts(); setInterval(loadAlerts, 30000);
+bgLoad(); bgGuven(); bgAnalizPoll(); refreshStatus(); loadDays(); loadChat(); loadPredictions(); loadUretBugun(); loadPending(); loadAccount(); loadFreshness(); loadIssues(); loadInterventions(); loadAlerts(); setInterval(loadAlerts, 30000);
 setInterval(refreshStatus, 5000);
 setInterval(pollLive, 2000);
 </script>
@@ -2261,6 +2393,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bugun_durum_full())
         elif u.path == "/api/bugun/gundem":
             self._json(bugun.gundem_oku())
+        elif u.path == "/api/bugun/analiz":
+            self._json(analiz.son() or {"durum": "yok"})
+        elif u.path == "/api/bugun/guven":
+            self._json(analiz.guven_durumu())
         elif u.path == "/api/phone":
             self._json(phone_status())
         elif u.path == "/api/alerts":
@@ -2357,6 +2493,23 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/bugun/gundem":
             return self._json({"job": _run_py_job(bugun.gundem_yenile)})
+        if u.path == "/api/bugun/analiz":
+            return self._json(bugun_analiz_baslat())
+        if u.path == "/api/bugun/onay":
+            return self._json(analiz.onayla(str(self._body().get("secim", ""))[:8]))
+        if u.path == "/api/bugun/red":
+            return self._json(analiz.reddet())
+        if u.path == "/api/bugun/guven/retention":
+            return self._json(analiz.retention_kaydet(self._body().get("deger")))
+        if u.path == "/api/bugun/paylas":
+            b = self._body()
+            pk = _read_json(bugun._son_paket(), {}) if bugun._son_paket() else {}
+            vids = bugun.bugun_durum()["videolar"]
+            return self._json(bugun.paylasim_taslak(str(b.get("platform", "")), pk, vids[-1]["video_id"] if vids else ""))
+        if u.path == "/api/bugun/paylastim":
+            b = self._body()
+            vids = bugun.bugun_durum()["videolar"]
+            return self._json(bugun.paylasim_kaydet(str(b.get("platform", ""))[:20], vids[-1]["video_id"] if vids else ""))
         if u.path == "/api/bugun/kaynak":
             b = self._body()
             return self._json(bugun.kaynak_analiz(str(b.get("url", ""))[:600], str(b.get("claim_key") or "state-of-the-art")[:80]))

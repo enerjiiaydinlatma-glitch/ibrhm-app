@@ -276,3 +276,50 @@ def yayin_dogrula(onay, isaretli):
     if int(isaretli or 0) < len(YAYIN_KONTROL):
         return "Kontrol listesindeki tum maddeleri isaretle."
     return ""
+
+
+# ----------------------------------------------------------------------------- sosyal paylasim taslaklari
+PLATFORMLAR = {
+    "reddit": "Reddit (konu tartismasi; videoyu ilk yorumda paylas)",
+    "x": "X / Twitter",
+}
+
+
+def _kisalt(s, n):
+    s = " ".join((s or "").split())
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def paylasim_taslak(platform, paket, video_id):
+    """Kurala uygun, kaynakli, nesnel metin. Niyet atfi/kesin hukum yok; iddia sayfadan alintidir.
+    Otomatik GONDERILMEZ: operator kopyalar ve kendi paylasir."""
+    if platform not in PLATFORMLAR:
+        return {"ok": False, "error": "Bilinmeyen platform."}
+    baslik = _kisalt(paket.get("title", ""), 90)
+    claim = _kisalt(paket.get("claim", ""), 160)
+    url = paket.get("url", "")
+    video = f"https://youtu.be/{video_id}" if video_id else "(video linki)"
+    if platform == "reddit":
+        t = {"baslik": f"{baslik}: what the page itself says vs. what it shows",
+             "govde": (f"The page states: \"{claim}\"\n\n" if claim else "") +
+                      f"I read the primary page line by line and quoted only what is on it. Source: {url}\n\n"
+                      "What do you think the page does and does not support?",
+             "ilk_yorum": f"I turned the comparison into a 25-second video with the quotes on screen: {video}",
+             "not": "Kurallar: her subreddit'in kendi tanitim kuralini oku; once tartisma olarak gonder, videoyu ilk yorumda ver; "
+                    "baska konulara da katki yap (yalnizca kendi linkini paylasan hesap spam sayilir)."}
+    else:
+        t = {"baslik": "", "govde": (f"{baslik}\n\n" + (f"Page says: \"{_kisalt(claim, 120)}\"\n" if claim else "") +
+                                     f"Source: {url}\nVideo: {video}"),
+             "ilk_yorum": "", "not": "280 karakteri asarsa kaynak ve video linkini ikinci tweet'e tasi."}
+    uyari = []
+    for alan in ("baslik", "govde", "ilk_yorum"):
+        for k in claim_lint.lint(t[alan]):
+            if k[0] in claim_lint.BLOCKING:
+                uyari.append(f"{alan}: {k[0]} ({', '.join(k[1])})")
+    t.update(ok=True, platform=platform, uyari=uyari)
+    return t
+
+
+def paylasim_kaydet(platform, video_id):
+    gecmis_yaz({"olay": "paylasim", "platform": platform, "video_id": video_id})
+    return {"ok": True}

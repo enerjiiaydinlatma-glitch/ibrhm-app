@@ -95,3 +95,21 @@ class KaynakTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PaylasimTest(unittest.TestCase):
+    def test_taslak_kaynakli_ve_temiz(self):
+        pk = {"title": "Mistral Large 4", "claim": "The model is state-of-the-art on finance tasks.", "url": "https://mistral.ai/news/x"}
+        t = bugun.paylasim_taslak("reddit", pk, "VID123")
+        self.assertTrue(t["ok"])
+        self.assertIn("https://mistral.ai/news/x", t["govde"])
+        self.assertIn("https://youtu.be/VID123", t["ilk_yorum"])
+        self.assertEqual(t["uyari"], [])
+
+    def test_riskli_iddia_uyari(self):
+        pk = {"title": "Co", "claim": "They deliberately hid the results.", "url": "https://x.com/a"}
+        t = bugun.paylasim_taslak("x", pk, "V")
+        self.assertTrue(t["uyari"])
+
+    def test_bilinmeyen_platform(self):
+        self.assertFalse(bugun.paylasim_taslak("tiktok", {}, "V")["ok"])
