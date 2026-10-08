@@ -9,11 +9,13 @@ Gundem puani "viral olur" tahmini DEGILDIR: kanalin kuralina (birincil belge + k
 iddia) ne kadar uydugunu ve ne kadar taze oldugunu olcer; sonuc gecmisi _engine/bugun_gecmis.jsonl'e yazilir.
 """
 import datetime
+import email.utils
 import json
 import os
 import re
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 
 import claim_lint
 import daily_limit
@@ -25,7 +27,7 @@ ADAY_YOL = os.path.join(ENGINE, "gundem_adaylari.json")
 KAYNAK_ADAY_YOL = os.path.join(ENGINE, "kaynak_adaylar.json")
 GECMIS_YOL = os.path.join(ENGINE, "bugun_gecmis.jsonl")
 
-GDELT_QUERY = '(OpenAI OR Anthropic OR Nvidia OR "Google DeepMind" OR Mistral OR Meta AI OR xAI OR "Hugging Face" OR "AI model") sourcelang:english'
+GDELT_QUERY = '(OpenAI OR Anthropic OR Nvidia OR "Google DeepMind" OR Mistral OR "Meta AI" OR xAI OR "Hugging Face" OR DeepSeek OR Gemini OR Claude) sourcelang:english'
 
 # Kaynagi sirketin KENDI sayfasi / birincil belge olan alanlar (Receipt dogrudan sayfadan kurulur)
 BIRINCIL = {"openai.com", "anthropic.com", "mistral.ai", "nvidia.com", "blogs.nvidia.com", "blog.google",
@@ -140,18 +142,105 @@ def gdelt_cek(max_records=60, timeout=25):
     return data.get("articles", [])
 
 
-def gundem_yenile():
-    """Adaylari ceker, puanlar, _engine/gundem_adaylari.json'a yazar. Donus: ozet metin."""
+# Sirketlerin KENDI yayin akislari (birincil kaynak: Receipt dogrudan bu sayfalardan kurulur).
+# Adresler zamanla degisebilir: calismayan akis atlanir ve ekranda "okunamadi" diye raporlanir.
+FEEDS = [
+    "https://openai.com/news/rss.xml",
+    "https://deepmind.google/blog/rss.xml",
+    "https://blog.google/technology/ai/rss/",
+    "https://blogs.nvidia.com/feed/",
+    "https://huggingface.co/blog/feed.xml",
+    "https://mistral.ai/rss.xml",
+    "https://ai.meta.com/blog/rss/",
+    "https://aws.amazon.com/blogs/machine-learning/feed/",
+    "https://blogs.microsoft.com/ai/feed/",
+]
+
+# Konu uyumu: baslikta yapay zeka sirketi/modeli/olcutu gecmeyen haberler (enerji kurallari, yazilim duyurusu...) elenir
+KONU = re.compile(r"\b(openai|anthropic|claude|chatgpt|gpt-?\d?|gemini|deepmind|mistral|llama|meta ai|nvidia|xai|grok|deepseek|qwen|"
+                  r"hugging ?face|copilot|llm|large language model|language model|ai model|benchmark|open[- ]?(?:source|weight)|"
+                  r"foundation model|chip|gpu|inference|agent|reasoning|safety|alignment)s?\b", re.I)
+
+
+def konu_uyar(baslik):
+    return bool(KONU.search(baslik or ""))
+
+
+def _tarih_gdelt(s):
+    """RSS (RFC822) veya Atom (ISO8601) tarihi -> GDELT bicimi (20261008T143000Z, UTC)."""
+    if not s:
+        return ""
     try:
-        ham = gdelt_cek()
+        d = email.utils.parsedate_to_datetime(s)
+    except Exception:
+        try:
+            d = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except Exception:
+            return ""
+    if d.tzinfo is not None:
+        d = d.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    return d.strftime("%Y%m%dT%H%M%SZ")
+
+
+def feed_parse(xml_text):
+    """RSS 2.0 ve Atom -> [{title,url,seendate}]"""
+    out = []
+    root = ET.fromstring(xml_text)
+    for it in root.iter():
+        tag = it.tag.split("}")[-1]
+        if tag == "item":
+            t = (it.findtext("title") or "").strip()
+            u = (it.findtext("link") or "").strip()
+            d = it.findtext("pubDate") or ""
+        elif tag == "entry":
+            t = (next((e.text for e in it if e.tag.split("}")[-1] == "title"), "") or "").strip()
+            u = ""
+            for e in it:
+                if e.tag.split("}")[-1] == "link":
+                    u = e.get("href") or (e.text or "")
+                    if e.get("rel") in (None, "alternate"):
+                        break
+            d = next((e.text for e in it if e.tag.split("}")[-1] in ("updated", "published")), "") or ""
+        else:
+            continue
+        if t and u.startswith("http"):
+            out.append({"title": t, "url": u.strip(), "seendate": _tarih_gdelt(d)})
+    return out
+
+
+def feed_cek(url, timeout=15, maks=15):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/rss+xml, application/xml, text/xml, */*"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        txt = r.read().decode("utf-8", errors="replace")
+    return feed_parse(txt)[:maks]
+
+
+def gundem_yenile():
+    """GDELT + sirket akislarini ceker, konu uyumuna gore suzer, puanlar, _engine/gundem_adaylari.json'a yazar."""
+    ham, rapor = [], []
+    try:
+        g = gdelt_cek()
+        ham += g
+        rapor.append(f"haber indeksi: {len(g)}")
     except Exception as e:
-        return f"[HATA] Haber indeksi alinamadi ({type(e).__name__}: {e}). Biraz sonra tekrar dene veya adresi elle yapistir."
-    adaylar = sirala(ham)
+        rapor.append(f"haber indeksi OKUNAMADI ({type(e).__name__})")
+    ok, kotu = 0, []
+    for f in FEEDS:
+        try:
+            ham += feed_cek(f)
+            ok += 1
+        except Exception:
+            kotu.append(_alan(f))
+    rapor.append(f"sirket akislari: {ok}/{len(FEEDS)} okundu" + (f" (okunamayan: {', '.join(kotu)})" if kotu else ""))
+    if not ham:
+        return "[HATA] Hicbir kaynaktan haber alinamadi. " + "; ".join(rapor) + ". Biraz sonra tekrar dene veya adresi elle yapistir."
+    uygun = [m for m in ham if konu_uyar(m.get("title", ""))]
+    adaylar = sirala(uygun)
     os.makedirs(ENGINE, exist_ok=True)
     with open(ADAY_YOL, "w", encoding="utf-8") as f:
-        json.dump({"zaman": _now().isoformat(timespec="seconds"), "adaylar": adaylar, "ham_sayi": len(ham)},
-                  f, ensure_ascii=True, indent=1)
-    return f"{len(ham)} haber tarandi, {len(adaylar)} aday listelendi."
+        json.dump({"zaman": _now().isoformat(timespec="seconds"), "adaylar": adaylar, "ham_sayi": len(ham),
+                   "uygun_sayi": len(uygun), "rapor": rapor}, f, ensure_ascii=True, indent=1)
+    return f"{len(ham)} haber tarandi, {len(uygun)} konuya uygun, {len(adaylar)} aday. ({'; '.join(rapor)})"
 
 
 def gundem_oku():

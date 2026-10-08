@@ -1656,7 +1656,8 @@ async function bgLoad(){
 }
 function bgAdayCiz(g){
   const a = (g&&g.adaylar)||[];
-  $('#bgGundemSt').textContent = g&&g.zaman ? 'son yenileme: '+g.zaman.replace('T',' ') : 'henüz çekilmedi';
+  $('#bgGundemSt').textContent = g&&g.zaman ? 'son yenileme: '+g.zaman.replace('T',' ') : 'henüz çekilmedi'
+  if(g&&g.rapor) $('#bgGundemSt').textContent += ' · '+g.rapor.join(' · ')+' · konuya uygun: '+(g.uygun_sayi==null?'?':g.uygun_sayi);
   $('#bgAdaylar').innerHTML = a.length ? a.map((x,i)=>'<div class="row" style="display:block;border-bottom:1px solid #21262d;padding:6px 0"><b>'+x.puan+'</b> '+bgEsc(x.title)+'<div style="font-size:12px;color:#8b949e">'+bgEsc(x.alan)+' · '+x.haber_sayisi+' haber '+(x.etiketler||[]).map(e=>'<span class="pill ok">'+bgEsc(e)+'</span>').join(' ')+(x.engel?' <span class="pill bad">'+bgEsc(x.engel)+'</span>':'')+'</div>'+(x.engel?'':'<button class="act" style="margin-top:3px" onclick="bgSec('+i+')">Seç</button>')+'</div>').join('') : '<span style="color:#8b949e">Aday yok. «Gündemi yenile»ye bas.</span>';
   window._bgAday = a;
 }
@@ -1718,7 +1719,7 @@ function bgAnalizCiz(d){
   const box = $('#bgAnalizBox'); if(!d.adaylar && d.durum!=='aday_yok'){ box.innerHTML=''; return; }
   const k = d.karar||{}, ad = d.adaylar||[];
   const bul = id => ad.find(a=>a.id===id);
-  let h = '';
+  let h = d.gundem_mesaj ? '<div style="font-size:12px;color:#8b949e;margin-bottom:6px">Kaynak taraması: '+bgEsc(d.gundem_mesaj)+'</div>' : '';
   if(d.durum==='aday_yok') h += '<div>Uygun aday bulunamadı. Gündemi biraz sonra yenile ya da aşağıdan adres yapıştır.</div>';
   if(k.secim && bul(k.secim)){
     const a = bul(k.secim);

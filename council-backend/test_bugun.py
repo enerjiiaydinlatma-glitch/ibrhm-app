@@ -113,3 +113,44 @@ class PaylasimTest(unittest.TestCase):
 
     def test_bilinmeyen_platform(self):
         self.assertFalse(bugun.paylasim_taslak("tiktok", {}, "V")["ok"])
+
+
+RSS = """<?xml version="1.0"?><rss version="2.0"><channel>
+<item><title>Introducing Big Model, state-of-the-art on benchmarks</title><link>https://openai.com/index/big</link><pubDate>Thu, 08 Oct 2026 10:00:00 GMT</pubDate></item>
+<item><title>Data centre operators on board with energy rules</title><link>https://x.com/e</link><pubDate>Thu, 08 Oct 2026 09:00:00 GMT</pubDate></item>
+</channel></rss>"""
+ATOM = """<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Gemini gets faster</title>
+<link rel="alternate" href="https://deepmind.google/blog/g"/><updated>2026-10-08T08:30:00Z</updated></entry></feed>"""
+
+
+class FeedTest(unittest.TestCase):
+    def test_rss_ve_atom(self):
+        r = bugun.feed_parse(RSS)
+        self.assertEqual(len(r), 2)
+        self.assertEqual(r[0]["seendate"], "20261008T100000Z")
+        a = bugun.feed_parse(ATOM)
+        self.assertEqual(a[0]["url"], "https://deepmind.google/blog/g")
+        self.assertEqual(a[0]["seendate"], "20261008T083000Z")
+
+    def test_konu_suzgeci(self):
+        self.assertTrue(bugun.konu_uyar("Introducing Big Model, state-of-the-art on benchmarks"))
+        self.assertTrue(bugun.konu_uyar("Gemini gets faster"))
+        self.assertFalse(bugun.konu_uyar("Data centre operators on board with energy rules"))
+        self.assertFalse(bugun.konu_uyar("Rencore Launches New Multi - AI Governance Functionality"))
+
+    def test_yenile_bir_akis_bozuksa_digerleri_calisir(self):
+        d = tempfile.mkdtemp()
+        o = (bugun.ENGINE, bugun.ADAY_YOL, bugun.gdelt_cek, bugun.feed_cek, bugun.FEEDS)
+        try:
+            bugun.ENGINE, bugun.ADAY_YOL = d, os.path.join(d, "a.json")
+            bugun.FEEDS = ["https://openai.com/f", "https://bozuk.example/f"]
+            bugun.gdelt_cek = lambda: (_ for _ in ()).throw(OSError("ag yok"))
+            bugun.feed_cek = lambda u, **k: bugun.feed_parse(RSS) if "openai" in u else (_ for _ in ()).throw(OSError("x"))
+            msg = bugun.gundem_yenile()
+            g = bugun.gundem_oku()
+            self.assertEqual(len(g["adaylar"]), 1)
+            self.assertIn("OKUNAMADI", msg)
+            self.assertIn("1/2", msg)
+            self.assertIn("openai.com", g["adaylar"][0]["alan"])
+        finally:
+            bugun.ENGINE, bugun.ADAY_YOL, bugun.gdelt_cek, bugun.feed_cek, bugun.FEEDS = o
