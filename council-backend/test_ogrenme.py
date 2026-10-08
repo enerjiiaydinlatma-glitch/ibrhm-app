@@ -68,7 +68,7 @@ class KanalTrackerTest(unittest.TestCase):
         self.assertEqual(ik["ort_abone"], 1.0)
         self.assertEqual(ik["med_tutma"], 50)                 # gercek medyan: (60+40)/2
         self.assertEqual(ik["med_goreli"], 1.0)               # 300 ve 100 / genel medyan 200 -> 1.5 ve 0.5 -> medyan 1.0
-        self.assertEqual(ik["skor"], 100 + 20 * 2 + 30 * 1.0)
+        self.assertEqual(ik["skor"], 100 + 20 * 2 + 300 * 1.0 + 50)
 
     def test_bos_tracker(self):
         self.assertFalse(ogrenme.kanal_tracker({})["ok"])
@@ -107,3 +107,30 @@ class ZamanEtkisiTest(unittest.TestCase):
     def test_olgun_gun_esigi(self):
         liste = [v(i, f"{i} systems breached title", 100, tarih="2026-10-06") for i in range(8)]   # 2 gunluk
         self.assertEqual(ogrenme.karne(liste, BUGUN)["genel"]["n"], 0)
+
+
+class HashtagPaketTest(unittest.TestCase):
+    def liste(self):
+        out = []
+        for i in range(9):   # Turkce seri: dort etiket HEP birlikte
+            out.append(v(i, f"Council series video number {i} title here", 20, tarih=f"2026-09-{10 + i}",
+                         hashtags=["#Shorts", "#SignCouncil", "#Ekonomi", "#Etik", "#Risk", "#Sentez"]))
+        for i in range(8):   # normal videolar
+            out.append(v(20 + i, f"Why is the vendor changing policy {i}", 40, tarih=f"2026-09-{10 + i}",
+                         hashtags=["#Shorts", "#SignCouncil", "#AIagents"] + (["#TechNews"] if i % 2 else [])))
+        return out
+
+    def test_ayni_kumedeki_etiketler_tek_paket_ve_oneri_disi(self):
+        h = ogrenme.karne(self.liste(), BUGUN)["bolumler"]["hashtag"]
+        seri = [r for r in h if r.get("seri")]
+        self.assertEqual(len(seri), 1)
+        self.assertIn("#Ekonomi", seri[0]["ad"])
+        self.assertTrue(seri[0]["turkce"])
+        oneri = ogrenme.hashtag_onerisi(self.liste(), now=BUGUN)["hashtagler"]
+        for yasak in ("#Ekonomi", "#Etik", "#Risk", "#Sentez"):
+            self.assertNotIn(yasak, oneri)
+        self.assertIn("#AIagents", oneri)
+
+    def test_turkce_oneriler_listesine_girmez(self):
+        k = ogrenme.karne(self.liste(), BUGUN)
+        self.assertFalse(any("Ekonomi" in o["ad"] for o in k["oneriler"]))

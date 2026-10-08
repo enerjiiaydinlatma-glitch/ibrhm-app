@@ -21,6 +21,7 @@ OLGUN_GUN = 3                                  # Shorts izlenmesi ilk gunlerde h
 KOMSU_GUN = 10                                 # bir videoyu +-10 gun icindeki videolarin medyaniyla kiyasla
 MIN_KOMSU = 3
 MARKA = {"#shorts", "#signcouncil"}          # neredeyse her videoda: ayirt edici degil
+TR_ETIKET = {"#ekonomi", "#etik", "#sentez", "#teknoloji", "#yapayzeka", "#yapayzekâ", "#gundem", "#gündem"}   # eski Turkce seri; kitle artik ABD
 
 
 def _tarih(v):
@@ -112,12 +113,33 @@ def karne(videolar, now=None):
         "soru": _grupla(vs, lambda v: [v["_f"]["soru"]]),
         "uzunluk": _grupla(vs, lambda v: [v["_f"]["uzunluk"]]),
         "gun": _grupla(vs, lambda v: [v["_f"]["gun"]]),
-        "hashtag": [r for r in _grupla(vs, lambda v: [h for h in (v.get("hashtags") or []) if h.lower() not in MARKA])
-                    if r["n"] >= 3][:15],
+        "hashtag": _hashtag_paketle(vs),
     }
     for v in vs:
         v.pop("_f", None)
     return {"genel": genel, "bolumler": bolumler, "oneriler": oneriler(genel, bolumler)}
+
+
+def _hashtag_paketle(vs):
+    """Ayni video kumesinde BIRLIKTE gecen hashtag'ler tek paket sayilir (ayri kanit degil; ornek: #Ekonomi/#Etik/#Risk/#Sentez
+    ayni 9 videoda). Paket 'seri' isaretlenir ve oneride kullanilmaz. Turkce etiketler oneri disi."""
+    kume = {}
+    for v in vs:
+        for h in (v.get("hashtags") or []):
+            if h.lower() not in MARKA:
+                kume.setdefault(h, set()).add(v["id"])
+    paket = {}
+    for h, ids in kume.items():
+        paket.setdefault(frozenset(ids), []).append(h)
+    rows = []
+    for ids, adlar in paket.items():
+        if len(ids) < 3:
+            continue
+        r = _satir("/".join(sorted(adlar)), [v for v in vs if v["id"] in ids])
+        r["seri"] = len(adlar) > 1
+        r["turkce"] = any(a.lower() in TR_ETIKET for a in adlar)
+        rows.append(r)
+    return sorted(rows, key=lambda r: (-r["n"], r["ad"]))[:15]
 
 
 def oneriler(genel, bolumler):
@@ -125,7 +147,7 @@ def oneriler(genel, bolumler):
     out = []
     for ad, satirlar in bolumler.items():
         for r in satirlar:
-            if r["n"] < MIN_N or ad == "gun" or r.get("med_goreli") is None:
+            if r["n"] < MIN_N or ad == "gun" or r.get("med_goreli") is None or r.get("seri") or r.get("turkce"):
                 continue
             oran = r["med_goreli"]
             etiket = f"{r['ad']}: kendi döneminin tipik videosunun {round(oran, 1)} katı izlenme (n={r['n']}, {r['guven']})."
@@ -139,7 +161,8 @@ def oneriler(genel, bolumler):
 def hashtag_onerisi(videolar, k=3, now=None):
     """3 ayirt edici hashtag (+ marka etiketleri her zaman). Yalniz n>=MIN_N olanlar; medyan izlenme ve tutmaya gore."""
     kr = karne(videolar, now)
-    adaylar = [r for r in kr["bolumler"]["hashtag"] if r["n"] >= MIN_N and r["med_izlenme"] is not None]
+    adaylar = [r for r in kr["bolumler"]["hashtag"]
+               if r["n"] >= MIN_N and r["med_izlenme"] is not None and not r.get("seri") and not r.get("turkce")]
     adaylar.sort(key=lambda r: -((r.get("med_goreli") or 0) * 100 + 0.5 * (r["med_tutma"] or 0)))
     sec = adaylar[:k]
     return {"hashtagler": ["#Shorts"] + [r["ad"] for r in sec] + ["#SignCouncil"],

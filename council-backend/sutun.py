@@ -9,7 +9,7 @@ Sutunlar (motorun mevcut bayraklari):
 
 Secim: her sutun >= MIN_DENEME kez denenmeden hicbiri elenmez (veri az; ~birkac izlenme gurultudur).
 Yeterli veri varsa: %70 su ana kadar en iyi sutun, %30 en az denenen (kesif). Tohum = tarih (ayni gun ayni oneri).
-Sonuc olcutu (skor): zamana gore duzeltilmis medyan izlenme x100 (yoksa ort. izlenme) + 20 x ort. yorum + 30 x ort. abone (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
+Sonuc olcutu (skor): zamana gore duzeltilmis medyan izlenme x100 (yoksa ort. izlenme) + 20 x ort. yorum + 300 x ort. abone + 1 x medyan tutma% (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
 """
 import datetime
 import json
@@ -36,7 +36,8 @@ ELEME_N = 10            # bu kadar denemeden sonra ...
 ELEME_ORAN = 0.4        # ... skoru en iyinin %40'indan dusukse oneri disi birakilir
 SOMURU = 0.70
 YORUM_AGIRLIK = 20
-ABONE_AGIRLIK = 30      # bir video basina ortalama abone (hedef abone: izlenmeden daha degerli)
+ABONE_AGIRLIK = 300     # video basina ortalama abone: tipik video ~0.1 abone getirir; 1 abone ~ tipik izlenmenin 3 kati deger (hedef: abone)
+TUTMA_AGIRLIK = 1.0     # medyan tutma % (en fazla 100 sayilir): izlenme sinyali, dagitimi surduren sey
 OLGUNLUK_SAAT = 24      # bir video sonucu en az bu kadar sure sonra sayilir
 
 _ETIKET = [
@@ -136,7 +137,8 @@ def istatistik(videolar, kayit=None, now=None):
         t["med_goreli"] = round(statistics.median(t["rel"]), 2) if t["rel"] else None
         # zamana gore duzeltilmis izlenme varsa onu (100 = kendi doneminde tipik video), yoksa ham ortalama izlenme
         temel = t["med_goreli"] * 100 if t["med_goreli"] is not None else t["ort_izlenme"]
-        t["skor"] = round(temel + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"], 1)
+        tutma = min(t["med_tutma"], 100) if t["med_tutma"] is not None else 0
+        t["skor"] = round(temel + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"] + TUTMA_AGIRLIK * tutma, 1)
     return tablo
 
 
