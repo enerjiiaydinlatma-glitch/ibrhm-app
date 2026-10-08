@@ -291,7 +291,7 @@ def reddet():
 # ----------------------------------------------------------------------------- guven olcutu
 def log(kayit):
     kayit = dict(kayit)
-    kayit["zaman"] = datetime.datetime.now().isoformat(timespec="seconds")
+    kayit.setdefault("zaman", datetime.datetime.now().isoformat(timespec="seconds"))
     try:
         os.makedirs(ENGINE, exist_ok=True)
         with open(GECMIS_YOL, "a", encoding="utf-8") as f:
@@ -332,22 +332,28 @@ def retention_kaydet(deger):
 
 
 def guven_durumu(now=None):
-    """7 gun, uc sart: (1) koruma ihlali 0  (2) onerilerin >=%70'i degismeden onaylandi  (3) izlemeye devam >= taban (elle girilir)."""
+    """7 gun, uc sart: (1) koruma ihlali 0  (2) onerilerin >=%70'i degismeden onaylandi  (3) izlemeye devam >= taban (elle girilir).
+    GUNDE EN FAZLA BIR oneri sayilir: ayni gun birkac kez 'Analizi baslat' basmak oneri sayisini sisirmez.
+    Bir gunun onayi = o gunun SON onayi (degisti isareti ona gore)."""
     g = _gecmis(GUVEN_GUN, now)
-    oneri = [r for r in g if r.get("olay") == "oneri"]
-    onay = [r for r in g if r.get("olay") == "onay"]
-    degismeden = [r for r in onay if not r.get("degisti")]
+    gun = lambda r: str(r.get("zaman", ""))[:10]
+    oneri_gunleri = {gun(r) for r in g if r.get("olay") == "oneri"}
+    son_onay = {}
+    for r in sorted((r for r in g if r.get("olay") == "onay"), key=lambda r: r.get("zaman", "")):
+        son_onay[gun(r)] = r
+    degismeden_gunler = {d for d, r in son_onay.items() if not r.get("degisti") and d in oneri_gunleri}
     ihlal = [r for r in g if r.get("olay") == "ihlal"]
-    oran = (len(degismeden) / len(oneri)) if oneri else None
+    oneri_n, ok_n = len(oneri_gunleri), len(degismeden_gunler)
+    oran = (ok_n / oneri_n) if oneri_n else None
     try:
         with open(GIRIS_YOL, encoding="utf-8") as f:
             ret = json.load(f).get("retention")
     except Exception:
         ret = None
     s1 = len(ihlal) == 0
-    s2 = oran is not None and oran >= ONAY_ESIGI and len(oneri) >= GUVEN_GUN
+    s2 = oran is not None and oran >= ONAY_ESIGI and oneri_n >= GUVEN_GUN
     s3 = ret is not None and ret >= RETENTION_TABAN
-    return {"gun": GUVEN_GUN, "oneri": len(oneri), "degismeden_onay": len(degismeden), "onay_orani": oran,
+    return {"gun": GUVEN_GUN, "oneri": oneri_n, "degismeden_onay": ok_n, "onay_orani": oran,
             "ihlal": len(ihlal), "retention": ret, "taban": RETENTION_TABAN,
             "sartlar": {"ihlal_yok": s1, "onay_orani": s2, "retention": s3},
             "otomatige_hazir": bool(s1 and s2 and s3)}

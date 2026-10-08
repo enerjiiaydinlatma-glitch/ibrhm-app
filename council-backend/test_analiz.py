@@ -94,10 +94,27 @@ class AkisGuvenTest(unittest.TestCase):
         r = analiz.calistir(lambda: "x", lambda: {"adaylar": []}, lambda b, p: [], kanal={"ok": True, "videolar": []}, sutun="receipt")
         self.assertIn("bulunamadi", r)
 
+    def _gun(self, geri):
+        return (datetime.datetime.now() - datetime.timedelta(days=geri)).replace(microsecond=0).isoformat()
+
+    def test_ayni_gun_cok_analiz_tek_oneri_sayilir(self):
+        for _ in range(5):
+            analiz.log({"olay": "oneri", "secim": "A1"})
+        g = analiz.guven_durumu()
+        self.assertEqual(g["oneri"], 1)
+        analiz.log({"olay": "onay", "secim": "A1", "degisti": False})
+        self.assertEqual(analiz.guven_durumu()["degismeden_onay"], 1)
+
+    def test_gunun_son_onayi_belirler(self):
+        analiz.log({"olay": "oneri", "secim": "A1"})
+        analiz.log({"olay": "onay", "secim": "A1", "degisti": False, "zaman": self._gun(0)[:11] + "09:00:00"})
+        analiz.log({"olay": "onay", "secim": "A2", "degisti": True, "zaman": self._gun(0)[:11] + "10:00:00"})
+        self.assertEqual(analiz.guven_durumu()["degismeden_onay"], 0)
+
     def test_guven(self):
-        for _ in range(7):
-            analiz.log({"olay": "oneri", "secim": "A1", "kaynak": "konsey"})
-            analiz.log({"olay": "onay", "secim": "A1", "degisti": False})
+        for k in range(7):
+            analiz.log({"olay": "oneri", "secim": "A1", "kaynak": "konsey", "zaman": self._gun(k)})
+            analiz.log({"olay": "onay", "secim": "A1", "degisti": False, "zaman": self._gun(k)})
         self.assertFalse(analiz.guven_durumu()["otomatige_hazir"])  # retention girilmedi
         analiz.retention_kaydet("16,2")
         g = analiz.guven_durumu()
