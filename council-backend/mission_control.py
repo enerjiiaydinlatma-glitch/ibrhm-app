@@ -60,6 +60,7 @@ import security  # noqa: E402
 import bugun  # noqa: E402
 import analiz  # noqa: E402
 import sutun  # noqa: E402
+import ogrenme  # noqa: E402
 import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
@@ -255,6 +256,15 @@ def _watch_ihlal(jid, sutun_ad="", onceki=None):
     threading.Thread(target=_go, daemon=True).start()
 
 
+def _tracker_kanal():
+    """Sutun/veri analizi icin kanal verisi: tracker (tutma, abone, hashtag dahil) varsa onu kullan; yoksa YouTube API."""
+    try:
+        k = ogrenme.kanal_tracker(tracker.load())
+        return k if k.get("ok") else None
+    except Exception:
+        return None
+
+
 def bugun_analiz_baslat(sutun_ad=None):
     def _is():
         def _rapor():
@@ -262,7 +272,7 @@ def bugun_analiz_baslat(sutun_ad=None):
                 return analytics_report.load_report()
             except Exception:
                 return None
-        return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor(),
+        return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor(), kanal=_tracker_kanal(),
                                hazirlik=bugun.sayfa_hazirlik, sutun=sutun_ad or None)
     return {"job": _run_py_job(_is)}
 
@@ -1214,6 +1224,11 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
 </div>
 
 <div class="tab" id="tab-analiz">
+ <div class="card wide">
+  <h2>🧪 Ne işe yaradı? <span style="font-weight:normal;color:#8b949e;font-size:12px">(sütun, başlık kalıbı, hashtag, yayın günü — medyan sonuçlar; örnek az olduğu için YÖN gösterir, kanıt değildir)</span></h2>
+  <button class="act primary" onclick="ogLoad()">Karneyi çıkar</button> <span id="ogSt" style="font-size:12px;color:#8b949e"></span>
+  <div id="ogBox" style="margin-top:8px"></div>
+ </div>
  <div class="card">
   <h2>Kanal Göstergeleri <span style="font-weight:normal;color:#8b949e;font-size:12px" id="anTs"></span></h2>
   <div id="anKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"></div>
@@ -1750,8 +1765,8 @@ function bgAnalizCiz(d){
     const o = d.sutun_oneri||{}, SN = {}; d.sutunlar.forEach(r=>SN[r.sutun]=r);
     h += '<div style="border:1px solid #30363d;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">SÜTUN ÖNERİSİ ('+bgEsc(o.mod||'')+')</div>'
       + '<div style="font-size:16px;margin:4px 0"><b>'+bgEsc((SN[o.sutun]||{}).ad||o.sutun)+'</b></div><div>'+bgEsc(o.neden||'')+'</div>'
-      + '<table style="width:100%;font-size:13px;margin-top:8px;border-collapse:collapse"><tr style="color:#8b949e;text-align:left"><th>Sütun</th><th>Deneme</th><th>Ort. izlenme</th><th>Ort. yorum</th><th></th></tr>'
-      + d.sutunlar.filter(r=>r.aktif||r.deneme).map(r=>'<tr><td>'+bgEsc(r.ad)+(r.aktif?'':' <span style="color:#8b949e">(bugün kapalı)</span>')+'</td><td>'+r.deneme+'</td><td>'+(r.ort_izlenme==null?'-':r.ort_izlenme)+'</td><td>'+(r.ort_yorum==null?'-':r.ort_yorum)+'</td><td>'+(r.aktif&&r.sutun!=='diger'?'<button class="act'+(r.sutun===o.sutun?' primary':'')+'" onclick="bgSutun(\''+r.sutun+'\')">'+(r.sutun==='receipt'?'Receipt adaylarını analiz et':'Bu sütunla devam')+'</button>':'')+'</td></tr>').join('')
+      + '<table style="width:100%;font-size:13px;margin-top:8px;border-collapse:collapse"><tr style="color:#8b949e;text-align:left"><th>Sütun</th><th>Deneme</th><th>Ort. izlenme</th><th>Ort. yorum</th><th>Ort. abone</th><th>Med. tutma %</th><th></th></tr>'
+      + d.sutunlar.filter(r=>r.aktif||r.deneme).map(r=>'<tr><td>'+bgEsc(r.ad)+(r.aktif?'':' <span style="color:#8b949e">(bugün kapalı)</span>')+'</td><td>'+r.deneme+'</td><td>'+(r.ort_izlenme==null?'-':r.ort_izlenme)+'</td><td>'+(r.ort_yorum==null?'-':r.ort_yorum)+'</td><td>'+(r.ort_abone==null?'-':r.ort_abone)+'</td><td>'+(r.med_tutma==null?'-':r.med_tutma)+'</td><td>'+(r.aktif&&r.sutun!=='diger'?'<button class="act'+(r.sutun===o.sutun?' primary':'')+'" onclick="bgSutun(\''+r.sutun+'\')">'+(r.sutun==='receipt'?'Receipt adaylarını analiz et':'Bu sütunla devam')+'</button>':'')+'</td></tr>').join('')
       + '</table>' + (((SN.diger||{}).ornek||[]).length?'<details style="margin-top:6px"><summary style="font-size:13px">Sınıflanamayan videolar ('+SN.diger.deneme+') — örnek başlıklar</summary>'+SN.diger.ornek.map(t=>'<div style="font-size:12px;color:#8b949e">• '+bgEsc(t)+'</div>').join('')+'</details>':'') + '<div style="font-size:12px;color:#8b949e;margin-top:6px">Her sütun en az 3 kez denenmeden elenmez; örnek az olduğu için bu sonuçlar yön gösterir, kanıt değildir.</div>'
       + (d.sutun_onay?'<div style="margin-top:6px;color:#3fb950">Seçilen sütun: '+bgEsc((SN[d.sutun_onay.secim]||{}).ad||d.sutun_onay.secim)+(d.sutun_onay.degisti?' (öneriden farklı)':'')+'. Aşağıdan 4 · Üret\'e bas.</div>':'')+'</div>';
   }
@@ -1819,7 +1834,20 @@ foldTab('sistem', [['durum','Durum',true],['bakim','Bakım ve onarım',false],['
 foldTab('analiz', [['takip','Büyüme kararları',false],['tahmin','Tahmin defteri (motorun kendini sınaması)',false]]);
 foldTab('bugun', [['kararlar','Konsey arşivi (geçmiş tartışmalar)',false],['dagitim','Gelişmiş paylaşım araçları (Dağıtım)',false]]);
 
+async function ogLoad(){
+  $('#ogSt').textContent='hesaplanıyor…';
+  const d = await api('/api/ogrenme');
+  if(!d.ok){ $('#ogSt').textContent='HATA/veri yok: '+(d.error||'tracker verisi yok, Büyüme Kararları\'ndan "Şimdi yenile"ye bas'); return; }
+  $('#ogSt').textContent = d.n+' video'; const k=d.karne, B=k.bolumler;
+  const tab=(baslik,rows)=>'<div style="margin-top:10px"><b>'+baslik+'</b><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:#8b949e;text-align:left"><th>Grup</th><th>n</th><th>Med. izlenme</th><th>Med. tutma %</th><th>Abone/1000</th><th>Yorum/1000</th><th>Güven</th></tr>'
+    +rows.map(r=>'<tr><td>'+bgEsc(r.ad)+'</td><td>'+r.n+'</td><td>'+(r.med_izlenme==null?'-':r.med_izlenme)+'</td><td>'+(r.med_tutma==null?'-':r.med_tutma)+'</td><td>'+(r.abone_1000==null?'-':r.abone_1000)+'</td><td>'+(r.yorum_1000==null?'-':r.yorum_1000)+'</td><td style="color:'+(r.guven==='çok az'?'#f85149':r.guven==='yön'?'#d29922':'#3fb950')+'">'+r.guven+'</td></tr>').join('')+'</table></div>';
+  $('#ogBox').innerHTML = '<div>Genel: '+k.genel.n+' video · medyan izlenme '+k.genel.med_izlenme+' · medyan tutma %'+k.genel.med_tutma+' · abone/1000 '+k.genel.abone_1000+' · yorum/1000 '+k.genel.yorum_1000+'</div>'
+    + (k.oneriler.length?'<div style="margin-top:8px"><b>Deneme önerileri</b>'+k.oneriler.map(o=>'<div style="font-size:13px">• '+bgEsc(o.metin)+'</div>').join('')+'</div>':'<div style="margin-top:8px;color:#8b949e">Henüz belirgin (n≥5 ve ≥%30 fark) bir kalıp yok.</div>')
+    + '<div style="margin-top:8px"><b>Önerilen hashtag seti (deneme):</b> '+bgEsc(d.hashtag.hashtagler.join(' '))+'<div style="font-size:12px;color:#8b949e">'+bgEsc(d.hashtag.dayanak.join(' · '))+' — '+bgEsc(d.hashtag.not)+'</div></div>'
+    + tab('Sütun',B.sutun)+tab('Başlıkta sayı',B.sayi)+tab('Başlık biçimi',B.soru)+tab('Başlık uzunluğu',B.uzunluk)+tab('Yayın günü',B.gun)+tab('Hashtag (marka etiketleri hariç, n≥3)',B.hashtag);
+}
 function onTab(name){
+  if(name==='analiz') ogLoad();
   if(name==='bugun'){ bgLoad(); bgGuven(); bgAnalizPoll(); }
   if(name==='telefon') phoneRefresh();
   if(name==='onay'){ loadUretBugun(); loadPending(); }
@@ -2436,6 +2464,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json(analiz.son() or {"durum": "yok"})
         elif u.path == "/api/bugun/guven":
             self._json(analiz.guven_durumu())
+        elif u.path == "/api/ogrenme":
+            try:
+                vids = (tracker.load() or {}).get("videos", [])
+                self._json({"ok": bool(vids), "karne": ogrenme.karne(vids), "hashtag": ogrenme.hashtag_onerisi(vids), "n": len(vids)})
+            except Exception as e:
+                self._json({"ok": False, "error": f"{type(e).__name__}: {e}"})
         elif u.path == "/api/phone":
             self._json(phone_status())
         elif u.path == "/api/alerts":

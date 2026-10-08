@@ -8,7 +8,7 @@ Sutunlar (motorun mevcut bayraklari):
 
 Secim: her sutun >= MIN_DENEME kez denenmeden hicbiri elenmez (veri az; ~birkac izlenme gurultudur).
 Yeterli veri varsa: %70 su ana kadar en iyi sutun, %30 en az denenen (kesif). Tohum = tarih (ayni gun ayni oneri).
-Sonuc olcutu: ortalama izlenme + yorum (yorum x 20 agirlikli). Bu bir TAHMIN degil, gecmis sonuctur.
+Sonuc olcutu (skor): ort. izlenme + 20 x ort. yorum + 30 x ort. abone (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
 """
 import datetime
 import json
@@ -31,6 +31,7 @@ HAFTA_SONU = ["ikilem", "siralama", "receipt", "aciklayici"]
 MIN_DENEME = 3
 SOMURU = 0.70
 YORUM_AGIRLIK = 20
+ABONE_AGIRLIK = 30      # bir video basina ortalama abone (hedef abone: izlenmeden daha degerli)
 OLGUNLUK_SAAT = 24      # bir video sonucu en az bu kadar sure sonra sayilir
 
 _ETIKET = [
@@ -103,17 +104,23 @@ def istatistik(videolar, kayit=None, now=None):
         if yas is None or yas < OLGUNLUK_SAAT:
             continue
         s = kayit.get(v["id"]) or etiketle(v["title"])
-        t = tablo.setdefault(s, {"deneme": 0, "izlenme": 0, "yorum": 0, "ornek": []})
+        t = tablo.setdefault(s, {"deneme": 0, "izlenme": 0, "yorum": 0, "abone": 0, "tutma": [], "ornek": []})
         t["deneme"] += 1
         t["izlenme"] += v.get("views", 0)
         t["yorum"] += v.get("comments", 0)
+        t["abone"] += v.get("subs", 0) or 0
+        if v.get("retention") is not None:
+            t["tutma"].append(v["retention"])
         if len(t["ornek"]) < (12 if s == "diger" else 2):
             t["ornek"].append(v["title"][:60])
     for t in tablo.values():
         n = max(t["deneme"], 1)
         t["ort_izlenme"] = round(t["izlenme"] / n, 1)
         t["ort_yorum"] = round(t["yorum"] / n, 2)
-        t["skor"] = round(t["ort_izlenme"] + YORUM_AGIRLIK * t["ort_yorum"], 1)
+        t["ort_abone"] = round(t["abone"] / n, 2)
+        tm = sorted(t["tutma"])
+        t["med_tutma"] = round(tm[len(tm) // 2], 1) if tm else None
+        t["skor"] = round(t["ort_izlenme"] + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"], 1)
     return tablo
 
 
@@ -145,5 +152,6 @@ def satirlar(tablo, aktif=None):
         out.append({"sutun": s, "ad": SUTUNLAR.get(s, {}).get("ad", "Diğer / sınıflanamadı"), "aktif": s in aktif,
                     "deneme": t["deneme"] if t else 0, "ort_izlenme": t["ort_izlenme"] if t else None,
                     "ort_yorum": t["ort_yorum"] if t else None, "skor": t["skor"] if t else None,
+                    "ort_abone": t["ort_abone"] if t else None, "med_tutma": t["med_tutma"] if t else None,
                     "ornek": t["ornek"] if t else []})
     return out
