@@ -21,7 +21,23 @@ class EtiketTest(unittest.TestCase):
         self.assertEqual(sutun.etiketle("Anthropic jumps to top rank as OpenAI slips"), "siralama")
         self.assertEqual(sutun.etiketle("What is a 'control point' in AI infrastructure"), "aciklayici")
         self.assertEqual(sutun.etiketle("Three AI Safety Claims Fail Inspection While Two Pass"), "receipt")
-        self.assertEqual(sutun.etiketle("Did Cognition score 92.8 on a benchmark?"), "diger")
+        self.assertEqual(sutun.etiketle("Did Cognition score 92.8 on a benchmark?"), "haber")
+        self.assertEqual(sutun.etiketle(""), "diger")
+
+    def test_gercek_kanal_basliklari_8_ekim(self):
+        haber = ["How did a red-team AI agent breach 3 production systems?", "Why is Nvidia quietly acquiring Hugging Face?",
+                 "AI Safety Testing Is Already Collapsing", "Testing AI Doesn't Mean You Control It",
+                 "Did Cognition score 92.8 on a benchmark it helped design?", "Open weights is not open source - what does a company still control"]
+        ikilem = ["Is it wrong to let AI help write a eulogy for someone you loved, or does the help not ma",
+                  "A friend wants me to invest my savings in their AI startup - do I say yes to keep the fr",
+                  "Is it a red flag if someone you're dating regularly talks to an AI companion app - or is",
+                  "You can replace two team members with an AI tool and save your company money - do you re",
+                  "If an AI chatbot genuinely helps someone more than their human therapist did, does it ma",
+                  "Your data center outbid a hospital for power and nobody let you vote on it."]
+        for b in haber:
+            self.assertEqual(sutun.etiketle(b), "haber", b)
+        for b in ikilem:
+            self.assertEqual(sutun.etiketle(b), "ikilem", b)
 
 
 class IstatistikTest(unittest.TestCase):
@@ -46,14 +62,14 @@ class OnerTest(unittest.TestCase):
     CMT = datetime.date(2026, 10, 8)  # persembe (hafta ici)
 
     def test_veri_az_en_az_denenen(self):
-        tablo = {"ikilem": {"deneme": 3, "skor": 200}, "siralama": {"deneme": 1, "skor": 90}}
+        tablo = {"haber": {"deneme": 30, "skor": 150}, "ikilem": {"deneme": 3, "skor": 200}, "siralama": {"deneme": 1, "skor": 90}}
         o = sutun.oner(tablo, self.CMT)
         self.assertEqual(o["mod"], "veri-topla")
         self.assertEqual(o["sutun"], "receipt")           # 0 deneme, en az denenen
 
     def test_veri_yeterli_somur_ya_da_kesif_deterministik(self):
         tablo = {s: {"deneme": 3, "skor": sk, "ort_izlenme": sk, "ort_yorum": 0} for s, sk in
-                 (("ikilem", 300), ("siralama", 100), ("receipt", 10))}
+                 (("haber", 50), ("ikilem", 300), ("siralama", 100), ("receipt", 10))}
         a = sutun.oner(tablo, self.CMT)
         b = sutun.oner(tablo, self.CMT)
         self.assertEqual(a, b)

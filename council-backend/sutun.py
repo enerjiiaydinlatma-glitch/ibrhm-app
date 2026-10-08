@@ -1,6 +1,7 @@
 """ICERIK SUTUNLARI - hangi sutunla uretecegiz? Karar kanalin KENDI sonuclarindan gelir.
 
 Sutunlar (motorun mevcut bayraklari):
+  haber      (bayraksiz)         tekil konu haber sorusu - kanalin asil formati (motorun varsayilan yolu)
   ikilem     --council-decides   izleyici ikilemi; yorum oylamasi motorda hazir (council_standings)
   siralama   --leaderboard       siralama / guc listesi
   aciklayici --evergreen         zamansiz mekanizma anlatimi (hafta sonu)
@@ -21,13 +22,14 @@ ENGINE = os.path.join(HERE, "_engine")
 GECMIS_YOL = os.path.join(ENGINE, "sutun_gecmis.jsonl")
 
 SUTUNLAR = {
+    "haber": {"ad": "Haber sorusu (tekil konu)", "bayrak": [], "kaynak": False},
     "ikilem": {"ad": "İkilem (Konsey Karar Veriyor)", "bayrak": ["--council-decides"], "kaynak": False},
     "siralama": {"ad": "Sıralama / haber", "bayrak": ["--leaderboard"], "kaynak": False},
     "receipt": {"ad": "Receipt (belge kontrolü)", "bayrak": [], "kaynak": True},
     "aciklayici": {"ad": "Açıklayıcı (zamansız)", "bayrak": ["--evergreen"], "kaynak": False},
 }
-HAFTA_ICI = ["ikilem", "siralama", "receipt"]          # operator karari: ilk hafta bu uc, donusumlu
-HAFTA_SONU = ["ikilem", "siralama", "receipt", "aciklayici"]
+HAFTA_ICI = ["haber", "ikilem", "siralama", "receipt"]   # 'haber' = kanalin asil formati (motorun varsayilan yolu); veri onu gosterdi
+HAFTA_SONU = ["haber", "ikilem", "siralama", "receipt", "aciklayici"]
 MIN_DENEME = 3
 SOMURU = 0.70
 YORUM_AGIRLIK = 20
@@ -36,18 +38,25 @@ OLGUNLUK_SAAT = 24      # bir video sonucu en az bu kadar sure sonra sayilir
 
 _ETIKET = [
     ("receipt", re.compile(r"receipt|fail inspection|claims? checked|says otherwise|graded its own|the filing says|own benchmark", re.I)),
-    ("ikilem", re.compile(r"council (?:case|decides)|should i|the council decides|dilemma", re.I)),
+    # ikilem: 'Council Case/Decides' + izleyici ikilemi kaliplari (kisisel/ahlaki 'ne yapmali' sorulari)
+    ("ikilem", re.compile(r"council (?:case|decides)|the council decides|\bshould (?:i|we)\b|dilemma|\bdo (?:i|you) (?:say|re|think)|"
+                          r"\bis it (?:wrong|ok|okay|a red flag|fair)\b|\ba friend\b|^if an? |^you can replace|"
+                          r"^your (?:data center|company|boss)|nobody let you vote|someone you", re.I)),
     ("aciklayici", re.compile(r"^what (?:is|are)\b|^how (?:does|do)\b|explained|\bexplainer\b", re.I)),
-    ("siralama", re.compile(r"\brank|leaderboard|top \d|#1|jumps to|power list|\bvs\.? ", re.I)),
+    ("siralama", re.compile(r"\brank|leaderboard|top \d|jumps to|power list|\bvs\.? ", re.I)),
 ]
+# Geri kalan her sey 'haber': kanalin asil formati (tekil konu haber sorusu/ifadesi). Veri (8 Ekim 2026, 41 video):
+# haber medyan ~70 izlenme, kisisel ikilem medyan ~10.
 
 
 def etiketle(baslik):
     """Gecmis videolari sutuna ata (baslik kalibindan). Eslesmezse 'diger'."""
+    if not (baslik or "").strip():
+        return "diger"
     for ad, rx in _ETIKET:
-        if rx.search(baslik or ""):
+        if rx.search(baslik):
             return ad
-    return "diger"
+    return "haber"
 
 
 def aktif_sutunlar(bugun=None):
