@@ -22,7 +22,7 @@ REM sunucu zaten ayaktaysa (aksam slotundan kalma, cogu gun budur) o blok
 REM TAMAMEN atlaniyor, URL hic set edilmiyor, istemci eski 8123 varsayilanina
 REM baglanip 401/refused aliyordu. Simdi KOSULSUZ, health-check'ten ONCE.
 set AURA_VOICE_URL=http://127.0.0.1:8124
-set AURA_VOICE_KEY=sc-local-8x2Kq9mF4vRw6-council-voice
+if exist "%~dp0.voice_key" set /p AURA_VOICE_KEY=<"%~dp0.voice_key"
 
 REM --- 1) zaten saglikliysa DOKUNMA (gunde 2 Short - 2. slot 1.'nin sicak
 REM     sunucusunu kesip yeniden 30-60sn beklemesin); degilse eskisini kapat+baslat ---

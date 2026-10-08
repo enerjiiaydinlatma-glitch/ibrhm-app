@@ -36,7 +36,7 @@ REM atlaniyor ve URL/KEY hic set edilmiyordu - istemci hala eski 8123
 REM varsayilanina baglanip 401 aliyordu. Simdi KOSULSUZ, health-check'ten
 REM ONCE set ediliyor - sunucuyu biz mi baslattik, zaten mi ayaktaydi fark etmez.
 set AURA_VOICE_URL=http://127.0.0.1:8124
-set AURA_VOICE_KEY=sc-local-8x2Kq9mF4vRw6-council-voice
+if exist "%~dp0.voice_key" set /p AURA_VOICE_KEY=<"%~dp0.voice_key"
 
 REM --- ses sunucusu zaten saglikliysa dokunma ---
 curl -s -m 3 http://127.0.0.1:8124/health | find "model_loaded"":true" >nul 2>&1
