@@ -70,7 +70,10 @@ REM ucu de "izleyici ikilemini konseye karar verdirt" onerdi. Aksam slotu
 REM artik bu format - sabah slotu (daily_auto.bat) mevcut haber/rotasyon
 REM formatinda degismeden kaliyor, boylece hicbir sey silinmiyor.
 echo [%date% %time%] aksam slotu: Konsey Karar Veriyor (izleyici ikilemi) >> "%LOG%"
-"%PY%" -u daily_guard.py --short-upload --public --council-decides >> "%LOG%" 2>&1
+REM INCELEME MODU: bkz. daily_auto.bat (REVIEW_MODE dosyasi varsa private)
+set PUBFLAG=--public
+if exist "%~dp0REVIEW_MODE" set PUBFLAG=
+"%PY%" -u daily_guard.py --short-upload %PUBFLAG% --council-decides >> "%LOG%" 2>&1
 
 echo [%date% %time%] daily_auto_evening bitti >> "%LOG%"
 endlocal

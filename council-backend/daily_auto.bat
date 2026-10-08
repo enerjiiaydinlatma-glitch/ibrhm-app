@@ -66,7 +66,13 @@ if /I "%DOW%"=="Tuesday" set FMTFLAG=--verdict
 if /I "%DOW%"=="Wednesday" set FMTFLAG=--hottake
 if /I "%DOW%"=="Saturday" set FMTFLAG=--evergreen
 echo [%date% %time%] format: %DOW% -> "%FMTFLAG%" >> "%LOG%"
-"%PY%" -u daily_guard.py --short-upload --public %FMTFLAG% >> "%LOG%" 2>&1
+REM INCELEME MODU (8 Eki 2026): bu klasorde REVIEW_MODE dosyasi varsa video PRIVATE yuklenir
+REM (--public verilmez); sen Studio/explain_run ile okuyup publish_youtube.py ile yayinlarsin.
+REM Dosyayi silersen eski tam-otomatik davranisa doner.
+set PUBFLAG=--public
+if exist "%~dp0REVIEW_MODE" set PUBFLAG=
+echo [%date% %time%] yayin modu: "%PUBFLAG%" (bos = private/inceleme) >> "%LOG%"
+"%PY%" -u daily_guard.py --short-upload %PUBFLAG% %FMTFLAG% >> "%LOG%" 2>&1
 
 echo [%date% %time%] daily_auto bitti >> "%LOG%"
 endlocal
