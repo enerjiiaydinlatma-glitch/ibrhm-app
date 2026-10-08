@@ -162,10 +162,10 @@ def main(argv=None):
     if not cands:
         print("  (aday yok)")
     rec = [n for n, (sc, i, s) in enumerate(cands[:6], 1)]
-    if a.auto:
-        chosen = rec
-    elif a.select:
+    if a.select:
         chosen = [int(x) for x in re.findall(r"\d+", a.select)]
+    elif a.auto:
+        chosen = rec
     else:
         raw = input(f"\nKanit olacak numaralar (ornek 1,3,4 | Enter = onerilen {rec}): ").strip()
         chosen = [int(x) for x in re.findall(r"\d+", raw)] if raw else rec

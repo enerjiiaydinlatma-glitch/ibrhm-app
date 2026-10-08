@@ -7,6 +7,7 @@
 param(
     [string]$Url = "",       # kaynak sayfa adresi (verilirse sorulmaz)
     [string]$Facts = "",     # grafikte gordugun sayilar (opsiyonel; ; ile ayir)
+    [string]$Sec = "",       # kanit numaralari (ornek "1,3,6,8,17"); bos = onerilen ilk 6
     [switch]$Evet            # Enter bekleyen "devam?" sorularini otomatik gec
 )
 $ErrorActionPreference = "Stop"
@@ -83,7 +84,7 @@ Adim 6 "KAYNAK (kodla cekilir; alinti elle kopyalanmaz)"
 if ($Url) { $url = $Url.Trim() } else { $url = (Read-Host "  Kaynak sayfa adresi (https:// ile baslayan)").Trim() }
 if ($url -notmatch '^https?://') { Dur "Adres http:// veya https:// ile baslamali." }
 $ErrorActionPreference = "Continue"
-if ($Evet) { & $Py kaynak_cek.py $url --auto "--facts=$Facts" } else { & $Py kaynak_cek.py $url }
+if ($Evet) { & $Py kaynak_cek.py $url --auto "--select=$Sec" "--facts=$Facts" } else { & $Py kaynak_cek.py $url }
 $kcSonuc = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($kcSonuc -ne 0) { Dur "Kaynak cekilemedi (yukaridaki mesaja bak)." }
