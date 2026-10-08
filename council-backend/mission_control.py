@@ -277,6 +277,7 @@ def bugun_job(kind, receipt_name=""):
         bugun.gecmis_yaz({"olay": "uretim", "paket": paket, "receipt": receipt_name})
         jid = _run_job(["aura_engine.py", "--short-upload", "--source", paket, *rec], env=_bugun_env(), timeout=1500)
         _watch_ihlal(jid)
+        bugun.paket_kullanildi()  # bir paket = bir uretim (ayni konudan ikinci video cikmasin)
         return {"job": jid}
     if kind == "rapor":
         return {"job": _run_job(["explain_run.py"], env=_bugun_env(), timeout=120)}
@@ -2507,7 +2508,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(analiz.retention_kaydet(self._body().get("deger")))
         if u.path == "/api/bugun/paylas":
             b = self._body()
-            pk = _read_json(bugun._son_paket(), {}) if bugun._son_paket() else {}
+            pk = _read_json(bugun._son_paket(True), {}) if bugun._son_paket(True) else {}
             vids = bugun.bugun_durum()["videolar"]
             return self._json(bugun.paylasim_taslak(str(b.get("platform", "")), pk, vids[-1]["video_id"] if vids else ""))
         if u.path == "/api/bugun/paylastim":

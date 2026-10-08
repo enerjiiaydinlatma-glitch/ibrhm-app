@@ -62,13 +62,14 @@ HTML = "<html><head><title>Big Model</title></head><body>" + "".join(
 class KaynakTest(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
-        self._o = (bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE)
+        self._o = (bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE, bugun.AKTIF_YOL)
+        bugun.AKTIF_YOL = os.path.join(self.d, "aktif.json")
         bugun.ENGINE = self.d
         bugun.KAYNAK_ADAY_YOL = os.path.join(self.d, "kaynak_adaylar.json")
         bugun.GECMIS_YOL = os.path.join(self.d, "g.jsonl")
 
     def tearDown(self):
-        bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE = self._o
+        bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE, bugun.AKTIF_YOL = self._o
 
     def test_analiz_ve_paket(self):
         r = bugun.kaynak_analiz("https://example.com/p", html=HTML)
@@ -81,6 +82,21 @@ class KaynakTest(unittest.TestCase):
         self.assertEqual(pk["url"], "https://example.com/p")
         self.assertTrue(pk["evidence"])
         self.assertTrue(open(os.path.join(self.d, "kaynak_son.txt")).read().endswith(os.path.basename(p["paket"])))
+
+    def test_paket_yasam_dongusu_bir_paket_bir_uretim(self):
+        self.assertEqual(bugun._son_paket(), "")          # eski/baska paket kullanilmaz
+        r = bugun.kaynak_analiz("https://example.com/p", html=HTML)
+        p = bugun.kaynak_paketle(r["onerilen"][:3], [])
+        self.assertEqual(bugun._son_paket(), p["paket"])
+        bugun.paket_kullanildi()
+        self.assertEqual(bugun._son_paket(), "")           # ikinci uretim engellenir
+        self.assertEqual(bugun._son_paket(kullanilmis=True), p["paket"])  # Paylas adimi yine okuyabilir
+
+    def test_eski_kaynak_son_txt_yoksayilir(self):
+        eski = os.path.join(self.d, "kaynak_eski.json")
+        open(eski, "w").write("{}")
+        open(os.path.join(self.d, "kaynak_son.txt"), "w").write(eski)
+        self.assertEqual(bugun._son_paket(), "")
 
     def test_paket_adaysiz_hata(self):
         r = bugun.kaynak_paketle([1])
@@ -184,3 +200,52 @@ class HazirlikTest(unittest.TestCase):
             self.assertFalse(bugun.sayfa_hazirlik("https://x.com/a")["ok"])
         finally:
             bugun.kaynak_cek.fetch = o
+
+
+SAYFA_KIYAS = f"<html><title>Productive, Durable: How AI Factories Maximize Return</title><body>{FILL}" \
+              "<p>Productive, Durable: How AI Factories Maximize Return</p>" \
+              "<p>Our new platform delivers up to 10x faster inference than the previous generation on internal benchmarks.</p>" \
+              "<p>Independent third party evaluation is planned for a later date this year.</p>" \
+              "<p>The internal benchmark evaluation covers manufacturing and financial tasks only.</p>" \
+              "<p>Results on finance tasks exceed the previous version according to our evaluation.</p></body></html>"
+SAYFA_SADECE_BASLIK = f"<html><title>Advances Agentic, Open Source Robotics Development</title><body>{FILL}" \
+                      "<p>Advances Agentic, Open Source Robotics Development</p>" \
+                      "<p>Independent third party evaluation is planned for a later date this year.</p>" \
+                      "<p>The internal benchmark evaluation covers manufacturing and financial tasks only.</p>" \
+                      "<p>Results on finance tasks exceed the previous version according to our evaluation.</p></body></html>"
+
+
+class IddiaTespitTest(unittest.TestCase):
+    def test_sayi_kiyas_iddiasi(self):
+        h = bugun.sayfa_hazirlik("https://x.com/a", html=SAYFA_KIYAS)
+        self.assertTrue(h["ok"], h)
+        self.assertIn("10x faster", h["iddia"])
+        self.assertIn(h["iddia_anahtar"], h["iddia"].lower())
+
+    def test_baslik_iddia_sayilmaz(self):
+        h = bugun.sayfa_hazirlik("https://x.com/a", html=SAYFA_SADECE_BASLIK)
+        self.assertFalse(h["ok"], h)
+        self.assertNotIn("Open Source Robotics", h["iddia"])
+
+
+class GdeltTest(unittest.TestCase):
+    def test_429_yeniden_dener_sonra_yedek_sorgu(self):
+        import urllib.error
+        cagri = []
+        class R:
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s): return b'{"articles":[{"title":"x","url":"https://a.com"}]}'
+        def fake(req, timeout=0):
+            cagri.append(req.full_url)
+            if len(cagri) == 1:
+                raise urllib.error.HTTPError(req.full_url, 400, "bad", {}, None)
+            return R()
+        o = bugun.urllib.request.urlopen
+        try:
+            bugun.urllib.request.urlopen = fake
+            r = bugun.gdelt_cek()
+        finally:
+            bugun.urllib.request.urlopen = o
+        self.assertEqual(len(r), 1)
+        self.assertEqual(len(cagri), 2)   # ilk sorgu 400 -> yedek sorgu

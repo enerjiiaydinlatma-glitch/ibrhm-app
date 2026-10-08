@@ -13,6 +13,7 @@ import email.utils
 import json
 import os
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -24,6 +25,7 @@ import kaynak_cek
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
 ADAY_YOL = os.path.join(ENGINE, "gundem_adaylari.json")
+AKTIF_YOL = os.path.join(ENGINE, "bugun_aktif.json")
 KAYNAK_ADAY_YOL = os.path.join(ENGINE, "kaynak_adaylar.json")
 GECMIS_YOL = os.path.join(ENGINE, "bugun_gecmis.jsonl")
 
@@ -39,8 +41,8 @@ BIRINCIL = {"openai.com", "anthropic.com", "mistral.ai", "nvidia.com", "blogs.nv
 IDDIA = ["state-of-the-art", "outperform", "beats ", "best ", "fastest", "most powerful", "record", "open-source",
          "open source", "open-weight", "safest", "first ", "breakthrough", "surpass", "leading", "claims"]
 # PRIORITY (operator_rules.md): cikar catismasi / kendi odevini kendi notlayan
-CIKAR = ["own benchmark", "self-reported", "invests", "investment", "funds", "funding", "stake", "partnership",
-         "acquires", "acquisition", "revenue", "valuation", "circular", "its own", "internal", "evaluation"]
+CIKAR = ["own benchmark", "self-reported", "internal benchmark", "invests in", "funds ", "stake in", "acquires",
+         "circular", "its own", "grades its own", "self-assessed"]
 
 
 def _now():
@@ -132,14 +134,36 @@ def sirala(makaleler, now=None, ilk=15):
     return out[:ilk]
 
 
+GDELT_YEDEK = "artificial intelligence sourcelang:english"
+
+
 def gdelt_cek(max_records=60, timeout=25):
-    qs = urllib.parse.urlencode({"query": GDELT_QUERY, "mode": "ArtList", "maxrecords": str(max_records),
-                                 "format": "json", "sort": "DateDesc", "timespan": "24h"})
-    req = urllib.request.Request("https://api.gdeltproject.org/api/v2/doc/doc?" + qs,
-                                 headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = json.loads(r.read().decode("utf-8", errors="replace"))
-    return data.get("articles", [])
+    """429 (hiz siniri) -> 1 kez bekleyip tekrar; 400/uyumsuz sorgu -> yedek basit sorgu."""
+    import time as _t
+    son_hata = None
+    for q in (GDELT_QUERY, GDELT_YEDEK):
+        for deneme in range(2):
+            qs = urllib.parse.urlencode({"query": q, "mode": "ArtList", "maxrecords": str(max_records),
+                                         "format": "json", "sort": "DateDesc", "timespan": "24h"})
+            req = urllib.request.Request("https://api.gdeltproject.org/api/v2/doc/doc?" + qs, headers={"User-Agent": "Mozilla/5.0"})
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    txt = r.read().decode("utf-8", errors="replace")
+                try:
+                    return json.loads(txt).get("articles", [])
+                except ValueError:
+                    son_hata = RuntimeError("GDELT JSON degil: " + txt[:80].replace("\n", " "))
+                    break
+            except urllib.error.HTTPError as e:
+                son_hata = e
+                if e.code == 429 and deneme == 0:
+                    _t.sleep(6)
+                    continue
+                break
+            except Exception as e:
+                son_hata = e
+                break
+    raise son_hata or RuntimeError("GDELT cevap vermedi")
 
 
 # Sirketlerin KENDI yayin akislari (birincil kaynak: Receipt dogrudan bu sayfalardan kurulur).
@@ -223,7 +247,8 @@ def gundem_yenile():
         ham += g
         rapor.append(f"haber indeksi: {len(g)}")
     except Exception as e:
-        rapor.append(f"haber indeksi OKUNAMADI ({type(e).__name__})")
+        kod = getattr(e, "code", "")
+        rapor.append(f"haber indeksi OKUNAMADI ({type(e).__name__}{' ' + str(kod) if kod else ''}: {str(e)[:60]})")
     ok, kotu = 0, []
     for f in FEEDS:
         try:
@@ -303,6 +328,7 @@ def kaynak_paketle(secim, facts=None):
         json.dump(pk, f, ensure_ascii=True, indent=1)
     with open(os.path.join(ENGINE, "kaynak_son.txt"), "w", encoding="utf-8") as f:
         f.write(path)
+    aktif_yaz(path, False)
     uyarilar = [f"{k[0]}: {', '.join(k[1])}" for k in claim_lint.lint(pk["topic"])]
     gecmis_yaz({"olay": "paket", "url": v["url"], "baslik": v["title"], "kanit": len(pk["evidence"]),
                 "iddia": bool(pk["claim"]), "paket": path})
@@ -329,13 +355,36 @@ def bugun_durum(gun=None):
             "paket": _son_paket()}
 
 
-def _son_paket():
+def _aktif():
     try:
-        with open(os.path.join(ENGINE, "kaynak_son.txt"), encoding="utf-8") as f:
-            p = f.read().strip()
-        return p if os.path.exists(p) else ""
+        with open(AKTIF_YOL, encoding="utf-8") as f:
+            return json.load(f)
     except Exception:
+        return {}
+
+
+def aktif_yaz(paket, kullanildi=False):
+    os.makedirs(os.path.dirname(AKTIF_YOL), exist_ok=True)
+    with open(AKTIF_YOL, "w", encoding="utf-8") as f:
+        json.dump({"paket": paket, "kullanildi": kullanildi, "zaman": _now().isoformat(timespec="seconds")}, f)
+
+
+def _son_paket(kullanilmis=False):
+    """YALNIZ bu ekranda hazirlanan, henuz uretilmemis paket. Eski kaynak_son.txt (onceki gunlerin/CLI'nin paketi) KULLANILMAZ:
+    yoksa konu secmeden 'Uret'e basinca ayni video ikinci kez uretilirdi. kullanilmis=True: Paylas adimi icin son paketi de ver."""
+    a = _aktif()
+    p = a.get("paket", "")
+    if not p or not os.path.exists(p):
         return ""
+    if a.get("kullanildi") and not kullanilmis:
+        return ""
+    return p
+
+
+def paket_kullanildi():
+    a = _aktif()
+    if a.get("paket"):
+        aktif_yaz(a["paket"], True)
 
 
 def gecmis_yaz(kayit):
@@ -416,13 +465,30 @@ def paylasim_kaydet(platform, video_id):
 
 # ----------------------------------------------------------------------------- sayfa hazirlik (KODLA; Konsey'den once)
 IDDIA_ANAHTARLAR = ["state-of-the-art", "outperform", "best-in-class", "industry-leading", "most powerful", "fastest",
-                    "surpass", "open-source", "open source", "open-weight", "open weight", "breakthrough", "leading"]
+                    "surpass", "open-source", "open source", "open-weight", "open weight", "breakthrough", "leading",
+                    "maximize", "maximise", "lowest", "highest", "best ", "unmatched", "record", "world's first", "most efficient"]
+# sayi + kiyas: "up to 10x faster", "40% lower cost", "2x more efficient"
+KIYAS = re.compile(r"\b(?:up to |over |nearly |more than )?\d+(?:\.\d+)?\s?(?:x|×|%|percent|-fold)\s+(?:\w+\s+){0,2}"
+                   r"(?:faster|slower|lower|higher|better|cheaper|more|less|fewer|greater|improvement|reduction|increase)", re.I)
 MIN_KANIT = 3
 
 
+def _norm(t):
+    return re.sub(r"[^a-z0-9]+", " ", (t or "").lower()).strip()
+
+
+def _baslik_mi(cumle, baslik):
+    """Sayfanin kendi basligi/basligin tekrari iddia degildir."""
+    a, b = _norm(cumle), _norm(baslik)
+    if not a or not b:
+        return False
+    return a == b or a in b or (b in a and len(a) - len(b) < 25)
+
+
 def sayfa_hazirlik(url, html=None):
-    """Adayin sayfasini kodla oku: iddia cumlesi + kanit adaylari var mi? Konsey baslikla degil bunun sonucuyla karar verir.
-    Donus: {ok, iddia, iddia_anahtar, kanit, hata}. ok = iddia VAR ve kanit >= MIN_KANIT."""
+    """Adayin sayfasini kodla oku: GOVDEDE sirketin kendi iddiasi (baslik degil) + kanit adaylari var mi?
+    Donus: {ok, iddia, iddia_anahtar, kanit, hata}. ok = iddia VAR ve kanit >= MIN_KANIT.
+    iddia_anahtar: kaynak_cek'e verilecek alt-dize (o cumlede aynen gecer)."""
     try:
         if html is None:
             html = kaynak_cek.fetch(url)
@@ -432,14 +498,21 @@ def sayfa_hazirlik(url, html=None):
         return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": f"sayfa okunamadi ({type(e).__name__})"}
     if len(sents) < 15:
         return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": "sayfa metni cok kisa (JavaScript ile yukleniyor olabilir)"}
+    govde = [x for x in sents if len(x) >= 40 and not _baslik_mi(x, title)]
     iddia, anahtar = "", ""
-    for k in IDDIA_ANAHTARLAR:
-        c = next((x for x in sents if k in x.lower()), "")
-        if c:
-            iddia, anahtar = c, k
+    for x in govde:                              # once sayi+kiyas ("up to 10x faster"), sonra anahtar sozcuk
+        m = KIYAS.search(x)
+        if m:
+            iddia, anahtar = x, m.group(0).lower()
             break
-    kanit = sum(1 for x in sents if x != iddia and kaynak_cek.score(x, kaynak_cek.DEFAULT_KEYS)[0] > 0)
-    hata = "" if iddia else "sayfada sirketin kendi iddiasi (state-of-the-art, outperforms...) bulunamadi"
+    if not iddia:
+        for k in IDDIA_ANAHTARLAR:
+            c = next((x for x in govde if k in x.lower()), "")
+            if c:
+                iddia, anahtar = c, k
+                break
+    kanit = sum(1 for x in sents if x != iddia and not _baslik_mi(x, title) and kaynak_cek.score(x, kaynak_cek.DEFAULT_KEYS)[0] > 0)
+    hata = "" if iddia else "govdede sirketin kendi iddiasi (state-of-the-art, 10x faster, maximize...) bulunamadi"
     if iddia and kanit < MIN_KANIT:
         hata = f"kanit cumlesi yetersiz ({kanit})"
     return {"ok": bool(iddia) and kanit >= MIN_KANIT, "iddia": iddia[:300], "iddia_anahtar": anahtar, "kanit": kanit, "hata": hata}
