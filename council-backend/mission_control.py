@@ -61,6 +61,7 @@ import bugun  # noqa: E402
 import analiz  # noqa: E402
 import sutun  # noqa: E402
 import ogrenme  # noqa: E402
+import receipt_olustur  # noqa: E402
 import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
@@ -211,6 +212,36 @@ def _bugun_receipt_arg(name):
     if name not in bugun.receipt_listesi():
         return None, "Bilinmeyen receipt dosyasi."
     return ["--receipt", os.path.join("receipts", name)], ""
+
+
+def bugun_paket_ozet():
+    yol = bugun._son_paket()
+    if not yol:
+        return {"ok": False, "error": "Hazir paket yok: once kaynak sayfasini cekip 'Paketi hazirla'ya bas."}
+    pk = _read_json(yol, {})
+    return {"ok": True, "title": pk.get("title", ""), "url": pk.get("url", ""), "claim": pk.get("claim", ""),
+            "evidence": pk.get("evidence", []), "fetched_at": pk.get("fetched_at", "")}
+
+
+def bugun_receipt_olustur(b):
+    yol = bugun._son_paket()
+    if not yol:
+        return {"ok": False, "error": "Hazir paket yok."}
+    pk = _read_json(yol, {})
+    idx = [int(x) for x in (b.get("kanit") or []) if isinstance(x, int)][:3]
+    r, sorun = receipt_olustur.kur(pk, str(b.get("sirket", ""))[:60], str(b.get("urun", ""))[:60], str(b.get("tarih", ""))[:10],
+                                   str(b.get("hukum", "")), kanit_idx=idx, anahtar=str(b.get("anahtar", ""))[:60])
+    if r is None:
+        return {"ok": False, "sorunlar": sorun}
+    ad = receipt_olustur.yaz(r)
+    analiz.log({"olay": "receipt_olustur", "dosya": ad, "hukum": b.get("hukum")})
+    return {"ok": True, "ad": ad, "baslik": r["title"],
+            "satirlar": [{"etiket": x.get("label", ""), "metin": receipt_mod_spoken(x), "damga": x.get("stamp", "")} for x in r["beats"]]}
+
+
+def receipt_mod_spoken(beat):
+    import receipt as _r
+    return _r.spoken(beat)
 
 
 def bugun_durum_full():
@@ -974,6 +1005,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
   <h2>3 · Paket <span style="font-weight:normal;color:#8b949e;font-size:12px">(seçtiğin kanıt cümleleri; video yalnızca bunlara dayanır)</span></h2>
   <input id="bgFacts" placeholder="Grafikte gördüğün sayılar (isteğe bağlı, ; ile ayır)" style="width:100%;max-width:640px">
   <div style="margin-top:6px"><button class="act primary" onclick="bgPaket()">Paketi hazırla</button> <span id="bgPaketSt" style="font-size:12px;color:#8b949e"></span></div>
+  <div id="bgRcpBox" style="margin-top:10px"></div>
  </div>
  <div class="card wide">
   <h2>4 · Önizleme ve üretim <span style="font-weight:normal;color:#8b949e;font-size:12px">(üretim 2-4 dk; video ÖZEL yüklenir)</span></h2>
@@ -1722,8 +1754,28 @@ function bgTick(n, on){ if(on) _bgSel.add(n); else _bgSel.delete(n); }
 async function bgPaket(){
   const facts = $('#bgFacts').value.split(';').map(x=>x.trim()).filter(Boolean);
   const r = await api('/api/bugun/paket',{method:'POST',headers:JH,body:JSON.stringify({secim:[..._bgSel],facts})});
+  if(r.ok) bgRcpForm();
   $('#bgPaketSt').textContent = r.ok ? ('Hazır: '+r.kanit+' kanıt'+(r.iddia?'':' (iddia cümlesi yok)')+(r.uyarilar&&r.uyarilar.length?' · UYARI: '+r.uyarilar.join(' | '):'')) : 'HATA: '+r.error;
   bgLoad();
+}
+async function bgRcpForm(){
+  const p = await api('/api/bugun/paket'); const box = $('#bgRcpBox');
+  if(!p.ok){ box.innerHTML=''; return; }
+  const sirket = (p.title||'').split(/[ :|\-]/)[0]||'';
+  box.innerHTML = '<div style="border:1px solid #30363d;border-radius:8px;padding:10px"><b>Receipt\'i kur</b> <span style="font-size:12px;color:#8b949e">(kural tabanlı, model yazmaz: iddia + seçtiğin kanıtlar sayfadan birebir; hükmü SEN verirsin)</span>'
+    + '<div style="font-size:13px;margin:6px 0"><b>İddia:</b> '+bgEsc(p.claim||'(yok)')+'</div>'
+    + (p.evidence||[]).map((e,i)=>'<label style="display:block;font-size:13px"><input type="checkbox" class="bgRcpK" value="'+i+'" '+(i<3?'checked':'')+'> <b>Kanıt '+(i+1)+':</b> '+bgEsc(e.slice(0,240))+'</label>').join('')
+    + '<div style="margin-top:6px"><input id="bgRcpSirket" value="'+bgEsc(sirket)+'" placeholder="Şirket" style="width:130px"> <input id="bgRcpUrun" placeholder="Ürün" style="width:150px"> <input id="bgRcpTarih" value="'+bgEsc((p.fetched_at||'').slice(0,10))+'" placeholder="Sayfa tarihi YYYY-AA-GG" style="width:150px"></div>'
+    + '<div style="margin-top:6px">Hüküm: <select id="bgRcpHukum"><option value="">— seç —</option><option>SUPPORTED</option><option>PARTLY SUPPORTED</option><option>NOT SUPPORTED BY THE PAGE</option><option>NOT SHOWN ON THE PAGE</option></select> <span style="font-size:12px;color:#8b949e">SUPPORTED: sayfa iddiayı kanıtlıyor · PARTLY: iddiayı kendi sınırlıyor · NOT SHOWN: iddia var, ölçüm/koşul sayfada yok · NOT SUPPORTED: sayfa iddiayla çelişiyor</span></div>'
+    + '<button class="act primary" style="margin-top:6px" onclick="bgRcpKur()">Receipt\'i kur ve doğrula</button> <span id="bgRcpSt" style="font-size:12px;color:#8b949e"></span><div id="bgRcpOut"></div></div>';
+}
+async function bgRcpKur(){
+  const kanit=[...document.querySelectorAll('.bgRcpK:checked')].map(x=>parseInt(x.value));
+  const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, anahtar:window._bgClaimKey||''})});
+  if(!r.ok){ $('#bgRcpSt').textContent=''; $('#bgRcpOut').innerHTML='<div style="color:#f85149;margin-top:6px">Kurulamadı:<br>'+(r.sorunlar||[r.error]).map(bgEsc).join('<br>')+'</div>'; return; }
+  $('#bgRcpSt').textContent='Hazır: '+r.ad;
+  $('#bgRcpOut').innerHTML='<div style="margin-top:8px"><b>'+bgEsc(r.baslik)+'</b>'+r.satirlar.map(x=>'<div style="font-size:13px;margin:4px 0"><span style="color:#8b949e">'+bgEsc(x.etiket)+(x.damga?' · DAMGA: '+bgEsc(x.damga):'')+'</span><br>'+bgEsc(x.metin)+'</div>').join('')+'<div style="font-size:12px;color:#8b949e">Bu metin videoda aynen okunur. Uygunsa aşağıda "Üret"e bas; Receipt otomatik seçildi.</div></div>';
+  await bgLoad(); $('#bgReceipt').value = r.ad;
 }
 async function bgAdim(kind){
   const out = $('#bgOut'); out.textContent = 'başlıyor…';
@@ -2460,6 +2512,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bugun_durum_full())
         elif u.path == "/api/bugun/gundem":
             self._json(bugun.gundem_oku())
+        elif u.path == "/api/bugun/paket":
+            self._json(bugun_paket_ozet())
         elif u.path == "/api/bugun/analiz":
             self._json(analiz.son() or {"durum": "yok"})
         elif u.path == "/api/bugun/guven":
@@ -2588,6 +2642,8 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/bugun/kaynak":
             b = self._body()
             return self._json(bugun.kaynak_analiz(str(b.get("url", ""))[:600], str(b.get("claim_key") or "state-of-the-art")[:80]))
+        if u.path == "/api/bugun/receipt_olustur":
+            return self._json(bugun_receipt_olustur(self._body()))
         if u.path == "/api/bugun/paket":
             b = self._body()
             sec = [x for x in (b.get("secim") or []) if isinstance(x, int)][:12]
