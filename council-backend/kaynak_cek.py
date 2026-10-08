@@ -130,6 +130,7 @@ def main(argv=None):
     ap.add_argument("--keys", default="")
     ap.add_argument("--select", default="")
     ap.add_argument("--facts", default=None)
+    ap.add_argument("--auto", action="store_true", help="soru sorma: onerilen kanit adaylarini sec")
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if not a.url:
@@ -161,7 +162,9 @@ def main(argv=None):
     if not cands:
         print("  (aday yok)")
     rec = [n for n, (sc, i, s) in enumerate(cands[:6], 1)]
-    if a.select:
+    if a.auto:
+        chosen = rec
+    elif a.select:
         chosen = [int(x) for x in re.findall(r"\d+", a.select)]
     else:
         raw = input(f"\nKanit olacak numaralar (ornek 1,3,4 | Enter = onerilen {rec}): ").strip()

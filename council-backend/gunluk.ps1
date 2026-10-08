@@ -4,6 +4,11 @@
 # Her adim kontrol eder, hata varsa DURUR ve ne yapilacagini soyler. Kopyala-yapistir yok.
 # Video varsayilan olarak PRIVATE yuklenir; yayin sadece senin onayinla (YAYINLA yazarak).
 
+param(
+    [string]$Url = "",       # kaynak sayfa adresi (verilirse sorulmaz)
+    [string]$Facts = "",     # grafikte gordugun sayilar (opsiyonel; ; ile ayir)
+    [switch]$Evet            # Enter bekleyen "devam?" sorularini otomatik gec
+)
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 $Branch = "claude/beautiful-archimedes-almi2e"
@@ -12,7 +17,7 @@ function Adim($no, $baslik) { Write-Host ""; Write-Host "=== ADIM $no : $baslik 
 function Tamam($m) { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Uyari($m) { Write-Host "  [!]  $m" -ForegroundColor Yellow }
 function Dur($m) { Write-Host "  [HATA] $m" -ForegroundColor Red; Write-Host "  Bu ekrani (veya son satirlari) Claude'a yapistir." ; exit 1 }
-function Devam($m) { $x = Read-Host "  $m (Enter = devam, q = cik)"; if ($x -eq "q") { Write-Host "Cikildi."; exit 0 } }
+function Devam($m) { if ($Evet) { Write-Host "  (otomatik devam)"; return }; $x = Read-Host "  $m (Enter = devam, q = cik)"; if ($x -eq "q") { Write-Host "Cikildi."; exit 0 } }
 
 # --- python yolu (bat dosyalariyla ayni) ---
 $Py = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"
@@ -75,10 +80,10 @@ else {
 
 # ---------------------------------------------------------------- ADIM 6
 Adim 6 "KAYNAK (kodla cekilir; alinti elle kopyalanmaz)"
-$url = (Read-Host "  Kaynak sayfa adresi (ornek: https://mistral.ai/news/mistral-large-4/)").Trim()
+if ($Url) { $url = $Url.Trim() } else { $url = (Read-Host "  Kaynak sayfa adresi (https:// ile baslayan)").Trim() }
 if ($url -notmatch '^https?://') { Dur "Adres http:// veya https:// ile baslamali." }
 $ErrorActionPreference = "Continue"
-& $Py kaynak_cek.py $url
+if ($Evet) { & $Py kaynak_cek.py $url --auto "--facts=$Facts" } else { & $Py kaynak_cek.py $url }
 $kcSonuc = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($kcSonuc -ne 0) { Dur "Kaynak cekilemedi (yukaridaki mesaja bak)." }
