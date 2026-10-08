@@ -86,13 +86,24 @@ def cat_kisa_ara_dosyalar(base):
     return out
 
 
+MEDIA_EXT = {".mp4", ".mp3", ".wav", ".png", ".jpg", ".jpeg", ".webm", ".mkv", ".mov"}
+
+
 def cat_output_eski(base, days=14):
-    """output/ altinda 14 gunden eski her sey (eski Short mp4/json/png/mp3). Son 14 gun KALIR.
-    NOT: videolar YouTube'da; yine de silinmez, _arsiv'e tasinir."""
+    """output/ altinda 14 gunden eski MEDYA dosyalari (mp4/mp3/png...) ve output/shorts/ icindeki her sey.
+    output/ kokundeki bolum JSON/MD/TXT kayitlari (Konsey Arsivi, standings, hot-take kaynagi) ASLA aday olmaz.
+    Videolar YouTube'da; yine de silinmez, _arsiv'e tasinir."""
     d = os.path.join(base, "output")
     if not os.path.isdir(d):
         return []
-    return [p for p in _walk_files_all(d) if _age_days(p) > days]
+    shorts = os.path.join(d, "shorts") + os.sep
+    out = []
+    for p in _walk_files_all(d):
+        if _age_days(p) <= days:
+            continue
+        if p.startswith(shorts) or os.path.splitext(p)[1].lower() in MEDIA_EXT:
+            out.append(p)
+    return out
 
 
 def cat_motor_gunleri_eski(base, days=30):
@@ -304,6 +315,7 @@ def main(argv=None):
     ap.add_argument("--kategori", default="", help="virgullu: " + ",".join(CATEGORIES))
     ap.add_argument("--geri-al", default="")
     ap.add_argument("--hizli", action="store_true", help="testleri/ag kontrollerini atla")
+    ap.add_argument("--detay", action="store_true", help="adaylari alt klasor ve uzantiya gore dok")
     a = ap.parse_args(argv)
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -328,6 +340,22 @@ def main(argv=None):
         all_items += items
         print(f"  {k:<20} {len(items):>5} oge  {fmt_mb(sz):>10}   {CATEGORIES[k][0]}")
     print(f"  {'TOPLAM':<20} {len(all_items):>5} oge  {fmt_mb(total):>10}")
+    if a.detay and all_items:
+        from collections import defaultdict
+        by_dir, by_ext = defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
+        for p in all_items:
+            rel = os.path.relpath(p, HERE).replace("\\", "/").split("/")
+            key = "/".join(rel[:3]) if len(rel) > 3 else "/".join(rel[:-1]) or "."
+            sz = size_of(p)
+            by_dir[key][0] += 1; by_dir[key][1] += sz
+            e = os.path.splitext(p)[1].lower() or "(klasor)"
+            by_ext[e][0] += 1; by_ext[e][1] += sz
+        print("\n=== DETAY: klasore gore (ilk 15) ===")
+        for k, (n, sz) in sorted(by_dir.items(), key=lambda x: -x[1][1])[:15]:
+            print(f"  {k:<48} {n:>5} oge {fmt_mb(sz):>10}")
+        print("=== DETAY: uzantiya gore ===")
+        for k, (n, sz) in sorted(by_ext.items(), key=lambda x: -x[1][1])[:10]:
+            print(f"  {k:<12} {n:>5} oge {fmt_mb(sz):>10}")
     scratch = [p for p in glob.glob(os.path.join(HERE, "_*")) if os.path.isfile(p) and os.path.basename(p) not in PROTECTED_NAMES
                and not os.path.basename(p).startswith(("_daily_auto_", "_gunluk_"))]
     if scratch:

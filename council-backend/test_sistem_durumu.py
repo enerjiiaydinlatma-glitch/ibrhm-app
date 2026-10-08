@@ -31,9 +31,12 @@ class Temizlik(unittest.TestCase):
         mk(b, "output/shorts/topic/00.mp3")
         mk(b, "output/shorts/topic/final-video.mp4")
         mk(b, "output/shorts/hottake/eski-video.mp4", age_days=40)
+        mk(b, "output/bolum_5.json", age_days=40)
+        mk(b, "output/bolum_5.md", age_days=40)
+        mk(b, "output/bolum_5.mp4", age_days=40)
         # korunacaklar
         for rel in ("_engine/predictions.json", "_engine/mission_token.txt", "_engine/operator_rules.md", "youtube_token.json",
-                    ".voice_key", "REVIEW_MODE", "aura_engine.py", "daily_auto.bat", "receipts/r.json", "analysis/a.md",
+                    ".voice_key", "REVIEW_MODE", "aura_engine.py", "daily_auto.bat", "output/bolum_5.json", "output/bolum_5.md", "receipts/r.json", "analysis/a.md",
                     "_engine/kaynak_son.txt", "x.bak.py"):
             mk(b, rel, age_days=90)
         mk(b, "eski.bak", age_days=90)
@@ -45,7 +48,7 @@ class Temizlik(unittest.TestCase):
         n = self.names(sd.candidates(self.b))
         for beklenen in ("__pycache__/x.pyc", "assets/thumbnails/episode_old_A.png", "_daily_auto_20260801.log",
                          "_engine/kaynak_old.json", f"_engine/{self.eski}", "output/shorts/topic/00_frame_base.png",
-                         "output/shorts/topic/00.mp3", "eski.bak", "output/shorts/hottake/eski-video.mp4"):
+                         "output/shorts/topic/00.mp3", "eski.bak", "output/shorts/hottake/eski-video.mp4", "output/bolum_5.mp4"):
             self.assertIn(beklenen, n)
 
     def test_korunanlar_aday_degil(self):
