@@ -59,6 +59,7 @@ import maintenance  # noqa: E402
 import security  # noqa: E402
 import bugun  # noqa: E402
 import analiz  # noqa: E402
+import sutun  # noqa: E402
 import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
@@ -236,18 +237,25 @@ def _council_debate(briefing, plan):
     return [{"speaker": t["speaker"], "name": PERSONAS[t["speaker"]]["display_name"], "text": t["text"]} for t in transcript]
 
 
-def _watch_ihlal(jid):
-    """Uretim ciktisinda motorun engel mesaji varsa 'ihlal' olarak kaydet (guven olcutu icin)."""
+def _watch_ihlal(jid, sutun_ad="", onceki=None):
+    """Uretim bitince: (1) yeni video(lar)i sutuna bagla (olcum icin), (2) motor engel mesajiysa 'ihlal' kaydet (guven olcutu)."""
     def _go():
         while _JOBS.get(jid, {}).get("status") == "running":
             time.sleep(2)
+        try:
+            yeni = {v.get("video_id") for v in bugun.bugun_durum()["videolar"]} - set(onceki or [])
+            for vid_ in yeni:
+                if vid_ and sutun_ad:
+                    sutun.kaydet(vid_, sutun_ad)
+        except Exception:
+            pass
         out = _JOBS.get(jid, {}).get("out", "")
         if "ENGELLEYICI ISARET" in out or "KAYNAKTA OLMAYAN ICERIK" in out:
             analiz.log({"olay": "ihlal", "job": jid})
     threading.Thread(target=_go, daemon=True).start()
 
 
-def bugun_analiz_baslat():
+def bugun_analiz_baslat(sutun_ad=None):
     def _is():
         def _rapor():
             try:
@@ -255,15 +263,19 @@ def bugun_analiz_baslat():
             except Exception:
                 return None
         return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor(),
-                               hazirlik=bugun.sayfa_hazirlik)
+                               hazirlik=bugun.sayfa_hazirlik, sutun=sutun_ad or None)
     return {"job": _run_py_job(_is)}
 
 
-def bugun_job(kind, receipt_name=""):
-    paket = bugun._son_paket()
-    if kind in ("plan", "uret") and not paket:
+def bugun_job(kind, receipt_name="", sutun_ad="receipt"):
+    sutun_ad = sutun_ad if sutun_ad in sutun.SUTUNLAR else "receipt"
+    sd = sutun.SUTUNLAR[sutun_ad]
+    paket = bugun._son_paket() if sd["kaynak"] else ""
+    if kind == "plan" and not sd["kaynak"]:
+        return {"error": "Bu sutunda plan onizlemesi yok: konuyu motor kendi secer (ikilem havuzu / Aura toplantisi). Uretim OZEL yuklenir, yayin kararini sen verirsin."}
+    if kind in ("plan", "uret") and sd["kaynak"] and not paket:
         return {"error": "Once kaynak paketini hazirla (Adim 3)."}
-    rec, err = _bugun_receipt_arg(receipt_name)
+    rec, err = _bugun_receipt_arg(receipt_name if sd["kaynak"] else "")
     if rec is None:
         return {"error": err}
     if kind == "plan":
@@ -274,10 +286,13 @@ def bugun_job(kind, receipt_name=""):
             return {"error": f"Bugun {info['count']}/{daily_limit.MAX_DAILY} video var - gunluk sinir doldu."}
         if not (voice_health() or {}).get("model_loaded"):
             return {"error": "Ses sunucusu hazir degil. Bakim sekmesinden baslat, YESIL 'CALISIYOR' gorunce tekrar dene."}
-        bugun.gecmis_yaz({"olay": "uretim", "paket": paket, "receipt": receipt_name})
-        jid = _run_job(["aura_engine.py", "--short-upload", "--source", paket, *rec], env=_bugun_env(), timeout=1500)
-        _watch_ihlal(jid)
-        bugun.paket_kullanildi()  # bir paket = bir uretim (ayni konudan ikinci video cikmasin)
+        bugun.gecmis_yaz({"olay": "uretim", "sutun": sutun_ad, "paket": paket, "receipt": receipt_name})
+        onceki = [v.get("video_id") for v in bugun.bugun_durum()["videolar"]]
+        args = ["aura_engine.py", "--short-upload", "--source", paket, *rec] if sd["kaynak"] else ["aura_engine.py", "--short-upload", *sd["bayrak"]]
+        jid = _run_job(args, env=_bugun_env(), timeout=1500)
+        _watch_ihlal(jid, sutun_ad, onceki)
+        if sd["kaynak"]:
+            bugun.paket_kullanildi()  # bir paket = bir uretim (ayni konudan ikinci video cikmasin)
         return {"job": jid}
     if kind == "rapor":
         return {"job": _run_job(["explain_run.py"], env=_bugun_env(), timeout=120)}
@@ -952,6 +967,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
  </div>
  <div class="card wide">
   <h2>4 · Önizleme ve üretim <span style="font-weight:normal;color:#8b949e;font-size:12px">(üretim 2-4 dk; video ÖZEL yüklenir)</span></h2>
+  <div id="bgSutunEtiket" style="color:#58a6ff;font-size:13px;margin-bottom:4px">Seçili sütun: receipt</div>
   <div>Receipt (varsa): <select id="bgReceipt"><option value="">(yok — sayfadan otomatik)</option></select></div>
   <div style="margin-top:6px">
    <button class="act" onclick="bgAdim('plan')">Planı göster (yüklemez)</button>
@@ -1663,6 +1679,14 @@ function bgAdayCiz(g){
   $('#bgAdaylar').innerHTML = a.length ? a.map((x,i)=>'<div class="row" style="display:block;border-bottom:1px solid #21262d;padding:6px 0"><b>'+x.puan+'</b> '+bgEsc(x.title)+'<div style="font-size:12px;color:#8b949e">'+bgEsc(x.alan)+' · '+x.haber_sayisi+' haber '+(x.etiketler||[]).map(e=>'<span class="pill ok">'+bgEsc(e)+'</span>').join(' ')+(x.engel?' <span class="pill bad">'+bgEsc(x.engel)+'</span>':'')+'</div>'+(x.engel?'':'<button class="act" style="margin-top:3px" onclick="bgSec('+i+')">Seç</button>')+'</div>').join('') : '<span style="color:#8b949e">Aday yok. «Gündemi yenile»ye bas.</span>';
   window._bgAday = a;
 }
+async function bgSutun(s){
+  if(s==='receipt'){ window._bgSutun='receipt'; return bgAnaliz('receipt'); }
+  const r = await api('/api/bugun/sutun_onay',{method:'POST',headers:JH,body:JSON.stringify({sutun:s})});
+  if(!r.ok){ $('#bgAnalizSt').textContent='HATA: '+r.error; return; }
+  window._bgSutun = s; bgAnalizPoll(); bgGuven(); bgSutunEtiket();
+  $('#bgOut').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function bgSutunEtiket(){ const e=$('#bgSutunEtiket'); if(e) e.textContent = 'Seçili sütun: '+(window._bgSutun||'receipt'); }
 function bgSec(i){ $('#bgUrl').value = window._bgAday[i].url; bgKaynak(); }
 async function bgGundem(){
   $('#bgGundemSt').textContent = 'çekiliyor…';
@@ -1688,7 +1712,7 @@ async function bgPaket(){
 }
 async function bgAdim(kind){
   const out = $('#bgOut'); out.textContent = 'başlıyor…';
-  const r = await api('/api/bugun/'+kind,{method:'POST',headers:JH,body:JSON.stringify({receipt:$('#bgReceipt').value})});
+  const r = await api('/api/bugun/'+kind,{method:'POST',headers:JH,body:JSON.stringify({receipt:$('#bgReceipt').value, sutun: window._bgSutun||'receipt'})});
   if(r.error){ out.textContent = 'HATA: '+r.error; return; }
   await bgJob(r.job, out); bgLoad();
 }
@@ -1702,9 +1726,9 @@ async function bgYayinla(){
   await bgJob(r.job, $('#bgYayinSt')); $('#bgOnay').value=''; bgLoad();
 }
 var _bgAnalizTimer = null;
-async function bgAnaliz(){
+async function bgAnaliz(sutun){
   $('#bgAnalizSt').textContent = 'başlıyor…';
-  const r = await api('/api/bugun/analiz',{method:'POST'});
+  const r = await api('/api/bugun/analiz',{method:'POST',headers:JH,body:JSON.stringify({sutun: (typeof sutun==='string'?sutun:'')})});
   if(r.error){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
   bgAnalizPoll();
 }
@@ -1715,13 +1739,23 @@ async function bgAnalizPoll(){
   if(d.durum==='calisiyor') _bgAnalizTimer = setTimeout(bgAnalizPoll, 3000);
 }
 function bgAnalizCiz(d){
-  const AD = {konu:'1/5 Konular analiz ediliyor…', sayfa:'2/5 Aday sayfaları okunuyor (iddia ve kanıt var mı)…', veri:'3/5 Kanal verisi analiz ediliyor…', tartisma:'4/5 Konsey tartışıyor…', bitti:'Bitti'};
+  const AD = {veri:'1/5 Kanal verisi ve sütun sonuçları analiz ediliyor…', konu:'2/5 Haber adayları taranıyor…', sayfa:'3/5 Aday sayfaları okunuyor (iddia ve kanıt var mı)…', tartisma:'4/5 Konsey tartışıyor…', bitti:'Bitti'};
   $('#bgAnalizSt').textContent = d.durum==='calisiyor' ? (AD[d.adim]||'çalışıyor…') : (d.durum==='yok'?'':'');
   { const n=new Date(), yy=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); if(d.basladi && d.basladi.slice(0,10)!==yy) $('#bgAnalizSt').textContent = '(son analiz '+d.basladi.slice(0,10)+' tarihli, bugün için yeniden başlat)'; }
-  const box = $('#bgAnalizBox'); if(!d.adaylar && d.durum!=='aday_yok'){ box.innerHTML=''; return; }
+  const box = $('#bgAnalizBox'); if(!d.adaylar && d.durum!=='aday_yok' && !d.sutunlar){ box.innerHTML=''; return; }
   const k = d.karar||{}, ad = d.adaylar||[];
   const bul = id => ad.find(a=>a.id===id);
-  let h = d.gundem_mesaj ? '<div style="font-size:12px;color:#8b949e;margin-bottom:6px">Kaynak taraması: '+bgEsc(d.gundem_mesaj)+'</div>' : '';
+  let h = '';
+  if(d.sutunlar){
+    const o = d.sutun_oneri||{}, SN = {}; d.sutunlar.forEach(r=>SN[r.sutun]=r);
+    h += '<div style="border:1px solid #30363d;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">SÜTUN ÖNERİSİ ('+bgEsc(o.mod||'')+')</div>'
+      + '<div style="font-size:16px;margin:4px 0"><b>'+bgEsc((SN[o.sutun]||{}).ad||o.sutun)+'</b></div><div>'+bgEsc(o.neden||'')+'</div>'
+      + '<table style="width:100%;font-size:13px;margin-top:8px;border-collapse:collapse"><tr style="color:#8b949e;text-align:left"><th>Sütun</th><th>Deneme</th><th>Ort. izlenme</th><th>Ort. yorum</th><th></th></tr>'
+      + d.sutunlar.filter(r=>r.aktif||r.deneme).map(r=>'<tr><td>'+bgEsc(r.ad)+(r.aktif?'':' <span style="color:#8b949e">(bugün kapalı)</span>')+'</td><td>'+r.deneme+'</td><td>'+(r.ort_izlenme==null?'-':r.ort_izlenme)+'</td><td>'+(r.ort_yorum==null?'-':r.ort_yorum)+'</td><td>'+(r.aktif&&r.sutun!=='diger'?'<button class="act'+(r.sutun===o.sutun?' primary':'')+'" onclick="bgSutun(\''+r.sutun+'\')">'+(r.sutun==='receipt'?'Receipt adaylarını analiz et':'Bu sütunla devam')+'</button>':'')+'</td></tr>').join('')
+      + '</table><div style="font-size:12px;color:#8b949e;margin-top:6px">Her sütun en az 3 kez denenmeden elenmez; örnek az olduğu için bu sonuçlar yön gösterir, kanıt değildir.</div>'
+      + (d.sutun_onay?'<div style="margin-top:6px;color:#3fb950">Seçilen sütun: '+bgEsc((SN[d.sutun_onay.secim]||{}).ad||d.sutun_onay.secim)+(d.sutun_onay.degisti?' (öneriden farklı)':'')+'. Aşağıdan 4 · Üret\'e bas.</div>':'')+'</div>';
+  }
+  h += d.gundem_mesaj ? '<div style="font-size:12px;color:#8b949e;margin-bottom:6px">Kaynak taraması: '+bgEsc(d.gundem_mesaj)+'</div>' : '';
   if(d.durum==='aday_yok') h += '<div style="margin-bottom:6px"><b>Bugün için uygun aday bulunamadı</b> (sayfasında şirketin kendi iddiası ve yeterli kanıt olan haber çıkmadı). Gündemi biraz sonra yenile ya da aşağıya kendi adresini yapıştır.</div>';
   if(k.secim && bul(k.secim)){
     const a = bul(k.secim);
@@ -1744,7 +1778,7 @@ function bgAnalizCiz(d){
 async function bgOnay(id){
   const r = await api('/api/bugun/onay',{method:'POST',headers:JH,body:JSON.stringify({secim:id})});
   if(!r.ok){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
-  $('#bgUrl').value = r.url; window._bgClaimKey = r.iddia_anahtar||''; bgAnalizPoll(); bgGuven(); bgKaynak();
+  window._bgSutun='receipt'; bgSutunEtiket(); $('#bgUrl').value = r.url; window._bgClaimKey = r.iddia_anahtar||''; bgAnalizPoll(); bgGuven(); bgKaynak();
   $('#bgUrl').scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function bgRed(){ await api('/api/bugun/red',{method:'POST'}); bgAnaliz(); }
@@ -2499,7 +2533,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/bugun/gundem":
             return self._json({"job": _run_py_job(bugun.gundem_yenile)})
         if u.path == "/api/bugun/analiz":
-            return self._json(bugun_analiz_baslat())
+            return self._json(bugun_analiz_baslat(str(self._body().get("sutun") or "")[:20]))
+        if u.path == "/api/bugun/sutun_onay":
+            return self._json(analiz.sutun_onayla(str(self._body().get("sutun", ""))[:20]))
         if u.path == "/api/bugun/onay":
             return self._json(analiz.onayla(str(self._body().get("secim", ""))[:8]))
         if u.path == "/api/bugun/red":
@@ -2525,12 +2561,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(bugun.kaynak_paketle(sec, facts))
         if u.path in ("/api/bugun/plan", "/api/bugun/rapor"):
             b = self._body()
-            return self._json(bugun_job(u.path.rsplit("/", 1)[-1], str(b.get("receipt") or "")))
+            return self._json(bugun_job(u.path.rsplit("/", 1)[-1], str(b.get("receipt") or ""), str(b.get("sutun") or "receipt")))
         if u.path == "/api/bugun/uret":
             if not self._sens():
                 return
             b = self._body()
-            return self._json(bugun_job("uret", str(b.get("receipt") or "")))
+            return self._json(bugun_job("uret", str(b.get("receipt") or ""), str(b.get("sutun") or "receipt")))
         if u.path == "/api/bugun/yayinla":
             if not self._sens():
                 return

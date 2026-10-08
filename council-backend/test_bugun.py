@@ -24,7 +24,7 @@ class PuanTest(unittest.TestCase):
 
     def test_cikar_catismasi_etiketi(self):
         a = bugun.puanla(art("Nvidia funds startup that buys its chips", "https://example.com/a"), NOW)
-        self.assertIn("cikar catismasi (PRIORITY)", a["etiketler"])
+        self.assertIn("cikar catismasi (bonus)", a["etiketler"])
 
     def test_riskli_baslik_engellenir(self):
         a = bugun.puanla(art("OpenAI secretly hid the data in a cover-up", "https://openai.com/a"), NOW)

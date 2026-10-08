@@ -78,7 +78,7 @@ class AkisGuvenTest(unittest.TestCase):
     def _calistir(self, tr_text):
         return analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY},
                                lambda b, p: [{"speaker": "aura", "text": tr_text}],
-                               kanal={"ok": True, "abone": 26, "videolar": VID})
+                               kanal={"ok": True, "abone": 26, "videolar": VID}, sutun="receipt")
 
     def test_akis_ve_onay(self):
         self._calistir('{"secim":"A2","gerekce":"g"}')
@@ -91,7 +91,7 @@ class AkisGuvenTest(unittest.TestCase):
         self.assertFalse(analiz.onayla("A9")["ok"])
 
     def test_aday_yok(self):
-        r = analiz.calistir(lambda: "x", lambda: {"adaylar": []}, lambda b, p: [], kanal={"ok": True, "videolar": []})
+        r = analiz.calistir(lambda: "x", lambda: {"adaylar": []}, lambda b, p: [], kanal={"ok": True, "videolar": []}, sutun="receipt")
         self.assertIn("bulunamadi", r)
 
     def test_guven(self):
@@ -136,7 +136,7 @@ class SayfaElemeTest(unittest.TestCase):
         def tartis(b, p):
             goruldu["brif"] = b
             return [{"speaker": "aura", "text": '{"secim":"A1","gerekce":"g"}'}]
-        analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY}, tartis, kanal={"ok": True, "videolar": []}, hazirlik=self._hz)
+        analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY}, tartis, kanal={"ok": True, "videolar": []}, hazirlik=self._hz, sutun="receipt")
         s = analiz.son()
         self.assertEqual([a["id"] for a in s["adaylar"]], ["A1"])
         self.assertEqual(s["adaylar"][0]["alan"], "mistral.ai")
@@ -148,7 +148,7 @@ class SayfaElemeTest(unittest.TestCase):
     def test_hepsi_elenirse_aday_yok_konsey_calismaz(self):
         cagri = []
         r = analiz.calistir(lambda: "ok", lambda: {"adaylar": [ADAY[2]]}, lambda b, p: cagri.append(1) or [],
-                            kanal={"ok": True, "videolar": []}, hazirlik=self._hz)
+                            kanal={"ok": True, "videolar": []}, hazirlik=self._hz, sutun="receipt")
         self.assertIn("bulunamadi", r)
         self.assertEqual(cagri, [])
         self.assertEqual(analiz.son()["durum"], "aday_yok")

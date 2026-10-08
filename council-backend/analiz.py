@@ -15,6 +15,8 @@ import os
 import re
 import statistics
 
+import sutun as sutun_mod
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
 SON_YOL = os.path.join(ENGINE, "analiz_son.json")
@@ -123,19 +125,20 @@ def brifing(adaylar, veri):
     return ("GUNUN ANALIZI. Kanal: Sign Council (YouTube Shorts, Ingilizce anlatim, 'Receipt' formati: tek iddia, tek birincil belge, "
             "dogrudan alintilar, hukum damgasi). Hedef: abone ve izlemeye devam oranini artirmak. "
             "ONEMLI: 'SAYFADA IDDIA' alani sayfanin KODLA okunmus gercek cumlesidir; gerekceni yalnizca bu cumleye ve verilere dayandir, "
-            "basliktan tahmin yurutme. KURALLAR: yalnizca asagidaki adaylar arasindan sec; aday disinda konu, rakam veya baglanti UYDURMA; niyet atfi/suc dili yok; "
-            "kendi odevini kendi notlayan sirket iddialari (cikar catismasi) oncelikli.\n\n"
+            "basliktan tahmin yurutme. KURALLAR: yalnizca asagidaki adaylar arasindan sec; aday disinda konu, rakam veya baglanti UYDURMA; niyet atfi/suc dili yok. "
+            "Oncelik: IZLEYICI ILGISI ve belgeyle sinanabilirlik. Sirketin kendi iddiasini kendi olcutuyle notlamasi (cikar catismasi) "
+            "yalnizca kucuk bir BONUSTUR, secimin ana nedeni olamaz.\n\n"
             "ADAYLAR:\n" + "\n".join(satir) + "\n\nKANAL VERISI (ozet; ornek az, kesin hukum verme):\n" +
             json.dumps(veri, ensure_ascii=False)[:3500])
 
 
 TUR_PLANI = [
-    {"speaker": "alpha", "directive": "Kanal verisine (baslik sablonlari, saatler, egilim) ve aday puanlarina bak; hangi 2 aday kanalin tutan kalibina en yakin? "
+    {"speaker": "alpha", "directive": "Kanal verisine (sutun sonuclari, baslik sablonlari, saatler, egilim) ve aday puanlarina bak; hangi 2 aday izleyicinin en cok ilgisini cekecek kalibina en yakin? "
      "Yalnizca brifingdeki sayilari kullan, yeni rakam uydurma. Verinin az oldugunu unutma. 3-5 cumle."},
     {"speaker": "beta", "directive": "Adaylari ELE: hangisi hukuki/itibar riski tasiyor (niyet atfi, suc dili, kaynaksiz rakam), hangisinin kaynagi zayif? "
      "Her elediginin kimligini (A1...) yaz. 3-5 cumle."},
-    {"speaker": "gamma", "directive": "Izleyiciyi yaniltma ve cikar catismasi acisindan: hangi aday 'sirket kendi odevini kendi notluyor' kalibina gercekten uyuyor "
-     "ve belgeyle sinanabilir? 3-5 cumle."},
+    {"speaker": "gamma", "directive": "Izleyici acisindan: hangi aday sade bir dille anlatilabilir, merak uyandirir ve belgeyle sinanabilir? Yaniltma riski var mi? "
+     "(Cikar catismasi varsa yalnizca ek bonus.) 3-5 cumle."},
     {"speaker": "delta", "directive": "Uc gorusun ortak noktasini bul ve adaylari 1-3 sirala (kimlikleriyle). 3-4 cumle."},
     {"speaker": "aura", "directive": "KARAR ver. Cevabin YALNIZCA su JSON olsun, baska hicbir sey yazma: "
      '{"secim":"A?","alternatif":["A?","A?"],"gerekce":"2 cumle Turkce, veriye dayali","aci":"videonun 1 cumlelik nesnel acisi"} '
@@ -203,10 +206,26 @@ def sayfalari_kontrol(adaylar, hazirlik, en_fazla=6):
     return [{**a, "id": f"A{i}"} for i, a in enumerate(uygun, 1)], elenen
 
 
-def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik=None):
+def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik=None, sutun=None):
     """gundem_yenile()/gundem_oku(): bugun.py; tartis(brifing, plan)->transcript: Mission Control'un Konsey calistiricisi.
     hazirlik(url): sayfa kodla okunur (bugun.sayfa_hazirlik); iddia/kanit yoksa aday Konsey'e HIC gitmez."""
-    d = {"basladi": datetime.datetime.now().isoformat(timespec="seconds"), "adim": "konu", "durum": "calisiyor"}
+    d = {"basladi": datetime.datetime.now().isoformat(timespec="seconds"), "adim": "veri", "durum": "calisiyor"}
+    _yaz(d)
+    # 1) kanal verisi + SUTUN karari (hizli; haber taramasi yalniz receipt sutununda yapilir)
+    kv = kanal if kanal is not None else kanal_videolari()
+    d["veri"] = veri_ozeti(kv, rapor)
+    tablo = sutun_mod.istatistik(kv.get("videolar", []))
+    d["sutunlar"] = sutun_mod.satirlar(tablo)
+    d["sutun_oneri"] = sutun_mod.oner(tablo)
+    d["sutun"] = sutun or d["sutun_oneri"]["sutun"]
+    d["veri"]["sutun_sonuclari"] = [{k: r[k] for k in ("ad", "deneme", "ort_izlenme", "ort_yorum")} for r in d["sutunlar"] if r["deneme"]]
+    if d["sutun"] != "receipt":
+        d.update(adim="bitti", durum="sutun_hazir", bitti=datetime.datetime.now().isoformat(timespec="seconds"))
+        _yaz(d)
+        log({"olay": "oneri", "secim": d["sutun"], "tur": "sutun", "kaynak": d["sutun_oneri"]["mod"]})
+        return f"Sutun onerisi: {sutun_mod.SUTUNLAR[d['sutun']]['ad']} ({d['sutun_oneri']['mod']})"
+    # 2) receipt sutunu: haber adaylari -> sayfa kontrolu -> Konsey
+    d["adim"] = "konu"
     _yaz(d)
     d["gundem_mesaj"] = gundem_yenile()
     adaylar = aday_kimlikleri(gundem_oku().get("adaylar", []))
@@ -215,9 +234,6 @@ def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik
         _yaz(d)
         adaylar, d["elenen"] = sayfalari_kontrol(adaylar, hazirlik)
     d["adaylar"] = adaylar
-    d["adim"] = "veri"
-    _yaz(d)
-    d["veri"] = veri_ozeti(kanal, rapor)
     if not adaylar:
         d.update(adim="bitti", durum="aday_yok", karar=karar_ver([], []), veri=d["veri"])
         _yaz(d)
@@ -235,6 +251,18 @@ def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik
     _yaz(d)
     log({"olay": "oneri", "secim": d["karar"]["secim"], "kaynak": d["karar"]["kaynak"]})
     return f"Konu onerisi hazir: {d['karar']['secim']} ({d['karar']['kaynak']})"
+
+
+def sutun_onayla(secim):
+    """Operator sutunu onayladi. Onerilenden farkliysa 'degisti' (guven olcutu)."""
+    if secim not in sutun_mod.SUTUNLAR:
+        return {"ok": False, "error": "Bilinmeyen sutun."}
+    d = son() or {}
+    ilk = (d.get("sutun_oneri") or {}).get("sutun")
+    log({"olay": "onay", "secim": secim, "tur": "sutun", "degisti": secim != ilk})
+    d["sutun_onay"] = {"secim": secim, "degisti": secim != ilk}
+    _yaz(d)
+    return {"ok": True, "sutun": secim}
 
 
 def aday_bul(secim):

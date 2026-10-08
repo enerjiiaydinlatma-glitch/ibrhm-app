@@ -40,7 +40,7 @@ BIRINCIL = {"openai.com", "anthropic.com", "mistral.ai", "nvidia.com", "blogs.nv
 # Receipt'e uyan iddia kaliplari (sirketin kendi iddiasi)
 IDDIA = ["state-of-the-art", "outperform", "beats ", "best ", "fastest", "most powerful", "record", "open-source",
          "open source", "open-weight", "safest", "first ", "breakthrough", "surpass", "leading", "claims"]
-# PRIORITY (operator_rules.md): cikar catismasi / kendi odevini kendi notlayan
+# Cikar catismasi / kendi odevini kendi notlayan: yalniz kucuk BONUS (operator karari 8 Ekim 2026; once birincil kriterdi)
 CIKAR = ["own benchmark", "self-reported", "internal benchmark", "invests in", "funds ", "stake in", "acquires",
          "circular", "its own", "grades its own", "self-assessed"]
 
@@ -87,8 +87,8 @@ def puanla(makale, now=None):
         et.append("iddia: " + iddialar[0].strip())
     cikar = [k for k in CIKAR if k in low]
     if cikar:
-        puan += 3
-        et.append("cikar catismasi (PRIORITY)")
+        puan += 1                       # 8 Ekim 2026 operator karari: PRIORITY birincil kriter degil, yalniz BONUS
+        et.append("cikar catismasi (bonus)")
     yas = _yas_saat(makale.get("seendate", ""), now)
     if yas is not None:
         if yas < 6:
