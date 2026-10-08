@@ -38,15 +38,19 @@ def upload_video(file_path, title, description, tags=None, privacy_status="priva
         },
     }
 
-    media = MediaFileUpload(file_path, chunksize=-1, resumable=True, mimetype="video/mp4")
-    request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+    def _yukle():
+        # her denemede YENI oturum (410 'Gone' = eski resumable oturum gecersiz)
+        media = MediaFileUpload(file_path, chunksize=-1, resumable=True, mimetype="video/mp4")
+        request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                print(f"Yukleniyor: %{int(status.progress() * 100)}")
+        return response
 
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            print(f"Yukleniyor: %{int(status.progress() * 100)}")
-
+    from yukleme_dene import dene
+    response = dene(_yukle)
     video_id = response["id"]
     print(f"Yuklendi (privacyStatus={privacy_status}): https://youtu.be/{video_id}")
     print("Bu video henuz HERKESE ACIK DEGIL - yayinlamak icin: "

@@ -227,7 +227,11 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
 
     # 2) A/B kapaklar
     from make_episode_assets import build_ab
-    ab = None if _receipt else _step("3 A/B baslik+thumbnail paketi", lambda: build_ab(topic))
+    # KAYNAKLI calismada (--source / --receipt) A/B paketleri ATLANIR: model kaynakta olmayan rakam/suclayici baslik uretebiliyor
+    # (8 Ekim 2026: "12 frames per second", "90% tracking error") ve source_check bu adimi denetlemiyor.
+    ab = None if (_receipt or _source is not None) else _step("3 A/B baslik+thumbnail paketi", lambda: build_ab(topic))
+    if _source is not None and not _receipt:
+        print("  [kaynak] A/B baslik/thumbnail paketleri ATLANDI (kaynak denetimi yok).")
     result["steps"]["ab_packages"] = ab
 
     # 3) ~100s Short
@@ -453,7 +457,10 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
                 route_to_playlist(short["video_id"])
                 return "arc listesine eklendi"
             _step("Oynatma listesine yonlendirme", _route)
-        if not gate.get("sensitive"):
+        if _source is not None:
+            print("  [kaynak] Community/Reddit taslaklari ATLANDI (model yazisi kaynak denetiminden gecmedi); "
+                  "Mission Control > Bugun > 6 Paylas kural tabanli taslak uretir.")
+        elif not gate.get("sensitive"):
             def _drafts():
                 from distribution_agent import generate_share_pack, ledger_receipt_draft
                 m = dict(short)

@@ -269,7 +269,7 @@ def _council_debate(briefing, plan):
     return [{"speaker": t["speaker"], "name": PERSONAS[t["speaker"]]["display_name"], "text": t["text"]} for t in transcript]
 
 
-def _watch_ihlal(jid, sutun_ad="", onceki=None):
+def _watch_ihlal(jid, sutun_ad="", onceki=None, paket=""):
     """Uretim bitince: (1) yeni video(lar)i sutuna bagla (olcum icin), (2) motor engel mesajiysa 'ihlal' kaydet (guven olcutu)."""
     def _go():
         while _JOBS.get(jid, {}).get("status") == "running":
@@ -279,6 +279,8 @@ def _watch_ihlal(jid, sutun_ad="", onceki=None):
             for vid_ in yeni:
                 if vid_ and sutun_ad:
                     sutun.kaydet(vid_, sutun_ad)
+            if paket and not yeni:                 # video yuklenmedi (ag/yukleme hatasi): paketi geri ac, ayni paketle yeniden denenebilsin
+                bugun.aktif_yaz(paket, False)
         except Exception:
             pass
         out = _JOBS.get(jid, {}).get("out", "")
@@ -331,7 +333,7 @@ def bugun_job(kind, receipt_name="", sutun_ad="receipt"):
         onceki = [v.get("video_id") for v in bugun.bugun_durum()["videolar"]]
         args = ["aura_engine.py", "--short-upload", "--source", paket, *rec] if sd["kaynak"] else ["aura_engine.py", "--short-upload", *sd["bayrak"]]
         jid = _run_job(args, env=_bugun_env(), timeout=1500)
-        _watch_ihlal(jid, sutun_ad, onceki)
+        _watch_ihlal(jid, sutun_ad, onceki, paket if sd["kaynak"] else "")
         if sd["kaynak"]:
             bugun.paket_kullanildi()  # bir paket = bir uretim (ayni konudan ikinci video cikmasin)
         return {"job": jid}
