@@ -8,6 +8,7 @@ param(
     [string]$Url = "",       # kaynak sayfa adresi (verilirse sorulmaz)
     [string]$Facts = "",     # grafikte gordugun sayilar (opsiyonel; ; ile ayir)
     [string]$Sec = "",       # kanit numaralari (ornek "1,3,6,8,17"); bos = onerilen ilk 6
+    [string]$Receipt = "",   # receipt JSON yolu (ornek receipts\mistral-large-4_2026-10-08.json)
     [switch]$Evet            # Enter bekleyen "devam?" sorularini otomatik gec
 )
 $ErrorActionPreference = "Stop"
@@ -90,6 +91,8 @@ $ErrorActionPreference = "Stop"
 if ($kcSonuc -ne 0) { Dur "Kaynak cekilemedi (yukaridaki mesaja bak)." }
 $paketYol = (Get-Content "_engine\kaynak_son.txt" -Raw).Trim()
 if (-not (Test-Path $paketYol)) { Dur "Kaynak paketi bulunamadi: $paketYol" }
+$recArg = @()
+if ($Receipt) { if (-not (Test-Path $Receipt)) { Dur "Receipt dosyasi yok: $Receipt" }; $recArg = @("--receipt", $Receipt) }
 $paket = Get-Content $paketYol -Raw -Encoding UTF8 | ConvertFrom-Json
 if (-not $paket.claim) { Uyari "Sayfada iddia cumlesi bulunamadi. Video 'sayfa ne diyor' tarzinda olur." }
 if ($paket.evidence.Count -lt 1) { Dur "Hic kanit cumlesi secilmedi." }
@@ -104,7 +107,7 @@ Devam "Plan dogru mu? Devam edilsin mi"
 # ---------------------------------------------------------------- ADIM 7
 Adim 7 "Plan onizleme (hicbir sey yuklenmez)"
 $ErrorActionPreference = "Continue"
-& $Py aura_engine.py --plan-only --source $paketYol 2>&1 | ForEach-Object { Write-Host "    $_" }
+& $Py aura_engine.py --plan-only --source $paketYol @recArg 2>&1 | ForEach-Object { Write-Host "    $_" }
 if ($LASTEXITCODE -ne 0) { Dur "Plan adimi hata verdi." }
 $ErrorActionPreference = "Stop"
 Devam "Uretime (private yukleme) gecilsin mi"
@@ -113,7 +116,7 @@ Devam "Uretime (private yukleme) gecilsin mi"
 Adim 8 "Uretim (2-4 dk). Pencereyi kapatma, bilgisayari kilitleme/uyutma."
 $log = "_gunluk_$(Get-Date -Format 'yyyyMMdd_HHmm').log"
 $ErrorActionPreference = "Continue"
-& $Py -u aura_engine.py --short-upload --source $paketYol 2>&1 | Tee-Object -FilePath $log | ForEach-Object { Write-Host "    $_" }
+& $Py -u aura_engine.py --short-upload --source $paketYol @recArg 2>&1 | Tee-Object -FilePath $log | ForEach-Object { Write-Host "    $_" }
 $ErrorActionPreference = "Stop"
 Tamam "Cikti kaydedildi: $log"
 

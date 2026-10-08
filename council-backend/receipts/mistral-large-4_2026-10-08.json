@@ -1,0 +1,56 @@
+{
+ "company": "Mistral",
+ "product": "Mistral Large 4",
+ "source_name": "mistral.ai/news/mistral-large-4",
+ "source_date": "2026-10-06",
+ "url": "https://mistral.ai/news/mistral-large-4/",
+ "title": "Mistral's 'State-of-the-Art' Claim vs Its Own Page",
+ "hookthumb": "CLAIM VS PAGE",
+ "beats": [
+  {
+   "who": "aura",
+   "screen": "CLAIM VS PAGE",
+   "label": "THE CLAIM",
+   "line": "Mistral calls Mistral Large 4 {q1}. Check what its own page says next.",
+   "quotes": [
+    "state-of-the-art among open models"
+   ]
+  },
+  {
+   "who": "alpha",
+   "screen": "CYBER INDEX",
+   "label": "EVIDENCE: CYBER INDEX",
+   "line": "On the Artificial Analysis Cyber Index, the page says it {q1}.",
+   "quotes": [
+    "leads open-weight models developed outside China"
+   ]
+  },
+  {
+   "who": "gamma",
+   "screen": "THE QUALIFIERS",
+   "label": "EVIDENCE: QUALIFIERS",
+   "line": "Overall, the page says it is {q1}. In finance, it is {q2}.",
+   "quotes": [
+    "competitive with the strongest open-source models globally",
+    "on par or close to GLM-5.3"
+   ]
+  },
+  {
+   "who": "beta",
+   "screen": "THIRD PARTY",
+   "label": "THIRD-PARTY CHECK",
+   "line": "Fair point: on legal and financial tasks, a third-party evaluation finds it {q1}.",
+   "quotes": [
+    "exceeds GPT-6-Astra in both cases"
+   ]
+  },
+  {
+   "who": "aura",
+   "screen": "OUR READING",
+   "label": "VERDICT",
+   "stamp": "PARTLY SUPPORTED",
+   "line": "Our reading: partly supported, because the page qualifies its own claim. The headline or the qualifiers: which do you trust?",
+   "quotes": []
+  }
+ ]
+}

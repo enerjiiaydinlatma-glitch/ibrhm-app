@@ -106,7 +106,7 @@ def _drop_time(hhmm=""):
 
 def run(short_upload=False, public=False, learn=False, plan_only=False, leaderboard=False,
         hottake=False, evergreen=False, verdict=False, council_decides=False, drop=None,
-        force=False, topic_override=None, angle_override=None, source_path=None):
+        force=False, topic_override=None, angle_override=None, source_path=None, receipt_path=None):
     _source = None
     if source_path:
         from source_check import load_packet
@@ -114,6 +114,20 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
         topic_override = topic_override or _source.get("topic")
         angle_override = angle_override or _source.get("angle")
         print(f"[kaynak] paket: {source_path} ({_source.get('url')})")
+    _receipt = None
+    if receipt_path:
+        from receipt import load_receipt, verify_receipt
+        if _source is None:
+            print("[receipt] --receipt icin --source (kaynak paketi) gerekli. Uretim yapilmadi.")
+            return {}
+        _receipt = load_receipt(receipt_path)
+        _rissues = verify_receipt(_receipt, _source)
+        if _rissues:
+            print("[receipt] DOGRULAMA BASARISIZ - uretim YAPILMADI:")
+            for _i in _rissues:
+                print("   -", _i)
+            return {}
+        print(f"[receipt] dogrulandi: {len(_receipt['beats'])} beat, tum alintilar kaynakta bulundu")
     day = datetime.date.today().isoformat()
     run_dir = os.path.join(RUN_ROOT, day)
     os.makedirs(run_dir, exist_ok=True)
@@ -213,7 +227,7 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
 
     # 2) A/B kapaklar
     from make_episode_assets import build_ab
-    ab = _step("3 A/B baslik+thumbnail paketi", lambda: build_ab(topic))
+    ab = None if _receipt else _step("3 A/B baslik+thumbnail paketi", lambda: build_ab(topic))
     result["steps"]["ab_packages"] = ab
 
     # 3) ~100s Short
@@ -276,9 +290,17 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
         if hottake:
             print("  [i] Taze bolum yok (>4 gun) - hot-take yerine tekil-konu kalibi.")
         from make_topic_short import build as build_short
-        short = _step("~100s Short (kazanan kalip)",
-                      lambda: build_short(topic, angle,
-                                          desc_override=_short_desc(plan)))
+        if _receipt:
+            from receipt import to_script
+            _rs = to_script(_receipt, (_source or {}).get("fetched_at", ""))
+            short = _step("Receipt Short (kural tabanli, model yazmaz)",
+                          lambda: build_short(topic, angle, title_override=_rs["title"],
+                                              desc_override=_rs["desc"], tags=_rs["tags"],
+                                              script_override=(_rs["beats"], _rs["title"], _rs["hookthumb"])))
+        else:
+            short = _step("~100s Short (kazanan kalip)",
+                          lambda: build_short(topic, angle,
+                                              desc_override=_short_desc(plan)))
 
     # 3a) YUKLEME + DUYARLILIK KAPISI + DAGITIM - HANGI FORMAT olursa olsun
     # (topic/leaderboard/evergreen/verdict/hottake) ayni sekilde uygulanir.
@@ -551,6 +573,7 @@ if __name__ == "__main__":
                          "(veya +3s) otomatik yayina koy - tum abonelere ayni anda bildirim")
     ap.add_argument("--topic", default=None, help="ELLE konu (tek net cumle). Aura editoryal toplantisini atlar.")
     ap.add_argument("--source", default=None, help="kaynak_cek.py paketi (JSON): konu+aci paketten gelir, uretilen alinti/sayilar pakete karsi dogrulanir")
+    ap.add_argument("--receipt", default=None, help="Receipt JSON (receipt.py): metin modelden degil, dogrulanmis alintilardan kurulur; --source ile birlikte")
     ap.add_argument("--angle", default=None, help="--topic ile birlikte: tartisma acisi (opsiyonel)")
     ap.add_argument("--force", action="store_true",
                     help="Gunluk sert sinira (daily_limit.MAX_DAILY=2) KADAR kasitli video uret; siniri asamaz")
@@ -558,4 +581,4 @@ if __name__ == "__main__":
     run(short_upload=a.short_upload, public=a.public, learn=a.learn, plan_only=a.plan_only,
         leaderboard=a.leaderboard, hottake=a.hottake, evergreen=a.evergreen,
         verdict=a.verdict, council_decides=a.council_decides, drop=a.drop, force=a.force,
-        topic_override=a.topic, angle_override=a.angle, source_path=a.source)
+        topic_override=a.topic, angle_override=a.angle, source_path=a.source, receipt_path=a.receipt)

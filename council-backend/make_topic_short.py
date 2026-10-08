@@ -492,9 +492,13 @@ _MOTION_POST = ("eq=brightness='0.010*sin(t*3.7)':saturation=1.03,"
                 "noise=alls=5:allf=t,vignette=PI/4.6[v]")
 
 
-def build(topic, angle="", title_override="", desc_override="", tags=None):
+def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None):
     os.makedirs(OUT_DIR, exist_ok=True)
-    beats, title, hookthumb = _script(topic, angle)
+    if script_override:
+        # RECEIPT modu: metin modelden gelmez (receipt.py), kareler PIL ile cizilir
+        beats, title, hookthumb = script_override
+    else:
+        beats, title, hookthumb = _script(topic, angle)
     if len(beats) < 4:
         raise SystemExit(f"Senaryo uretilemedi (yalniz {len(beats)} beat). Tekrar dene.")
     # 10 Eyl retention: 6+ beat = payoff 60s+ = %65 kayip sn 10'da. Fazlasini at.
@@ -513,13 +517,17 @@ def build(topic, angle="", title_override="", desc_override="", tags=None):
 
     for i, (who, screen, line, img_prompt) in enumerate(beats, start=0):
         fp = os.path.join(OUT_DIR, f"{i:02d}_frame.png")
-        _analogy_frame(img_prompt, screen, who, fp)
+        if script_override:
+            from receipt_frame import render as _receipt_render
+            _receipt_render(img_prompt, who, fp)
+        else:
+            _analogy_frame(img_prompt, screen, who, fp)
         ap = os.path.join(OUT_DIR, f"{i:02d}.mp3")
         with open(ap, "wb") as f:
             f.write(synthesize(line, who))
         dur = _dur(ap)
         _beat_segment(fp, ap, dur + 0.18, os.path.join(OUT_DIR, f"{i:02d}.mp4"),
-                      motion_prompt=img_prompt)
+                      motion_prompt=("" if script_override else img_prompt))
         segs.append(os.path.join(OUT_DIR, f"{i:02d}.mp4")); total += dur + 0.18
         print(f"  beat {i} ({who}, {dur:.1f}s): {line[:60]}")
 
