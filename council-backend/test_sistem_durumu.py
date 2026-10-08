@@ -87,6 +87,15 @@ class Temizlik(unittest.TestCase):
         self.assertEqual(sd.restore("T3", self.b), 1)
         self.assertTrue(os.path.exists(os.path.join(self.b, "eski.bak")))
 
+    def test_yol_filtresi(self):
+        mk(self.b, "output/video/bolum_9-x/master.mp4", age_days=40)
+        res = sd.candidates(self.b, only=["output_eski"], yol=["output/shorts/topic"])
+        n = self.names(res)
+        self.assertIn("output/shorts/topic/00.mp3" if False else "output/shorts/hottake/eski-video.mp4", self.names(sd.candidates(self.b, only=["output_eski"], yol=["output/shorts"])))
+        self.assertNotIn("output/video/bolum_9-x/master.mp4", self.names(sd.candidates(self.b, only=["output_eski"], yol=["output/shorts"])))
+        self.assertIn("output/video/bolum_9-x/master.mp4", self.names(sd.candidates(self.b, only=["output_eski"])))
+        self.assertTrue(all(x.startswith("output/shorts/topic/") for x in n))
+
     def test_kategori_filtresi(self):
         res = sd.candidates(self.b, only=["pycache"])
         self.assertEqual(list(res), ["pycache"])

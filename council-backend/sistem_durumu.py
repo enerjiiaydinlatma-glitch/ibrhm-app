@@ -145,7 +145,9 @@ def _walk_files_all(root):
             yield os.path.join(dp, f)
 
 
-def candidates(base=HERE, only=None):
+def candidates(base=HERE, only=None, yol=None):
+    """yol: ['output/shorts/topic', ...] verilirse sadece bu klasor oneklerindeki adaylar kalir."""
+    prefixes = [y.strip().replace("\\", "/").strip("/") + "/" for y in (yol or []) if y.strip()]
     res = {}
     for k, (desc, fn) in CATEGORIES.items():
         if only and k not in only:
@@ -158,6 +160,10 @@ def candidates(base=HERE, only=None):
                 continue
             if os.path.isfile(p) and os.path.splitext(p)[1].lower() in (".py", ".bat", ".ps1") and k != "pycache":
                 continue  # kod dosyasi ASLA aday olmaz
+            if prefixes:
+                rel = os.path.relpath(p, base).replace("\\", "/") + "/"
+                if not any(rel.startswith(x) for x in prefixes):
+                    continue
             items.append(p)
         res[k] = items
     return res
@@ -315,6 +321,7 @@ def main(argv=None):
     ap.add_argument("--kategori", default="", help="virgullu: " + ",".join(CATEGORIES))
     ap.add_argument("--geri-al", default="")
     ap.add_argument("--hizli", action="store_true", help="testleri/ag kontrollerini atla")
+    ap.add_argument("--yol", default="", help="sadece bu klasor onekleri (virgullu), ornek: output/shorts/topic")
     ap.add_argument("--detay", action="store_true", help="adaylari alt klasor ve uzantiya gore dok")
     a = ap.parse_args(argv)
     try:
@@ -331,7 +338,7 @@ def main(argv=None):
             print(f"  [{st}] {name}" + (f" - {detail}" if detail else ""))
             bad += st == "HATA"
     only = [k.strip() for k in a.kategori.split(",") if k.strip()] or None
-    cands = candidates(HERE, only)
+    cands = candidates(HERE, only, [y for y in a.yol.split(",") if y.strip()])
     print("\n=== TEMIZLIK ADAYLARI (silinmez, _arsiv/ altina tasinir) ===")
     total, all_items = 0, []
     for k, items in cands.items():
