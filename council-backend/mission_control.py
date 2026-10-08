@@ -62,6 +62,7 @@ import analiz  # noqa: E402
 import sutun  # noqa: E402
 import ogrenme  # noqa: E402
 import receipt_olustur  # noqa: E402
+import tr_inceleme  # noqa: E402
 import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
@@ -1023,6 +1024,8 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
  <div class="card wide">
   <h2>5 · Yayın kararı <span style="font-weight:normal;color:#8b949e;font-size:12px">(sadece sen)</span></h2>
   <div id="bgVideolar" style="font-size:13px"></div>
+  <div style="margin:6px 0"><button class="act" onclick="bgTrUretim()">🇹🇷 Videoda söylenenler (Türkçe)</button> <span id="bgTrSt" style="font-size:12px;color:#8b949e"></span></div>
+  <div id="bgTrBox"></div>
   <div id="bgKontrol" style="margin:8px 0"></div>
   <input id="bgOnay" placeholder="YAYINLA yaz" style="width:160px">
   <button class="act risky" onclick="bgYayinla()">Yayınla</button> <span id="bgYayinSt" style="font-size:12px;color:#8b949e"></span>
@@ -1760,6 +1763,23 @@ async function bgPaket(){
   $('#bgPaketSt').textContent = r.ok ? ('Hazır: '+r.kanit+' kanıt'+(r.iddia?'':' (iddia cümlesi yok)')+(r.uyarilar&&r.uyarilar.length?' · UYARI: '+r.uyarilar.join(' | '):'')) : 'HATA: '+r.error;
   bgLoad();
 }
+async function bgTrCiz(en, box, st){
+  if(!en.length){ box.innerHTML=''; return; }
+  st.textContent='çevriliyor…';
+  const r = await api('/api/bugun/tr',{method:'POST',headers:JH,body:JSON.stringify({metinler:en})});
+  const tmp = document.createElement('span'); const j = await bgJob(r.job, tmp);
+  let d; try{ d = JSON.parse(j.out); }catch(e){ st.textContent='HATA: '+(j.out||'çeviri alınamadı'); return; }
+  if(d.hata||!d.tr.length){ st.textContent='HATA: '+(d.hata||'çeviri yok')+' — İngilizce metni yine de oku; şüphede yayınlama.'; return; }
+  st.textContent='Makine çevirisi ('+d.saglayici+'): yalnızca inceleme içindir, videoya girmez. Şüphede İngilizce metin esastır.';
+  box.innerHTML='<table style="width:100%;font-size:13px;border-collapse:collapse">'+en.map((e,i)=>'<tr style="border-bottom:1px solid #21262d"><td style="padding:4px 8px 4px 0;width:50%;vertical-align:top;color:#8b949e">'+bgEsc(e)+'</td><td style="padding:4px 0;vertical-align:top"><b>'+bgEsc(d.tr[i]||'')+'</b></td></tr>').join('')+'</table>';
+}
+async function bgTrRcp(){ bgTrCiz(window._bgRcpEn||[], $('#bgTrRcpBox'), $('#bgTrRcpSt')); }
+async function bgTrUretim(){
+  const m = await api('/api/bugun/uretim_metni');
+  if(!m.ok){ $('#bgTrSt').textContent=m.error; $('#bgTrBox').innerHTML=''; return; }
+  const en = ['BAŞLIK: '+m.baslik].concat(m.satirlar).concat((m.aciklama||[]).map(x=>'AÇIKLAMA: '+x));
+  bgTrCiz(en, $('#bgTrBox'), $('#bgTrSt'));
+}
 async function bgRcpForm(){
   const p = await api('/api/bugun/paket'); const box = $('#bgRcpBox');
   if(!p.ok){ box.innerHTML=''; return; }
@@ -1776,7 +1796,8 @@ async function bgRcpKur(){
   const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, anahtar:window._bgClaimKey||''})});
   if(!r.ok){ $('#bgRcpSt').textContent=''; $('#bgRcpOut').innerHTML='<div style="color:#f85149;margin-top:6px">Kurulamadı:<br>'+(r.sorunlar||[r.error]).map(bgEsc).join('<br>')+'</div>'; return; }
   $('#bgRcpSt').textContent='Hazır: '+r.ad;
-  $('#bgRcpOut').innerHTML='<div style="margin-top:8px"><b>'+bgEsc(r.baslik)+'</b>'+r.satirlar.map(x=>'<div style="font-size:13px;margin:4px 0"><span style="color:#8b949e">'+bgEsc(x.etiket)+(x.damga?' · DAMGA: '+bgEsc(x.damga):'')+'</span><br>'+bgEsc(x.metin)+'</div>').join('')+'<div style="font-size:12px;color:#8b949e">Bu metin videoda aynen okunur. Uygunsa aşağıda "Üret"e bas; Receipt otomatik seçildi.</div></div>';
+  $('#bgRcpOut').innerHTML='<div style="margin-top:8px"><b>'+bgEsc(r.baslik)+'</b>'+r.satirlar.map(x=>'<div style="font-size:13px;margin:4px 0"><span style="color:#8b949e">'+bgEsc(x.etiket)+(x.damga?' · DAMGA: '+bgEsc(x.damga):'')+'</span><br>'+bgEsc(x.metin)+'</div>').join('')+'<div style="font-size:12px;color:#8b949e">Bu metin videoda aynen okunur. Uygunsa aşağıda "Üret"e bas; Receipt otomatik seçildi.</div><button class="act" style="margin-top:6px" onclick="bgTrRcp()">🇹🇷 Türkçesini göster</button> <span id="bgTrRcpSt" style="font-size:12px;color:#8b949e"></span><div id="bgTrRcpBox"></div></div>';
+  window._bgRcpEn = [r.baslik].concat(r.satirlar.map(x=>x.metin));
   await bgLoad(); $('#bgReceipt').value = r.ad;
 }
 async function bgAdim(kind){
@@ -1784,6 +1805,7 @@ async function bgAdim(kind){
   const r = await api('/api/bugun/'+kind,{method:'POST',headers:JH,body:JSON.stringify({receipt:$('#bgReceipt').value, sutun: window._bgSutun||'receipt'})});
   if(r.error){ out.textContent = 'HATA: '+r.error; return; }
   await bgJob(r.job, out); bgLoad();
+  if(kind==='uret') bgTrUretim();
 }
 async function bgYayinla(){
   if(!_bgVideos.length){ $('#bgYayinSt').textContent='Bugün yüklenmiş video yok.'; return; }
@@ -2516,6 +2538,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bugun.gundem_oku())
         elif u.path == "/api/bugun/paket":
             self._json(bugun_paket_ozet())
+        elif u.path == "/api/bugun/uretim_metni":
+            m = tr_inceleme.uretim_metni()
+            self._json({"ok": True, **m} if m else {"ok": False, "error": "Bugun icin uretim kaydi (run.json) yok: video henuz uretilmedi ya da motor hata verdi."})
         elif u.path == "/api/bugun/analiz":
             self._json(analiz.son() or {"durum": "yok"})
         elif u.path == "/api/bugun/guven":
@@ -2644,6 +2669,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/bugun/kaynak":
             b = self._body()
             return self._json(bugun.kaynak_analiz(str(b.get("url", ""))[:600], str(b.get("claim_key") or "state-of-the-art")[:80]))
+        if u.path == "/api/bugun/tr":
+            ml = [str(x)[:700] for x in (self._body().get("metinler") or [])][:60]
+            return self._json({"job": _run_py_job(lambda: json.dumps(tr_inceleme.ceviri(ml), ensure_ascii=False))})
         if u.path == "/api/bugun/receipt_olustur":
             return self._json(bugun_receipt_olustur(self._body()))
         if u.path == "/api/bugun/paket":
