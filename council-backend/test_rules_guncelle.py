@@ -5,7 +5,7 @@ import unittest
 import rules_guncelle as rg
 
 ORNEK = "\n".join([
-    "- [FORMAT] format satiri",
+    "- [FORMAT] Build each story around ONE concrete, alarming event. Every alarming claim MUST be sourced.",
     "- [LEGAL] NEVER assert crime and cover-up",
     "- [PRIORITY] eski oncelik metni",
     "- [CLOSING] kapanis",
@@ -22,7 +22,7 @@ class KuralTest(unittest.TestCase):
         ok, msg = rg.uygula(self.y)
         self.assertTrue(ok, msg)
         s = open(self.y, encoding="utf-8").read().split("\n")
-        self.assertEqual(s[0], "- [FORMAT] format satiri")
+        self.assertEqual(s[0], "- [FORMAT] Build each story around ONE concrete, surprising event. Every surprising claim MUST be sourced.")
         self.assertEqual(s[1], "- [LEGAL] NEVER assert crime and cover-up")
         self.assertEqual(s[3], "- [CLOSING] kapanis")
         self.assertIn("BONUS", s[2])
@@ -55,6 +55,16 @@ class KuralTest(unittest.TestCase):
         ham = open(self.y, "rb").read()
         self.assertEqual(ham.count(b"\r\n"), 3)
         self.assertEqual(ham.count(b"\n"), 3)
+
+    def test_hook_ve_diger_satirlardaki_kelimelere_dokunmaz(self):
+        open(self.y, "w", encoding="utf-8").write(ORNEK + "\n- [HOOK] state the shocking and alarming claim")
+        rg.uygula(self.y)
+        self.assertTrue(open(self.y, encoding="utf-8").read().endswith("- [HOOK] state the shocking and alarming claim"))
+
+    def test_format_yoksa_yalniz_priority(self):
+        open(self.y, "w", encoding="utf-8").write("- [LEGAL] x\n- [PRIORITY] eski")
+        ok, msg = rg.uygula(self.y)
+        self.assertTrue(ok, msg)
 
     def test_yeni_metin_legal_ve_niyet_yasagi_icerir(self):
         self.assertIn("LEGAL", rg.YENI_PRIORITY)

@@ -1,4 +1,6 @@
-"""operator_rules.md - SADECE [PRIORITY] satirini degistirir (operator karari, 8 Ekim 2026).
+"""operator_rules.md - SADECE iki degisiklik (operator karari, 8 Ekim 2026):
+  1) [PRIORITY] satiri yeniden yazilir (birincil kriter -> bonus)
+  2) [FORMAT] satirinda "alarming" -> "surprising" (yalniz bu kelime)
 
 Guvenlik: degisiklikten once yedek; baska HICBIR satir degismez (kontrol edilir); [LEGAL] satiri mutlaka korunur.
 Kullanim:
@@ -33,28 +35,51 @@ def _oku(yol):
         return f.read().split("\n")
 
 
+def _bul(satirlar, etiket):
+    return [i for i, s in enumerate(satirlar) if s.lstrip().startswith(etiket)]
+
+
 def uygula(yol=YOL, yeni=YENI_PRIORITY, kontrol=False):
     satirlar = _oku(yol)
-    idx = [i for i, s in enumerate(satirlar) if s.lstrip().startswith("- [PRIORITY]")]
-    if len(idx) != 1:
-        return False, f"[PRIORITY] satiri {len(idx)} adet bulundu (1 bekleniyor); dokunulmadi."
-    if not any(s.lstrip().startswith("- [LEGAL]") for s in satirlar):
+    pi = _bul(satirlar, "- [PRIORITY]")
+    if len(pi) != 1:
+        return False, f"[PRIORITY] satiri {len(pi)} adet bulundu (1 bekleniyor); dokunulmadi."
+    if not _bul(satirlar, "- [LEGAL]"):
         return False, "[LEGAL] satiri bulunamadi; guvenlik icin dokunulmadi."
-    i = idx[0]
-    if satirlar[i].strip() == yeni.strip():
+    fi = _bul(satirlar, "- [FORMAT]")
+    if len(fi) > 1:
+        return False, f"[FORMAT] satiri {len(fi)} adet bulundu (en fazla 1 bekleniyor); dokunulmadi."
+    yeni_satirlar = list(satirlar)
+    degisen = []
+    i = pi[0]
+    yeni_p = yeni + ("\r" if satirlar[i].endswith("\r") else "")    # CRLF dosyada satir sonu korunur
+    if satirlar[i].strip() != yeni.strip():
+        yeni_satirlar[i] = yeni_p
+        degisen.append("PRIORITY")
+    if fi:
+        j = fi[0]
+        if "alarming" in satirlar[j]:
+            yeni_satirlar[j] = satirlar[j].replace("alarming", "surprising")
+            degisen.append("FORMAT (alarming -> surprising)")
+    if not degisen:
         return True, "Zaten guncel."
     if kontrol:
-        return True, "ESKI:\n  " + satirlar[i][:300] + " ...\nYENI:\n  " + yeni[:300] + " ..."
+        ozet = []
+        if "PRIORITY" in degisen:
+            ozet.append("[PRIORITY] ESKI:\n  " + satirlar[i][:200] + " ...\n[PRIORITY] YENI:\n  " + yeni[:200] + " ...")
+        if fi and len(degisen) and any(d.startswith("FORMAT") for d in degisen):
+            ozet.append(f"[FORMAT] 'alarming' {satirlar[fi[0]].count('alarming')} yerde 'surprising' olacak.")
+        return True, "\n".join(ozet)
     yedek = yol + ".bak_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     shutil.copy2(yol, yedek)
-    yeni_satirlar = list(satirlar)
-    yeni_satirlar[i] = yeni + ("\r" if satirlar[i].endswith("\r") else "")   # CRLF dosyada satir sonu korunur
-    # dogrulama: PRIORITY disindaki tum satirlar birebir ayni mi?
-    if [s for j, s in enumerate(satirlar) if j != i] != [s for j, s in enumerate(yeni_satirlar) if j != i]:
+    dokunulan = {k for k in (i, fi[0] if fi else -1) if yeni_satirlar[k] != satirlar[k]} if fi else {i}
+    # dogrulama: degisenler disindaki tum satirlar birebir ayni mi? satir sayisi ayni mi?
+    if len(satirlar) != len(yeni_satirlar) or any(
+            a != b for k, (a, b) in enumerate(zip(satirlar, yeni_satirlar)) if k not in dokunulan):
         return False, "Dogrulama basarisiz; dokunulmadi."
     with open(yol, "w", encoding="utf-8", newline="") as f:
         f.write("\n".join(yeni_satirlar))
-    return True, f"[PRIORITY] guncellendi. Yedek: {os.path.basename(yedek)} (diger {len(satirlar) - 1} satir degismedi)."
+    return True, f"Guncellendi: {', '.join(degisen)}. Yedek: {os.path.basename(yedek)} (diger satirlar degismedi)."
 
 
 def geri_al(yol=YOL):

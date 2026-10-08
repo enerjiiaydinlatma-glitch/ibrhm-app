@@ -107,7 +107,7 @@ def istatistik(videolar, kayit=None, now=None):
         t["deneme"] += 1
         t["izlenme"] += v.get("views", 0)
         t["yorum"] += v.get("comments", 0)
-        if len(t["ornek"]) < 2:
+        if len(t["ornek"]) < (12 if s == "diger" else 2):
             t["ornek"].append(v["title"][:60])
     for t in tablo.values():
         n = max(t["deneme"], 1)
