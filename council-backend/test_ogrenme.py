@@ -66,8 +66,9 @@ class KanalTrackerTest(unittest.TestCase):
         ik = tablo["ikilem"]
         self.assertEqual(ik["deneme"], 2)
         self.assertEqual(ik["ort_abone"], 1.0)
-        self.assertEqual(ik["med_tutma"], 60)
-        self.assertEqual(ik["skor"], 200 + 20 * 2 + 30 * 1.0)
+        self.assertEqual(ik["med_tutma"], 50)                 # gercek medyan: (60+40)/2
+        self.assertEqual(ik["med_goreli"], 1.0)               # 300 ve 100 / genel medyan 200 -> 1.5 ve 0.5 -> medyan 1.0
+        self.assertEqual(ik["skor"], 100 + 20 * 2 + 30 * 1.0)
 
     def test_bos_tracker(self):
         self.assertFalse(ogrenme.kanal_tracker({})["ok"])
@@ -75,3 +76,34 @@ class KanalTrackerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ZamanEtkisiTest(unittest.TestCase):
+    """Erken donemde (Agustos) tum videolar cok izlendi; sayili basliklarin hepsi o donemde yayinlanmis.
+    Ham medyan 'sayi 100 kat' der; zamana gore duzeltince fark kalmaz."""
+
+    def liste(self):
+        out = []
+        for i in range(6):      # Agustos: sayili
+            out.append(v(i, f"{i + 2} systems breached this week", 1000, tarih=f"2026-08-{10 + i}"))
+        for i in range(6):      # Agustos: sayisiz (ayni donem, ayni izlenme)
+            out.append(v(20 + i, "Why is the company quietly acquiring a rival", 1000, tarih=f"2026-08-{10 + i}"))
+        for i in range(20):     # Ekim: sayisiz, dusuk izlenme
+            out.append(v(40 + i, "Why did the vendor change its policy again", 10, tarih=f"2026-10-{1 + (i % 5):02d}"))
+        return out
+
+    def test_ham_medyan_yaniltir_goreli_yanilmaz(self):
+        k = ogrenme.karne(self.liste(), BUGUN)
+        sayi = {r["ad"]: r for r in k["bolumler"]["sayi"]}
+        var, yok = sayi["başlıkta sayı var"], sayi["başlıkta sayı yok"]
+        self.assertGreater(var["med_izlenme"] / yok["med_izlenme"], 50)       # ham: 100 kat
+        self.assertAlmostEqual(var["med_goreli"], 1.0, delta=0.15)            # dönemine göre: tipik
+        self.assertFalse(any("sayı var" in o["ad"] for o in k["oneriler"]))   # sahte oneri uretilmez
+
+    def test_goreli_komsu_yoksa_genel_medyan(self):
+        g = ogrenme.goreli([v(1, "a long enough title here", 100, tarih="2026-01-01"), v(2, "another long title here", 300, tarih="2026-06-01")])
+        self.assertIsNotNone(g[0]["rel"])
+
+    def test_olgun_gun_esigi(self):
+        liste = [v(i, f"{i} systems breached title", 100, tarih="2026-10-06") for i in range(8)]   # 2 gunluk
+        self.assertEqual(ogrenme.karne(liste, BUGUN)["genel"]["n"], 0)

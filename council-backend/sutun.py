@@ -9,13 +9,14 @@ Sutunlar (motorun mevcut bayraklari):
 
 Secim: her sutun >= MIN_DENEME kez denenmeden hicbiri elenmez (veri az; ~birkac izlenme gurultudur).
 Yeterli veri varsa: %70 su ana kadar en iyi sutun, %30 en az denenen (kesif). Tohum = tarih (ayni gun ayni oneri).
-Sonuc olcutu (skor): ort. izlenme + 20 x ort. yorum + 30 x ort. abone (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
+Sonuc olcutu (skor): zamana gore duzeltilmis medyan izlenme x100 (yoksa ort. izlenme) + 20 x ort. yorum + 30 x ort. abone (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
 """
 import datetime
 import json
 import os
 import random
 import re
+import statistics
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
@@ -31,6 +32,8 @@ SUTUNLAR = {
 HAFTA_ICI = ["haber", "ikilem", "siralama", "receipt"]   # 'haber' = kanalin asil formati (motorun varsayilan yolu); veri onu gosterdi
 HAFTA_SONU = ["haber", "ikilem", "siralama", "receipt", "aciklayici"]
 MIN_DENEME = 3
+ELEME_N = 10            # bu kadar denemeden sonra ...
+ELEME_ORAN = 0.4        # ... skoru en iyinin %40'indan dusukse oneri disi birakilir
 SOMURU = 0.70
 YORUM_AGIRLIK = 20
 ABONE_AGIRLIK = 30      # bir video basina ortalama abone (hedef abone: izlenmeden daha degerli)
@@ -113,7 +116,9 @@ def istatistik(videolar, kayit=None, now=None):
         if yas is None or yas < OLGUNLUK_SAAT:
             continue
         s = kayit.get(v["id"]) or etiketle(v["title"])
-        t = tablo.setdefault(s, {"deneme": 0, "izlenme": 0, "yorum": 0, "abone": 0, "tutma": [], "ornek": []})
+        t = tablo.setdefault(s, {"deneme": 0, "izlenme": 0, "yorum": 0, "abone": 0, "tutma": [], "rel": [], "ornek": []})
+        if v.get("rel") is not None:
+            t["rel"].append(v["rel"])
         t["deneme"] += 1
         t["izlenme"] += v.get("views", 0)
         t["yorum"] += v.get("comments", 0)
@@ -127,9 +132,11 @@ def istatistik(videolar, kayit=None, now=None):
         t["ort_izlenme"] = round(t["izlenme"] / n, 1)
         t["ort_yorum"] = round(t["yorum"] / n, 2)
         t["ort_abone"] = round(t["abone"] / n, 2)
-        tm = sorted(t["tutma"])
-        t["med_tutma"] = round(tm[len(tm) // 2], 1) if tm else None
-        t["skor"] = round(t["ort_izlenme"] + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"], 1)
+        t["med_tutma"] = round(statistics.median(t["tutma"]), 1) if t["tutma"] else None
+        t["med_goreli"] = round(statistics.median(t["rel"]), 2) if t["rel"] else None
+        # zamana gore duzeltilmis izlenme varsa onu (100 = kendi doneminde tipik video), yoksa ham ortalama izlenme
+        temel = t["med_goreli"] * 100 if t["med_goreli"] is not None else t["ort_izlenme"]
+        t["skor"] = round(temel + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"], 1)
     return tablo
 
 
@@ -137,20 +144,27 @@ def oner(tablo, bugun=None):
     """-> {sutun, neden, mod:'veri-topla'|'somur'|'kesif', tablo_satirlari}"""
     bugun = bugun or datetime.date.today()
     aktif = aktif_sutunlar(bugun)
+    elenen = []
+    deneyimli = {s: tablo[s]["skor"] for s in aktif if s in tablo and tablo[s]["deneme"] >= MIN_DENEME}
+    if deneyimli:
+        en = max(deneyimli.values())
+        elenen = [s for s in aktif if s in tablo and tablo[s]["deneme"] >= ELEME_N and tablo[s]["skor"] < ELEME_ORAN * en]
+        aktif = [s for s in aktif if s not in elenen] or aktif
     n = {s: tablo.get(s, {}).get("deneme", 0) for s in aktif}
     eksik = [s for s in aktif if n[s] < MIN_DENEME]
     if eksik:
         s = min(eksik, key=lambda x: (n[x], aktif.index(x)))
-        return {"sutun": s, "mod": "veri-topla",
-                "neden": f"{SUTUNLAR[s]['ad']} henüz {n[s]}/{MIN_DENEME} kez denendi; karar vermek için her sütun en az {MIN_DENEME} kez denenir."}
+        return {"sutun": s, "mod": "veri-topla", "elenen": elenen,
+                "neden": f"{SUTUNLAR[s]['ad']} henüz {n[s]}/{MIN_DENEME} kez denendi; karar vermek için her sütun en az {MIN_DENEME} kez denenir."
+                         + (f" (Düşük sonuçlu, öneri dışı: {', '.join(SUTUNLAR[e]['ad'] for e in elenen)})" if elenen else "")}
     en_iyi = max(aktif, key=lambda x: tablo[x]["skor"])
     rng = random.Random(bugun.isoformat())
     if rng.random() < SOMURU:
-        return {"sutun": en_iyi, "mod": "somur",
+        return {"sutun": en_iyi, "mod": "somur", "elenen": elenen,
                 "neden": f"{SUTUNLAR[en_iyi]['ad']} şimdiye dek en iyi sonucu verdi (skor {tablo[en_iyi]['skor']}: ort. {tablo[en_iyi]['ort_izlenme']} izlenme, {tablo[en_iyi]['ort_yorum']} yorum)."}
     diger = [s for s in aktif if s != en_iyi] or aktif
     s = min(diger, key=lambda x: (n[x], aktif.index(x)))
-    return {"sutun": s, "mod": "kesif", "neden": f"Keşif günü (%{int((1-SOMURU)*100)}): {SUTUNLAR[s]['ad']} daha az denendi ({n[s]} video)."}
+    return {"sutun": s, "mod": "kesif", "elenen": elenen, "neden": f"Keşif günü (%{int((1-SOMURU)*100)}): {SUTUNLAR[s]['ad']} daha az denendi ({n[s]} video)."}
 
 
 def satirlar(tablo, aktif=None):
@@ -162,5 +176,6 @@ def satirlar(tablo, aktif=None):
                     "deneme": t["deneme"] if t else 0, "ort_izlenme": t["ort_izlenme"] if t else None,
                     "ort_yorum": t["ort_yorum"] if t else None, "skor": t["skor"] if t else None,
                     "ort_abone": t["ort_abone"] if t else None, "med_tutma": t["med_tutma"] if t else None,
+                    "med_goreli": t.get("med_goreli") if t else None,
                     "ornek": t["ornek"] if t else []})
     return out

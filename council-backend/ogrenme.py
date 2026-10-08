@@ -17,7 +17,33 @@ import sutun
 
 MIN_N = 5
 GUVENILIR_N = 10
+OLGUN_GUN = 3                                  # Shorts izlenmesi ilk gunlerde hizla artar: >=3 gunluk videolar sonuc sayilir
+KOMSU_GUN = 10                                 # bir videoyu +-10 gun icindeki videolarin medyaniyla kiyasla
+MIN_KOMSU = 3
 MARKA = {"#shorts", "#signcouncil"}          # neredeyse her videoda: ayirt edici degil
+
+
+def _tarih(v):
+    try:
+        return datetime.date.fromisoformat(str(v.get("published", ""))[:10])
+    except Exception:
+        return None
+
+
+def goreli(videolar):
+    """Her videoya 'rel' ekler: izlenme / (kendi doneminin medyani). 1.0 = o donemde tipik video.
+    Neden: kanalin erken donemi (Agu-Eyl basi) cok izlendi, sonra erisim %65 dustu; ham izlenme baslik/sutun etkisini
+    ZAMAN etkisiyle karistirir. Komsu (+-KOMSU_GUN) en az MIN_KOMSU video yoksa tum videolarin medyani kullanilir."""
+    genel = statistics.median([v.get("views", 0) for v in videolar]) if videolar else 0
+    out = []
+    for v in videolar:
+        d = _tarih(v)
+        komsu = [x.get("views", 0) for x in videolar if x is not v and d and _tarih(x) and abs((_tarih(x) - d).days) <= KOMSU_GUN]
+        taban = statistics.median(komsu) if len(komsu) >= MIN_KOMSU else genel
+        w = dict(v)
+        w["rel"] = round(v.get("views", 0) / taban, 3) if taban else None
+        out.append(w)
+    return out
 
 
 def _med(x):
@@ -52,6 +78,7 @@ def _satir(ad, vids):
     toplam_izl = sum(v.get("views", 0) for v in vids)
     return {"ad": ad, "n": n, "guven": guven(n),
             "med_izlenme": _med([v.get("views", 0) for v in vids]),
+            "med_goreli": _med([v["rel"] for v in vids if v.get("rel") is not None]),
             "med_tutma": _med([v.get("retention", 0) for v in vids if v.get("retention") is not None]),
             "abone_1000": round(1000 * sum(v.get("subs", 0) for v in vids) / toplam_izl, 2) if toplam_izl else None,
             "yorum_1000": round(1000 * sum(v.get("comments", 0) for v in vids) / toplam_izl, 2) if toplam_izl else None}
@@ -69,12 +96,12 @@ def karne(videolar, now=None):
     """Tum bolumler. Taze (<24s) videolar sonuc sayilmaz."""
     now = now or datetime.date.today()
     vs = []
-    for v in videolar:
+    for v in goreli(videolar):
         try:
             yas = (now - datetime.date.fromisoformat(str(v.get("published", ""))[:10])).days
         except Exception:
             yas = v.get("age_days", 99)
-        if yas >= 1:
+        if yas >= OLGUN_GUN:
             vs.append(v)
     for v in vs:
         v["_f"] = ozellikler(v)
@@ -94,20 +121,18 @@ def karne(videolar, now=None):
 
 
 def oneriler(genel, bolumler):
-    """Yalnizca n>=MIN_N ve belirgin fark (>=%30) olan gruplar; 'deneme' olarak."""
+    """Yalnizca n>=MIN_N ve belirgin fark (>=%30) olan gruplar; ZAMANA GORE duzeltilmis (goreli) medyanla; 'deneme' olarak."""
     out = []
-    taban = genel.get("med_izlenme") or 0
     for ad, satirlar in bolumler.items():
         for r in satirlar:
-            if r["n"] < MIN_N or not taban or ad == "gun":
+            if r["n"] < MIN_N or ad == "gun" or r.get("med_goreli") is None:
                 continue
-            oran = (r["med_izlenme"] or 0) / taban
+            oran = r["med_goreli"]
+            etiket = f"{r['ad']}: kendi döneminin tipik videosunun {round(oran, 1)} katı izlenme (n={r['n']}, {r['guven']})."
             if oran >= 1.3:
-                out.append({"tur": ad, "ad": r["ad"], "n": r["n"], "guven": r["guven"], "oran": round(oran, 2),
-                            "metin": f"{r['ad']}: medyan izlenme tüm videoların {round(oran, 1)} katı (n={r['n']}, {r['guven']}). Deneme olarak öne al."})
+                out.append({"tur": ad, "ad": r["ad"], "n": r["n"], "guven": r["guven"], "oran": round(oran, 2), "metin": etiket + " Deneme olarak öne al."})
             elif oran <= 0.7:
-                out.append({"tur": ad, "ad": r["ad"], "n": r["n"], "guven": r["guven"], "oran": round(oran, 2),
-                            "metin": f"{r['ad']}: medyan izlenme tüm videoların {round(oran, 1)} katı (n={r['n']}, {r['guven']}). Azaltmayı dene."})
+                out.append({"tur": ad, "ad": r["ad"], "n": r["n"], "guven": r["guven"], "oran": round(oran, 2), "metin": etiket + " Azaltmayı dene."})
     return sorted(out, key=lambda o: -abs(o["oran"] - 1))[:8]
 
 
@@ -115,18 +140,18 @@ def hashtag_onerisi(videolar, k=3, now=None):
     """3 ayirt edici hashtag (+ marka etiketleri her zaman). Yalniz n>=MIN_N olanlar; medyan izlenme ve tutmaya gore."""
     kr = karne(videolar, now)
     adaylar = [r for r in kr["bolumler"]["hashtag"] if r["n"] >= MIN_N and r["med_izlenme"] is not None]
-    adaylar.sort(key=lambda r: -((r["med_izlenme"] or 0) + 0.5 * (r["med_tutma"] or 0)))
+    adaylar.sort(key=lambda r: -((r.get("med_goreli") or 0) * 100 + 0.5 * (r["med_tutma"] or 0)))
     sec = adaylar[:k]
     return {"hashtagler": ["#Shorts"] + [r["ad"] for r in sec] + ["#SignCouncil"],
-            "dayanak": [f"{r['ad']} (n={r['n']}, medyan {r['med_izlenme']} izlenme, {r['guven']})" for r in sec],
+            "dayanak": [f"{r['ad']} (n={r['n']}, dönemine göre {r.get('med_goreli')}x, {r['guven']})" for r in sec],
             "not": "Örnek az: bunlar deneme önerisidir; her video 3 farklı etiketle çıkarsa karne zamanla netleşir."}
 
 
 def kanal_tracker(t):
     """tracker.load() -> analiz.kanal_videolari() biciminde (sutun/analiz ayni veriyi kullansin)."""
     vids = []
-    for v in (t or {}).get("videos", []):
-        vids.append({"id": v["id"], "title": v.get("title", ""), "published": str(v.get("published", ""))[:10] + "T12:00:00Z",
+    for v in goreli((t or {}).get("videos", [])):
+        vids.append({"rel": v.get("rel"), "id": v["id"], "title": v.get("title", ""), "published": str(v.get("published", ""))[:10] + "T12:00:00Z",
                      "views": v.get("views", 0), "likes": v.get("likes", 0), "comments": v.get("comments", 0),
                      "shares": v.get("shares", 0), "subs": v.get("subs", 0), "retention": v.get("retention"),
                      "hashtags": v.get("hashtags", []), "privacy": "public"})

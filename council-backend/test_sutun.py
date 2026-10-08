@@ -127,3 +127,21 @@ class AkisTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ElemeTest(unittest.TestCase):
+    CMT = datetime.date(2026, 10, 8)
+
+    def test_dusuk_sonuclu_deneyimli_sutun_oneri_disi(self):
+        tablo = {"haber": {"deneme": 40, "skor": 150, "ort_izlenme": 100, "ort_yorum": 0.5},
+                 "ikilem": {"deneme": 12, "skor": 20, "ort_izlenme": 20, "ort_yorum": 0},
+                 "siralama": {"deneme": 1, "skor": 90}, "receipt": {"deneme": 2, "skor": 50}}
+        o = sutun.oner(tablo, self.CMT)
+        self.assertIn("ikilem", o["elenen"])
+        self.assertNotEqual(o["sutun"], "ikilem")
+        self.assertIn("öneri dışı", o["neden"])
+
+    def test_az_denenen_dusuk_sutun_elenmez(self):
+        tablo = {"haber": {"deneme": 40, "skor": 150, "ort_izlenme": 100, "ort_yorum": 0},
+                 "ikilem": {"deneme": 4, "skor": 5, "ort_izlenme": 5, "ort_yorum": 0}}
+        self.assertEqual(sutun.oner(tablo, self.CMT).get("elenen"), [])
