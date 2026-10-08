@@ -29,7 +29,7 @@ YENI_PRIORITY = (
 
 
 def _oku(yol):
-    with open(yol, encoding="utf-8") as f:
+    with open(yol, encoding="utf-8", newline="") as f:      # newline="": CRLF/LF aynen korunur
         return f.read().split("\n")
 
 
