@@ -144,7 +144,7 @@ class SayfaElemeTest(unittest.TestCase):
         analiz.ENGINE, analiz.SON_YOL, analiz.GECMIS_YOL, analiz.GIRIS_YOL = self._o
 
     def _hz(self, url):
-        if "mistral" in url:
+        if "mistral" in url or "anthropic" in url:
             return {"ok": True, "iddia": "The model is state-of-the-art.", "iddia_anahtar": "state-of-the-art", "kanit": 5, "hata": ""}
         return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": "iddia yok"}
 
@@ -153,10 +153,13 @@ class SayfaElemeTest(unittest.TestCase):
         def tartis(b, p):
             goruldu["brif"] = b
             return [{"speaker": "aura", "text": '{"secim":"A1","gerekce":"g"}'}]
-        analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY}, tartis, kanal={"ok": True, "videolar": []}, hazirlik=self._hz, sutun="receipt")
+        ek = {"title": "Anthropic ships Big Model", "url": "https://anthropic.com/n", "alan": "anthropic.com", "puan": 8,
+              "etiketler": [], "engel": "", "haber_sayisi": 1}
+        analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY + [ek]}, tartis, kanal={"ok": True, "videolar": []},
+                        hazirlik=self._hz, sutun="receipt")
         s = analiz.son()
-        self.assertEqual([a["id"] for a in s["adaylar"]], ["A1"])
-        self.assertEqual(s["adaylar"][0]["alan"], "mistral.ai")
+        self.assertEqual([a["id"] for a in s["adaylar"]], ["A1", "A2"])
+        self.assertEqual({a["alan"] for a in s["adaylar"]}, {"mistral.ai", "anthropic.com"})
         self.assertEqual(len(s["elenen"]), 1)
         self.assertNotIn("Nvidia funds", goruldu["brif"])
         self.assertIn("SAYFADA IDDIA", goruldu["brif"])
@@ -170,3 +173,27 @@ class SayfaElemeTest(unittest.TestCase):
         self.assertEqual(cagri, [])
         self.assertEqual(analiz.son()["durum"], "aday_yok")
         self.assertEqual(len(analiz.son()["elenen"]), 1)
+
+
+class TekAdayTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._o = (analiz.ENGINE, analiz.SON_YOL, analiz.GECMIS_YOL, analiz.GIRIS_YOL)
+        analiz.ENGINE = self.d
+        analiz.SON_YOL = os.path.join(self.d, "s.json")
+        analiz.GECMIS_YOL = os.path.join(self.d, "g.jsonl")
+        analiz.GIRIS_YOL = os.path.join(self.d, "r.json")
+
+    def tearDown(self):
+        analiz.ENGINE, analiz.SON_YOL, analiz.GECMIS_YOL, analiz.GIRIS_YOL = self._o
+
+    def test_tek_aday_konsey_calismaz_ve_acikca_yazilir(self):
+        cagri = []
+        hz = lambda url: {"ok": True, "iddia": "up to 5x faster than before today", "iddia_anahtar": "up to 5x faster", "kanit": 4, "hata": ""}
+        analiz.calistir(lambda: "ok", lambda: {"adaylar": [ADAY[0]]}, lambda b, p: cagri.append(1) or [],
+                        kanal={"ok": True, "videolar": []}, hazirlik=hz, sutun="receipt")
+        s = analiz.son()
+        self.assertEqual(cagri, [])
+        self.assertEqual(s["karar"]["kaynak"], "tek-aday")
+        self.assertEqual(s["karar"]["secim"], "A1")
+        self.assertEqual(s["durum"], "onay_bekliyor")

@@ -135,11 +135,36 @@ def sirala(makaleler, now=None, ilk=15):
 
 
 GDELT_YEDEK = "artificial intelligence sourcelang:english"
+GDELT_ONBELLEK = os.path.join(ENGINE, "gdelt_onbellek.json")
+GDELT_TAZE_DK = 30          # bu kadar dakika icinde basarili sonuc varsa GDELT'e hic sorma
+GDELT_ESKI_SAAT = 6         # istek 429/hata verirse en fazla bu kadar eski onbellek kullanilir
+
+
+def _onbellek_oku(en_fazla_dk):
+    try:
+        with open(GDELT_ONBELLEK, encoding="utf-8") as f:
+            d = json.load(f)
+        yas = (_now() - datetime.datetime.fromisoformat(d["zaman"])).total_seconds() / 60
+        return d["articles"] if yas <= en_fazla_dk else None
+    except Exception:
+        return None
+
+
+def _onbellek_yaz(articles):
+    try:
+        os.makedirs(ENGINE, exist_ok=True)
+        with open(GDELT_ONBELLEK, "w", encoding="utf-8") as f:
+            json.dump({"zaman": _now().isoformat(timespec="seconds"), "articles": articles}, f, ensure_ascii=True)
+    except Exception:
+        pass
 
 
 def gdelt_cek(max_records=60, timeout=25):
     """429 (hiz siniri) -> 1 kez bekleyip tekrar; 400/uyumsuz sorgu -> yedek basit sorgu."""
     import time as _t
+    taze = _onbellek_oku(GDELT_TAZE_DK)
+    if taze is not None:
+        return taze
     son_hata = None
     for q in (GDELT_QUERY, GDELT_YEDEK):
         for deneme in range(2):
@@ -150,19 +175,26 @@ def gdelt_cek(max_records=60, timeout=25):
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     txt = r.read().decode("utf-8", errors="replace")
                 try:
-                    return json.loads(txt).get("articles", [])
+                    arts = json.loads(txt).get("articles", [])
+                    _onbellek_yaz(arts)
+                    return arts
                 except ValueError:
                     son_hata = RuntimeError("GDELT JSON degil: " + txt[:80].replace("\n", " "))
                     break
             except urllib.error.HTTPError as e:
                 son_hata = e
-                if e.code == 429 and deneme == 0:
-                    _t.sleep(6)
-                    continue
+                if e.code == 429:
+                    if deneme == 0:
+                        _t.sleep(8)
+                        continue
+                    break
                 break
             except Exception as e:
                 son_hata = e
                 break
+    eski = _onbellek_oku(GDELT_ESKI_SAAT * 60)
+    if eski is not None:                      # canli istek basarisiz: eski ama yakin sonucu kullan (haber yine kaynakli)
+        return eski
     raise son_hata or RuntimeError("GDELT cevap vermedi")
 
 

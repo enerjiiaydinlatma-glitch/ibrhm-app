@@ -238,15 +238,21 @@ def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik
         d.update(adim="bitti", durum="aday_yok", karar=karar_ver([], []), veri=d["veri"])
         _yaz(d)
         return "Uygun aday bulunamadi."
-    d["adim"] = "tartisma"
-    _yaz(d)
-    try:
-        tr = tartis(brifing(adaylar, d["veri"]), TUR_PLANI)
-    except Exception as e:
-        tr = []
-        d["tartisma_hata"] = f"{type(e).__name__}: {e}"
-    d["transcript"] = tr
-    d["karar"] = karar_ver(tr, adaylar)
+    if len(adaylar) == 1:
+        # tek aday: tartisacak secenek yok. Konsey'i calistirip sahte bir "secim" gerekcesi uretmeyiz; durumu acikca soyleriz.
+        d["transcript"] = []
+        d["karar"] = {"secim": adaylar[0]["id"], "alternatif": [], "aci": "", "kaynak": "tek-aday",
+                      "gerekce": "Sayfa kontrolunu (iddia + kanit) gecen TEK aday bu; Konsey tartismasi yapilmadi. Konunun kanalimiza uygun olup olmadigina sen karar ver."}
+    else:
+        d["adim"] = "tartisma"
+        _yaz(d)
+        try:
+            tr = tartis(brifing(adaylar, d["veri"]), TUR_PLANI)
+        except Exception as e:
+            tr = []
+            d["tartisma_hata"] = f"{type(e).__name__}: {e}"
+        d["transcript"] = tr
+        d["karar"] = karar_ver(tr, adaylar)
     d.update(adim="bitti", durum="onay_bekliyor", bitti=datetime.datetime.now().isoformat(timespec="seconds"))
     _yaz(d)
     log({"olay": "oneri", "secim": d["karar"]["secim"], "kaynak": d["karar"]["kaynak"]})

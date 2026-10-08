@@ -229,6 +229,14 @@ class IddiaTespitTest(unittest.TestCase):
 
 
 class GdeltTest(unittest.TestCase):
+    def setUp(self):
+        self._oo = (bugun.ENGINE, bugun.GDELT_ONBELLEK)
+        d = tempfile.mkdtemp()
+        bugun.ENGINE, bugun.GDELT_ONBELLEK = d, os.path.join(d, "gdelt.json")   # gercek _engine'e yazilmasin
+
+    def tearDown(self):
+        bugun.ENGINE, bugun.GDELT_ONBELLEK = self._oo
+
     def test_429_yeniden_dener_sonra_yedek_sorgu(self):
         import urllib.error
         cagri = []
@@ -249,3 +257,35 @@ class GdeltTest(unittest.TestCase):
             bugun.urllib.request.urlopen = o
         self.assertEqual(len(r), 1)
         self.assertEqual(len(cagri), 2)   # ilk sorgu 400 -> yedek sorgu
+
+
+class GdeltOnbellekTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._o = (bugun.ENGINE, bugun.GDELT_ONBELLEK, bugun.urllib.request.urlopen)
+        bugun.ENGINE = self.d
+        bugun.GDELT_ONBELLEK = os.path.join(self.d, "gdelt.json")
+
+    def tearDown(self):
+        bugun.ENGINE, bugun.GDELT_ONBELLEK, bugun.urllib.request.urlopen = self._o
+
+    def test_taze_onbellek_varsa_istek_atilmaz(self):
+        bugun._onbellek_yaz([{"title": "cached", "url": "https://a.com"}])
+        bugun.urllib.request.urlopen = lambda *a, **k: (_ for _ in ()).throw(AssertionError("istek atilmamaliydi"))
+        self.assertEqual(bugun.gdelt_cek()[0]["title"], "cached")
+
+    def test_429da_eski_onbellek_kullanilir(self):
+        import urllib.error
+        # 1 saatlik onbellek: taze degil (30 dk) ama eski-kabul (6 saat) icinde
+        eski = (bugun._now() - datetime.timedelta(hours=1)).isoformat(timespec="seconds")
+        json.dump({"zaman": eski, "articles": [{"title": "old", "url": "https://b.com"}]}, open(bugun.GDELT_ONBELLEK, "w"))
+        def fake(req, timeout=0):
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many", {}, None)
+        bugun.urllib.request.urlopen = fake
+        o = __import__("time").sleep
+        __import__("time").sleep = lambda s: None
+        try:
+            r = bugun.gdelt_cek()
+        finally:
+            __import__("time").sleep = o
+        self.assertEqual(r[0]["title"], "old")

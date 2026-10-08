@@ -1759,7 +1759,7 @@ function bgAnalizCiz(d){
   if(d.durum==='aday_yok') h += '<div style="margin-bottom:6px"><b>Bugün için uygun aday bulunamadı</b> (sayfasında şirketin kendi iddiası ve yeterli kanıt olan haber çıkmadı). Gündemi biraz sonra yenile ya da aşağıya kendi adresini yapıştır.</div>';
   if(k.secim && bul(k.secim)){
     const a = bul(k.secim);
-    h += '<div style="border:1px solid #1f6feb;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">'+(k.kaynak==='konsey'?'KONSEY ÖNERİSİ':'KURAL TABANLI ÖNERİ (Konsey geçerli seçim üretmedi)')+'</div>'
+    h += '<div style="border:1px solid #1f6feb;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">'+(k.kaynak==='konsey'?'KONSEY ÖNERİSİ':k.kaynak==='tek-aday'?'TEK ADAY (tartışma yapılmadı)':'KURAL TABANLI ÖNERİ (Konsey geçerli seçim üretmedi)')+'</div>'
       + '<div style="font-size:16px;margin:4px 0"><b>'+bgEsc(a.title)+'</b></div><div style="font-size:12px;color:#8b949e">'+bgEsc(a.alan)+' · puan '+a.puan+'</div>'
       + ((a.hazir&&a.hazir.iddia)?'<div style="margin-top:6px;font-size:13px"><b>Sayfadaki iddia (kodla okundu):</b> “'+bgEsc(a.hazir.iddia)+'” · kanıt cümlesi: '+a.hazir.kanit+'</div>':'')
       + '<div style="margin-top:6px"><b>Gerekçe:</b> '+bgEsc(k.gerekce)+'</div>'+(k.aci?'<div><b>Açı:</b> '+bgEsc(k.aci)+'</div>':'')
