@@ -57,6 +57,8 @@ import tracker_actions  # noqa: E402
 import autotest  # noqa: E402
 import maintenance  # noqa: E402
 import security  # noqa: E402
+import bugun  # noqa: E402
+import daily_limit  # noqa: E402
 
 # ---- kimlik dogrulama: TUM istekler gizli anahtar ister ---------------------
 # 24 Eylul 2026: telefon baglantisi (Cloudflare tuneli) eklenince panel
@@ -114,14 +116,14 @@ def _read_json(path, default=None):
 _JOBS = {}
 
 
-def _run_job(args):
+def _run_job(args, env=None, timeout=900):
     jid = uuid.uuid4().hex[:10]
     _JOBS[jid] = {"status": "running", "out": "", "started": time.time()}
 
     def _go():
         try:
-            p = subprocess.run([PY, "-u", *args], cwd=HERE, capture_output=True,
-                               text=True, encoding="utf-8", errors="replace", timeout=900)
+            p = subprocess.run([PY, "-u", *args], cwd=HERE, capture_output=True, env=env,
+                               text=True, encoding="utf-8", errors="replace", timeout=timeout)
             _JOBS[jid]["out"] = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
         except Exception as e:
             _JOBS[jid]["out"] = "[HATA] " + health.friendly_error(e)
@@ -188,6 +190,73 @@ _RISKY = {
 
 
 # =====================================================================
+# BUGUN sekmesi: tek ekranda gundem -> kaynak -> uretim (private) -> inceleme -> yayin
+# Korumalar motorda (aura_engine.py) aynen calisir; burasi sadece adimlari baglar.
+# =====================================================================
+def _bugun_env():
+    env = dict(os.environ)
+    env["AURA_VOICE_URL"] = "http://127.0.0.1:8124"
+    env["AURA_VOICE_KEY"] = _voice_key()
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
+def _bugun_receipt_arg(name):
+    """Receipt dosya adi SADECE receipts/ klasorundeki listeden secilebilir (yol enjeksiyonu yok)."""
+    if not name:
+        return [], ""
+    if name not in bugun.receipt_listesi():
+        return None, "Bilinmeyen receipt dosyasi."
+    return ["--receipt", os.path.join("receipts", name)], ""
+
+
+def bugun_durum_full():
+    d = bugun.bugun_durum()
+    d["ses_hazir"] = bool((voice_health() or {}).get("model_loaded"))
+    d["receipts"] = bugun.receipt_listesi()
+    d["kontrol"] = bugun.YAYIN_KONTROL
+    g = bugun.gundem_oku()
+    d["gundem_zaman"] = g.get("zaman")
+    d["dolu"] = d["adet"] >= d["limit"]
+    return d
+
+
+def bugun_job(kind, receipt_name=""):
+    paket = bugun._son_paket()
+    if kind in ("plan", "uret") and not paket:
+        return {"error": "Once kaynak paketini hazirla (Adim 3)."}
+    rec, err = _bugun_receipt_arg(receipt_name)
+    if rec is None:
+        return {"error": err}
+    if kind == "plan":
+        return {"job": _run_job(["aura_engine.py", "--plan-only", "--source", paket, *rec], env=_bugun_env(), timeout=300)}
+    if kind == "uret":
+        izin, info = daily_limit.can_upload(os.path.join(ENGINE, datetime.date.today().isoformat(), ".uploaded_today.json"))
+        if not izin:
+            return {"error": f"Bugun {info['count']}/{daily_limit.MAX_DAILY} video var - gunluk sinir doldu."}
+        if not (voice_health() or {}).get("model_loaded"):
+            return {"error": "Ses sunucusu hazir degil. Bakim sekmesinden baslat, YESIL 'CALISIYOR' gorunce tekrar dene."}
+        bugun.gecmis_yaz({"olay": "uretim", "paket": paket, "receipt": receipt_name})
+        return {"job": _run_job(["aura_engine.py", "--short-upload", "--source", paket, *rec],
+                                env=_bugun_env(), timeout=1500)}
+    if kind == "rapor":
+        return {"job": _run_job(["explain_run.py"], env=_bugun_env(), timeout=120)}
+    return {"error": "bilinmeyen adim"}
+
+
+def bugun_yayinla(video_id, onay, isaretli):
+    hata = bugun.yayin_dogrula(onay, isaretli)
+    if hata:
+        return {"error": hata}
+    ids = {v.get("video_id") for v in bugun.bugun_durum()["videolar"]}
+    if video_id not in ids:
+        return {"error": "Bu video bugunun yukleme kaydinda yok."}
+    from publish_youtube import publish_video
+    bugun.gecmis_yaz({"olay": "yayin", "video_id": video_id})
+    return {"job": _run_py_job(publish_video, video_id)}
+
+
+# =====================================================================
 # ses sunucusu (:8124) - sign_council_voice.bat'i supervise eder
 # =====================================================================
 _VOICE = {"proc": None, "log": deque(maxlen=300)}
@@ -209,12 +278,27 @@ def voice_health():
     return _get_json("http://127.0.0.1:8124/health", timeout=2)
 
 
+def _voice_key():
+    """Ses sunucusu anahtari: .voice_key dosyasindan; dosya yoksa YENI uretilir (bos anahtar = kimlik kontrolu yok, olmaz)."""
+    path = os.path.join(HERE, ".voice_key")
+    try:
+        k = open(path, encoding="utf-8").read().strip()
+        if k:
+            return k
+    except Exception:
+        pass
+    k = "sc-local-" + secrets.token_urlsafe(24)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(k)
+    return k
+
+
 _VOICE_SRV = os.path.normpath(os.path.join(HERE, "..", "auro-backend", "voice_service", "server.py"))
 _VOICE_ENV = {
     "AURA_VOICE_PORT": "8124",
     "AURA_VOICE_VOICES_DIR": os.path.join(HERE, "reference_voices"),
     "AURA_VOICE_DEFAULT_SPEAKER": "aura",
-    "AURA_VOICE_KEY": (open(__import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), ".voice_key"), encoding="utf-8").read().strip()),
+    "AURA_VOICE_KEY": _voice_key(),
     "AURA_TTS_EXAGGERATION": "0.4",
     "AURA_TTS_CFG_WEIGHT": "0.5",
 }
@@ -296,7 +380,7 @@ def start_show(agenda="", auto_agenda=False, public=True, test=False, duration=2
     env.update({
         "AURA_TTS_MESH": "1", "AURA_TTS_MESH_STREAM": "", "AURA_TTS_NO_CHATTERBOX": "1",
         "AURA_STUDIO_RES": "960x540", "AURA_VOICE_URL": "http://127.0.0.1:8124",
-        "AURA_VOICE_KEY": (open(__import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), ".voice_key"), encoding="utf-8").read().strip()), "AURA_STUDIO_GPU": "off",
+        "AURA_VOICE_KEY": _voice_key(), "AURA_STUDIO_GPU": "off",
         # 22 Eylul 2026 konsey karari (known_issues.json/live-tts-delay): mesh
         # takilirsa 110sn'lik varsayilan yerine HIZLI Groq'a dussun, tartisma
         # turleri kilitlenmesin. Isolate test 4.6s'de cevap veriyordu - 15s
@@ -788,7 +872,8 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
 <header><h1>🎛 Sign Council — Mission Control <span style="font-size:11px;font-weight:normal;color:#8b949e">v2.1 · 25 Eylül 2026</span></h1></header>
 <div id="alertBar"></div>
 <nav>
- <button data-tab="durum" class="active">🏠 Durum</button>
+ <button data-tab="bugun" class="active">🚀 Bugün</button>
+ <button data-tab="durum">🏠 Durum</button>
  <button data-tab="onay">🎬 Üret &amp; Yayınla</button>
  <button data-tab="takip">📈 Büyüme Kararları</button>
  <button data-tab="analiz">📊 Performans</button>
@@ -805,7 +890,49 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
 </nav>
 <main>
 
-<div class="tab active" id="tab-durum">
+<div class="tab active" id="tab-bugun">
+ <div class="card wide">
+  <h2>🚀 Bugün <span id="bgSayac" class="pill" style="margin-left:6px"></span></h2>
+  <div style="color:#8b949e;font-size:13px">Tek ekran: gündem → kaynak → üretim (özel/private) → inceleme → yayın. Korumalar (iddia/niyet taraması, kaynak doğrulama, günlük 2 sınırı) arka planda aynen çalışır. Yayın yalnızca senin onayınla.</div>
+  <div id="bgDurum" style="margin-top:8px;font-size:13px"></div>
+ </div>
+ <div class="card wide">
+  <h2>1 · Gündem <span style="font-weight:normal;color:#8b949e;font-size:12px">(son 24 saat haberleri; puan = kanal kuralına uyum + tazelik, "viral olur" tahmini değil)</span></h2>
+  <button class="act primary" onclick="bgGundem()">Gündemi yenile (10-30 sn)</button> <span id="bgGundemSt" style="font-size:12px;color:#8b949e"></span>
+  <div id="bgAdaylar" style="margin-top:8px"></div>
+ </div>
+ <div class="card wide">
+  <h2>2 · Kaynak sayfa</h2>
+  <input id="bgUrl" placeholder="https://… (listeden «Seç» ile dolar ya da kendin yapıştır)" style="width:100%;max-width:640px">
+  <div style="margin-top:6px"><button class="act primary" onclick="bgKaynak()">Sayfayı çek ve kanıtları çıkar</button> <span id="bgKaynakSt" style="font-size:12px;color:#8b949e"></span></div>
+  <div id="bgKanit" style="margin-top:8px"></div>
+ </div>
+ <div class="card wide">
+  <h2>3 · Paket <span style="font-weight:normal;color:#8b949e;font-size:12px">(seçtiğin kanıt cümleleri; video yalnızca bunlara dayanır)</span></h2>
+  <input id="bgFacts" placeholder="Grafikte gördüğün sayılar (isteğe bağlı, ; ile ayır)" style="width:100%;max-width:640px">
+  <div style="margin-top:6px"><button class="act primary" onclick="bgPaket()">Paketi hazırla</button> <span id="bgPaketSt" style="font-size:12px;color:#8b949e"></span></div>
+ </div>
+ <div class="card wide">
+  <h2>4 · Önizleme ve üretim <span style="font-weight:normal;color:#8b949e;font-size:12px">(üretim 2-4 dk; video ÖZEL yüklenir)</span></h2>
+  <div>Receipt (varsa): <select id="bgReceipt"><option value="">(yok — sayfadan otomatik)</option></select></div>
+  <div style="margin-top:6px">
+   <button class="act" onclick="bgAdim('plan')">Planı göster (yüklemez)</button>
+   <button class="act primary" onclick="bgAdim('uret')">🎬 Üret (özel yükle)</button>
+   <button class="act" onclick="bgAdim('rapor')">İnceleme raporu</button>
+  </div>
+  <pre id="bgOut" style="white-space:pre-wrap;max-height:380px;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;margin-top:8px;font-size:12px"></pre>
+ </div>
+ <div class="card wide">
+  <h2>5 · Yayın kararı <span style="font-weight:normal;color:#8b949e;font-size:12px">(sadece sen)</span></h2>
+  <div id="bgVideolar" style="font-size:13px"></div>
+  <div id="bgKontrol" style="margin:8px 0"></div>
+  <input id="bgOnay" placeholder="YAYINLA yaz" style="width:160px">
+  <button class="act risky" onclick="bgYayinla()">Yayınla</button> <span id="bgYayinSt" style="font-size:12px;color:#8b949e"></span>
+  <div style="font-size:12px;color:#8b949e;margin-top:6px">Yayınlamazsan video özel kalır; Studio'dan silebilir veya sonra yayınlayabilirsin.</div>
+ </div>
+</div>
+
+<div class="tab" id="tab-durum">
  <div class="card"><h2>Sistem Durumu</h2><div id="statusBox">yukleniyor...</div></div>
  <div class="card wide" id="issuesCard" style="display:none"><h2>⚠ Bilinen Sorunlar</h2><div id="issuesBox"></div></div>
  <div class="card"><h2>Otomatik Müdahale Kayıtları (şeffaflık)</h2><div id="intervBox">yükleniyor...</div></div>
@@ -1459,7 +1586,76 @@ async function pollReconnect(jid){
   loadAccount();
 }
 
+function bgEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function bgJob(jid, el){
+  for(;;){
+    const j = await api('/api/job/'+jid);
+    if(j.status!=='running'){ if(el) el.textContent = j.out || '(çıktı yok)'; return j; }
+    if(el) el.textContent = 'çalışıyor… '+Math.round((Date.now()/1000)-(j.started||0))+' sn';
+    await new Promise(r=>setTimeout(r,2000));
+  }
+}
+var _bgSel = new Set(), _bgVideos = [], _bgKontrolN = 0;
+async function bgLoad(){
+  const d = await api('/api/bugun/durum');
+  if(d.error){ $('#bgDurum').textContent = d.error; return; }
+  const sc = $('#bgSayac'); sc.textContent = d.adet+'/'+d.limit+' video'; sc.className = 'pill '+(d.dolu?'bad':'ok');
+  $('#bgDurum').innerHTML = 'Ses sunucusu: <span class="pill '+(d.ses_hazir?'ok':'bad')+'">'+(d.ses_hazir?'ÇALIŞIYOR':'DURDU')+'</span>'
+    + (d.ses_hazir?'':' <button class="act" onclick="gotoTab(\'bakim\')">Bakım → başlat</button>')
+    + ' · Bugünkü paket: '+(d.paket?'hazır':'yok')+(d.dolu?' · <b>günlük sınır doldu</b>':'');
+  const sel = $('#bgReceipt'), cur = sel.value; sel.innerHTML = '<option value="">(yok — sayfadan otomatik)</option>'+d.receipts.map(r=>'<option>'+bgEsc(r)+'</option>').join(''); sel.value = cur;
+  _bgVideos = d.videolar||[];
+  $('#bgVideolar').innerHTML = _bgVideos.length ? 'Bugünün videoları: '+_bgVideos.map(v=>'<a href="https://youtu.be/'+bgEsc(v.video_id)+'" target="_blank">'+bgEsc(v.video_id)+'</a>').join(' · ') : 'Bugün henüz video yok.';
+  $('#bgKontrol').innerHTML = (d.kontrol||[]).map((k,i)=>'<label style="display:block;font-size:13px"><input type="checkbox" class="bgChk"> '+bgEsc(k)+'</label>').join('');
+  _bgKontrolN = (d.kontrol||[]).length;
+  const g = await api('/api/bugun/gundem'); bgAdayCiz(g);
+}
+function bgAdayCiz(g){
+  const a = (g&&g.adaylar)||[];
+  $('#bgGundemSt').textContent = g&&g.zaman ? 'son yenileme: '+g.zaman.replace('T',' ') : 'henüz çekilmedi';
+  $('#bgAdaylar').innerHTML = a.length ? a.map((x,i)=>'<div class="row" style="display:block;border-bottom:1px solid #21262d;padding:6px 0"><b>'+x.puan+'</b> '+bgEsc(x.title)+'<div style="font-size:12px;color:#8b949e">'+bgEsc(x.alan)+' · '+x.haber_sayisi+' haber '+(x.etiketler||[]).map(e=>'<span class="pill ok">'+bgEsc(e)+'</span>').join(' ')+(x.engel?' <span class="pill bad">'+bgEsc(x.engel)+'</span>':'')+'</div>'+(x.engel?'':'<button class="act" style="margin-top:3px" onclick="bgSec('+i+')">Seç</button>')+'</div>').join('') : '<span style="color:#8b949e">Aday yok. «Gündemi yenile»ye bas.</span>';
+  window._bgAday = a;
+}
+function bgSec(i){ $('#bgUrl').value = window._bgAday[i].url; bgKaynak(); }
+async function bgGundem(){
+  $('#bgGundemSt').textContent = 'çekiliyor…';
+  const r = await api('/api/bugun/gundem',{method:'POST'});
+  await bgJob(r.job, $('#bgGundemSt')); bgLoad();
+}
+async function bgKaynak(){
+  const url = $('#bgUrl').value.trim(); if(!url){ $('#bgKaynakSt').textContent='Adres yaz.'; return; }
+  $('#bgKaynakSt').textContent = 'sayfa çekiliyor…'; $('#bgKanit').innerHTML='';
+  const r = await api('/api/bugun/kaynak',{method:'POST',headers:JH,body:JSON.stringify({url})});
+  if(!r.ok){ $('#bgKaynakSt').textContent = 'HATA: '+(r.error||'?'); return; }
+  $('#bgKaynakSt').textContent = r.title+' — '+r.cumle_sayisi+' cümle'+(r.birincil?' · birincil kaynak':' · ⚠ birincil kaynak listesinde değil');
+  _bgSel = new Set(r.onerilen);
+  $('#bgKanit').innerHTML = '<div style="font-size:13px;margin-bottom:4px"><b>İddia cümlesi:</b> '+(r.claim?bgEsc(r.claim):'<i>sayfada bulunamadı</i>')+'</div>'
+    + r.adaylar.map(c=>'<label style="display:block;font-size:13px;padding:2px 0"><input type="checkbox" '+(_bgSel.has(c.no)?'checked':'')+' onchange="bgTick('+c.no+',this.checked)"> <b>'+c.no+'.</b> '+bgEsc(c.metin.slice(0,260))+'</label>').join('');
+}
+function bgTick(n, on){ if(on) _bgSel.add(n); else _bgSel.delete(n); }
+async function bgPaket(){
+  const facts = $('#bgFacts').value.split(';').map(x=>x.trim()).filter(Boolean);
+  const r = await api('/api/bugun/paket',{method:'POST',headers:JH,body:JSON.stringify({secim:[..._bgSel],facts})});
+  $('#bgPaketSt').textContent = r.ok ? ('Hazır: '+r.kanit+' kanıt'+(r.iddia?'':' (iddia cümlesi yok)')+(r.uyarilar&&r.uyarilar.length?' · UYARI: '+r.uyarilar.join(' | '):'')) : 'HATA: '+r.error;
+  bgLoad();
+}
+async function bgAdim(kind){
+  const out = $('#bgOut'); out.textContent = 'başlıyor…';
+  const r = await api('/api/bugun/'+kind,{method:'POST',headers:JH,body:JSON.stringify({receipt:$('#bgReceipt').value})});
+  if(r.error){ out.textContent = 'HATA: '+r.error; return; }
+  await bgJob(r.job, out); bgLoad();
+}
+async function bgYayinla(){
+  if(!_bgVideos.length){ $('#bgYayinSt').textContent='Bugün yüklenmiş video yok.'; return; }
+  const v = _bgVideos[_bgVideos.length-1].video_id;
+  const n = document.querySelectorAll('.bgChk:checked').length;
+  if(!confirm('Video '+v+' HERKESE AÇIK yayınlanacak. Emin misin?')) return;
+  const r = await api('/api/bugun/yayinla',{method:'POST',headers:JH,body:JSON.stringify({video_id:v,onay:$('#bgOnay').value,isaretli:n})});
+  if(r.error){ $('#bgYayinSt').textContent='HATA: '+r.error; return; }
+  await bgJob(r.job, $('#bgYayinSt')); $('#bgOnay').value=''; bgLoad();
+}
 function onTab(name){
+  if(name==='bugun') bgLoad();
   if(name==='telefon') phoneRefresh();
   if(name==='onay'){ loadUretBugun(); loadPending(); }
   if(name==='bakim'){ atLoad(); voicePoll(); loadPorts(); loadTasks(); loadLogs(); loadAutostart(); loadLastGood(); }
@@ -1968,7 +2164,7 @@ async function anSaveCfg(){
 attachMic($('#asstMic'), $('#asstText'));
 attachMic($('#kodMic'), $('#kodInstr'));
 
-refreshStatus(); loadDays(); loadChat(); loadPredictions(); loadUretBugun(); loadPending(); loadAccount(); loadFreshness(); loadIssues(); loadInterventions(); loadAlerts(); setInterval(loadAlerts, 30000);
+bgLoad(); refreshStatus(); loadDays(); loadChat(); loadPredictions(); loadUretBugun(); loadPending(); loadAccount(); loadFreshness(); loadIssues(); loadInterventions(); loadAlerts(); setInterval(loadAlerts, 30000);
 setInterval(refreshStatus, 5000);
 setInterval(pollLive, 2000);
 </script>
@@ -2061,6 +2257,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Set-Cookie", f"mc_key={TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000")
             self.end_headers()
             self.wfile.write(body)
+        elif u.path == "/api/bugun/durum":
+            self._json(bugun_durum_full())
+        elif u.path == "/api/bugun/gundem":
+            self._json(bugun.gundem_oku())
         elif u.path == "/api/phone":
             self._json(phone_status())
         elif u.path == "/api/alerts":
@@ -2155,6 +2355,29 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authed(q):
             return self._deny()
 
+        if u.path == "/api/bugun/gundem":
+            return self._json({"job": _run_py_job(bugun.gundem_yenile)})
+        if u.path == "/api/bugun/kaynak":
+            b = self._body()
+            return self._json(bugun.kaynak_analiz(str(b.get("url", ""))[:600], str(b.get("claim_key") or "state-of-the-art")[:80]))
+        if u.path == "/api/bugun/paket":
+            b = self._body()
+            sec = [x for x in (b.get("secim") or []) if isinstance(x, int)][:12]
+            facts = [str(x)[:200] for x in (b.get("facts") or [])][:8]
+            return self._json(bugun.kaynak_paketle(sec, facts))
+        if u.path in ("/api/bugun/plan", "/api/bugun/rapor"):
+            b = self._body()
+            return self._json(bugun_job(u.path.rsplit("/", 1)[-1], str(b.get("receipt") or "")))
+        if u.path == "/api/bugun/uret":
+            if not self._sens():
+                return
+            b = self._body()
+            return self._json(bugun_job("uret", str(b.get("receipt") or "")))
+        if u.path == "/api/bugun/yayinla":
+            if not self._sens():
+                return
+            b = self._body()
+            return self._json(bugun_yayinla(str(b.get("video_id") or ""), str(b.get("onay") or ""), b.get("isaretli")))
         if u.path == "/api/phone/start":
             return self._json(tunnel_start())
         if u.path == "/api/phone/stop":
