@@ -176,7 +176,7 @@ def satirlar(tablo, aktif=None):
         t = tablo.get(s)
         out.append({"sutun": s, "ad": SUTUNLAR.get(s, {}).get("ad", "Diğer / sınıflanamadı"), "aktif": s in aktif,
                     "deneme": t["deneme"] if t else 0, "ort_izlenme": t["ort_izlenme"] if t else None,
-                    "ort_yorum": t["ort_yorum"] if t else None, "skor": t["skor"] if t else None,
+                    "ort_yorum": t["ort_yorum"] if t else None, "skor": (t["skor"] if t and t["deneme"] >= MIN_DENEME else None),   # <3 denemede skor gosterilmez (anlamsiz)
                     "ort_abone": t["ort_abone"] if t else None, "med_tutma": t["med_tutma"] if t else None,
                     "med_goreli": t.get("med_goreli") if t else None,
                     "ornek": t["ornek"] if t else []})

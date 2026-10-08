@@ -134,3 +134,10 @@ class HashtagPaketTest(unittest.TestCase):
     def test_turkce_oneriler_listesine_girmez(self):
         k = ogrenme.karne(self.liste(), BUGUN)
         self.assertFalse(any("Ekonomi" in o["ad"] for o in k["oneriler"]))
+
+
+class UcDegerTest(unittest.TestCase):
+    def test_goreli_tavanli(self):
+        vs = [v(i, f"Normal video title number {i}", 5, tarih=f"2026-10-0{1 + i}") for i in range(4)] + [v(9, "One big outlier video title", 500, tarih="2026-10-03")]
+        g = {x["id"]: x for x in ogrenme.goreli(vs)}
+        self.assertEqual(g["v9"]["rel"], ogrenme.REL_TAVAN)

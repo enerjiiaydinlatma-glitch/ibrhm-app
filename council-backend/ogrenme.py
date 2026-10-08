@@ -20,6 +20,7 @@ GUVENILIR_N = 10
 OLGUN_GUN = 3                                  # Shorts izlenmesi ilk gunlerde hizla artar: >=3 gunluk videolar sonuc sayilir
 KOMSU_GUN = 10                                 # bir videoyu +-10 gun icindeki videolarin medyaniyla kiyasla
 MIN_KOMSU = 3
+REL_TAVAN = 5.0                                # 'dönemine göre' en fazla 5x sayilir (komsulari cok dusuk bir videonun 37x cikmasi gibi)
 MARKA = {"#shorts", "#signcouncil"}          # neredeyse her videoda: ayirt edici degil
 TR_ETIKET = {"#ekonomi", "#etik", "#sentez", "#teknoloji", "#yapayzeka", "#yapayzekâ", "#gundem", "#gündem"}   # eski Turkce seri; kitle artik ABD
 
@@ -42,7 +43,7 @@ def goreli(videolar):
         komsu = [x.get("views", 0) for x in videolar if x is not v and d and _tarih(x) and abs((_tarih(x) - d).days) <= KOMSU_GUN]
         taban = statistics.median(komsu) if len(komsu) >= MIN_KOMSU else genel
         w = dict(v)
-        w["rel"] = round(v.get("views", 0) / taban, 3) if taban else None
+        w["rel"] = min(round(v.get("views", 0) / taban, 3), REL_TAVAN) if taban else None   # tek uc deger tabloyu bozmasin
         out.append(w)
     return out
 

@@ -145,3 +145,11 @@ class ElemeTest(unittest.TestCase):
         tablo = {"haber": {"deneme": 40, "skor": 150, "ort_izlenme": 100, "ort_yorum": 0},
                  "ikilem": {"deneme": 4, "skor": 5, "ort_izlenme": 5, "ort_yorum": 0}}
         self.assertEqual(sutun.oner(tablo, self.CMT).get("elenen"), [])
+
+
+class SkorGizleTest(unittest.TestCase):
+    def test_az_denemede_skor_gosterilmez(self):
+        tablo = sutun.istatistik([vid(1, "Anthropic jumps to top rank as OpenAI slips", 224)], kayit={}, now=NOW)
+        satir = {r["sutun"]: r for r in sutun.satirlar(tablo)}
+        self.assertEqual(satir["siralama"]["deneme"], 1)
+        self.assertIsNone(satir["siralama"]["skor"])
