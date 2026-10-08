@@ -254,7 +254,8 @@ def bugun_analiz_baslat():
                 return analytics_report.load_report()
             except Exception:
                 return None
-        return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor())
+        return analiz.calistir(bugun.gundem_yenile, bugun.gundem_oku, _council_debate, rapor=_rapor(),
+                               hazirlik=bugun.sayfa_hazirlik)
     return {"job": _run_py_job(_is)}
 
 
@@ -1670,7 +1671,7 @@ async function bgGundem(){
 async function bgKaynak(){
   const url = $('#bgUrl').value.trim(); if(!url){ $('#bgKaynakSt').textContent='Adres yaz.'; return; }
   $('#bgKaynakSt').textContent = 'sayfa çekiliyor…'; $('#bgKanit').innerHTML='';
-  const r = await api('/api/bugun/kaynak',{method:'POST',headers:JH,body:JSON.stringify({url})});
+  const r = await api('/api/bugun/kaynak',{method:'POST',headers:JH,body:JSON.stringify({url, claim_key: window._bgClaimKey||''})});
   if(!r.ok){ $('#bgKaynakSt').textContent = 'HATA: '+(r.error||'?'); return; }
   $('#bgKaynakSt').textContent = r.title+' — '+r.cumle_sayisi+' cümle'+(r.birincil?' · birincil kaynak':' · ⚠ birincil kaynak listesinde değil');
   _bgSel = new Set(r.onerilen);
@@ -1713,24 +1714,26 @@ async function bgAnalizPoll(){
   if(d.durum==='calisiyor') _bgAnalizTimer = setTimeout(bgAnalizPoll, 3000);
 }
 function bgAnalizCiz(d){
-  const AD = {konu:'1/4 Konular analiz ediliyor…', veri:'2/4 Kanal verisi analiz ediliyor…', tartisma:'3/4 Konsey tartışıyor…', bitti:'Bitti'};
+  const AD = {konu:'1/5 Konular analiz ediliyor…', sayfa:'2/5 Aday sayfaları okunuyor (iddia ve kanıt var mı)…', veri:'3/5 Kanal verisi analiz ediliyor…', tartisma:'4/5 Konsey tartışıyor…', bitti:'Bitti'};
   $('#bgAnalizSt').textContent = d.durum==='calisiyor' ? (AD[d.adim]||'çalışıyor…') : (d.durum==='yok'?'':'');
   { const n=new Date(), yy=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); if(d.basladi && d.basladi.slice(0,10)!==yy) $('#bgAnalizSt').textContent = '(son analiz '+d.basladi.slice(0,10)+' tarihli, bugün için yeniden başlat)'; }
   const box = $('#bgAnalizBox'); if(!d.adaylar && d.durum!=='aday_yok'){ box.innerHTML=''; return; }
   const k = d.karar||{}, ad = d.adaylar||[];
   const bul = id => ad.find(a=>a.id===id);
   let h = d.gundem_mesaj ? '<div style="font-size:12px;color:#8b949e;margin-bottom:6px">Kaynak taraması: '+bgEsc(d.gundem_mesaj)+'</div>' : '';
-  if(d.durum==='aday_yok') h += '<div>Uygun aday bulunamadı. Gündemi biraz sonra yenile ya da aşağıdan adres yapıştır.</div>';
+  if(d.durum==='aday_yok') h += '<div style="margin-bottom:6px"><b>Bugün için uygun aday bulunamadı</b> (sayfasında şirketin kendi iddiası ve yeterli kanıt olan haber çıkmadı). Gündemi biraz sonra yenile ya da aşağıya kendi adresini yapıştır.</div>';
   if(k.secim && bul(k.secim)){
     const a = bul(k.secim);
     h += '<div style="border:1px solid #1f6feb;border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:12px;color:#8b949e">'+(k.kaynak==='konsey'?'KONSEY ÖNERİSİ':'KURAL TABANLI ÖNERİ (Konsey geçerli seçim üretmedi)')+'</div>'
       + '<div style="font-size:16px;margin:4px 0"><b>'+bgEsc(a.title)+'</b></div><div style="font-size:12px;color:#8b949e">'+bgEsc(a.alan)+' · puan '+a.puan+'</div>'
+      + ((a.hazir&&a.hazir.iddia)?'<div style="margin-top:6px;font-size:13px"><b>Sayfadaki iddia (kodla okundu):</b> “'+bgEsc(a.hazir.iddia)+'” · kanıt cümlesi: '+a.hazir.kanit+'</div>':'')
       + '<div style="margin-top:6px"><b>Gerekçe:</b> '+bgEsc(k.gerekce)+'</div>'+(k.aci?'<div><b>Açı:</b> '+bgEsc(k.aci)+'</div>':'')
       + '<div style="margin-top:8px"><button class="act primary" onclick="bgOnay(\''+k.secim+'\')">Onayla ve kaynağı çek</button> '
       + (k.alternatif||[]).map(i=>bul(i)?'<button class="act" onclick="bgOnay(\''+i+'\')">Bunu seç: '+bgEsc(bul(i).title.slice(0,40))+'…</button>':'').join(' ')
       + ' <button class="act" onclick="bgRed()">Hiçbiri, yeniden analiz</button></div>'
       + (d.onay?'<div style="font-size:12px;color:#8b949e;margin-top:6px">Onaylanan: '+bgEsc(d.onay.secim)+(d.onay.degisti?' (Konsey önerisinden farklı)':'')+'</div>':'')+'</div>';
   }
+  if((d.elenen||[]).length) h += '<details><summary>Elenen adaylar ('+d.elenen.length+') — sayfasında iddia/kanıt yok</summary>'+d.elenen.map(a=>'<div style="font-size:13px;padding:3px 0">'+bgEsc(a.title)+' <span style="color:#8b949e">('+bgEsc(a.alan)+') → '+bgEsc((a.hazir||{}).hata||'')+'</span></div>').join('')+'</details>';
   h += '<details><summary>Adaylar ('+ad.length+')</summary>'+ad.map(a=>'<div style="font-size:13px;padding:3px 0"><b>'+a.id+'</b> '+bgEsc(a.title)+' <span style="color:#8b949e">('+bgEsc(a.alan)+', puan '+a.puan+')</span></div>').join('')+'</details>';
   if(d.veri) h += '<details><summary>Kanal verisi özeti</summary><pre style="white-space:pre-wrap;font-size:12px">'+bgEsc(JSON.stringify(d.veri.sinyaller||d.veri,null,1))+(d.veri.kanal_ok?'':'\nUYARI: kanal verisi alınamadı: '+bgEsc(d.veri.kanal_hata||''))+'</pre></details>';
   if(d.transcript && d.transcript.length) h += '<details><summary>Konsey tartışması</summary>'+d.transcript.map(t=>'<div style="margin:6px 0;font-size:13px"><b>'+bgEsc(t.name||t.speaker)+':</b> '+bgEsc(t.text)+'</div>').join('')+'</details>';
@@ -1740,7 +1743,7 @@ function bgAnalizCiz(d){
 async function bgOnay(id){
   const r = await api('/api/bugun/onay',{method:'POST',headers:JH,body:JSON.stringify({secim:id})});
   if(!r.ok){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
-  $('#bgUrl').value = r.url; bgAnalizPoll(); bgGuven(); bgKaynak();
+  $('#bgUrl').value = r.url; window._bgClaimKey = r.iddia_anahtar||''; bgAnalizPoll(); bgGuven(); bgKaynak();
   $('#bgUrl').scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function bgRed(){ await api('/api/bugun/red',{method:'POST'}); bgAnaliz(); }

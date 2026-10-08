@@ -112,3 +112,44 @@ class AkisGuvenTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SayfaElemeTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self._o = (analiz.ENGINE, analiz.SON_YOL, analiz.GECMIS_YOL, analiz.GIRIS_YOL)
+        analiz.ENGINE = self.d
+        analiz.SON_YOL = os.path.join(self.d, "s.json")
+        analiz.GECMIS_YOL = os.path.join(self.d, "g.jsonl")
+        analiz.GIRIS_YOL = os.path.join(self.d, "r.json")
+
+    def tearDown(self):
+        analiz.ENGINE, analiz.SON_YOL, analiz.GECMIS_YOL, analiz.GIRIS_YOL = self._o
+
+    def _hz(self, url):
+        if "mistral" in url:
+            return {"ok": True, "iddia": "The model is state-of-the-art.", "iddia_anahtar": "state-of-the-art", "kanit": 5, "hata": ""}
+        return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": "iddia yok"}
+
+    def test_elenen_konseye_gitmez_ve_kimlikler_yeniden(self):
+        goruldu = {}
+        def tartis(b, p):
+            goruldu["brif"] = b
+            return [{"speaker": "aura", "text": '{"secim":"A1","gerekce":"g"}'}]
+        analiz.calistir(lambda: "ok", lambda: {"adaylar": ADAY}, tartis, kanal={"ok": True, "videolar": []}, hazirlik=self._hz)
+        s = analiz.son()
+        self.assertEqual([a["id"] for a in s["adaylar"]], ["A1"])
+        self.assertEqual(s["adaylar"][0]["alan"], "mistral.ai")
+        self.assertEqual(len(s["elenen"]), 1)
+        self.assertNotIn("Nvidia funds", goruldu["brif"])
+        self.assertIn("SAYFADA IDDIA", goruldu["brif"])
+        self.assertEqual(analiz.onayla("A1")["iddia_anahtar"], "state-of-the-art")
+
+    def test_hepsi_elenirse_aday_yok_konsey_calismaz(self):
+        cagri = []
+        r = analiz.calistir(lambda: "ok", lambda: {"adaylar": [ADAY[2]]}, lambda b, p: cagri.append(1) or [],
+                            kanal={"ok": True, "videolar": []}, hazirlik=self._hz)
+        self.assertIn("bulunamadi", r)
+        self.assertEqual(cagri, [])
+        self.assertEqual(analiz.son()["durum"], "aday_yok")
+        self.assertEqual(len(analiz.son()["elenen"]), 1)

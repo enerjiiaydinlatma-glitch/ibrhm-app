@@ -412,3 +412,34 @@ def paylasim_taslak(platform, paket, video_id):
 def paylasim_kaydet(platform, video_id):
     gecmis_yaz({"olay": "paylasim", "platform": platform, "video_id": video_id})
     return {"ok": True}
+
+
+# ----------------------------------------------------------------------------- sayfa hazirlik (KODLA; Konsey'den once)
+IDDIA_ANAHTARLAR = ["state-of-the-art", "outperform", "best-in-class", "industry-leading", "most powerful", "fastest",
+                    "surpass", "open-source", "open source", "open-weight", "open weight", "breakthrough", "leading"]
+MIN_KANIT = 3
+
+
+def sayfa_hazirlik(url, html=None):
+    """Adayin sayfasini kodla oku: iddia cumlesi + kanit adaylari var mi? Konsey baslikla degil bunun sonucuyla karar verir.
+    Donus: {ok, iddia, iddia_anahtar, kanit, hata}. ok = iddia VAR ve kanit >= MIN_KANIT."""
+    try:
+        if html is None:
+            html = kaynak_cek.fetch(url)
+        title, lines = kaynak_cek.parse_html(html)
+        sents = kaynak_cek.split_sentences(lines)
+    except Exception as e:
+        return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": f"sayfa okunamadi ({type(e).__name__})"}
+    if len(sents) < 15:
+        return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": "sayfa metni cok kisa (JavaScript ile yukleniyor olabilir)"}
+    iddia, anahtar = "", ""
+    for k in IDDIA_ANAHTARLAR:
+        c = next((x for x in sents if k in x.lower()), "")
+        if c:
+            iddia, anahtar = c, k
+            break
+    kanit = sum(1 for x in sents if x != iddia and kaynak_cek.score(x, kaynak_cek.DEFAULT_KEYS)[0] > 0)
+    hata = "" if iddia else "sayfada sirketin kendi iddiasi (state-of-the-art, outperforms...) bulunamadi"
+    if iddia and kanit < MIN_KANIT:
+        hata = f"kanit cumlesi yetersiz ({kanit})"
+    return {"ok": bool(iddia) and kanit >= MIN_KANIT, "iddia": iddia[:300], "iddia_anahtar": anahtar, "kanit": kanit, "hata": hata}

@@ -116,11 +116,14 @@ def aday_kimlikleri(adaylar, en_fazla=8):
 def brifing(adaylar, veri):
     satir = []
     for a in adaylar:
+        h = a.get("hazir") or {}
         satir.append(f"{a['id']}: {a['title']} | kaynak: {a.get('alan','?')} | puan {a['puan']} | "
-                     f"{a.get('haber_sayisi',1)} haber | etiket: {', '.join(a.get('etiketler') or []) or '-'}")
+                     f"{a.get('haber_sayisi',1)} haber | etiket: {', '.join(a.get('etiketler') or []) or '-'}"
+                     + (f" | SAYFADA IDDIA (kodla okundu): \"{h.get('iddia','')[:200]}\" | kanit cumlesi: {h.get('kanit', 0)}" if h else ""))
     return ("GUNUN ANALIZI. Kanal: Sign Council (YouTube Shorts, Ingilizce anlatim, 'Receipt' formati: tek iddia, tek birincil belge, "
             "dogrudan alintilar, hukum damgasi). Hedef: abone ve izlemeye devam oranini artirmak. "
-            "KURALLAR: yalnizca asagidaki adaylar arasindan sec; aday disinda konu, rakam veya baglanti UYDURMA; niyet atfi/suc dili yok; "
+            "ONEMLI: 'SAYFADA IDDIA' alani sayfanin KODLA okunmus gercek cumlesidir; gerekceni yalnizca bu cumleye ve verilere dayandir, "
+            "basliktan tahmin yurutme. KURALLAR: yalnizca asagidaki adaylar arasindan sec; aday disinda konu, rakam veya baglanti UYDURMA; niyet atfi/suc dili yok; "
             "kendi odevini kendi notlayan sirket iddialari (cikar catismasi) oncelikli.\n\n"
             "ADAYLAR:\n" + "\n".join(satir) + "\n\nKANAL VERISI (ozet; ornek az, kesin hukum verme):\n" +
             json.dumps(veri, ensure_ascii=False)[:3500])
@@ -184,18 +187,39 @@ def son():
         return None
 
 
-def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None):
-    """gundem_yenile()/gundem_oku(): bugun.py; tartis(brifing, plan)->transcript: Mission Control'un Konsey calistiricisi."""
+def sayfalari_kontrol(adaylar, hazirlik, en_fazla=6):
+    """Her adayin sayfasini PARALEL oku. Iddia/kanit yoksa elenir. Donus: (uygunlar, elenenler)."""
+    from concurrent.futures import ThreadPoolExecutor
+    def _k(a):
+        try:
+            return hazirlik(a["url"])
+        except Exception as e:
+            return {"ok": False, "iddia": "", "iddia_anahtar": "", "kanit": 0, "hata": f"{type(e).__name__}"}
+    with ThreadPoolExecutor(max_workers=en_fazla) as ex:
+        sonuc = list(ex.map(_k, adaylar))
+    uygun, elenen = [], []
+    for a, h in zip(adaylar, sonuc):
+        (uygun if h.get("ok") else elenen).append({**a, "hazir": h})
+    return [{**a, "id": f"A{i}"} for i, a in enumerate(uygun, 1)], elenen
+
+
+def calistir(gundem_yenile, gundem_oku, tartis, kanal=None, rapor=None, hazirlik=None):
+    """gundem_yenile()/gundem_oku(): bugun.py; tartis(brifing, plan)->transcript: Mission Control'un Konsey calistiricisi.
+    hazirlik(url): sayfa kodla okunur (bugun.sayfa_hazirlik); iddia/kanit yoksa aday Konsey'e HIC gitmez."""
     d = {"basladi": datetime.datetime.now().isoformat(timespec="seconds"), "adim": "konu", "durum": "calisiyor"}
     _yaz(d)
     d["gundem_mesaj"] = gundem_yenile()
     adaylar = aday_kimlikleri(gundem_oku().get("adaylar", []))
+    if hazirlik and adaylar:
+        d["adim"] = "sayfa"
+        _yaz(d)
+        adaylar, d["elenen"] = sayfalari_kontrol(adaylar, hazirlik)
     d["adaylar"] = adaylar
     d["adim"] = "veri"
     _yaz(d)
     d["veri"] = veri_ozeti(kanal, rapor)
     if not adaylar:
-        d.update(adim="bitti", durum="aday_yok", karar=karar_ver([], []))
+        d.update(adim="bitti", durum="aday_yok", karar=karar_ver([], []), veri=d["veri"])
         _yaz(d)
         return "Uygun aday bulunamadi."
     d["adim"] = "tartisma"
@@ -228,7 +252,7 @@ def onayla(secim):
     log({"olay": "onay", "secim": secim, "degisti": secim != ilk})
     d["onay"] = {"secim": secim, "degisti": secim != ilk}
     _yaz(d)
-    return {"ok": True, "url": a["url"], "title": a["title"]}
+    return {"ok": True, "url": a["url"], "title": a["title"], "iddia_anahtar": (a.get("hazir") or {}).get("iddia_anahtar", "")}
 
 
 def reddet():

@@ -154,3 +154,33 @@ class FeedTest(unittest.TestCase):
             self.assertIn("openai.com", g["adaylar"][0]["alan"])
         finally:
             bugun.ENGINE, bugun.ADAY_YOL, bugun.gdelt_cek, bugun.feed_cek, bugun.FEEDS = o
+
+
+FILL = "".join(f"<p>Filler sentence number {i} that makes the page long enough to be parsed as a real article.</p>" for i in range(20))
+SAYFA_IDDIALI = f"<html><title>T</title><body>{FILL}<p>Our model is state-of-the-art on every finance benchmark we evaluated internally.</p>" \
+                "<p>Independent third party evaluation is planned for a later date this year.</p>" \
+                "<p>The internal benchmark evaluation covers manufacturing and financial tasks only.</p>" \
+                "<p>Results on finance tasks exceed the previous version according to our evaluation.</p></body></html>"
+SAYFA_DUZ = f"<html><title>T</title><body>{FILL}<p>We are happy to announce a new governance feature for customers today.</p></body></html>"
+
+
+class HazirlikTest(unittest.TestCase):
+    def test_iddiali_sayfa_uygun(self):
+        h = bugun.sayfa_hazirlik("https://x.com/a", html=SAYFA_IDDIALI)
+        self.assertTrue(h["ok"], h)
+        self.assertEqual(h["iddia_anahtar"], "state-of-the-art")
+        self.assertGreaterEqual(h["kanit"], bugun.MIN_KANIT)
+
+    def test_duz_duyuru_elenir(self):
+        h = bugun.sayfa_hazirlik("https://x.com/a", html=SAYFA_DUZ)
+        self.assertFalse(h["ok"])
+        self.assertTrue(h["hata"])
+
+    def test_kisa_sayfa_ve_hata(self):
+        self.assertFalse(bugun.sayfa_hazirlik("https://x.com/a", html="<p>kisa</p>")["ok"])
+        o = bugun.kaynak_cek.fetch
+        try:
+            bugun.kaynak_cek.fetch = lambda u: (_ for _ in ()).throw(OSError("x"))
+            self.assertFalse(bugun.sayfa_hazirlik("https://x.com/a")["ok"])
+        finally:
+            bugun.kaynak_cek.fetch = o
