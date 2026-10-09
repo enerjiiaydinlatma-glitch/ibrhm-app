@@ -289,3 +289,39 @@ class GdeltOnbellekTest(unittest.TestCase):
         finally:
             __import__("time").sleep = o
         self.assertEqual(r[0]["title"], "old")
+
+
+class GdeltBosSonucTest(unittest.TestCase):
+    def setUp(self):
+        self._oo = (bugun.ENGINE, bugun.GDELT_ONBELLEK, bugun.urllib.request.urlopen)
+        d = tempfile.mkdtemp()
+        bugun.ENGINE, bugun.GDELT_ONBELLEK = d, os.path.join(d, "gdelt.json")
+
+    def tearDown(self):
+        bugun.ENGINE, bugun.GDELT_ONBELLEK, bugun.urllib.request.urlopen = self._oo
+
+    def test_bos_sonuc_onbellege_yazilmaz_ve_yedek_sorgu_denenir(self):
+        class R:
+            def __init__(s, b): s.b = b
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s): return s.b
+        cagri = []
+        def fake(req, timeout=0):
+            cagri.append(req.full_url)
+            return R(b"{}" if len(cagri) == 1 else b'{"articles":[{"title":"x","url":"https://a.com"}]}')
+        bugun.urllib.request.urlopen = fake
+        r = bugun.gdelt_cek()
+        self.assertEqual(len(r), 1)
+        self.assertEqual(len(cagri), 2)                       # ilk bos -> yedek sorgu
+        self.assertEqual(bugun._onbellek_oku(30)[0]["title"], "x")
+
+    def test_hepsi_bos_ise_hata_ve_onbellek_yok(self):
+        class R:
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s): return b"{}"
+        bugun.urllib.request.urlopen = lambda req, timeout=0: R()
+        with self.assertRaises(RuntimeError):
+            bugun.gdelt_cek()
+        self.assertFalse(os.path.exists(bugun.GDELT_ONBELLEK))

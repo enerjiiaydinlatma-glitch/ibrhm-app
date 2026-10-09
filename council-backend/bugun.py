@@ -151,6 +151,8 @@ def _onbellek_oku(en_fazla_dk):
 
 
 def _onbellek_yaz(articles):
+    if not articles:          # bos sonucu ONBELLEGE YAZMA: gecici bir bosluk 30 dk boyunca haber indeksini yok etmesin
+        return
     try:
         os.makedirs(ENGINE, exist_ok=True)
         with open(GDELT_ONBELLEK, "w", encoding="utf-8") as f:
@@ -176,6 +178,9 @@ def gdelt_cek(max_records=60, timeout=25):
                     txt = r.read().decode("utf-8", errors="replace")
                 try:
                     arts = json.loads(txt).get("articles", [])
+                    if not arts:                      # bos cevap = sorgu/gecici sorun: siradaki (yedek) sorguyu dene
+                        son_hata = RuntimeError("GDELT bos sonuc dondurdu")
+                        break
                     _onbellek_yaz(arts)
                     return arts
                 except ValueError:
