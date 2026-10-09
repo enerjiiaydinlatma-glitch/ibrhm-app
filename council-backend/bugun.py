@@ -57,6 +57,31 @@ def _alan(url):
     return h[4:] if h.startswith("www.") else h
 
 
+KURUM_ADI = {"allenai": "Ai2", "nvidia": "NVIDIA", "openai": "OpenAI", "mistral": "Mistral", "deepmind": "Google DeepMind",
+             "aws": "AWS", "anthropic": "Anthropic", "huggingface": "Hugging Face", "microsoft": "Microsoft", "google": "Google",
+             "meta": "Meta", "x": "xAI", "cohere": "Cohere", "deepseek": "DeepSeek"}
+
+
+def kurum_tahmini(url):
+    """Sayfanin GERCEK sahibi/yazari. Alan adi yaniltabilir: huggingface.co/blog/allenai/... Hugging Face'in degil Ai2'nin yazisidir
+    (8 Ekim 2026: Konsey bunu Hugging Face'e atfetti). Yol 'blog/<kurum>/...' bicimindeyse kurum yoldan alinir."""
+    try:
+        u = urllib.parse.urlparse(url)
+    except Exception:
+        return ""
+    host = u.netloc.lower()
+    host = host[4:] if host.startswith("www.") else host
+    parts = [p for p in u.path.split("/") if p]
+    if host.endswith("huggingface.co") and len(parts) >= 3 and parts[0] == "blog":
+        ad = parts[1].lower()
+    else:
+        labels = host.split(".")
+        ad = labels[-2] if len(labels) >= 2 else host
+        if host.endswith("amazon.com") and labels[0] == "aws":
+            ad = "aws"
+    return KURUM_ADI.get(ad, ad[:1].upper() + ad[1:])
+
+
 def birincil_mi(url):
     h = _alan(url)
     return any(h == d or h.endswith("." + d) for d in BIRINCIL)
@@ -128,7 +153,7 @@ def sirala(makaleler, now=None, ilk=15):
             continue
         gorulen.add(url)
         p = puanla(m, now)
-        out.append({"title": m.get("title", ""), "url": url, "alan": _alan(url), "seendate": m.get("seendate", ""),
+        out.append({"title": m.get("title", ""), "url": url, "alan": _alan(url), "kurum": kurum_tahmini(url), "seendate": m.get("seendate", ""),
                     "haber_sayisi": m.get("haber_sayisi", 1), **p})
     out.sort(key=lambda x: (x["engel"] != "", -x["puan"]))
     return out[:ilk]

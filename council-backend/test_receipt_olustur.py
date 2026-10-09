@@ -67,6 +67,26 @@ class KurTest(unittest.TestCase):
         self.assertIsNone(r)
         self.assertTrue(any("NIYET" in x or "niyet" in x.lower() for x in sorun), sorun)
 
+    def test_hukum_notu_kullanilir_ve_dogrulanir(self):
+        not_ = "Our reading: the page repeats its figure and adds a utilization number, but shows no raw queue data. Is a self-reported figure enough for you?"
+        r, sorun = ro.kur(paket(), "NVIDIA", "", "2026-10-08", "PARTLY SUPPORTED", anahtar="up to 5.5x faster", hukum_notu=not_)
+        self.assertEqual(sorun, [])
+        self.assertEqual(r["beats"][-1]["line"], not_)
+        self.assertEqual(r["beats"][-1]["stamp"], "PARTLY SUPPORTED")
+
+    def test_hukum_notu_niyet_atfi_ve_kaynaksiz_sayi_reddedilir(self):
+        r, sorun = ro.kur(paket(), "NVIDIA", "", "2026-10-08", "SUPPORTED", anahtar="up to 5.5x faster",
+                          hukum_notu="Our reading: NVIDIA secretly hid the real numbers from everyone.")
+        self.assertIsNone(r)
+        r2, sorun2 = ro.kur(paket(), "NVIDIA", "", "2026-10-08", "SUPPORTED", anahtar="up to 5.5x faster",
+                            hukum_notu="Our reading: the page shows a 73% gain that is not in the quotes.")
+        self.assertIsNone(r2)
+        self.assertTrue(sorun2)
+
+    def test_hukum_notu_sinirlari(self):
+        self.assertIn("{ }", ro.kur(paket(), "NVIDIA", "", "2026-10-08", "SUPPORTED", hukum_notu="Our {q1} reading")[1][0])
+        self.assertIn("uzun", ro.kur(paket(), "NVIDIA", "", "2026-10-08", "SUPPORTED", hukum_notu="word " * 40)[1][0])
+
     def test_yaz(self):
         r, _ = ro.kur(paket(), "NVIDIA", "Isaac ROS 5.0", "2026-10-08", "SUPPORTED", anahtar="up to 5.5x faster")
         d = tempfile.mkdtemp()

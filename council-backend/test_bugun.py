@@ -325,3 +325,21 @@ class GdeltBosSonucTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             bugun.gdelt_cek()
         self.assertFalse(os.path.exists(bugun.GDELT_ONBELLEK))
+
+
+class KurumTest(unittest.TestCase):
+    def test_hf_blogu_kurumu_yoldan(self):
+        self.assertEqual(bugun.kurum_tahmini("https://huggingface.co/blog/allenai/impactful-scheduling"), "Ai2")
+        self.assertEqual(bugun.kurum_tahmini("https://huggingface.co/blog/some-org/post"), "Some-org")
+        self.assertEqual(bugun.kurum_tahmini("https://huggingface.co/blog/a-community-post"), "Hugging Face")
+
+    def test_diger_alanlar(self):
+        self.assertEqual(bugun.kurum_tahmini("https://blogs.nvidia.com/blog/x/"), "NVIDIA")
+        self.assertEqual(bugun.kurum_tahmini("https://mistral.ai/news/y/"), "Mistral")
+        self.assertEqual(bugun.kurum_tahmini("https://aws.amazon.com/blogs/z/"), "AWS")
+        self.assertEqual(bugun.kurum_tahmini("https://deepmind.google/blog/q/"), "Google DeepMind")
+
+    def test_siralama_kurumu_icerir(self):
+        r = bugun.sirala([{"title": "Impactful scheduling for GPU clusters", "url": "https://huggingface.co/blog/allenai/impactful-scheduling",
+                           "seendate": "20261009T060000Z"}])
+        self.assertEqual(r[0]["kurum"], "Ai2")

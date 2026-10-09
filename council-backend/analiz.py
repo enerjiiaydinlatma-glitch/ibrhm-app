@@ -119,7 +119,7 @@ def brifing(adaylar, veri):
     satir = []
     for a in adaylar:
         h = a.get("hazir") or {}
-        satir.append(f"{a['id']}: {a['title']} | kaynak: {a.get('alan','?')} | puan {a['puan']} | "
+        satir.append(f"{a['id']}: {a['title']} | kaynak: {a.get('alan','?')} | SAYFANIN GERCEK SAHIBI/YAZARI (iddiayi bu kurumdan bilmelisin, alan adindan degil): {a.get('kurum') or '?'} | puan {a['puan']} | "
                      f"{a.get('haber_sayisi',1)} haber | etiket: {', '.join(a.get('etiketler') or []) or '-'}"
                      + (f" | SAYFADA IDDIA (kodla okundu): \"{h.get('iddia','')[:200]}\" | kanit cumlesi: {h.get('kanit', 0)}" if h else ""))
     return ("GUNUN ANALIZI. Kanal: Sign Council (YouTube Shorts, Ingilizce anlatim, 'Receipt' formati: tek iddia, tek birincil belge, "

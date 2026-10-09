@@ -74,8 +74,9 @@ def _slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-") or "receipt"
 
 
-def kur(paket, sirket, urun, kaynak_tarih, hukum, kanit_idx=None, anahtar=""):
-    """-> (receipt_dict | None, sorunlar[])"""
+def kur(paket, sirket, urun, kaynak_tarih, hukum, kanit_idx=None, anahtar="", hukum_notu=""):
+    """-> (receipt_dict | None, sorunlar[]). hukum_notu: operatorun yazdigi (Ingilizce) hukum cumlesi; bossa sablon kullanilir.
+    Not da dogrulamadan gecer (niyet atfi/suc dili, kaynakta olmayan sayi)."""
     if hukum not in HUKUM_SABLON:
         return None, [f"Hukum {sorted(HUKUM_SABLON)} listesinden biri olmali."]
     sirket, urun = (sirket or "").strip(), (urun or "").strip()
@@ -98,8 +99,13 @@ def kur(paket, sirket, urun, kaynak_tarih, hukum, kanit_idx=None, anahtar=""):
     for n, i in enumerate(idx):
         beats.append({"who": KONUSMACI[n % 3], "screen": "THE PAGE SAYS", "label": f"EVIDENCE {n + 1}",
                       "line": KANIT_GIRIS[n % 3], "quotes": [parca(kanitlar[i])]})
+    not_ = " ".join((hukum_notu or "").split())
+    if not_ and ("{" in not_ or "}" in not_):
+        return None, ["Hukum cumlesinde { } karakteri olamaz."]
+    if not_ and len(not_.split()) > 32:
+        return None, [f"Hukum cumlesi cok uzun ({len(not_.split())} kelime; en fazla 32)."]
     beats.append({"who": "aura", "screen": "OUR READING", "label": "VERDICT", "stamp": hukum,
-                  "line": HUKUM_SABLON[hukum], "quotes": []})
+                  "line": not_ or HUKUM_SABLON[hukum], "quotes": []})
     kisa = anahtar.strip() if anahtar and anahtar.lower() in iddia.lower() and len(anahtar) <= 40 else ""
     baslik = f"{sirket}'s '{kisa}' Claim vs Its Own Page" if kisa else f"{sirket}'s Claim vs Its Own Page"
     ad = re.sub(r"^https?://(www\.)?", "", url).strip("/")

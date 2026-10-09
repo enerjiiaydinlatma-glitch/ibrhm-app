@@ -221,6 +221,7 @@ def bugun_paket_ozet():
         return {"ok": False, "error": "Hazir paket yok: once kaynak sayfasini cekip 'Paketi hazirla'ya bas."}
     pk = _read_json(yol, {})
     return {"ok": True, "title": pk.get("title", ""), "url": pk.get("url", ""), "claim": pk.get("claim", ""),
+            "sirket_onerisi": bugun.kurum_tahmini(pk.get("url", "")),
             "evidence": pk.get("evidence", []), "fetched_at": pk.get("fetched_at", "")}
 
 
@@ -231,7 +232,8 @@ def bugun_receipt_olustur(b):
     pk = _read_json(yol, {})
     idx = [int(x) for x in (b.get("kanit") or []) if isinstance(x, int)][:3]
     r, sorun = receipt_olustur.kur(pk, str(b.get("sirket", ""))[:60], str(b.get("urun", ""))[:60], str(b.get("tarih", ""))[:10],
-                                   str(b.get("hukum", "")), kanit_idx=idx, anahtar=str(b.get("anahtar", ""))[:60])
+                                   str(b.get("hukum", "")), kanit_idx=idx, anahtar=str(b.get("anahtar", ""))[:60],
+                                   hukum_notu=str(b.get("hukum_notu", ""))[:400])
     if r is None:
         return {"ok": False, "sorunlar": sorun}
     ad = receipt_olustur.yaz(r)
@@ -1783,17 +1785,18 @@ async function bgTrUretim(){
 async function bgRcpForm(){
   const p = await api('/api/bugun/paket'); const box = $('#bgRcpBox');
   if(!p.ok){ box.innerHTML=''; return; }
-  const sirket = (p.title||'').split(/[ :|\-]/)[0]||'';
+  const sirket = p.sirket_onerisi || (p.title||'').split(/[ :|\-]/)[0] || '';
   box.innerHTML = '<div style="border:1px solid #30363d;border-radius:8px;padding:10px"><b>Receipt\'i kur</b> <span style="font-size:12px;color:#8b949e">(kural tabanlı, model yazmaz: iddia + seçtiğin kanıtlar sayfadan birebir; hükmü SEN verirsin)</span>'
     + '<div style="font-size:13px;margin:6px 0"><b>İddia:</b> '+bgEsc(p.claim||'(yok)')+'</div>'
     + (p.evidence||[]).map((e,i)=>'<label style="display:block;font-size:13px"><input type="checkbox" class="bgRcpK" value="'+i+'" '+(i<3?'checked':'')+'> <b>Kanıt '+(i+1)+':</b> '+bgEsc(e.slice(0,240))+'</label>').join('')
     + '<div style="margin-top:6px"><input id="bgRcpSirket" value="'+bgEsc(sirket)+'" placeholder="Şirket" style="width:130px"> <input id="bgRcpUrun" placeholder="Ürün" style="width:150px"> <input id="bgRcpTarih" value="'+bgEsc((p.fetched_at||'').slice(0,10))+'" placeholder="Sayfa tarihi YYYY-AA-GG" style="width:150px"></div>'
     + '<div style="margin-top:6px">Hüküm: <select id="bgRcpHukum"><option value="">— seç —</option><option>SUPPORTED</option><option>PARTLY SUPPORTED</option><option>NOT SUPPORTED BY THE PAGE</option><option>NOT SHOWN ON THE PAGE</option></select> <span style="font-size:12px;color:#8b949e">SUPPORTED: sayfa iddiayı kanıtlıyor · PARTLY: iddiayı kendi sınırlıyor · NOT SHOWN: iddia var, ölçüm/koşul sayfada yok · NOT SUPPORTED: sayfa iddiayla çelişiyor</span></div>'
+    + '<div style="margin-top:6px"><textarea id="bgRcpNot" rows="2" style="width:100%;max-width:640px" placeholder="İsteğe bağlı: hüküm cümlesi (İngilizce, en fazla 32 kelime; boşsa hazır şablon). Kaynakta olmayan sayı/niyet atfı varsa kurulmaz."></textarea></div>'
     + '<button class="act primary" style="margin-top:6px" onclick="bgRcpKur()">Receipt\'i kur ve doğrula</button> <span id="bgRcpSt" style="font-size:12px;color:#8b949e"></span><div id="bgRcpOut"></div></div>';
 }
 async function bgRcpKur(){
   const kanit=[...document.querySelectorAll('.bgRcpK:checked')].map(x=>parseInt(x.value));
-  const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, anahtar:window._bgClaimKey||''})});
+  const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, hukum_notu:$('#bgRcpNot').value, anahtar:window._bgClaimKey||''})});
   if(!r.ok){ $('#bgRcpSt').textContent=''; $('#bgRcpOut').innerHTML='<div style="color:#f85149;margin-top:6px">Kurulamadı:<br>'+(r.sorunlar||[r.error]).map(bgEsc).join('<br>')+'</div>'; return; }
   $('#bgRcpSt').textContent='Hazır: '+r.ad;
   $('#bgRcpOut').innerHTML='<div style="margin-top:8px"><b>'+bgEsc(r.baslik)+'</b>'+r.satirlar.map(x=>'<div style="font-size:13px;margin:4px 0"><span style="color:#8b949e">'+bgEsc(x.etiket)+(x.damga?' · DAMGA: '+bgEsc(x.damga):'')+'</span><br>'+bgEsc(x.metin)+'</div>').join('')+'<div style="font-size:12px;color:#8b949e">Bu metin videoda aynen okunur. Uygunsa aşağıda "Üret"e bas; Receipt otomatik seçildi.</div><button class="act" style="margin-top:6px" onclick="bgTrRcp()">🇹🇷 Türkçesini göster</button> <span id="bgTrRcpSt" style="font-size:12px;color:#8b949e"></span><div id="bgTrRcpBox"></div></div>';
