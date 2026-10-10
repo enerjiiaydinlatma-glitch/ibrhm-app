@@ -8,7 +8,7 @@ Receipt JSON:
 import json
 import re
 
-from claim_lint import BLOCKING, lint
+from claim_lint import BLOCKING, lint_kaynakli
 from kaynak_cek import ascii_norm
 from source_check import check as src_check, corpus
 
@@ -54,20 +54,22 @@ def verify_receipt(r, packet):
             if ascii_norm(q).lower() not in corp:
                 issues.append(f"beat {i}: alinti sayfada BULUNAMADI: \"{q[:70]}\"")
     issues += src_check(texts, packet)
-    issues += [f"{n}: {', '.join(h)}" for n, h, _ in lint(" | ".join(texts)) if n in BLOCKING]
+    issues += [f"{n}: {', '.join(h)}" for n, h, _ in lint_kaynakli(" | ".join(texts), corp) if n in BLOCKING]
     return issues
 
 
 def to_script(r, fetched_at=""):
     beats, lines = [], []
-    src = f"{r['source_name']} | published {r['source_date']}"
+    etiket = r.get("date_label", "published")          # 'read': sayfa yayin tarihi bilinmiyor, yalniz okunma tarihi var
+    src = f"{r['source_name']} | {etiket} {r['source_date']}"
     for b in r["beats"]:
         line = spoken(b)
         lines.append(line)
         spec = {"label": b.get("label", ""), "quotes": b.get("quotes", []), "stamp": b.get("stamp", ""), "source": src}
         beats.append((b["who"], b.get("screen", b.get("label", "")).upper(), line, spec))
-    desc = (f"{lines[0]}\n\nSource: {r.get('url', r['source_name'])}\n"
-            f"Page published {r['source_date']}" + (f", read {fetched_at[:10]}" if fetched_at else "") +
+    tarih_txt = (f"Page published {r['source_date']}" + (f", read {fetched_at[:10]}" if fetched_at else "")
+                 if etiket == "published" else f"Page read {r['source_date']}")
+    desc = (f"{lines[0]}\n\nSource: {r.get('url', r['source_name'])}\n" + tarih_txt +
             ". Quotes are verbatim from the page; the verdict is Sign Council's own reading.\n\n"
             "#AI #AINews #SignCouncil")
     tags = ["AI", "AI news", "SignCouncil", "shorts", r["company"], r.get("product", r["company"])]

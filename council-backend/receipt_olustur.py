@@ -41,29 +41,39 @@ def _uc_temizle(q):
 
 
 def parca(cumle, anahtar="", maks=20):
-    """Cumleden BIREBIR alt-dize (kelime sinirlarinda). Anahtar varsa onun etrafi; yoksa cumle basi, mumkunse
-    virgul/noktalama (yan cumle) sinirinda biter. Yarim kalan baglac/edatlar atilir. Cift tirnak icermez."""
+    """Cumleden BIREBIR alt-dize (kelime sinirlarinda). Cift tirnak icermez; yarim kalan baglac/edatlar atilir.
+    1) Kisa cumle (<= maks+4 kelime): BUTUN cumle (kirpma anlam kaybettirir).
+    2) Uzun cumle + anahtar: anahtarin etrafi.
+    3) Uzun cumle, anahtarsiz: SAYI iceren yan cumle (en bilgili parca); yoksa basa gore, mumkunse virgul sinirinda."""
     kel = list(re.finditer(r"\S+", cumle))
-    if not kel:
+    n = len(kel)
+    if not n:
         return ""
-    bas, son = 0, min(len(kel), maks)
-    if anahtar:
-        i = cumle.lower().find(anahtar.lower())
-        if i >= 0:
-            wi = next((k for k, m in enumerate(kel) if m.end() > i), 0)
-            wj = next((k for k, m in enumerate(kel) if m.end() >= i + len(anahtar)), len(kel) - 1)
-            bas = max(0, wi - 8)
-            son = min(len(kel), max(wj + 4, bas + 1))
-            while son - bas > maks and bas < wi:
-                bas += 1
-            while son - bas > maks and son > wj + 1:
-                son -= 1
-    elif len(kel) > maks:
-        sinirlar = [k + 1 for k, m in enumerate(kel[: maks + 6]) if m.group(0)[-1] in ",;:" and k + 1 >= 6]
-        if sinirlar:
-            son = sinirlar[-1]
+    ara = cumle.lower().find(anahtar.lower()) if anahtar else -1
+    if n <= maks + 4:
+        bas, son = 0, n
+    elif ara >= 0:
+        wi = next((k for k, m in enumerate(kel) if m.end() > ara), 0)
+        wj = next((k for k, m in enumerate(kel) if m.end() >= ara + len(anahtar)), n - 1)
+        bas = max(0, wi - 8)
+        son = min(n, max(wj + 4, bas + 1))
+        while son - bas > maks and bas < wi:
+            bas += 1
+        while son - bas > maks and son > wj + 1:
+            son -= 1
+    else:
+        bas, son = 0, maks
+        sinir = [-1] + [k for k, m in enumerate(kel) if m.group(0)[-1] in ",;:"] + [n - 1]
+        yan = [(sinir[a] + 1, sinir[a + 1] + 1) for a in range(len(sinir) - 1)]
+        sayili = [(a, b) for a, b in yan if 4 <= b - a <= maks + 4 and any(re.search(r"\d", kel[k].group(0)) for k in range(a, b))]
+        if sayili:
+            bas, son = sayili[0]
+        else:
+            kes = [k + 1 for k, m in enumerate(kel[: maks + 6]) if m.group(0)[-1] in ",;:" and k + 1 >= 6]
+            if kes:
+                son = kes[-1]
     q = cumle[kel[bas].start():kel[son - 1].end()].strip().rstrip(".,;:")
-    if '"' in q:                                           # satir sablonu cift tirnaklidir: tirnaksiz en uzun parcayi al
+    if '"' in q:
         q = max(q.split('"'), key=len).strip()
     q2 = _uc_temizle(q)
     return q2 if len(q2) >= 12 and q2 in cumle else q
@@ -110,7 +120,9 @@ def kur(paket, sirket, urun, kaynak_tarih, hukum, kanit_idx=None, anahtar="", hu
     baslik = f"{sirket}'s '{kisa}' Claim vs Its Own Page" if kisa else f"{sirket}'s Claim vs Its Own Page"
     ad = re.sub(r"^https?://(www\.)?", "", url).strip("/")
     r = {"company": sirket, "product": urun or sirket, "source_name": ad[:80] or paket.get("title", "")[:80],
-         "source_date": kaynak_tarih or (paket.get("fetched_at", "")[:10]), "url": url, "title": baslik,
+         "source_date": kaynak_tarih or (paket.get("fetched_at", "")[:10]),
+         "date_label": "published" if kaynak_tarih else "read",       # sayfa tarihi bilinmiyorsa 'published' DEMEYIZ
+         "url": url, "title": baslik,
          "hookthumb": "CLAIM VS PAGE", "beats": beats}
     sorun = receipt_mod.verify_receipt(r, paket)
     return (None, sorun) if sorun else (r, [])

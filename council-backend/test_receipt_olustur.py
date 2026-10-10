@@ -32,6 +32,17 @@ class ParcaTest(unittest.TestCase):
             self.assertNotIn(q.split()[0].lower(), ro._BAGLAC)
         self.assertIn("5.5x faster", ro.parca(CLAIM, "up to 5.5x faster"))
 
+    def test_kisa_cumle_butun_alinir(self):
+        s = "Occupancy on the cluster held steady at 98% before and after the change, with demand exceeding capacity by 2-3x in both periods."
+        self.assertEqual(ro.parca(s), s.rstrip("."))
+
+    def test_uzun_cumlede_sayili_yan_cumle_secilir(self):
+        s = ("These clusters are built for large-scale distributed training of AI models, and they serve a group of about 150 internal "
+             "researchers whose work covers a diverse set of AI domains, including the full model flow of LLM and VLM training, robotics reinforcement learning, and more.")
+        q = ro.parca(s)
+        self.assertIn("150 internal researchers", q)
+        self.assertIn(q, s)
+
     def test_kisa_cumle_aynen(self):
         self.assertEqual(ro.parca("A short sentence here."), "short sentence here")   # bastaki "A" yarim baglac olarak atilir
 

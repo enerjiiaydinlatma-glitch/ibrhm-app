@@ -326,9 +326,14 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
             gate = gate or {"sensitive": True, "reason": "kapi calismadi - guvenli taraf",
                             "entity": "", "severity": "high", "checked_by": "error"}
         try:
-            from claim_lint import lint, BLOCKING
+            from claim_lint import lint, lint_kaynakli, BLOCKING
             _txt = " | ".join([short.get("title", ""), short.get("script", ""), short.get("description", "")])
-            _flags = [f for f in lint(_txt) if f[0] in BLOCKING]
+            if _source is not None:      # kaynakli calisma: kaynakta birebir alintilar bizim ifademiz sayilmaz (niyet/suc yine engel)
+                from source_check import corpus as _corpus
+                _lres = lint_kaynakli(_txt, _corpus(_source))
+            else:
+                _lres = lint(_txt)
+            _flags = [f for f in _lres if f[0] in BLOCKING]
             if _flags:
                 _why = "; ".join(f"{n}: {', '.join(h)}" for n, h, _ in _flags)
                 print(f"    [claim_lint] ENGELLEYICI ISARET -> private'a dusuyor: {_why}")
