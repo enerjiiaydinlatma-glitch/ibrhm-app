@@ -161,6 +161,12 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
     mine = cw(title)
     hit = next(((e, mine & cw(e)) for e in existing_titles if len(mine & cw(e)) >= 2), None)
     add(hit is None, "Konu anahtar kelimeleri mevcut bir videoyla cakismiyor", (f"'{hit[0]}' ile ortak: {sorted(hit[1])}" if hit else ""))
+    try:  # ogrenilmis YUMUSAK ipuclari (learner.py): ok None/True olabilir, ASLA False (bloklamaz)
+        import learner
+        for ok, label, detail in learner.soft_checks(en, est_sec):
+            add(ok, label, detail)
+    except Exception:
+        pass
     ok_n = sum(1 for c in checks if c["ok"] is True)
     tot = sum(1 for c in checks if c["ok"] is not None)
     return {"checks": checks, "score": ok_n, "of": tot, "est_seconds": est_sec, "baseline_median_views": median_views,

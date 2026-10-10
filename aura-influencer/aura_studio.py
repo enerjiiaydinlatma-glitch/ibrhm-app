@@ -1068,6 +1068,10 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="gm_tt" class="sub"></div>
 <h2>&#128197; 6) Haftalik Rapor</h2>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="qa" style="width:auto" onclick="gmReport(this)">&#128196; Simdi Rapor Uret (+ aksiyon plani)</button><select id="gm_rep_sel" onchange="gmShowReport()" style="width:auto"></select><span id="gm_rep_info" class="sub"></span></div>
+<h2>&#129504; 7) Ogrenme Sistemi (kendi verimizden)</h2>
+<div class="sub">Gunde bir otomatik: veri topla, istatistik (permutasyon + FDR) uygula, yalniz kanitlananlari YUMUSAK ipucu yap. Sert kurallara (Ingilizce, uydurma yok, onayli yayin) HICBIR zaman dokunmaz. Cogu zaman sonuc cikmaz - normal.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="qa" style="width:auto" onclick="gmLearn(this)">&#129504; Ogrenme Turu Calistir</button><label class="sub">CTR CSV (YouTube Studio &gt; Verileri indir): <input type="file" accept=".csv" onchange="gmCtr(this)"></label></div>
+<div id="gm_learn" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-size:13px;line-height:1.55;max-height:60vh;overflow:auto;margin-top:8px"></div>
 <div id="gm_report" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-size:13px;line-height:1.55;max-height:70vh;overflow:auto"></div>
 </div>
 <div id="view-comments" class="view" style="padding:14px;overflow-y:auto;flex-direction:column;gap:8px">
@@ -1564,6 +1568,18 @@ async function gmReport(btn){
   try { const j = await gmPost('/api/growth/report', {}); document.getElementById('gm_report').innerHTML = j.ok ? mdHtml(j.text) : ('Hata: ' + esc(j.error)); if(j.ok){ gmLoad(); } }
   catch(e) { document.getElementById('gm_report').textContent = 'Hata: ' + e; }
   finally { btn.disabled = false; btn.textContent = 'Simdi Rapor Uret (+ aksiyon plani)'; }
+}
+async function gmLearn(btn){
+  btn.disabled = true; btn.textContent = 'Calisiyor (1-2 dk)...';
+  try { const j = await gmPost('/api/learn/run', {}); document.getElementById('gm_learn').innerHTML = j.ok ? mdHtml(j.text) : ('Hata: ' + esc(j.error)); }
+  catch(e) { document.getElementById('gm_learn').textContent = 'Hata: ' + e; }
+  finally { btn.disabled = false; btn.textContent = 'Ogrenme Turu Calistir'; }
+}
+async function gmCtr(inp){
+  if(!inp.files || !inp.files[0]) return;
+  try { const t = await inp.files[0].text(); const j = await gmPost('/api/learn/ctr_import', {csv: t});
+    document.getElementById('gm_learn').textContent = j.ok ? ('CTR aktarildi: ' + j.imported + ' satir') : ('Hata: ' + j.error); }
+  catch(e) { document.getElementById('gm_learn').textContent = 'Hata: ' + e; }
 }
 async function gmActions(btn){
   btn.disabled = true; btn.textContent = 'Aura dusunuyor (1-2 dk)...';
@@ -2588,7 +2604,7 @@ def _growth_candidates():
     existing = [v["title"] for v in st["videos"]] + [d["title"] for d in growth.drafts_list()]
     ftxt = "\n".join(f"{g['format']}: n={g['n']}, median views={g['median_views']}, max={g['max_views']}, median retention%={g['median_retention']}" for g in fs["groups"])
     prompt = ("DATA:\n" + digest + "\n\nFORMAT STATS (tiny samples, hypotheses only):\n" + ftxt +
-              "\n\nEXISTING TITLES (do not repeat):\n" + "\n".join(existing) + "\n\nWrite the 3 candidates now.")
+              "\n\nEXISTING TITLES (do not repeat):\n" + "\n".join(existing) + _learn_ctx() + "\n\nWrite the 3 candidates now.")
     raw = call_aura([{"role": "user", "content": prompt}], CANDIDATE_SYSTEM, timeout=150)
     m = re.search(r"\[.*\]", raw, re.S)
     items = json.loads(m.group(0)) if m else []
@@ -2617,6 +2633,15 @@ def _denormalize_list_string(s):
     return s
 
 
+def _learn_ctx():
+    """learner.py'nin kanita dayali YUMUSAK ipuclari (kanit yoksa bos). Hata olursa sessizce bos doner."""
+    try:
+        import learner
+        return learner.prompt_context()
+    except Exception:
+        return ""
+
+
 def _growth_agenda_candidate():
     """Gercek, guncel AI haberine dayanan 1 aday uretir (Google Search grounding) -> taslak olarak kaydedilir (yayinlamaz).
     DIKKAT: kaynak linkleri taslagin rationale alanina eklenir - insan/Claude Code yayindan once MUTLAKA dogrulamali,
@@ -2628,7 +2653,7 @@ def _growth_agenda_candidate():
     prompt = ("Find one real, specific, recent (last 7 days) AI industry news story (a named company/person doing something "
               "concrete - a launch, a policy move, a safety incident, a regulatory action, a resignation, etc). "
               "Then write the script as instructed in your system prompt.\n\n"
-              "EXISTING TITLES (do not repeat the same news/topic if already covered):\n" + "\n".join(existing))
+              "EXISTING TITLES (do not repeat the same news/topic if already covered):\n" + "\n".join(existing) + _learn_ctx())
     text, sources = _call_gemini_grounded(prompt, AGENDA_CANDIDATE_SYSTEM)
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
@@ -2726,6 +2751,11 @@ def _growth_publish_draft(did, day=None):
         link = m.group(1)
         vid = link.rstrip("/").split("/")[-1].split("?")[0]
         nday = int(day) if day else (max([r.get("day", 0) for r in rows] or [0]) + 1)
+        try:
+            import learner
+            learner.log_script(vid, d["title"], d.get("en_script", ""))
+        except Exception:
+            pass
         tr_ok = _verify_tr(vid, os.path.join(OUTPUT_DIR, d["srt"]) if d.get("srt") else None)
         rows.append({"day": nday, "title": d["title"], "youtube": True, "youtube_id": vid, "tiktok": False, "tr_cc": bool(tr_ok)})
         rows.sort(key=lambda r: r.get("day", 0))
@@ -3245,6 +3275,10 @@ class Handler(BaseHTTPRequestHandler):
                         self._json({"ok": True, "status": st, "rows": []})
                 elif u.path == "/api/growth/state":
                     self._json(_growth_state())
+                elif u.path == "/api/learn/state":
+                    import learner
+                    self._json({"ok": True, "learned": learner._jl(learner.LEARNED_FILE, {}), "history": learner._jl(learner.HISTORY_FILE, [])[-20:],
+                                "reports": sorted([x for x in os.listdir(learner.REPORT_DIR) if x.startswith("ogrenme_")], reverse=True)[:10] if os.path.isdir(learner.REPORT_DIR) else []})
                 elif u.path == "/api/growth/report":
                     import growth
                     self._json({"ok": True, "text": growth.report_read(q.get("name", [""])[0]), "list": growth.reports_list()})
@@ -3514,6 +3548,11 @@ class Handler(BaseHTTPRequestHandler):
                     pass
             if result.get("ok") and result.get("link"):
                 vid_id = result["link"].rstrip("/").split("/")[-1].split("?")[0]
+                try:
+                    import learner
+                    learner.log_script(vid_id, title, en_text)
+                except Exception:
+                    pass
                 result["tr_cc_verified"] = _verify_tr(vid_id, srt_path)
                 if not result["tr_cc_verified"]:
                     warnings.append("Turkce CC su an eklenemedi (kota/ag); panel otomatik olarak tamamlayacak.")
@@ -3628,6 +3667,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_growth_agenda_candidate())
                 elif u.path == "/api/growth/report":
                     self._json(_growth_report())
+                elif u.path == "/api/learn/run":
+                    import learner
+                    self._json(learner.run_once())
+                elif u.path == "/api/learn/ctr_import":
+                    import learner
+                    self._json(learner.ctr_import_csv(str(body.get("csv", ""))))
                 elif u.path == "/api/insights/pin_done":
                     insights.pins_done(body.get("comment_id", ""))
                     self._json({"ok": True})
@@ -3699,6 +3744,13 @@ def _snapshot_loop():
                 print(f"  [retention snapshot] {r['n']} video kaydedildi ({r['date']})")
         except Exception as e:
             print(f"  [retention snapshot basarisiz: {type(e).__name__}]")
+        try:
+            import learner
+            r = learner.run_daily()  # gunde bir: topla -> analiz et -> yumusak ayarlari guncelle (hicbir sey yayinlamaz)
+            if r.get("ok"):
+                print(f"  [ogrenme turu] {r['n_videos']} video, degisen ayar: {r['changed'] or 'yok'}")
+        except Exception as e:
+            print(f"  [ogrenme turu basarisiz: {type(e).__name__}]")
         try:
             import insights, tiktok_api
             if tiktok_api.connected():
