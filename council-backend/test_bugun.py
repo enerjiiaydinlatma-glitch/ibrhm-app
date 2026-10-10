@@ -343,3 +343,24 @@ class KurumTest(unittest.TestCase):
         r = bugun.sirala([{"title": "Impactful scheduling for GPU clusters", "url": "https://huggingface.co/blog/allenai/impactful-scheduling",
                            "seendate": "20261009T060000Z"}])
         self.assertEqual(r[0]["kurum"], "Ai2")
+
+
+class PaketUyariTest(unittest.TestCase):
+    def test_iddia_cumlesindeki_karsilastirma_uyari_uretmez(self):
+        d = tempfile.mkdtemp()
+        o = (bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE, bugun.AKTIF_YOL)
+        try:
+            bugun.ENGINE = d
+            bugun.KAYNAK_ADAY_YOL = os.path.join(d, "ka.json")
+            bugun.GECMIS_YOL = os.path.join(d, "g.jsonl")
+            bugun.AKTIF_YOL = os.path.join(d, "aktif.json")
+            html = HTML.replace("on par", "on par").replace(
+                "<p>The model is state-of-the-art on finance tasks according to our internal benchmark evaluation.</p>",
+                "<p>At any moment we have outstanding requests for 2-3x more GPUs than are available on the cluster today.</p>")
+            r = bugun.kaynak_analiz("https://example.com/p", claim_key="2-3x more GPUs", html=html)
+            self.assertTrue(r["ok"], r)
+            p = bugun.kaynak_paketle(r["onerilen"][:3], [])
+            self.assertTrue(p["ok"], p)
+            self.assertFalse(any("more GPUs than" in u for u in p["uyarilar"]), p["uyarilar"])
+        finally:
+            bugun.ENGINE, bugun.KAYNAK_ADAY_YOL, bugun.GECMIS_YOL, bugun.kaynak_cek.ENGINE, bugun.AKTIF_YOL = o

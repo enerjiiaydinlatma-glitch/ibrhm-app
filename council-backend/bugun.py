@@ -391,7 +391,9 @@ def kaynak_paketle(secim, facts=None):
     with open(os.path.join(ENGINE, "kaynak_son.txt"), "w", encoding="utf-8") as f:
         f.write(path)
     aktif_yaz(path, False)
-    uyarilar = [f"{k[0]}: {', '.join(k[1])}" for k in claim_lint.lint(pk["topic"])]
+    # konu satirindaki iddia cumlesi sayfanin KENDI sozudur (Receipt'te dogrulanmis alinti olarak kullanilir): taramaya alinmaz
+    _konu = pk["topic"].replace(pk["claim"], " ") if pk.get("claim") else pk["topic"]
+    uyarilar = [f"{k[0]}: {', '.join(k[1])}" for k in claim_lint.lint(_konu)]
     gecmis_yaz({"olay": "paket", "url": v["url"], "baslik": v["title"], "kanit": len(pk["evidence"]),
                 "iddia": bool(pk["claim"]), "paket": path})
     return {"ok": True, "paket": path, "topic": pk["topic"], "kanit": len(pk["evidence"]),
