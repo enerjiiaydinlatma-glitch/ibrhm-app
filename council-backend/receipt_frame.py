@@ -42,6 +42,19 @@ def color_for(label):
     return COLORS["EVIDENCE"]
 
 
+def fit_stamp_font(d, stamp, start=78, floor=40):
+    """Damga yazisi kareye SIGSIN: sabit 78 punto 'NOT SHOWN ON THE PAGE' gibi uzun damgalari kesiyordu
+    (10 Ekim 2026). Kutu = yazi + 88 px; kenarlarda en az 30 px bosluk kalir."""
+    max_w = W - 88 - 60
+    size = start
+    while size > floor:
+        f = font(size)
+        if d.textlength(stamp, font=f) <= max_w:
+            return f
+        size -= 2
+    return font(floor)
+
+
 def render(spec, who, out_path):
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
@@ -71,7 +84,7 @@ def render(spec, who, out_path):
             y += int(f.size * 1.3)
         y += 50
     if stamp:
-        sf = font(78)
+        sf = fit_stamp_font(d, stamp)
         sw = d.textlength(stamp, font=sf)
         top = y + 30
         d.rounded_rectangle((W // 2 - sw / 2 - 44, top, W // 2 + sw / 2 + 44, top + 150), radius=18, outline=col, width=10)

@@ -64,6 +64,20 @@ class Receipt(unittest.TestCase):
             p = rf.render(spec, who, os.path.join(d, f"{i}.png"))
             self.assertTrue(os.path.getsize(p) > 5000)
 
+    def test_damga_kareye_sigar(self):
+        # 10 Ekim 2026: sabit 78 punto 'NOT SHOWN ON THE PAGE' damgasini kesiyordu
+        try:
+            import receipt_frame as rf
+            from PIL import Image, ImageDraw
+        except ImportError:
+            self.skipTest("PIL yok")
+        d = ImageDraw.Draw(Image.new("RGB", (rf.W, rf.H)))
+        for stamp in sorted(rc.STAMPS):
+            f = rf.fit_stamp_font(d, stamp)
+            w = d.textlength(stamp, font=f)
+            self.assertLessEqual(w + 88, rf.W - 60, stamp)
+            self.assertGreaterEqual(f.size, 40, stamp)
+
 
 if __name__ == "__main__":
     unittest.main()
