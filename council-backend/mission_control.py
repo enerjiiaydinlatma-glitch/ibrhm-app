@@ -1003,6 +1003,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8">
  <div class="card wide">
   <h2>2 · Kaynak sayfa</h2>
   <input id="bgUrl" placeholder="https://… (listeden «Seç» ile dolar ya da kendin yapıştır)" style="width:100%;max-width:640px">
+  <input id="bgClaimKeyIn" placeholder="İddia anahtarı: sayfada geçen kısa ifade (örn. 2-3x more GPUs). Konsey kartından gelirse otomatik dolar" style="width:100%;max-width:640px;margin-top:4px">
   <div style="margin-top:6px"><button class="act primary" onclick="bgKaynak()">Sayfayı çek ve kanıtları çıkar</button> <span id="bgKaynakSt" style="font-size:12px;color:#8b949e"></span></div>
   <div id="bgKanit" style="margin-top:8px"></div>
  </div>
@@ -1750,7 +1751,7 @@ async function bgGundem(){
 async function bgKaynak(){
   const url = $('#bgUrl').value.trim(); if(!url){ $('#bgKaynakSt').textContent='Adres yaz.'; return; }
   $('#bgKaynakSt').textContent = 'sayfa çekiliyor…'; $('#bgKanit').innerHTML='';
-  const r = await api('/api/bugun/kaynak',{method:'POST',headers:JH,body:JSON.stringify({url, claim_key: window._bgClaimKey||''})});
+  const r = await api('/api/bugun/kaynak',{method:'POST',headers:JH,body:JSON.stringify({url, claim_key: ($('#bgClaimKeyIn').value.trim() || window._bgClaimKey || '')})});
   if(!r.ok){ $('#bgKaynakSt').textContent = 'HATA: '+(r.error||'?'); return; }
   $('#bgKaynakSt').textContent = r.title+' — '+r.cumle_sayisi+' cümle'+(r.birincil?' · birincil kaynak':' · ⚠ birincil kaynak listesinde değil');
   _bgSel = new Set(r.onerilen);
@@ -1796,7 +1797,7 @@ async function bgRcpForm(){
 }
 async function bgRcpKur(){
   const kanit=[...document.querySelectorAll('.bgRcpK:checked')].map(x=>parseInt(x.value));
-  const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, hukum_notu:$('#bgRcpNot').value, anahtar:window._bgClaimKey||''})});
+  const r = await api('/api/bugun/receipt_olustur',{method:'POST',headers:JH,body:JSON.stringify({kanit, sirket:$('#bgRcpSirket').value, urun:$('#bgRcpUrun').value, tarih:$('#bgRcpTarih').value, hukum:$('#bgRcpHukum').value, hukum_notu:$('#bgRcpNot').value, anahtar:($('#bgClaimKeyIn').value.trim() || window._bgClaimKey || '')})});
   if(!r.ok){ $('#bgRcpSt').textContent=''; $('#bgRcpOut').innerHTML='<div style="color:#f85149;margin-top:6px">Kurulamadı:<br>'+(r.sorunlar||[r.error]).map(bgEsc).join('<br>')+'</div>'; return; }
   $('#bgRcpSt').textContent='Hazır: '+r.ad;
   $('#bgRcpOut').innerHTML='<div style="margin-top:8px"><b>'+bgEsc(r.baslik)+'</b>'+r.satirlar.map(x=>'<div style="font-size:13px;margin:4px 0"><span style="color:#8b949e">'+bgEsc(x.etiket)+(x.damga?' · DAMGA: '+bgEsc(x.damga):'')+'</span><br>'+bgEsc(x.metin)+'</div>').join('')+'<div style="font-size:12px;color:#8b949e">Bu metin videoda aynen okunur. Uygunsa aşağıda "Üret"e bas; Receipt otomatik seçildi.</div><button class="act" style="margin-top:6px" onclick="bgTrRcp()">🇹🇷 Türkçesini göster</button> <span id="bgTrRcpSt" style="font-size:12px;color:#8b949e"></span><div id="bgTrRcpBox"></div></div>';
@@ -1872,7 +1873,7 @@ function bgAnalizCiz(d){
 async function bgOnay(id){
   const r = await api('/api/bugun/onay',{method:'POST',headers:JH,body:JSON.stringify({secim:id})});
   if(!r.ok){ $('#bgAnalizSt').textContent = 'HATA: '+r.error; return; }
-  window._bgSutun='receipt'; bgSutunEtiket(); $('#bgUrl').value = r.url; window._bgClaimKey = r.iddia_anahtar||''; bgAnalizPoll(); bgGuven(); bgKaynak();
+  window._bgSutun='receipt'; bgSutunEtiket(); $('#bgUrl').value = r.url; window._bgClaimKey = r.iddia_anahtar||''; if($('#bgClaimKeyIn')) $('#bgClaimKeyIn').value = window._bgClaimKey; bgAnalizPoll(); bgGuven(); bgKaynak();
   $('#bgUrl').scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function bgRed(){ await api('/api/bugun/red',{method:'POST'}); bgAnaliz(); }
