@@ -53,6 +53,19 @@ class VeriTest(unittest.TestCase):
         self.assertEqual(s["baslik_sablonlari"][0]["sablon"], "claim")
         self.assertEqual(s["en_iyi"][0]["izlenme"], 100)
 
+    def test_uydurma_tek_saat_sinyal_vermez(self):
+        # tracker yalniz tarih tutar; kanal_tracker hepsine T12:00:00Z yazar -> tek kova -> saat sinyali verilmemeli
+        v = [{**x, "published": x["published"][:10] + "T12:00:00Z"} for x in VID]
+        s = analiz.kalip_sinyalleri(v)
+        self.assertEqual(s["saatler"], [])
+        self.assertIn("saat", s["saat_notu"].lower())
+
+    def test_gercek_farkli_saatler_korunur(self):
+        v = [{**VID[0], "published": "2026-10-01T09:30:00Z"}, {**VID[1], "published": "2026-10-02T17:10:00Z"}]
+        s = analiz.kalip_sinyalleri(v)
+        self.assertEqual(sorted(r["saat_utc"] for r in s["saatler"]), [9, 17])
+        self.assertEqual(s["saat_notu"], "")
+
     def test_private_sayilmaz_ve_bos(self):
         v = [{**VID[0], "privacy": "private"}]
         self.assertEqual(analiz.kalip_sinyalleri(v)["video_sayisi"], 0)

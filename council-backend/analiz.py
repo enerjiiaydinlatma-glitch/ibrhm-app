@@ -80,14 +80,19 @@ def kalip_sinyalleri(videolar):
         except Exception:
             continue
         saat.setdefault(h, []).append(v["views"])
-    saat_ort = sorted(({"saat_utc": h, "adet": len(x), "ortalama": round(sum(x) / len(x), 1)} for h, x in saat.items()),
-                      key=lambda r: -r["ortalama"])[:4]
+    # Tek bir saat kovasi bilgi tasimaz: tracker yalniz TARIH tutar ve ogrenme.kanal_tracker her videoya
+    # T12:00:00Z yazar (uydurma saat). Bu durumda saat sinyali Konsey'e GIDEREK YANILTMASIN diye verilmez.
+    saat_ort = []
+    if len(saat) >= 2:
+        saat_ort = sorted(({"saat_utc": h, "adet": len(x), "ortalama": round(sum(x) / len(x), 1)} for h, x in saat.items()),
+                          key=lambda r: -r["ortalama"])[:4]
     en_iyi = sorted(pub, key=lambda v: -v["views"])[:3]
     en_kotu = sorted(pub, key=lambda v: v["views"])[:3]
     return {"video_sayisi": len(pub), "medyan_izlenme": statistics.median(views), "ortalama_izlenme": round(sum(views) / len(views), 1),
             "son5_ortalama": round(sum(son5) / len(son5), 1) if son5 else None,
             "onceki5_ortalama": round(sum(onceki5) / len(onceki5), 1) if onceki5 else None,
             "baslik_sablonlari": sablon, "saatler": saat_ort,
+            "saat_notu": "" if saat_ort else "Yayin saati verisi yok (kaynakta yalniz tarih var) - saat yorumu yapma.",
             "en_iyi": [{"baslik": v["title"][:90], "izlenme": v["views"]} for v in en_iyi],
             "en_kotu": [{"baslik": v["title"][:90], "izlenme": v["views"]} for v in en_kotu],
             "uyari": "Ornek az (medyan izlenme dusuk): bunlar yon gostergesidir, kanit degil."}
