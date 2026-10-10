@@ -1,6 +1,6 @@
 # Yükleme paketi — "The Fired Researchers' Open Letter" (2026-10-10)
 
-Durum: HAZIR, YAYINLANMADI. Preflight 19/19, tahmini ~25 sn.
+Durum: YAYINLANDI 2026-10-10 (YouTube ID panel logundan: SaekDuc0M6E - 0/O harfini linkten kontrol et; TikTok operator elle yukledi, 'yuklendi' dedi). Dogrulama: YouTube'da gozle kontrol bekleniyor. Preflight 19/19, tahmini ~25 sn.
 Doğrulama (WebSearch): kovulmalar ~1 Ekim, mektup 8 Ekim, OpenAI dahili notu önerilere katılıyor (TechCrunch aktarımı, "reportedly").
 Kaynaklar: ynetnews.com/tech-and-digital/article/bkz6pjpcfe · officechai.com (fired-openai-safety-researchers-say-they-were-terminated...) · cybernews.com/ai-news/openai-fires-researchers-ai-safety
 
@@ -24,7 +24,7 @@ TAGS: AuraAI,OpenAI,AISafety,AINews,TechNews
 OpenAI fired three safety researchers - now their open letter asks labs to stop building AI whose reasoning is hard to audit. One real AI story every day. #OpenAI #AISafety #AINews #AuraAI
 
 ## 4) Yayından sonra yazılacaklar (Follow testi kaydı)
-- Yayın saati / YouTube ID: ____
+- Yayın: 2026-10-10 · YouTube ID: SaekDuc0M6E (panel logu) · TikTok yüklendi
 - 24 sa ve 48 sa sonra: YouTube izlenme ____ · abone ____ · TikTok izlenme ____ · TikTok takipçi ____
 - Başlangıç: YouTube abone 2, TikTok takipçi 0
 
