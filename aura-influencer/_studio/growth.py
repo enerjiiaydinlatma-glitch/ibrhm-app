@@ -88,6 +88,8 @@ GENERIC_OPEN = re.compile(
     r"^(hi|hey|hello)\b|^today,? i('m| am| will)?\b|^in this video\b|^let'?s talk about\b|"
     r"^let me tell you\b|^so,? today\b|^welcome back\b|^i want to talk about\b|^i'?m going to (show|talk|tell)\b",
     re.I)
+# 2026-10-10: abone donusumu testi - kanalin ne oldugunu adlandiran "Follow" cumlesi
+FOLLOW_CTA = re.compile(r"\bfollow\b.{0,60}\b(every|daily|each)\b", re.I)
 _LOOP_STOP = {"the", "a", "an", "of", "to", "and", "in", "on", "for", "your", "you", "ai", "stop", "aura",
               "day", "why", "how", "is", "are", "my", "it", "with", "without", "not", "that", "this",
               "so", "tell", "me", "below", "comment"}
@@ -121,6 +123,12 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
                 (f"ortak: {sorted(shared)}" if shared else "ortak kelime yok - kapanisi acilisa bagla (loop teknigi)"))
         add(all(len(x) <= 72 for x in sents), "Her cumle <= 72 karakter (CC guvenligi)",
             f"en uzun: {max(len(x) for x in sents)}")
+        fol = [x for x in sents[:-1] if FOLLOW_CTA.search(x)]
+        add(None if not (fol or FOLLOW_CTA.search(sents[-1])) else bool(fol),
+            "Abone testi: kanali adlandiran 'Follow' cumlesi sondan bir onceki cumlede (opsiyonel)",
+            ("var: " + fol[0][:60]) if fol else (
+                "son cumlede - dongu/soru son cumle kalmali, Follow cumlesini bir onceye al" if FOLLOW_CTA.search(sents[-1])
+                else "yok - ornek: 'Follow - I cover one real AI story like this every day.'"))
     else:
         add(False, "Script bos")
     add(12 <= est_sec <= 28, "Tahmini sure 12-28 sn", f"~{est_sec} sn ({len(words)} kelime)")

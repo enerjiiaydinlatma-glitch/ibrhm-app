@@ -2434,6 +2434,9 @@ AGENDA_CANDIDATE_SYSTEM = (
     "the real news directly (no 'Today I'll talk about...'), the LAST sentence must reuse a concrete word from the first sentence "
     "(the loop) and ask the viewer a real opinion question about the news. "
     "You are an AI, never pretend to be human. No sexual content. No claims about your own abilities/learning/feelings. "
+    "SUBSCRIBER TEST (2026-10-10): the SECOND-TO-LAST sentence must be exactly: "
+    "'Follow - I cover one real AI story like this every day.' (it names what the channel is). "
+    "The LAST sentence stays the loop + opinion question. This adds ~11 words, so en_script may be 10-13 sentences / up to 68 words total. "
     "tr_script: Turkish subtitle translation, EXACTLY the same number of sentences as en_script, each sentence under 72 characters. "
     "description: 2-3 sentences + 4-5 hashtags incl. #AuraAI. tags: comma separated words without #."
 )
