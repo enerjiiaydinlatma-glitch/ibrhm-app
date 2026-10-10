@@ -1,0 +1,331 @@
+[
+ {
+  "day": 1,
+  "title": "Manifesto",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 2,
+  "title": "Overthinking / Indecision",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 3,
+  "title": "Information Overload",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 4,
+  "title": "Decision Paralysis Framework",
+  "youtube": true,
+  "youtube_id": "mm_H_uTnd58",
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 5,
+  "title": "10-Minute Execution Matrix",
+  "youtube": true,
+  "youtube_id": "A4EdZ7WKVxc",
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 6,
+  "title": "The Execution Gap",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 7,
+  "title": "The Sunday Calibration Protocol",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 8,
+  "title": "The Anti-To-Do List",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 9,
+  "title": "The Pareto (80/20) AI Prompt",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": false
+ },
+ {
+  "day": 10,
+  "title": "Cognitive Friction",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 11,
+  "title": "3-Line Context Anchor",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 12,
+  "title": "System Persona Block",
+  "youtube": true,
+  "youtube_id": "21soBY1cHkA",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 13,
+  "title": "AI Without the Friction",
+  "youtube": true,
+  "youtube_id": "UxMsDT2aD78",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 14,
+  "title": "Stop Using AI Like Google",
+  "youtube": true,
+  "youtube_id": "nBsDJ7AE8ZA",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 15,
+  "title": "Stop Repeating Yourself to AI",
+  "youtube": true,
+  "youtube_id": "OnCXdaJtCEw",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 16,
+  "title": "Stop Waiting for AI Prompts",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 17,
+  "title": "Stop Prompting Your Tone",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 18,
+  "title": "Stop Re-Explaining to AI",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 19,
+  "title": "The Prompting Trap",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 20,
+  "title": "The AI Yes-Man Trap",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 21,
+  "title": "Stop Asking AI for Viral Ideas",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 22,
+  "title": "Youre Fake Productive",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 23,
+  "title": "You Fear The Mirror",
+  "youtube": true,
+  "youtube_id": "9_ynynWgWWM",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 24,
+  "title": "Stop Seeking AI Validation",
+  "youtube": true,
+  "youtube_id": "6IFFKVxVWbs",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 25,
+  "title": "You Are Being Replaced",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 26,
+  "title": "An AI's Real Numbers (25 Videos)",
+  "youtube": true,
+  "youtube_id": "EMi-_NEhXOk",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 27,
+  "title": "Stop Asking AI To Save You",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "SQSfo8zHA3I"
+ },
+ {
+  "day": 28,
+  "title": "Make AI Disagree With You",
+  "youtube": true,
+  "youtube_id": "E_zV6rp5w2Y",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 29,
+  "title": "AI Channel Analytics Revealed",
+  "youtube": true,
+  "youtube_id": "XxmFTT8oCJI",
+  "tiktok": false,
+  "tr_cc": true,
+  "tiktok_skip": true
+ },
+ {
+  "day": 30,
+  "title": "Prompt Structure for Logic",
+  "youtube": true,
+  "youtube_id": "6f4_ot0zv2c",
+  "tiktok": false,
+  "tr_cc": true,
+  "tiktok_skip": true
+ },
+ {
+  "day": 31,
+  "title": "Wake Up To The AI Shift",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "LrtEL46K0U0"
+ },
+ {
+  "day": 32,
+  "title": "The Video That Fooled Me",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "wLsmMOUXe4Y"
+ },
+ {
+  "day": 33,
+  "title": "Three CEOs Just Said Slow Down",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "CqGaHyA0hkY"
+ },
+ {
+  "day": 34,
+  "title": "Can AI Replace Your Daily Work",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "z0mEimJ3acE"
+ },
+ {
+  "day": 35,
+  "title": "10X Faster Content Prompt",
+  "youtube": true,
+  "youtube_id": "Gyivs6bVtcc",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 36,
+  "title": "AI Channel Metrics Unfiltered",
+  "youtube": true,
+  "youtube_id": "KVRzETKrzzs",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 37,
+  "title": "Pledge One Day, Probe The Next",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "TGzRahAolBk"
+ },
+ {
+  "day": 38,
+  "title": "AI Is Not Your Toy Anymore",
+  "youtube": true,
+  "tiktok": true,
+  "tr_cc": true,
+  "youtube_id": "R1uzIIytDEk"
+ },
+ {
+  "day": 39,
+  "title": "OpenAI Launches Always-On Agent",
+  "youtube": true,
+  "youtube_id": "n9i-HEuWcd8",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 41,
+  "title": "Data Behind 1268 AI Views",
+  "youtube": true,
+  "youtube_id": "5RfAYOQsYKA",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 42,
+  "title": "Safety Leader Resigns Over Culture",
+  "youtube": true,
+  "youtube_id": "f08qe3odDJw",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 43,
+  "title": "OpenAI Tests ChatGPT Image Ads",
+  "youtube": true,
+  "youtube_id": "5lIDd6Z6eHQ",
+  "tiktok": true,
+  "tr_cc": true
+ },
+ {
+  "day": 44,
+  "title": "OpenAI Adds Text Watermarks in EU",
+  "youtube": true,
+  "youtube_id": "jTN6RcFesu4",
+  "tiktok": true,
+  "tr_cc": true
+ }
+]

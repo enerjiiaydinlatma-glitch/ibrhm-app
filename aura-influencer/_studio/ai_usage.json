@@ -1,0 +1,92 @@
+{
+ "2026-09-25": {
+  "Gemini": {
+   "calls": 8,
+   "tokens": 13825
+  }
+ },
+ "2026-09-26": {
+  "Gemini": {
+   "calls": 12,
+   "tokens": 23916
+  },
+  "Anthropic": {
+   "calls": 2,
+   "tokens": 7896
+  }
+ },
+ "2026-09-27": {
+  "Gemini": {
+   "calls": 7,
+   "tokens": 15090
+  }
+ },
+ "2026-09-28": {
+  "Gemini": {
+   "calls": 1,
+   "tokens": 222
+  }
+ },
+ "2026-09-30": {
+  "Gemini": {
+   "calls": 9,
+   "tokens": 21560
+  }
+ },
+ "2026-10-01": {
+  "Gemini": {
+   "calls": 1,
+   "tokens": 273
+  }
+ },
+ "2026-10-02": {
+  "Gemini": {
+   "calls": 4,
+   "tokens": 16752
+  }
+ },
+ "2026-10-03": {
+  "Gemini-grounded": {
+   "calls": 1,
+   "tokens": 1243
+  },
+  "Gemini": {
+   "calls": 5,
+   "tokens": 21012
+  }
+ },
+ "2026-10-04": {
+  "Gemini-grounded": {
+   "calls": 2,
+   "tokens": 2639
+  },
+  "Gemini": {
+   "calls": 1,
+   "tokens": 5375
+  }
+ },
+ "2026-10-05": {
+  "Gemini-grounded": {
+   "calls": 1,
+   "tokens": 1317
+  }
+ },
+ "2026-10-06": {
+  "Gemini-grounded": {
+   "calls": 1,
+   "tokens": 1326
+  }
+ },
+ "2026-10-08": {
+  "Gemini": {
+   "calls": 4,
+   "tokens": 9487
+  }
+ },
+ "2026-10-10": {
+  "Gemini": {
+   "calls": 2,
+   "tokens": 6753
+  }
+ }
+}
