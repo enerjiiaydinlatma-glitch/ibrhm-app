@@ -339,6 +339,27 @@ def gundem_oku():
 
 
 # ----------------------------------------------------------------------------- kaynak / paket
+# 11 Ekim 2026: urun duyurusu sayfalari (NVIDIA RTX Spark) 'benchmark/evaluat/third party...' kelimelerini icermedigi icin kanit listesi BOS
+# cikiyordu. Anahtar kelimeli aday yeterli degilse RAKAM+BIRIM iceren cumleler de ADAY gosterilir. Bu yalniz operatorun SECEBILECEGI
+# adaylari genisletir; secilen alintilarin sayfada birebir bulunmasi (source_check / receipt dogrulamasi) AYNEN korunur.
+OLCU = re.compile(r"\b(?:up to |over |more than |nearly |about |around )?\d[\d,.]*\s?(?:x|×|%|percent|-fold|times|"
+                  r"[kmgtp]i?b|gb/s|tb/s|mb/s|ms|fps|w|watts?|cores?|petaflops?|teraflops?|exaflops?|flops|tops|tokens?|"
+                  r"billion|million|trillion|parameters?|hours?|minutes?|days?)\b", re.I)
+MIN_ADAY = 6          # anahtar kelimeli aday bu kadardan azsa sayisal cumleler eklenir
+MAX_ADAY = 40
+
+
+def olcu_adaylari(sents, haric_idx):
+    """Rakam+birim iceren cumleler (kisa/uzun uclar elenir). -> [(skor, idx, cumle)] skor=(1, ['olcu'])."""
+    out = []
+    for i, x in enumerate(sents):
+        if i in haric_idx or not (40 <= len(x) <= 400):
+            continue
+        if OLCU.search(x):
+            out.append(((1, ["olcu"]), i, x))
+    return out
+
+
 def kaynak_analiz(url, claim_key="state-of-the-art", keys=None, html=None):
     """Sayfayi KODLA cek, kanit adaylarini numarala. Adaylar KAYNAK_ADAY_YOL'a yazilir (secim ayni goruntuye uygulanir)."""
     url = (url or "").strip()
@@ -356,7 +377,9 @@ def kaynak_analiz(url, claim_key="state-of-the-art", keys=None, html=None):
                                       "'Yalnizca HTML' kaydedip komut satirindan kaynak_cek.py --file ile dene."}
     keys = keys or kaynak_cek.DEFAULT_KEYS
     sk = [(kaynak_cek.score(s, keys), i, s) for i, s in enumerate(sents)]
-    cands = sorted([(sc, i, s) for sc, i, s in sk if sc[0] > 0], key=lambda x: (-x[0][0], x[1]))[:40]
+    cands = sorted([(sc, i, s) for sc, i, s in sk if sc[0] > 0], key=lambda x: (-x[0][0], x[1]))[:MAX_ADAY]
+    if len(cands) < MIN_ADAY:
+        cands = cands + olcu_adaylari(sents, {i for _, i, _ in cands})[:MAX_ADAY - len(cands)]
     claim = next((s for s in sents if claim_key.lower() in s.lower()), "")
     veri = {"url": url, "title": title, "claim_key": claim_key, "keys": keys,
             "fetched_at": _now().isoformat(timespec="seconds"), "claim": claim, "sentences": sents,

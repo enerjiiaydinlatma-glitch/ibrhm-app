@@ -83,6 +83,39 @@ class KaynakTest(unittest.TestCase):
         self.assertTrue(pk["evidence"])
         self.assertTrue(open(os.path.join(self.d, "kaynak_son.txt")).read().endswith(os.path.basename(p["paket"])))
 
+    def test_urun_duyurusu_anahtar_kelimesiz_sayfada_olcu_cumleleri_aday_olur(self):
+        # 11 Ekim 2026: NVIDIA RTX Spark sayfasi 'benchmark/evaluat/...' icermedigi icin kanit listesi BOS cikiyordu
+        spec = ["RTX Spark combines up to 6,144 Blackwell RTX GPU cores with up to 20 Grace CPU cores.",
+                "One petaflop of FP4 AI performance and up to 128 GB of unified memory make it effective for local AI.",
+                "With up to 128 GB of unified memory you can run models that do not fit in a traditional laptop.",
+                "Gamers can play AAA titles at more than 100 fps at 1440p resolution.",
+                "Laptop pre-orders start today and systems go on sale on October 16."]
+        dolgu = ["The event took place on Wednesday in San Francisco with several guests on stage today.",
+                 "Executives spoke about the long history of the personal computer and its role in software.",
+                 "The platform will make it easier for developers to build and ship software on every device.",
+                 "Many partners are expected to announce new designs during the coming weeks and months.",
+                 "Follow the project on social media to stay up to date with all of the latest news here.",
+                 "Developers can port tools and workflows without rewriting any of their existing code base.",
+                 "The compact desktop is designed for always on agents that run quietly in the background.",
+                 "Creators get hardware accelerated video encoding across the entire production pipeline.",
+                 "The company has supported the operating system for decades and plans to continue doing so.",
+                 "Security teams can monitor and manage the agents that run on each of the managed devices."]
+        html = "<html><head><title>Product launch</title></head><body>" + "".join("<p>%s</p>" % x for x in spec + dolgu) + "</body></html>"
+        r = bugun.kaynak_analiz("https://example.com/p", claim_key="petaflop", html=html)
+        self.assertTrue(r["ok"], r)
+        metinler = [a["metin"] for a in r["adaylar"]]
+        self.assertTrue(r["adaylar"], "liste bos kalmamali")
+        self.assertTrue(any("128 GB" in m for m in metinler))
+        self.assertTrue(any("petaflop" in m for m in metinler))
+        self.assertFalse(any("Follow the project" in m for m in metinler))     # rakamsiz dolgu cumleleri aday olmaz
+        self.assertTrue(r["claim"].startswith("One petaflop"))
+        self.assertEqual(r["onerilen"], list(range(1, len(r["onerilen"]) + 1)))
+
+    def test_anahtar_kelimeli_aday_varsa_olcu_cumleleri_siralamayi_bozmaz(self):
+        r = bugun.kaynak_analiz("https://example.com/p", html=HTML)
+        ilk = r["adaylar"][0]
+        self.assertNotEqual(ilk["kelimeler"], ["olcu"])        # anahtar kelimeli (daha guclu) adaylar once gelir
+
     def test_paket_yasam_dongusu_bir_paket_bir_uretim(self):
         self.assertEqual(bugun._son_paket(), "")          # eski/baska paket kullanilmaz
         r = bugun.kaynak_analiz("https://example.com/p", html=HTML)
