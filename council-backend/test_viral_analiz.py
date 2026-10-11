@@ -74,6 +74,20 @@ class Saf(unittest.TestCase):
         hy = va.hizli_yukselen(rows)
         self.assertEqual([s["id"] for s in hy], ["b", "a", "d"])  # c 72 saatten eski -> yok; saatlige gore sirali
 
+    def test_nis_ozeti_guvenli_ve_taze(self):
+        rows = [va.satir_hazirla(vid("x%d" % i, ("ChatGPT trick %d" % i) if i < 6 else ("Gemini plain %d" % i), 100 * (i + 1), saat_once=10 + i), 100, NOW)
+                for i in range(12)]
+        d = {"zaman": NOW.isoformat(timespec="seconds"), "gun": 7, "sorgular": ["q"], "satirlar": rows}
+        n = va.nis_ozeti(d, now=NOW)
+        self.assertEqual({k["konu"] for k in n["hizli_konular"]}, {"ChatGPT/OpenAI", "Gemini/Google"})
+        blob = str(n)
+        self.assertNotIn("ChatGPT trick", blob)       # ham baslik YOK
+        self.assertNotIn("Kanal k1", blob)            # kanal adi YOK
+        self.assertNotIn("youtu", blob)               # URL YOK
+        self.assertIsNone(va.nis_ozeti(d, now=NOW + datetime.timedelta(hours=100)))   # eski onbellek
+        self.assertIsNone(va.nis_ozeti({"zaman": "bozuk"}, now=NOW))
+        self.assertIsNone(va.nis_ozeti({"zaman": NOW.isoformat(), "satirlar": []}, now=NOW))
+
     def test_konu_raporu_bos(self):
         self.assertEqual(va.konu_raporu([]), [])
         self.assertEqual(va.hizli_yukselen([]), [])

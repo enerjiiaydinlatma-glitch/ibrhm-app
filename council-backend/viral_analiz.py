@@ -173,6 +173,28 @@ def cek(sorgular=SORGULAR, gun=GUN, now=None):
     return {"zaman": now.isoformat(timespec="seconds"), "gun": gun, "sorgular": list(sorgular), "satirlar": satirlar}
 
 
+def nis_ozeti(d, max_yas_saat=72, now=None, min_n=5):
+    """Konsey brifingi icin kucuk ve GUVENLI ozet. Ham baslik / kanal adi / URL ICERMEZ (baskasinin metni LLM istemine girmesin);
+    yalniz kendi sozlugumuzdeki konu adlari ve sayilar. Onbellek yoksa/bozuksa/eskiyse None."""
+    now = now or datetime.datetime.utcnow()
+    try:
+        t = datetime.datetime.fromisoformat(d["zaman"])
+        if (now - t).total_seconds() > max_yas_saat * 3600:
+            return None
+        sat = d["satirlar"]
+    except Exception:
+        return None
+    if not sat:
+        return None
+    konular = [{"konu": r["konu"], "video": r["n"], "medyan_saatlik_izlenme": r["medyan_saatlik"]}
+               for r in konu_raporu(sat) if r["n"] >= min_n][:5]
+    kaliplar = [{"baslik_ozelligi": r["ozellik"], "medyan_orani": r["oran"], "n_var": r["n_var"], "n_yok": r["n_yok"]}
+                for r in kalip_raporu(sat, min_n=min_n) if not r["az_ornek"] and r["oran"] is not None]
+    return {"kaynak": "YouTube herkese acik Shorts, son 7 gun (en cok izlenenler)", "video": len(sat),
+            "medyan_izlenme": ozet(sat).get("medyan_izlenme"), "hizli_konular": konular, "baslik_kaliplari": kaliplar,
+            "uyari": "Arama sonucu ornegi; eglence icerigi agirlikta olabilir. YON gostergesidir, kanit degil."}
+
+
 def yukle_onbellek(now=None):
     now = now or datetime.datetime.utcnow()
     try:

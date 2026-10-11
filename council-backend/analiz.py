@@ -98,11 +98,24 @@ def kalip_sinyalleri(videolar):
             "uyari": "Ornek az (medyan izlenme dusuk): bunlar yon gostergesidir, kanit degil."}
 
 
-def veri_ozeti(kanal=None, rapor=None):
+def _nis():
+    """viral_analiz onbellegi (varsa ve <= 72 saatlikse) -> guvenli ozet; yoksa None. Hata analizi ASLA durdurmaz."""
+    try:
+        import viral_analiz
+        with open(viral_analiz.CACHE, encoding="utf-8") as f:
+            return viral_analiz.nis_ozeti(json.load(f))
+    except Exception:
+        return None
+
+
+def veri_ozeti(kanal=None, rapor=None, nis=None):
     kanal = kanal if kanal is not None else kanal_videolari()
+    nis = nis if nis is not None else _nis()
     o = {"kanal_ok": kanal.get("ok", False), "abone": kanal.get("abone"),
-         "taban": {"izlemeye_devam_yuzde": RETENTION_TABAN},
-         "sinyaller": kalip_sinyalleri(kanal.get("videolar", []))}
+         "taban": {"izlemeye_devam_yuzde": RETENTION_TABAN}}
+    if nis:
+        o["nis"] = nis            # kanal sinyallerinden ONCE: brifing 3500 karakterde kirpilir
+    o["sinyaller"] = kalip_sinyalleri(kanal.get("videolar", []))
     if not kanal.get("ok"):
         o["kanal_hata"] = kanal.get("hata")
     if rapor:
@@ -131,6 +144,7 @@ def brifing(adaylar, veri):
             "dogrudan alintilar, hukum damgasi). Hedef: abone ve izlemeye devam oranini artirmak. "
             "ONEMLI: 'SAYFADA IDDIA' alani sayfanin KODLA okunmus gercek cumlesidir; gerekceni yalnizca bu cumleye ve verilere dayandir, "
             "basliktan tahmin yurutme. KURALLAR: yalnizca asagidaki adaylar arasindan sec; aday disinda konu, rakam veya baglanti UYDURMA; niyet atfi/suc dili yok. "
+            "KANAL VERISINDEKI 'nis' ALANI nisteki viral Shorts'larin konu hizi ve baslik kalibidir: YON gostergesidir, olgu degildir; konu secimini yine sayfa iddiasina ve kanita dayandir, 'nis' yalniz berabere kalan adaylar arasinda IZLEYICI ILGISI icin ipucudur. "
             "Oncelik: IZLEYICI ILGISI ve belgeyle sinanabilirlik. Sirketin kendi iddiasini kendi olcutuyle notlamasi (cikar catismasi) "
             "yalnizca kucuk bir BONUSTUR, secimin ana nedeni olamaz.\n\n"
             "ADAYLAR:\n" + "\n".join(satir) + "\n\nKANAL VERISI (ozet; ornek az, kesin hukum verme):\n" +
