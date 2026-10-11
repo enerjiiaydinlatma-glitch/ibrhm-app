@@ -91,7 +91,7 @@ def make_video(audio_path, out_path, script_text, work_dir=None):
         label_style = ("FontName=Segoe UI,Bold=1,Fontsize=11,PrimaryColour=&H00FFB07C,OutlineColour=&H00101010,"
                        "BorderStyle=1,Outline=2,Shadow=0,Alignment=6,MarginV=90")  # SSA numaralandirma: 6 = ust-orta
         stamp_style = (f"FontName=Segoe UI,Bold=1,Fontsize=24,PrimaryColour={VERDICT_COLORS[verdict]},OutlineColour=&H00101010,"
-                       "BorderStyle=1,Outline=3,Shadow=0,Alignment=10,MarginV=0")  # SSA numaralandirma: 10 = orta-orta (1-3 alt, 5-7 ust, 9-11 orta)
+                       "BorderStyle=1,Outline=3,Shadow=0,Alignment=10,MarginV=0")  # SSA numaralandirma: 10 = orta-orta (1-3 alt, 5-7 ust, 9-11 orta). NOT: MarginV piksel degil, altyazi betigi birimi (yukseklik ~288): buyuk deger damgayi kadraj DISINA iter; dalganin ustune binmesi bilincli (gercek videoda okunakli dogrulandi)
         extra_vf = (f",subtitles=series_label.srt:force_style='{label_style}'"
                     f",subtitles=series_stamp.srt:force_style='{stamp_style}'")
 
