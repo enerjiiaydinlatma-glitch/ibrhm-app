@@ -161,8 +161,9 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
     add(None if nums else True, "Rakam iceriyorsa dogrulanabilir olmali", (", ".join(nums[:6]) + " -> kaynagi (analitik) dogrula") if nums else "rakam yok")
     add("ai" in (description or "").lower() or "i'm an ai" in en.lower() or "i am an ai" in en.lower(),
         "AI oldugu acik (script ya da aciklama)")
-    tl = title.lower().strip()
-    best = max(((difflib.SequenceMatcher(None, tl, e.lower()).ratio(), e) for e in existing_titles), default=(0, ""))
+    core = lambda t: re.sub(r"^\s*hype or real\s*[:\-]\s*", "", t, flags=re.I)  # seri oneki ortak kelime sayilmaz (her bolum "Hype or Real:" ile baslar)
+    tl = core(title).lower().strip()
+    best = max(((difflib.SequenceMatcher(None, tl, core(e).lower()).ratio(), e) for e in existing_titles), default=(0, ""))
     add(best[0] < 0.6, "Mevcut bir videoyla ayni konu degil", f"en benzer: '{best[1]}' ({round(best[0] * 100)}%)" if best[1] else "")
     claim = re.search(r"I (can |will |always |never )?(process|perform|analy[sz]e|learn|improve|feel|understand|remember|know|think)|my (model|training|algorithm)|without (human )?bias|each video improves|grow without", en, re.I)
     add(claim is None, "Aura kendi yetenegi/ogrenmesi hakkinda dogrulanamayan iddia yok",
@@ -172,8 +173,8 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
         (f"'{over.group(0)}' - kanitlayabiliyor musun?" if over else ""))
     stop = {"the", "a", "an", "of", "to", "and", "in", "on", "for", "your", "you", "ai", "stop", "aura", "day", "why", "how", "is", "are", "my", "it", "with", "without", "not"}
     cw = lambda s: {w for w in re.findall(r"[a-z0-9]+", s.lower()) if w not in stop and len(w) > 1}
-    mine = cw(title)
-    hit = next(((e, mine & cw(e)) for e in existing_titles if len(mine & cw(e)) >= 2), None)
+    mine = cw(core(title))
+    hit = next(((e, mine & cw(core(e))) for e in existing_titles if len(mine & cw(core(e))) >= 2), None)
     add(hit is None, "Konu anahtar kelimeleri mevcut bir videoyla cakismiyor", (f"'{hit[0]}' ile ortak: {sorted(hit[1])}" if hit else ""))
     try:  # ogrenilmis YUMUSAK ipuclari (learner.py): ok None/True olabilir, ASLA False (bloklamaz)
         import learner

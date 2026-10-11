@@ -21,6 +21,10 @@ ck("preflight: karar cumlesi yoksa (seri basligi ile) reddedilir", bool(failed(p
 ck("preflight: seri disi video seri kontrolu almaz", failed(growth.preflight("Plain Title", "OpenAI did a thing. It matters. Do you care?", "", "I'm an AI", [])) == [])
 ck("auto_format: 'Hype or Real:' -> verdict, digerleri bozulmaz", growth.auto_format("Hype or Real: OpenAI's $50B") == "verdict" and growth.auto_format("OpenAI Tests ChatGPT Image Ads") == "agenda")
 
+ck("preflight: 'Hype or Real:' oneki konu cakismasi sayilmaz, ayni konu hala yakalanir",
+   all(c["ok"] is not False for c in growth.preflight("Hype or Real: ChatGPT Text", GOOD, "", "I'm an AI #AuraAI", ["Hype or Real: OpenAI's $50B"])["checks"] if "ayni konu" in c["label"] or "cakismiyor" in c["label"])
+   and any(c["ok"] is False for c in growth.preflight("Hype or Real: OpenAI's $50B", GOOD, "", "I'm an AI #AuraAI", ["Hype or Real: OpenAI's $50B"])["checks"] if "ayni konu" in c["label"]))
+
 # --- video katmanlari (gercek ffmpeg)
 if shutil.which("ffmpeg"):
     tmp = tempfile.mkdtemp()
