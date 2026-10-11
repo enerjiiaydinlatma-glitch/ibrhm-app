@@ -3526,7 +3526,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"usage": _ai_usage_get(), "code_prefer": _ai_settings()["code_prefer"]})
         elif u.path.startswith("/download/"):
             _serve_download(self, u.path[len("/download/"):])
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/")):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/")) or u.path in ("/api/today", "/api/trends"):
             q = parse_qs(u.query)
             try:
                 import insights
@@ -3860,7 +3860,7 @@ class Handler(BaseHTTPRequestHandler):
             name = f"{time.strftime('%Y%m%d-%H%M')}-{slug}.md"
             open(os.path.join(DOCS_DIR, name), "w", encoding="utf-8").write(content)
             self._json({"name": name})
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/")):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/")) or u.path in ("/api/today", "/api/trends"):
             try:
                 import insights
                 if u.path == "/api/insights/hashtags":

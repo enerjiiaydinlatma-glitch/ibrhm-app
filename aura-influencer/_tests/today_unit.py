@@ -34,4 +34,29 @@ ck("bar verisi: TikTok izlenmesi ve etkilesim orani", d["bars"][-1]["tt_views"] 
 ck("tum bolumler hatasiz", not d["errors"], d["errors"])
 tr = m._trends(cached_only=True)
 ck("trendler: onbellek yoksa AG CAGRISI YAPMAZ, bos doner", tr["ok"] and tr["items"] == [], tr)
+# --- GERCEK HTTP: yollar sunucuda gercekten yonlendiriliyor mu? (2026-10-11: /api/today 404 boş cevap verdi, birim test yakalamamisti)
+import threading, urllib.request
+from http.server import ThreadingHTTPServer
+srv = ThreadingHTTPServer(("127.0.0.1", 0), m.Handler)
+port = srv.server_address[1]
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+def http(method, path, body=None):
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", method=method, data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        r = urllib.request.urlopen(req, timeout=20)
+        return r.status, json.loads(r.read().decode() or "null")
+    except urllib.error.HTTPError as e:
+        return e.code, None
+c, j = http("GET", "/api/today")
+ck("HTTP GET /api/today: 200 + JSON ok", c == 200 and j and j.get("ok") and j.get("subs") == 2, (c, str(j)[:120]))
+c, j = http("GET", "/api/trends?cached=1")
+ck("HTTP GET /api/trends?cached=1: 200 + JSON (agsiz)", c == 200 and j and j.get("ok") and j.get("items") == [], (c, j))
+c, j = http("GET", "/api/learn/state")
+ck("HTTP GET /api/learn/state: 200 + JSON", c == 200 and j and j.get("ok") and "learned" in j, (c, str(j)[:120]))
+c, j = http("POST", "/api/learn/ctr_import", {"csv": "a,b\n1,2\n"})
+ck("HTTP POST /api/learn/ctr_import: 200 + JSON (acik hata, 404 degil)", c == 200 and j is not None and j.get("ok") is False, (c, j))
+c, j = http("GET", "/api/yok_boyle_bir_yol")
+ck("bilinmeyen yol hala 404", c == 404, c)
+srv.shutdown()
 print(json.dumps({"total": len(res), "bad": [(n, dd) for n, o, dd in res if not o]}, ensure_ascii=False))
