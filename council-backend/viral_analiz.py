@@ -3,6 +3,7 @@
 Kullanim:
   python viral_analiz.py              # onbellek (6 saat) tazeyse onu gosterir, degilse API'den ceker
   python viral_analiz.py --yenile     # onbellegi yok sayip yeniden ceker (API kotasi harcar)
+  python viral_analiz.py --konu       # yalniz onbellekten raporu yazdirir (API istegi YOK)
   python viral_analiz.py --plan       # sadece plan + tahmini kota (hicbir istek atmaz)
 
 Kota: her sorgu search.list = 100 birim; videos/channels listeleri ~1 birim. 8 sorgu ~ 810 birim (gunluk 10.000).
@@ -28,7 +29,43 @@ SORU_KELIME = ("why", "how", "is", "are", "did", "does", "do", "can", "will", "s
 SIRALAMA = re.compile(r"\b(rank|ranks|ranking|#1|top|beats|beat|vs|overtakes|overtake|ahead|leader|leads|wins|race)\b", re.I)
 
 
+VARLIKLAR = {  # konu (varlik) -> baslikta aranan kalip
+    "ChatGPT/OpenAI": r"chat\s*gpt|\bgpt[- ]?\d|openai|\bsora\b|altman",
+    "Gemini/Google": r"gemini|google|deepmind|pichai|\bveo\b",
+    "Claude/Anthropic": r"claude|anthropic|amodei",
+    "Nvidia": r"nvidia|jensen|\bgpu\b|blackwell|cuda",
+    "Meta/Llama": r"\bmeta\b|llama|zuckerberg",
+    "Grok/xAI/Musk": r"grok|\bxai\b|musk",
+    "Apple": r"\bapple\b|siri|iphone",
+    "Microsoft/Copilot": r"microsoft|copilot|\bbing\b",
+    "DeepSeek/Cin": r"deepseek|china|chinese|qwen",
+    "AI guvenlik/duzenleme": r"safety|regulat|\blaw\b|\bban\b|midterm|election|copyright|lawsuit|privacy",
+    "AI ajanlar/is": r"\bagents?\b|\bjobs?\b|replace|automation|workers?",
+}
+HIZLI_YAS_SAAT = 72
+
+
 # --------------------------------------------------------------------------- saf fonksiyonlar (testli)
+def konu_raporu(satirlar):
+    """Varlik/konu bazinda: video sayisi, toplam izlenme, MEDYAN saatlik izlenme, en hizli video. Bir video birden cok konuya girebilir."""
+    out = []
+    for ad, kalip in VARLIKLAR.items():
+        rx = re.compile(kalip, re.I)
+        grup = [s for s in satirlar if rx.search(s.get("baslik", ""))]
+        if not grup:
+            continue
+        en = max(grup, key=lambda s: s["saatlik"])
+        out.append({"konu": ad, "n": len(grup), "toplam_izlenme": sum(s["izlenme"] for s in grup),
+                    "medyan_saatlik": round(statistics.median(s["saatlik"] for s in grup), 1),
+                    "en_hizli": {"baslik": en["baslik"], "saatlik": en["saatlik"], "id": en["id"], "abone": en.get("abone")}})
+    return sorted(out, key=lambda r: -r["medyan_saatlik"])
+
+
+def hizli_yukselen(satirlar, en_fazla=10, yas_sinir=HIZLI_YAS_SAAT):
+    """Taze (yas <= yas_sinir saat) ve SAATLIK izlenmesi en yuksek videolar = su an yukselen trend."""
+    taze = [s for s in satirlar if s["yas_saat"] <= yas_sinir]
+    return sorted(taze, key=lambda s: -s["saatlik"])[:en_fazla]
+
 def sure_saniye(iso):
     """'PT1M5S' -> 65. Bozuksa None."""
     m = re.fullmatch(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso or "")
@@ -178,6 +215,16 @@ def yazdir(d):
     for r in kalip_raporu(sat):
         print(f"{r['ozellik']:<16} {r['n_var']:>5}  {str(r['medyan_var']):>10}  {r['n_yok']:>5}  {str(r['medyan_yok']):>10}  {str(r['oran']):>5}  {'AZ ORNEK' if r['az_ornek'] else ''}")
 
+    print(f"\n=== SU AN YUKSELEN (yas <= {HIZLI_YAS_SAAT} saat; saatlik izlenme) ===")
+    print("saatlik  izlenme  yas_s  abone   kanal / baslik")
+    for s in hizli_yukselen(sat):
+        print(f"{s['saatlik']:>7}  {s['izlenme']:>7}  {s['yas_saat']:>5.0f}  {str(s['abone']):>6}  {_a(s['kanal'], 16)} | {_a(s['baslik'], 62)}")
+
+    print("\n=== KONU (VARLIK) RAPORU (medyan saatlik izlenmeye gore; bir video birden cok konuya girebilir) ===")
+    print("konu                   n   toplam_izlenme  medyan_saatlik  en hizli video")
+    for r in konu_raporu(sat):
+        print(f"{r['konu']:<22} {r['n']:>3}  {r['toplam_izlenme']:>14}  {r['medyan_saatlik']:>14}  {_a(r['en_hizli']['baslik'], 52)} ({r['en_hizli']['saatlik']}/sa)")
+
     print("\n=== ILK 3 SANIYE / GORSEL: SENIN IZLEYIP NOT ALACAGIN SABLON (API bunu GOSTEREMEZ) ===")
     print("En cok izlenen 5 videoyu ac, her biri icin yaz: (1) ilk 3 sn'de ne gorunuyor/duyuluyor? (2) kanca bir soru mu, iddia mi, rakam mi?")
     print("(3) gorsel: yuz/metin/grafik? (4) tek konusmaci mi, tartisma mi? (5) sonda cagri var mi?")
@@ -191,6 +238,16 @@ def main(argv):
         n = len(SORGULAR)
         print(f"Plan: {n} sorgu x search.list (100 birim) = {n * 100} birim + ~10 birim liste cagrilari. Hicbir istek atilmadi.")
         print("Sorgular:", ", ".join(SORGULAR))
+        return 0
+    if "--konu" in argv:   # yalniz onbellek, API istegi YOK
+        try:
+            with open(CACHE, encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception:
+            print("Onbellek yok: once  python viral_analiz.py  calistir.")
+            return 1
+        print(f"(onbellek: {d['zaman']} UTC; API istegi atilmadi)")
+        yazdir(d)
         return 0
     d = None if "--yenile" in argv else yukle_onbellek()
     if d is None:

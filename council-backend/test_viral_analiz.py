@@ -61,6 +61,23 @@ class Saf(unittest.TestCase):
         self.assertEqual((o["video"], o["medyan_izlenme"], o["en_cok"]), (3, 20, 300))
         self.assertEqual(va.ozet([]), {"video": 0})
 
+    def test_konu_raporu_ve_hizli_yukselen(self):
+        rows = [va.satir_hazirla(vid("a", "ChatGPT agrees with everything", 1000, saat_once=10), 100, NOW),
+                va.satir_hazirla(vid("b", "Gemini 4 is here", 5000, saat_once=20), 100, NOW),
+                va.satir_hazirla(vid("c", "Why Nvidia GPU prices", 100, saat_once=200), 100, NOW),
+                va.satir_hazirla(vid("d", "OpenAI and Nvidia deal", 600, saat_once=60), 100, NOW)]
+        k = {r["konu"]: r for r in va.konu_raporu(rows)}
+        self.assertEqual(k["ChatGPT/OpenAI"]["n"], 2)       # a ve d
+        self.assertEqual(k["Nvidia"]["n"], 2)               # c ve d (bir video birden cok konuya girer)
+        self.assertEqual(k["Gemini/Google"]["en_hizli"]["id"], "b")
+        self.assertNotIn("Apple", k)                        # eslesme yoksa listelenmez
+        hy = va.hizli_yukselen(rows)
+        self.assertEqual([s["id"] for s in hy], ["b", "a", "d"])  # c 72 saatten eski -> yok; saatlige gore sirali
+
+    def test_konu_raporu_bos(self):
+        self.assertEqual(va.konu_raporu([]), [])
+        self.assertEqual(va.hizli_yukselen([]), [])
+
 
 if __name__ == "__main__":
     unittest.main()
