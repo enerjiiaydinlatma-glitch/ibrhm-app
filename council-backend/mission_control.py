@@ -54,6 +54,7 @@ import analysis_config  # noqa: E402
 import analytics_report  # noqa: E402
 import tracker  # noqa: E402
 import tracker_actions  # noqa: E402
+import snapshot_dene  # noqa: E402
 import autotest  # noqa: E402
 import maintenance  # noqa: E402
 import security  # noqa: E402
@@ -3188,15 +3189,23 @@ def server_already_running():
         return False
 
 
+def _snapshot_log(msg):
+    """Konsola VE _engine/snapshot_log.txt'ye yazar (pencere modunda konsol gorunmez; 11 Ekim 2026: 6 gun sessizce alinamadi)."""
+    print(msg)
+    try:
+        os.makedirs(ENGINE, exist_ok=True)
+        with open(os.path.join(ENGINE, "snapshot_log.txt"), "a", encoding="utf-8") as f:
+            f.write(datetime.datetime.now().isoformat(timespec="seconds") + "  " + msg + "\n")
+    except Exception:
+        pass
+
+
 def _snapshot_when_healthy():
     """Uygulama 30 sn saglikli calistiktan sonra kodun 'son calisan surum'
-    kopyasini alir (kod bozulursa mission_control.bat bunu geri yukler)."""
+    kopyasini alir (kod bozulursa mission_control.bat bunu geri yukler).
+    Yanit gelmezse / snapshot ok:False donerse sebep yazilir ve 60 sn arayla 10 kez tekrar denenir."""
     time.sleep(30)
-    if server_already_running():
-        try:
-            health.snapshot_last_good()
-        except Exception as e:
-            print(f"[snapshot hatasi] {e}")
+    snapshot_dene.dene(server_already_running, health.snapshot_last_good, log=_snapshot_log)
 
 
 class _QuietServer(ThreadingHTTPServer):
