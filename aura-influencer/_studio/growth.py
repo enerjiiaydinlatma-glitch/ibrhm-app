@@ -17,12 +17,15 @@ FORMATS = {
     "identity": "Kimlik-tehdit (Trap, Mirror, Replaced...)",
     "directive": "Emir kipi (Stop ...)",
     "agenda": "Gundem / haber yorumu (gercek, dogrulanmis AI olaylari)",
+    "verdict": "Hype or Real? serisi (iddia + kanit + Aura'nin karari)",
     "other": "Diger",
 }
 
 
 def auto_format(title):
     t = title.lower()
+    if t.startswith("hype or real"):
+        return "verdict"
     if re.search(r"real numbers|my numbers|what i learned", t):
         return "transparency"
     if re.search(r"prompt|framework|matrix|anchor|persona|pareto|template|checklist", t):
@@ -89,6 +92,7 @@ GENERIC_OPEN = re.compile(
     r"^let me tell you\b|^so,? today\b|^welcome back\b|^i want to talk about\b|^i'?m going to (show|talk|tell)\b",
     re.I)
 # 2026-10-10: abone donusumu testi - kanalin ne oldugunu adlandiran "Follow" cumlesi
+_VERDICT = re.compile(r"^\s*(?:my\s+)?verdict\s*[:\-]\s*(real|hype|unclear)\b", re.I)
 FOLLOW_CTA = re.compile(r"\bfollow\b.{0,60}\b(every|daily|each)\b", re.I)
 _LOOP_STOP = {"the", "a", "an", "of", "to", "and", "in", "on", "for", "your", "you", "ai", "stop", "aura",
               "day", "why", "how", "is", "are", "my", "it", "with", "without", "not", "that", "this",
@@ -142,6 +146,16 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
                     "SONRA sessizce basarisiz olabilir, yayindan once kisalt" if max(len(x) for x in tr_sents) > 72 else ""))
     else:
         add(None, "Turkce CC yok (opsiyonel)")
+    # "Hype or Real?" serisi (2026-10-10): karar cumlesi + kanit yapisi
+    vi = next((i for i, x in enumerate(sents) if _VERDICT.match(x)), None)
+    if title.lower().startswith("hype or real") or vi is not None:
+        add(vi is not None and 0 < vi < len(sents) - 1, "Seri: 'Verdict: REAL|HYPE|UNCLEAR.' cumlesi var ve son cumle degil",
+            "yok - ornek: 'Verdict: UNCLEAR.'" if vi is None else f"cumle {vi + 1}/{len(sents)}")
+        if vi is not None:
+            add(vi >= 4, "Seri: kararin onunde en az 2 kanit cumlesi (hook + soru + 2 kanit)", f"karardan once {vi} cumle (kanit: {max(vi - 2, 0)})")
+            add(re.search(r"\b(reports|reported|according to|told|said|says|per)\b", " ".join(sents[2:vi]), re.I) is not None,
+                "Seri: kanit cumlelerinde kaynak atfi var (reports/says/told/according to)", "kaynak atfi bulunamadi - 'the FT reports' gibi ekle")
+            add(vi == 0 or not re.search(r"\b(REAL|HYPE|UNCLEAR)\b", " ".join(sents[:vi])), "Seri: karar kelimesi kararin onunde sizmamis", "")
     add(not HYPE.search(en + " " + (description or "") + " " + title), "Abartili vaat / garanti dili yok")
     nums = re.findall(r"\b\d[\d,.]*\b", en)
     add(None if nums else True, "Rakam iceriyorsa dogrulanabilir olmali", (", ".join(nums[:6]) + " -> kaynagi (analitik) dogrula") if nums else "rakam yok")

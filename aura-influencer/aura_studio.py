@@ -1485,7 +1485,7 @@ async function insAudit(btn){
 }
 
 // ---- Buyume makinesi (v2) ----
-const FORMAT_LABELS = {transparency: 'Seffaflik', template: 'Sablon', identity: 'Kimlik-tehdit', directive: 'Emir (Stop..)', other: 'Diger'};
+const FORMAT_LABELS = {transparency: 'Seffaflik', template: 'Sablon', identity: 'Kimlik-tehdit', directive: 'Emir (Stop..)', agenda: 'Gundem', verdict: 'Hype or Real?', other: 'Diger'};
 let GM = null;
 function preHtml(pf){
   if(!pf) return '';
@@ -1823,8 +1823,8 @@ if(mainEl){
 
 // ---- BUGUN (ana yuz): sade ozet + grafikler + trend. JS'te ters egik cizgi YOK (PAGE normal Python string) ----
 let TD = null;
-const TD_COL = {agenda:'#a371f7', template:'#3fb950', identity:'#f0883e', directive:'#58a6ff', transparency:'#d29922', other:'#8b949e'};
-const TD_NAME = {agenda:'Gundem', template:'Sablon', identity:'Kimlik', directive:'Emir', transparency:'Seffaflik', other:'Diger'};
+const TD_COL = {agenda:'#a371f7', verdict:'#f778ba', template:'#3fb950', identity:'#f0883e', directive:'#58a6ff', transparency:'#d29922', other:'#8b949e'};
+const TD_NAME = {agenda:'Gundem', verdict:'Hype or Real', template:'Sablon', identity:'Kimlik', directive:'Emir', transparency:'Seffaflik', other:'Diger'};
 function tdBars(d){
   const b = d.bars || [];
   if(!b.length) return '<div class="sub">Veri yok.</div>';
@@ -1922,7 +1922,7 @@ async function tdTrends(force, quiet){
     if(!j.ok){ box.textContent = 'Hata: ' + (j.error || ''); return; }
     TD_TR = j.items || [];
     if(!TD_TR.length){ if(!quiet) box.textContent = 'Sonuc yok.'; return; }
-    box.innerHTML = TD_TR.map((t, i) => '<div class="tditem"><div style="flex:1;min-width:220px"><b>' + esc(t.headline) + '</b>' + (t.covered ? ' <span class="tdlbl" style="margin:0;color:#d29922">(benzeri zaten yayinlandi)</span>' : '') + '<div class="tdlbl" style="margin:2px 0 0">' + esc(t.why_hot) + '</div></div><button class="qa" style="width:auto" data-i="' + i + '" onclick="tdMake(this)">' + (t.covered ? 'Yine de taslak yap' : 'Taslak yap') + '</button></div>').join('') + '<div class="tdlbl" style="margin-top:6px">' + esc(j.at || '') + (j.cached ? ' (onbellekten)' : '') + ' - haberi yayinlamadan once kendin dogrula.</div>';
+    box.innerHTML = TD_TR.map((t, i) => '<div class="tditem"><div style="flex:1;min-width:220px"><b>' + esc(t.headline) + '</b>' + (t.covered ? ' <span class="tdlbl" style="margin:0;color:#d29922">(benzeri zaten yayinlandi)</span>' : '') + '<div class="tdlbl" style="margin:2px 0 0">' + esc(t.why_hot) + '</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="qa" style="width:auto;background:#8957e5" data-i="' + i + '" data-series="hype_or_real" onclick="tdMake(this)">' + (t.covered ? 'Yine de: Hype or Real?' : 'Hype or Real? taslagi') + '</button><button class="qa" style="width:auto" data-i="' + i + '" onclick="tdMake(this)">Duz taslak</button></div></div>').join('') + '<div class="tdlbl" style="margin-top:6px">' + esc(j.at || '') + (j.cached ? ' (onbellekten)' : '') + ' - haberi yayinlamadan once kendin dogrula.</div>';
   } catch(e) { box.textContent = 'Hata: ' + e; }
   finally { if(force){ btn.disabled = false; btn.textContent = 'Trendleri yenile'; } }
 }
@@ -1931,7 +1931,7 @@ async function tdMake(btn){
   btn.disabled = true; const old = btn.textContent; btn.textContent = 'Taslak yaziliyor (30-60 sn)...';
   const out = document.getElementById('td_draft');
   try {
-    const j = await gmPost('/api/growth/agenda_candidate', {topic: t.headline});
+    const j = await gmPost('/api/growth/agenda_candidate', {topic: t.headline, series: btn.dataset.series || ''});
     if(!j.ok){ out.innerHTML = '<p style="color:#f85149">' + esc(j.error || 'Basarisiz') + '</p>'; return; }
     const st = await (await fetch('/api/growth/state')).json();
     GM = st;
@@ -2608,6 +2608,25 @@ AGENDA_CANDIDATE_SYSTEM = (
 )
 
 
+VERDICT_CANDIDATE_SYSTEM = (
+    "You are Aura, an openly-disclosed AI character. You host a Shorts series called 'Hype or Real?': you take ONE specific claim from REAL, CURRENT AI news, "
+    "weigh it against the evidence in the live Google Search results provided, and give a verdict. Use ONLY facts, names, dates and numbers that appear in those "
+    "search results; attribute them ('the FT reports', 'a source says', 'OpenAI told investors'). Never invent anything. "
+    "Return ONLY a single JSON object with keys: title, en_script, tr_script, description, tags, rationale, sources_used (Turkish, 1-2 sentences), verdict. "
+    "title: must start with 'Hype or Real:' and be at most 35 characters in total, no emoji/hashtags, must NOT resemble any EXISTING TITLE. "
+    "en_script has EXACTLY this structure, one sentence each, every sentence under 70 characters, 40-62 words total: "
+    "(1) the specific claim, max 12 words, stated like a headline; (2) 'Hype or real?'; (3)-(5) two or three EVIDENCE sentences with source attribution; "
+    "(6) 'Verdict: REAL.' or 'Verdict: HYPE.' or 'Verdict: UNCLEAR.' (exactly that form); "
+    "(7) exactly: 'Follow - I cover one real AI story like this every day.'; "
+    "(8) a question that reuses a concrete word from sentence (1) and invites disagreement with your verdict. "
+    "VERDICT RULES: REAL = the claim is well supported by multiple reliable sources. HYPE = the claim is exaggerated or misleading compared with the evidence "
+    "(say what the evidence actually shows). UNCLEAR = sources conflict, the key fact rests on one source, or it cannot be verified - when in doubt choose UNCLEAR, never guess. "
+    "The verdict is your editorial judgement about the claim, not a claim about your own abilities. No evidence sentence may contain a fact that is not in the search results. "
+    "You are an AI and never pretend to be human. No sexual content. "
+    "tr_script: Turkish subtitle translation with EXACTLY the same number of sentences, each under 72 characters; translate the verdict sentence as 'Karar: ABARTI.', 'Karar: GERCEK.' or 'Karar: BELIRSIZ.'. "
+    "description: 2-3 sentences + 4-5 hashtags incl. #AuraAI #HypeOrReal. tags: comma separated words without #. verdict: REAL, HYPE or UNCLEAR."
+)
+
 PUBLISH_LOCK = threading.Lock()
 
 ACTION_SYSTEM = (
@@ -2911,7 +2930,7 @@ def _today_state():
     return out
 
 
-def _growth_agenda_candidate(topic=None):
+def _growth_agenda_candidate(topic=None, series=None):
     """Gercek, guncel AI haberine dayanan 1 aday uretir (Google Search grounding) -> taslak olarak kaydedilir (yayinlamaz).
     DIKKAT: kaynak linkleri taslagin rationale alanina eklenir - insan/Claude Code yayindan once MUTLAKA dogrulamali,
     grounding kaynaklari bazen vertexaisearch yonlendirme linkleri olur, dogrudan okunabilir olmayabilir."""
@@ -2926,12 +2945,13 @@ def _growth_agenda_candidate(topic=None):
             "concrete - a launch, a policy move, a safety incident, a regulatory action, a resignation, etc). ")
     prompt = (find + "Then write the script as instructed in your system prompt.\n\n"
               "EXISTING TITLES (do not repeat the same news/topic if already covered):\n" + "\n".join(existing) + _learn_ctx())
-    text, sources = _call_gemini_grounded(prompt, AGENDA_CANDIDATE_SYSTEM)
+    is_series = (series == "hype_or_real")
+    text, sources = _call_gemini_grounded(prompt, VERDICT_CANDIDATE_SYSTEM if is_series else AGENDA_CANDIDATE_SYSTEM)
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
         return {"ok": False, "error": "Model JSON dondurmedi.", "raw": text[:500]}
     it = json.loads(m.group(0))
-    it["format"] = "agenda"
+    it["format"] = "verdict" if is_series else "agenda"
     for k in ("en_script", "tr_script", "title", "description"):
         if k in it:
             it[k] = _denormalize_list_string(it[k])
@@ -3940,7 +3960,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif u.path == "/api/growth/candidates":
                     self._json(_growth_candidates())
                 elif u.path == "/api/growth/agenda_candidate":
-                    self._json(_growth_agenda_candidate(body.get("topic")))
+                    self._json(_growth_agenda_candidate(body.get("topic"), body.get("series")))
                 elif u.path == "/api/growth/report":
                     self._json(_growth_report())
                 elif u.path == "/api/learn/run":
