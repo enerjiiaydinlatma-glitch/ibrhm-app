@@ -123,6 +123,14 @@ def main():
             check(f"Ogrenen sistem birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Ogrenen sistem birim testleri", False, (lu.stderr[-400:] + lu.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "today_unit.py")):
+        shutil.copy2(os.path.join(ROOT, "_tests", "today_unit.py"), os.path.join(work, "_today_unit.py"))
+        tdu = subprocess.run([sys.executable, "_today_unit.py"], cwd=work, capture_output=True, text=True, timeout=120, env=dict(os.environ, AURA_NO_OPEN="1", AURA_STUDIO_PORT="8891"))
+        try:
+            jr = json.loads(tdu.stdout.strip().splitlines()[-1])
+            check(f"Bugun ana yuzu birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("Bugun ana yuzu birim testleri", False, (tdu.stderr[-400:] + tdu.stdout[-300:]) or repr(ex))
     node = shutil.which("node")
     if node and os.path.exists(os.path.join(work, "_page_test.js")):
         r = subprocess.run([node, "--check", "_page_test.js"], cwd=work, capture_output=True, text=True)

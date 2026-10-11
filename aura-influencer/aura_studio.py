@@ -903,21 +903,49 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #viewport{flex:1;display:flex;overflow:hidden}
  .view{display:none;flex:1;min-width:0}
  .view.active-view{display:flex}
- #view-insights>*,#view-comments>*,#view-code>*,#view-growth>*{flex-shrink:0}
+ #view-insights>*,#view-comments>*,#view-code>*,#view-growth>*,#view-today>*{flex-shrink:0}
+ .tdcard{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px}
+ .tdcard{font-size:14px}
+ .tdcard b{color:#e6edf3}
+ #topbar{overflow-x:auto}
+ .tab-btn{white-space:nowrap}
+ .tdcard h3{margin:0 0 10px;font-size:14px;color:#e6edf3;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ .tdgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+ .tdrow{display:flex;gap:12px;flex-wrap:wrap}
+ .tdnum{font-size:26px;font-weight:700;color:#e6edf3}
+ .tdlbl{font-size:12px;color:#8b949e;margin:0}
+ .tditem{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #21262d;flex-wrap:wrap}
+ .tditem:first-child{border-top:0}
  #view-code{max-width:100vw;overflow-x:hidden}
  #view-code button,#view-code select{min-height:44px;font-size:14px}
  #view-code textarea{font-size:14px}
 </style></head><body>
 <div id="topbar">
 <span class="brand">&#127917; Aura Command Center</span>
-<button class="tab-btn active-tab" id="btn-tab-home" onclick="showTab('home')">Ana Panel</button>
+<button class="tab-btn active-tab" id="btn-tab-today" onclick="showTab('today');tdLoad()">&#127968; Bugun</button>
+<button class="tab-btn" id="btn-tab-home" onclick="showTab('home')">Ana Panel</button>
 <button class="tab-btn" id="btn-tab-insights" onclick="showTab('insights');insLoad(false)">&#128200; Analiz</button>
-<button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Makine</button>
+<button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Gelismis</button>
 <button class="tab-btn" id="btn-tab-comments" onclick="showTab('comments');cmInit()">&#128172; Yorumlar</button>
 <button class="tab-btn" id="btn-tab-code" onclick="showTab('code');codeInit();agInit()">&#128187; Kod</button>
 </div>
 <div id="viewport">
-<div id="view-home" class="view active-view">
+<div id="view-today" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h1 style="font-size:20px;margin:0">Bugun</h1><span class="sub" style="margin:0" id="td_stamp">yukleniyor...</span><button class="qa" style="width:auto;margin-left:auto" onclick="tdLoad(true)">&#8635; Yenile</button></div>
+<div class="tdcard"><div id="td_kpi" class="tdgrid"></div></div>
+<div class="tdcard"><h3>&#9989; Simdi ne yapmali?</h3><div id="td_todo"></div></div>
+<div class="tdrow">
+<div class="tdcard" style="flex:2;min-width:320px"><h3>Son 15 video: izlenme</h3><div id="td_bars"></div><div id="td_legend" class="sub" style="margin:6px 0 0"></div></div>
+<div class="tdcard" style="flex:1;min-width:260px"><h3>Toplam izlenme akisi</h3><div id="td_line"></div></div>
+</div>
+<div class="tdcard" id="td_trends_card"><h3>&#128293; Gundemde su an <button class="qa" style="width:auto;margin-left:auto" id="td_trend_btn" onclick="tdTrends(true)">Trendleri bul (Google Search, ~30 sn)</button></h3><div id="td_trends" style="margin:0;color:#8b949e">Henuz aranmadi. Butona bas: son gunlerin gercek AI haberlerini listeler.</div><div id="td_draft"></div></div>
+<div class="tdrow">
+<div class="tdcard" style="flex:1;min-width:300px"><h3>&#128172; Etkilesim</h3><div id="td_eng"></div></div>
+<div class="tdcard" style="flex:1;min-width:300px"><h3>&#129504; Sistem ne ogrendi?</h3><div id="td_learn"></div></div>
+</div>
+<div class="sub">Detayli araclar (aksiyon plani, deneyler, TikTok girisi, raporlar, ogrenme turu) <b>Gelismis</b> sekmesinde. Hicbir sey onayin olmadan yayinlanmaz.</div>
+</div>
+<div id="view-home" class="view">
 <div id="side">
 <h1>&#127917; Aura Influencer</h1>
 <details>
@@ -1125,7 +1153,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 </div>
 <script>
 function showTab(name){
-  ['home','insights','growth','comments','code'].forEach(t=>{
+  ['today','home','insights','growth','comments','code'].forEach(t=>{
     document.getElementById('view-'+t).classList.toggle('active-view', t===name);
     document.getElementById('btn-tab-'+t).classList.toggle('active-tab', t===name);
   });
@@ -1792,6 +1820,128 @@ if(mainEl){
     }
   });
 }
+
+// ---- BUGUN (ana yuz): sade ozet + grafikler + trend. JS'te ters egik cizgi YOK (PAGE normal Python string) ----
+let TD = null;
+const TD_COL = {agenda:'#a371f7', template:'#3fb950', identity:'#f0883e', directive:'#58a6ff', transparency:'#d29922', other:'#8b949e'};
+const TD_NAME = {agenda:'Gundem', template:'Sablon', identity:'Kimlik', directive:'Emir', transparency:'Seffaflik', other:'Diger'};
+function tdBars(d){
+  const b = d.bars || [];
+  if(!b.length) return '<div class="sub">Veri yok.</div>';
+  const W = 640, H = 210, padL = 6, padB = 40, padT = 18;
+  const max = Math.max(1, d.median || 0, ...b.map(x => x.views));
+  const bw = (W - padL * 2) / b.length;
+  const y = v => padT + (H - padT - padB) * (1 - v / max);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="Son videolarin izlenme grafigi">';
+  s += '<line x1="0" x2="' + W + '" y1="' + y(d.median) + '" y2="' + y(d.median) + '" stroke="#8b949e" stroke-dasharray="4 4"/>';
+  b.forEach((x, i) => {
+    const h = Math.max(1, (H - padT - padB) * x.views / max);
+    const xx = padL + i * bw + 3, cx = xx + (bw - 6) / 2;
+    s += '<g><title>' + esc(x.title) + ' - ' + x.views + ' izlenme' + (x.retention != null ? ', tutma %' + x.retention : '') + (x.tt_views != null ? ', TikTok ' + x.tt_views : '') + '</title>';
+    s += '<rect x="' + xx + '" y="' + (H - padB - h) + '" width="' + (bw - 6) + '" height="' + h + '" rx="3" fill="' + (TD_COL[x.format] || '#8b949e') + '"/></g>';
+    s += '<text x="' + cx + '" y="' + (H - padB - h - 4) + '" fill="#e6edf3" font-size="10" text-anchor="middle">' + x.views + '</text>';
+    s += '<text x="' + cx + '" y="' + (H - padB + 13) + '" fill="#8b949e" font-size="9" text-anchor="middle">' + esc(x.date) + '</text>';
+    if(x.retention != null) s += '<text x="' + cx + '" y="' + (H - padB + 25) + '" fill="#6e7681" font-size="9" text-anchor="middle">%' + Math.round(x.retention) + '</text>';
+  });
+  return '<div style="overflow-x:auto"><div style="min-width:560px">' + s + '</svg></div></div>';
+}
+function tdLegend(d){
+  const used = [...new Set((d.bars || []).map(x => x.format))];
+  return used.map(f => '<span style="margin-right:12px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + (TD_COL[f] || '#8b949e') + ';margin-right:4px"></span>' + (TD_NAME[f] || f) + '</span>').join('') + '<span style="margin-right:12px">Kesikli cizgi = kanal medyani (' + d.median + ')</span><span>Alttaki % = ortalama izlenme yuzdesi (tutma)</span>';
+}
+function tdLine(d){
+  const a = d.series || [];
+  if(a.length < 2) return '<div class="sub">Cizgi icin en az 2 sayac kaydi gerekir.</div>';
+  const W = 320, H = 150, pad = 8;
+  const mn = Math.min(...a.map(x => x.v)), mx = Math.max(...a.map(x => x.v));
+  const px = i => pad + (W - pad * 2) * i / (a.length - 1);
+  const py = v => H - 22 - (H - 40) * (mx === mn ? 0.5 : (v - mn) / (mx - mn));
+  const pts = a.map((x, i) => px(i) + ',' + py(x.v)).join(' ');
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="Toplam izlenme akisi">';
+  s += '<polyline points="' + pts + '" fill="none" stroke="#a371f7" stroke-width="2"/>';
+  s += '<circle cx="' + px(a.length - 1) + '" cy="' + py(a[a.length - 1].v) + '" r="3.5" fill="#a371f7"/>';
+  s += '<text x="' + pad + '" y="' + (H - 6) + '" fill="#8b949e" font-size="9">' + esc(a[0].at.slice(5, 10)) + ' : ' + a[0].v + '</text>';
+  s += '<text x="' + (W - pad) + '" y="' + (H - 6) + '" fill="#e6edf3" font-size="10" text-anchor="end">' + esc(a[a.length - 1].at.slice(5, 10)) + ' : ' + a[a.length - 1].v + '</text>';
+  return s + '</svg>';
+}
+function tdKpi(d){
+  const wk = d.week_views == null ? 'veri yok' : '+' + d.week_views;
+  const lu = d.last_upload_hours == null ? '?' : (d.last_upload_hours < 48 ? Math.round(d.last_upload_hours) + ' saat once' : (d.last_upload_hours / 24).toFixed(1) + ' gun once');
+  const box = (l, v, sub) => '<div><p class="tdlbl">' + l + '</p><div class="tdnum">' + v + '</div>' + (sub ? '<p class="tdlbl">' + sub + '</p>' : '') + '</div>';
+  return box('YouTube abone', d.subs, d.n_videos + ' video') + box('YouTube izlenme', d.total_views, 'kanal medyani ' + d.median) + box('Son 7 gun', wk, 'izlenme artisi') + box('Son video', lu, '') + box('TikTok', d.tt_total, d.tt_n + ' video (kayitli)');
+}
+function tdGo(go){
+  if(go === 'trends'){ document.getElementById('td_trends_card').scrollIntoView({behavior:'smooth'}); tdTrends(false); }
+  else if(go === 'drafts'){ showTab('growth'); gmLoad(); }
+  else if(go === 'tiktok'){ showTab('home'); }
+  else if(go === 'cc'){ showTab('insights'); insLoad(false); }
+}
+function tdTodo(d){
+  const lab = {trends:'Trendlere bak', drafts:'Taslaklara git', tiktok:'TikTok kutusuna git', cc:'Analiz > CC denetimi'};
+  const col = {warn:'#d29922', info:'#58a6ff', ok:'#3fb950'};
+  return (d.todo || []).map(t => '<div class="tditem"><span style="color:' + (col[t.level] || '#8b949e') + ';font-size:18px">&#9679;</span><span style="flex:1;min-width:200px">' + esc(t.text) + '</span><button class="qa" style="width:auto" data-go="' + t.go + '" onclick="tdGo(this.dataset.go)">' + (lab[t.go] || 'Git') + '</button></div>').join('');
+}
+function tdEng(d){
+  const b = (d.bars || []);
+  const likes = b.reduce((a, x) => a + x.likes, 0), com = b.reduce((a, x) => a + x.comments, 0), views = b.reduce((a, x) => a + x.views, 0);
+  const top = b.filter(x => x.eng != null).sort((x, y) => y.eng - x.eng).slice(0, 4);
+  let h = '<p style="margin:0 0 8px">Son ' + b.length + ' videoda <b>' + likes + ' begeni</b>, <b>' + com + ' yorum</b> (' + views + ' izlenme). <span class="tdlbl">Yorumlarin bir kismi kanalin kendi tohum yorumu olabilir.</span></p>';
+  h += top.length ? top.map(x => '<div class="tditem"><span style="flex:1;min-width:160px">' + esc(x.title) + '</span><span class="tdlbl" style="margin:0">%' + x.eng + ' (' + x.likes + ' b / ' + x.comments + ' y)</span></div>').join('') : '<p class="tdlbl">Karsilastirma icin yeterli izlenme yok.</p>';
+  return h + '<div style="margin-top:8px"><button class="qa" style="width:auto" onclick="showTab(String.fromCharCode(99,111,109,109,101,110,116,115));cmInit()">Yorumlara git ve yanitla</button></div>';
+}
+function tdLearn(d){
+  const L = d.learned || {hints: []};
+  let h = '';
+  (d.formats || []).forEach(f => { h += '<div class="tditem"><span style="flex:1">' + esc(f.label) + '</span><span class="tdlbl" style="margin:0">medyan ' + f.median_views + ', en iyi ' + f.max_views + ' (n=' + f.n + ')</span></div>'; });
+  h += (L.hints && L.hints.length) ? '<p style="margin:8px 0 0"><b>Veriden cikan ipuclari:</b></p><ul style="margin:4px 0;padding-left:20px">' + L.hints.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="tdlbl" style="margin-top:8px">Henuz istatistiksel olarak kanitlanmis bir kural yok. Bu cogu zaman normal: orneklem kucuk (onlarca video). Sistem gunde bir veriye bakar, kanit olusunca burada gorursun.</p>';
+  if(L.duration) h += '<p class="tdlbl">En iyi tutan videolarin suresi ~' + L.duration[0] + '-' + L.duration[1] + ' sn.</p>';
+  return h + '<p class="tdlbl">Tum tablolar ve ogrenme turu: Gelismis sekmesi.</p>';
+}
+async function tdLoad(force){
+  try {
+    const d = await (await fetch('/api/today')).json();
+    if(!d.ok){ document.getElementById('td_stamp').textContent = 'Hata: ' + (d.error || ''); return; }
+    TD = d;
+    document.getElementById('td_stamp').textContent = 'guncellendi ' + (d0 => String(d0.getHours()).padStart(2, '0') + ':' + String(d0.getMinutes()).padStart(2, '0'))(new Date()) + (d.errors && d.errors.length ? ' - bazi bolumler eksik: ' + d.errors.join(' | ') : '');
+    document.getElementById('td_kpi').innerHTML = tdKpi(d);
+    document.getElementById('td_todo').innerHTML = tdTodo(d);
+    document.getElementById('td_bars').innerHTML = tdBars(d);
+    document.getElementById('td_legend').innerHTML = tdLegend(d);
+    document.getElementById('td_line').innerHTML = tdLine(d);
+    document.getElementById('td_eng').innerHTML = tdEng(d);
+    document.getElementById('td_learn').innerHTML = tdLearn(d);
+    if(!force) tdTrends(false, true);
+  } catch(e) { document.getElementById('td_stamp').textContent = 'Hata: ' + e; }
+}
+let TD_TR = [];
+async function tdTrends(force, quiet){
+  const box = document.getElementById('td_trends'), btn = document.getElementById('td_trend_btn');
+  if(force){ btn.disabled = true; btn.textContent = 'Araniyor...'; box.textContent = 'Google Search ile gercek haberler araniyor (30-60 sn)...'; }
+  try {
+    const j = await (await fetch('/api/trends?' + (force ? 'force=1' : 'cached=1'))).json();
+    if(!j.ok){ box.textContent = 'Hata: ' + (j.error || ''); return; }
+    TD_TR = j.items || [];
+    if(!TD_TR.length){ if(!quiet) box.textContent = 'Sonuc yok.'; return; }
+    box.innerHTML = TD_TR.map((t, i) => '<div class="tditem"><div style="flex:1;min-width:220px"><b>' + esc(t.headline) + '</b>' + (t.covered ? ' <span class="tdlbl" style="margin:0;color:#d29922">(benzeri zaten yayinlandi)</span>' : '') + '<div class="tdlbl" style="margin:2px 0 0">' + esc(t.why_hot) + '</div></div><button class="qa" style="width:auto" data-i="' + i + '" onclick="tdMake(this)">' + (t.covered ? 'Yine de taslak yap' : 'Taslak yap') + '</button></div>').join('') + '<div class="tdlbl" style="margin-top:6px">' + esc(j.at || '') + (j.cached ? ' (onbellekten)' : '') + ' - haberi yayinlamadan once kendin dogrula.</div>';
+  } catch(e) { box.textContent = 'Hata: ' + e; }
+  finally { if(force){ btn.disabled = false; btn.textContent = 'Trendleri yenile'; } }
+}
+async function tdMake(btn){
+  const t = TD_TR[+btn.dataset.i]; if(!t) return;
+  btn.disabled = true; const old = btn.textContent; btn.textContent = 'Taslak yaziliyor (30-60 sn)...';
+  const out = document.getElementById('td_draft');
+  try {
+    const j = await gmPost('/api/growth/agenda_candidate', {topic: t.headline});
+    if(!j.ok){ out.innerHTML = '<p style="color:#f85149">' + esc(j.error || 'Basarisiz') + '</p>'; return; }
+    const st = await (await fetch('/api/growth/state')).json();
+    GM = st;
+    const d = (st.drafts || []).find(x => x.id === j.draft.id) || st.drafts[0];
+    out.innerHTML = '<div class="tdlbl" style="margin-top:10px;color:#d29922">' + (j.sources && j.sources.length ? 'Kaynak bulundu, yine de' : 'UYARI: kaynak donmedi.') + ' yayinlamadan once haberi ve rakamlari bagimsiz dogrula. Yayin icin asagidaki dugme onay penceresi acar.</div>' + draftHtml(d);
+  } catch(e) { out.textContent = 'Hata: ' + e; }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+tdLoad();
+setInterval(() => { const v = document.getElementById('view-today'); if(v && v.classList.contains('active-view')) tdLoad(true); }, 300000);
 </script>
 <script>
 async function loadStatus(){
@@ -2642,7 +2792,126 @@ def _learn_ctx():
         return ""
 
 
-def _growth_agenda_candidate():
+TRENDS_CACHE = os.path.join(STUDIO_DIR, "trends_cache.json")
+TRENDS_SYSTEM = (
+    "You scan the web (live Google Search results are provided) for the most-discussed REAL AI industry news stories of the last 5 days. "
+    "Each story must be a named company or person doing something concrete (a launch, a policy move, a safety incident, a lawsuit, a resignation). "
+    "Use ONLY what appears in the search results; skip anything you are not sure is real. Return ONLY a JSON array of up to 5 objects with keys: "
+    "headline (English, max 90 chars, factual, no hype), why_hot (Turkish, ONE sentence on why people are talking about it)."
+)
+
+
+def _trends(force=False, cached_only=False):
+    """Gercek zamanli (Google Search grounding) trend haberleri. 3 saat onbellek. Sadece liste; video uretmez, yayinlamaz."""
+    try:
+        c = json.load(open(TRENDS_CACHE, encoding="utf-8"))
+        if not force and time.time() - c.get("ts", 0) < 3 * 3600:
+            return {**c, "ok": True, "cached": True}
+    except Exception:
+        pass
+    if cached_only:
+        return {"ok": True, "items": [], "empty": True}
+    import difflib
+    import growth
+    import insights
+    existing = [v["title"] for v in insights.channel_stats()["videos"]] + [d["title"] for d in growth.drafts_list()]
+    text, sources = _call_gemini_grounded("List the 5 most-discussed real AI news stories of the last 5 days.", TRENDS_SYSTEM)
+    m = re.search(r"\[.*\]", text, re.S)
+    if not m:
+        return {"ok": False, "error": "Model liste dondurmedi.", "raw": text[:300]}
+    items = []
+    for it in json.loads(m.group(0))[:5]:
+        if not isinstance(it, dict) or not it.get("headline"):
+            continue
+        h = str(it["headline"])[:120]
+        best = max((difflib.SequenceMatcher(None, h.lower(), e.lower()).ratio() for e in existing), default=0)
+        items.append({"headline": h, "why_hot": str(it.get("why_hot", ""))[:200], "covered": best >= 0.5})
+    out = {"ts": time.time(), "at": time.strftime("%Y-%m-%d %H:%M"), "items": items, "n_sources": len(sources)}
+    json.dump(out, open(TRENDS_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+    return {**out, "ok": True, "cached": False}
+
+
+def _today_state():
+    """'Bugun' ana yuzu icin tek yerden ozet. Her bolum ayri try icinde: biri bozulsa digerleri gelir."""
+    import calendar
+    import growth
+    import insights
+    import statistics
+    st = insights.channel_stats()
+    out = {"ok": True, "errors": []}
+    vids = [v for v in st["videos"] if v.get("privacy") in (None, "public")]
+    now = time.time()
+    try:
+        rows = None
+        try:
+            if insights.analytics_status().get("authorized"):
+                rows = insights.analytics_report()["rows"]
+        except Exception:
+            rows = None
+        ret = {r["video_id"]: r["avg_pct"] for r in (rows or [])}
+        tt = insights.tt_latest()
+        tags = growth.tags_load()
+        med = statistics.median([v["views"] for v in vids]) if vids else 0
+        bars = []
+        for v in vids[:15][::-1]:
+            t = tt.get(v["id"]) or {}
+            bars.append({"id": v["id"], "title": v["title"], "date": v["published"][5:10], "views": v["views"], "likes": v["likes"],
+                         "comments": v["comments"], "format": tags.get(v["id"]) or growth.auto_format(v["title"]),
+                         "retention": ret.get(v["id"]), "tt_views": t.get("views"),
+                         "eng": round((v["likes"] + v["comments"]) * 100.0 / v["views"], 1) if v["views"] >= 20 else None})
+        tr = insights.trend(st)
+        series = [{"at": x["at"], "v": x["total_views"], "subs": x["subs"]} for x in tr["series"]][-40:]
+        week = None
+        for x in insights._jload(insights.SNAP_FILE, []):  # gercek zaman damgasi (ts)
+            if now - x["ts"] >= 7 * 86400:
+                week = st["total_views"] - x["total_views"]
+        last_h = None
+        if vids:
+            last_h = round((now - calendar.timegm(time.strptime(vids[0]["published"], "%Y-%m-%d %H:%M"))) / 3600, 1)
+        out.update({"subs": st["subscribers"], "total_views": st["total_views"], "median": med, "n_videos": len(vids), "bars": bars,
+                    "series": series, "week_views": week, "last_upload_hours": last_h,
+                    "tt_total": sum((r.get("views") or 0) for r in tt.values()), "tt_n": len(tt)})
+    except Exception as e:
+        out["errors"].append(f"veri: {type(e).__name__}: {e}")
+    # yapilacaklar (kural tabanli, AI yok)
+    todo = []
+    try:
+        titles = {v["title"].lower() for v in st["videos"]}
+        lh = out.get("last_upload_hours")
+        if lh is not None and lh > 36:
+            todo.append({"level": "warn", "text": f"Son video {round(lh / 24, 1)} gun once. Yeni gundem videosu uret (asagidaki trendlerden sec).", "go": "trends"})
+        for d in growth.drafts_list():
+            if d.get("status") == "render edildi" and d["title"].lower() not in titles:
+                todo.append({"level": "info", "text": f"Render edilmis taslak yayin bekliyor: {d['title']}. YouTube'da zaten yayinda mi kontrol et, sonra Gelismis > Taslaklar.", "go": "drafts"})
+        ds = _load_day_status()
+        top = max([r.get("day", 0) for r in ds] or [0])
+        for r in ds:
+            if r.get("day", 0) >= top - 6 and r.get("youtube") and not r.get("tiktok") and not r.get("tiktok_skip"):
+                todo.append({"level": "info", "text": f"TikTok'a yuklenmemis: Gun {r['day']} - {r['title']}", "go": "tiktok"})
+            if r.get("day", 0) >= top - 6 and r.get("youtube") and r.get("youtube_id") and not r.get("tr_cc"):
+                todo.append({"level": "warn", "text": f"Turkce CC eksik gorunuyor: Gun {r['day']} - {r['title']} (Analiz > Turkce CC Denetimi)", "go": "cc"})
+    except Exception as e:
+        out["errors"].append(f"yapilacaklar: {type(e).__name__}: {e}")
+    if not todo:
+        todo.append({"level": "ok", "text": "Bekleyen is yok. Yeni video icin trendlere bak.", "go": "trends"})
+    out["todo"] = todo[:6]
+    # ne ogrendik
+    try:
+        fs = growth.format_stats_full(st, None, insights.tt_latest())
+        out["formats"] = [{"label": g["label"], "n": g["n"], "median_views": g["median_views"], "max_views": g["max_views"]} for g in fs["groups"] if g["n"] >= 3][:4]
+    except Exception as e:
+        out["errors"].append(f"format: {type(e).__name__}: {e}")
+    try:
+        import learner
+        L = learner._jl(learner.LEARNED_FILE, {})
+        out["learned"] = {"hints": [h["text"] for h in L.get("hook_hints", [])] + [f"{t['format']} formati kanal medyaninin ustunde" for t in L.get("topic_hints", [])],
+                          "duration": L.get("duration_sec_range"), "updated": L.get("updated")}
+    except Exception:
+        out["learned"] = {"hints": [], "duration": None, "updated": None}
+    return out
+
+
+def _growth_agenda_candidate(topic=None):
     """Gercek, guncel AI haberine dayanan 1 aday uretir (Google Search grounding) -> taslak olarak kaydedilir (yayinlamaz).
     DIKKAT: kaynak linkleri taslagin rationale alanina eklenir - insan/Claude Code yayindan once MUTLAKA dogrulamali,
     grounding kaynaklari bazen vertexaisearch yonlendirme linkleri olur, dogrudan okunabilir olmayabilir."""
@@ -2650,9 +2919,12 @@ def _growth_agenda_candidate():
     import insights
     st = insights.channel_stats()
     existing = [v["title"] for v in st["videos"]] + [d["title"] for d in growth.drafts_list()]
-    prompt = ("Find one real, specific, recent (last 7 days) AI industry news story (a named company/person doing something "
-              "concrete - a launch, a policy move, a safety incident, a regulatory action, a resignation, etc). "
-              "Then write the script as instructed in your system prompt.\n\n"
+    topic = (topic or "").strip()[:200]
+    find = (f"Write about THIS specific, recent AI news story: \"{topic}\". Confirm it in the search results first; use only what the results support. "
+            if topic else
+            "Find one real, specific, recent (last 7 days) AI industry news story (a named company/person doing something "
+            "concrete - a launch, a policy move, a safety incident, a regulatory action, a resignation, etc). ")
+    prompt = (find + "Then write the script as instructed in your system prompt.\n\n"
               "EXISTING TITLES (do not repeat the same news/topic if already covered):\n" + "\n".join(existing) + _learn_ctx())
     text, sources = _call_gemini_grounded(prompt, AGENDA_CANDIDATE_SYSTEM)
     m = re.search(r"\{.*\}", text, re.S)
@@ -3273,6 +3545,10 @@ class Handler(BaseHTTPRequestHandler):
                             self._json({"ok": True, "status": st, "error": f"{type(e).__name__}: {str(e)[:300]}", "rows": []})
                     else:
                         self._json({"ok": True, "status": st, "rows": []})
+                elif u.path == "/api/today":
+                    self._json(_today_state())
+                elif u.path == "/api/trends":
+                    self._json(_trends(force=q.get("force", [""])[0] == "1", cached_only=q.get("cached", [""])[0] == "1"))
                 elif u.path == "/api/growth/state":
                     self._json(_growth_state())
                 elif u.path == "/api/learn/state":
@@ -3664,7 +3940,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif u.path == "/api/growth/candidates":
                     self._json(_growth_candidates())
                 elif u.path == "/api/growth/agenda_candidate":
-                    self._json(_growth_agenda_candidate())
+                    self._json(_growth_agenda_candidate(body.get("topic")))
                 elif u.path == "/api/growth/report":
                     self._json(_growth_report())
                 elif u.path == "/api/learn/run":
