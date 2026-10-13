@@ -17,7 +17,7 @@ class YukleTest(unittest.TestCase):
         open(self.video, "wb").write(b"x")
         self.meta = {"title": "Are Movie Subscriptions Worth It? #Shorts", "description": "Are 3 movie subscriptions too many?\n\n#Shorts",
                      "tags": ["a"], "file": self.video, "seconds": 32, "sabit_yorum": "Team Alpha or Team Beta? Vote below.",
-                     "script": "Are 3 movie subscriptions too many? Three bills, one show a month."}
+                     "script": "Are 3 movie subscriptions too many? Three bills, one show a month.", "konu": "Are subscriptions worth it?"}
         self.kayit = os.path.join(self.d, "kayit.jsonl")
         self.cagri = []
 
@@ -40,6 +40,7 @@ class YukleTest(unittest.TestCase):
         self.assertEqual((satir["format"], satir["gizlilik"], satir["video_id"]), ("konsey", "private", "VID1"))
         self.assertEqual(satir["kanca"], "Are 3 movie subscriptions too many?")
         self.assertEqual(satir["kanca_tipi"], "soru")
+        self.assertEqual(satir["konu"], "Are subscriptions worth it?")
 
     def test_onay_yoksa_yuklenmez(self):
         vid, msg = self.calistir(onay=False)

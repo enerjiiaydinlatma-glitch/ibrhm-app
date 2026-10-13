@@ -71,7 +71,7 @@ def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None):
     import haftalik_rapor
     hook = ilk_cumle(meta.get("script", ""))
     satir = {"video_id": video_id, "ts": (simdi or datetime.datetime.now()).isoformat(timespec="seconds"),
-             "format": "konsey", "baslik": meta.get("title", ""), "kanca": hook,
+             "format": "konsey", "konu": meta.get("konu", ""), "baslik": meta.get("title", ""), "kanca": hook,
              "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "private"}
     os.makedirs(os.path.dirname(yol), exist_ok=True)
     with open(yol, "a", encoding="utf-8") as f:

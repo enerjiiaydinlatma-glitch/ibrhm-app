@@ -695,6 +695,7 @@ if __name__ == "__main__":
     ap.add_argument("--public", action="store_true", help="HERKESE ACIK yukle (varsayilan private)")
     ap.add_argument("--konsey", action="store_true", help="Konsey karakter tartismasi formati (gunluk-hayat konusu; --topic gerekir; yukleme YOK)")
     ap.add_argument("--sadece-senaryo", action="store_true", help="--konsey ile: yalniz senaryoyu ve kapi sonucunu yazdir, video uretme")
+    ap.add_argument("--konu", type=int, default=None, help="--konsey ile: konu havuzundan numara (python konsey_konular.py ile listele)")
     ap.add_argument("--son-senaryo", action="store_true", help="--konsey ile: model yazmasin; en son KAYDEDILEN (onayladigin) senaryodan video uret")
     a = ap.parse_args()
 
@@ -708,8 +709,15 @@ if __name__ == "__main__":
                 raise SystemExit(2)
             a.topic = r["topic"]
         else:
+            if a.konu is not None:
+                import konsey_konular
+                secili = konsey_konular.konu_bul(a.konu)
+                if secili is None:
+                    raise SystemExit(f"Havuzda {a.konu} numarali konu yok (python konsey_konular.py).")
+                a.topic = secili["konu"]
+                print(f"Havuz konusu {a.konu}: {a.topic}  ({secili['tr']})")
             if not a.topic:
-                raise SystemExit("--konsey icin --topic gerekir (ornek: --topic \"Is free shipping really free?\")")
+                raise SystemExit("--konsey icin --topic ya da --konu gerekir (ornek: --topic \"Is free shipping really free?\")")
             r = _konsey_uret(a.topic)
             if r is None:
                 raise SystemExit(2)
@@ -722,6 +730,7 @@ if __name__ == "__main__":
                      tags=konsey_format.etiketler(r["title"]),
                      hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
         meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
+        meta["konu"] = a.topic
         with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
         print(f"\nSabitlenecek yorum: {meta['sabit_yorum']}")
