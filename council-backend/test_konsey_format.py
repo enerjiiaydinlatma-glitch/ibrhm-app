@@ -133,6 +133,14 @@ class UretTest(unittest.TestCase):
         self.assertIn("GERCEK_ISIM", istemler[1] + "GERCEK_ISIM")   # geri besleme sorun mesajini icerir
         self.assertIn("Amazon".lower(), istemler[1].lower())
 
+    def test_komut_kanca_tetik_listesini_veriyor(self):
+        import hook_gate
+        for w in ("never", "just", "only", "not", "digit", "question mark"):
+            self.assertIn(w, kf.PROMPT)
+        # listedeki her kelime gercekten hook_gate'te tetik sayilir
+        for w in "but not never why how wrong missing only just nobody everyone still versus worst best first last stop before after instead".split():
+            self.assertTrue(hook_gate.TETIK.search(w), w)
+
     def test_iki_kez_kotu_uretilmez(self):
         r = kf.uret("free shipping", lambda p: IYI.replace("Stores add", "Amazon adds"), parse, self.yol)
         self.assertFalse(r["ok"])

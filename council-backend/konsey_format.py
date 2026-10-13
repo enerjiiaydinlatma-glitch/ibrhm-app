@@ -57,7 +57,9 @@ PROMPT = (
     "robots or AI cliches.\n\n"
     "CHARACTERS (each has a flaw that must show every time):\n"
     "1 AURA opens with the HOOK: 4-7 words, a bold CONTRADICTION or a small concrete number about the topic (not a slow "
-    "'Why do...' question). Never start with 'The claim', 'Today', 'Hello', 'Did you know'. Aura secretly favors Alpha.\n"
+    "'Why do...' question). Never start with 'The claim', 'Today', 'Hello', 'Did you know'. The hook MUST contain a digit, a question mark, or one "
+    "of these exact words: but, not, never, why, how, wrong, missing, only, just, nobody, everyone, still, versus, worst, "
+    "best, first, last, stop, before, after, instead. Aura secretly favors Alpha.\n"
     "2 ALPHA explains the mechanism coldly, then ends with the exact words 'That's one for me.' (he keeps score, "
     "prematurely).\n"
     "3 BETA starts with 'Hold on.' and pushes back with a sharp question. Beta never offers a solution.\n"
@@ -218,9 +220,9 @@ def uyarilar(beats, title="", hookthumb=""):
 
 
 # --------------------------------------------------------------------------- uretim
-def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=2):
+def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
-    Kapidan gecmezse sorunlari geri besleyip bir kez daha yazdirir. -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
+    Kapidan gecmezse sorunlari geri besleyip yeniden yazdirir (en fazla 3 deneme). -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
     prompt = PROMPT.format(topic=topic)
     ham, sorunlar, beats, title, hookthumb = "", [], [], "", ""
     for n in range(1, deneme + 1):
