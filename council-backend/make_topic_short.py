@@ -492,9 +492,12 @@ _MOTION_POST = ("eq=brightness='0.010*sin(t*3.7)':saturation=1.03,"
                 "noise=alls=5:allf=t,vignette=PI/4.6[v]")
 
 
-def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None):
+def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None):
     os.makedirs(OUT_DIR, exist_ok=True)
-    if script_override:
+    if hazir_senaryo:
+        # KONSEY formati: senaryo konsey_format kapisindan gecti; kareler yine benzetme gorselleriyle cizilir
+        beats, title, hookthumb = hazir_senaryo
+    elif script_override:
         # RECEIPT modu: metin modelden gelmez (receipt.py), kareler PIL ile cizilir
         beats, title, hookthumb = script_override
     else:
@@ -609,6 +612,34 @@ def _dur(path):
                                  "-of", "csv=p=0", path], capture_output=True, text=True).stdout.strip() or 4)
 
 
+def _konsey_uret(topic):
+    """Konsey karakter formati: senaryo + kapi (hook_gate, claim_lint, isim yasagi). Gecmezse None. Yayin/yukleme YAPMAZ."""
+    import konsey_format
+    from sensitivity_gate import assess
+
+    def llm(prompt):
+        return call_gemini([{"role": "user", "content": prompt}],
+                           "You are the Sign Council head writer. Follow the format exactly.")
+    r = konsey_format.uret(topic, llm, _parse_script)
+    print(f"\nKONSEY SENARYOSU (deneme {r['deneme']}):")
+    for who, screen, line, _img in r["beats"]:
+        print(f"  {who:5} | {screen} | {line}")
+    print(f"  TITLE: {r['title']}\n  HOOKTHUMB: {r['hookthumb']}")
+    for ad, hits in r.get("uyarilar", []):
+        print(f"  [uyari] {ad}: {', '.join(hits)}")
+    if not r["ok"]:
+        print("\nKAPIDAN GECMEDI - video uretilmeyecek:")
+        for kod, msg in r["sorunlar"]:
+            print(f"  - {kod}: {msg}")
+        return None
+    g = assess(topic, " ".join(b[2] for b in r["beats"]), r["title"])
+    print(f"  [sensitivity_gate: sensitive={g['sensitive']} severity={g['severity']} ({g['checked_by']})]")
+    if g["sensitive"]:
+        print("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
+        return None
+    return r
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--auto", action="store_true", help="Aura konuyu + acisini secsin (aura_editorial)")
@@ -616,7 +647,30 @@ if __name__ == "__main__":
     ap.add_argument("--angle", default="")
     ap.add_argument("--upload", action="store_true")
     ap.add_argument("--public", action="store_true", help="HERKESE ACIK yukle (varsayilan private)")
+    ap.add_argument("--konsey", action="store_true", help="Konsey karakter tartismasi formati (gunluk-hayat konusu; --topic gerekir; yukleme YOK)")
+    ap.add_argument("--sadece-senaryo", action="store_true", help="--konsey ile: yalniz senaryoyu ve kapi sonucunu yazdir, video uretme")
     a = ap.parse_args()
+
+    if a.konsey:
+        if a.upload or a.public:
+            raise SystemExit("--konsey modunda --upload/--public KAPALI: gunluk sinir ve onay akisi atlanmasin. "
+                             "Yalniz yerel dosya uretilir; yukleme mevcut onayli yoldan yapilir.")
+        if not a.topic:
+            raise SystemExit("--konsey icin --topic gerekir (ornek: --topic \"Is free shipping really free?\")")
+        r = _konsey_uret(a.topic)
+        if r is None:
+            raise SystemExit(2)
+        if a.sadece_senaryo:
+            print("\n(--sadece-senaryo: video uretilmedi)")
+            raise SystemExit(0)
+        desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\n#Shorts #SignCouncil")
+        meta = build(a.topic, "", title_override=r["title"], desc_override=desc,
+                     hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
+        meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
+        with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+        print(f"\nSabitlenecek yorum: {meta['sabit_yorum']}")
+        raise SystemExit(0)
 
     topic, angle = a.topic, a.angle
     if a.auto or not topic:
