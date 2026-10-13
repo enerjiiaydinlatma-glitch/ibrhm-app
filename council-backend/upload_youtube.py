@@ -38,13 +38,10 @@ def upload_video(file_path, title, description, tags=None, privacy_status="priva
     else:
         status["privacyStatus"] = privacy_status
 
+    from yukleme_meta import video_snippet
     body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": tags or [],
-            "categoryId": "28",  # Science & Technology
-        },
+        # categoryId 28 = Science & Technology; defaultLanguage/defaultAudioLanguage = 'en' (13 Ekim 2026: dil sinyali eksikti)
+        "snippet": video_snippet(title, description, tags),
         "status": status,
     }
 
