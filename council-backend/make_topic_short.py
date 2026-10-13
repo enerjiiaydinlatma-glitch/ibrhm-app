@@ -626,7 +626,12 @@ def _konsey_uret(topic):
         print(f"  [{'+' if ok else '-'}] {h}{'   <== SECILEN' if h == kk['secilen'] else ''}")
     if not kk["secilen"]:
         print("  (gecerli aday yok - kanca senaryo asamasinda yazilacak)")
-    r = konsey_format.uret(topic, llm, _parse_script, kanca=kk["secilen"])
+    secilen = kk["secilen"]
+    if kk["adaylar"] and sys.stdin.isatty():
+        cevap = input("\nKanca sec: 1-5 numara | Enter = model secimi | 0 = kanca dayatma > ")
+        secilen, mesaj = konsey_format.kanca_secimi(kk, cevap)
+        print(f"  -> {mesaj}: {secilen or '-'}")
+    r = konsey_format.uret(topic, llm, _parse_script, kanca=secilen)
     print(f"\nKONSEY SENARYOSU (deneme {r['deneme']}):")
     for who, screen, line, _img in r["beats"]:
         print(f"  {who:5} | {screen} | {line}")

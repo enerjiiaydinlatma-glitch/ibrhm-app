@@ -284,6 +284,22 @@ def kanca_sec(topic, llm):
     return {"adaylar": liste, "secilen": secilen}
 
 
+def kanca_secimi(kk, cevap):
+    """Sahibin cevabi: '' -> modelin secimi; '0' -> kanca dayatma (None); '1'-'5' -> o aday (yalniz kapidan gecmisse).
+    -> (secilen|None, mesaj)"""
+    c = (cevap or "").strip()
+    if c == "":
+        return kk["secilen"], "modelin secimi"
+    if c == "0":
+        return None, "kanca dayatilmadi"
+    if c.isdigit() and 1 <= int(c) <= len(kk["adaylar"]):
+        h, ok = kk["adaylar"][int(c) - 1]
+        if ok:
+            return h, f"senin secimin: {c}"
+        return kk["secilen"], f"{c}. aday kapidan gecmemis, modelin secimi kullanildi"
+    return kk["secilen"], "gecersiz cevap, modelin secimi kullanildi"
+
+
 # --------------------------------------------------------------------------- uretim
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).

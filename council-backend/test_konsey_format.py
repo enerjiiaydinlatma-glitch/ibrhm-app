@@ -108,6 +108,15 @@ class KancaTest(unittest.TestCase):
             raise RuntimeError("x")
         self.assertEqual(kf.kanca_sec("x", hata), {"adaylar": [], "secilen": None})
 
+    def test_sahip_secimi(self):
+        kk = {"adaylar": [("A one never", True), ("B two", False), ("C three just", True)], "secilen": "A one never"}
+        self.assertEqual(kf.kanca_secimi(kk, "")[0], "A one never")
+        self.assertEqual(kf.kanca_secimi(kk, "3")[0], "C three just")
+        self.assertEqual(kf.kanca_secimi(kk, "0")[0], None)
+        self.assertEqual(kf.kanca_secimi(kk, "2")[0], "A one never")      # gecmemis aday secilemez
+        self.assertEqual(kf.kanca_secimi(kk, "9")[0], "A one never")
+        self.assertEqual(kf.kanca_secimi(kk, "abc")[0], "A one never")
+
     def test_secilen_kanca_zorunlu(self):
         self.assertIn("KANCA_DEGISTI", kodlar(IYI, kanca="Why is delivery never cheap?"))
         self.assertNotIn("KANCA_DEGISTI", kodlar(IYI, kanca="free shipping is never free"))
