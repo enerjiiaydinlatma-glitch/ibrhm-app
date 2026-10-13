@@ -27,6 +27,7 @@ import hook_gate
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
 SKOR_YOL = os.path.join(ENGINE, "konsey_skor.json")
+KAYIT_YOL = os.path.join(HERE, "output", "shorts", "topic", "konsey_son_senaryo.json")   # make_topic_short.KONSEY_KAYIT ile ayni
 
 SIRA = ["aura", "alpha", "beta", "delta", "gamma", "aura"]
 BASLIK_MAX = 40
@@ -316,6 +317,21 @@ def senaryo_yukle(yol):
     return d["topic"], [tuple(b) for b in d["beats"]], d["title"], d["hookthumb"]
 
 
+def satir_degistir(yol, n, metin):
+    """Kayitli senaryonun n. satirinin (1-6) metnini degistirir. Yeni senaryo kapidan GECMEZSE dosya DEGISMEZ.
+    -> (kaydedildi: bool, sorunlar)"""
+    topic, beats, title, hookthumb = senaryo_yukle(yol)
+    if not 1 <= int(n) <= len(beats):
+        return False, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
+    who, screen, _eski, img = beats[int(n) - 1]
+    yeni = beats[:int(n) - 1] + [(who, screen, metin.strip(), img)] + beats[int(n):]
+    sorunlar = kontrol(yeni, title, hookthumb)
+    if sorunlar:
+        return False, sorunlar
+    senaryo_kaydet(yol, topic, {"title": title, "hookthumb": hookthumb, "beats": yeni})
+    return True, []
+
+
 # --------------------------------------------------------------------------- uretim
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
@@ -345,7 +361,18 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Konsey formati skor tablosu")
     ap.add_argument("--oy", nargs=2, metavar=("TARAF", "N"), help="gercek yorumlardan sayilan oy ekle: alpha|beta N")
     ap.add_argument("--skor", action="store_true", help="skoru goster")
+    ap.add_argument("--satir", nargs=2, metavar=("N", "METIN"), help="kayitli senaryonun N. satirini degistir (kapidan gecerse)")
+    ap.add_argument("--dosya", default=KAYIT_YOL, help="--satir icin senaryo dosyasi")
     a = ap.parse_args(argv)
+    if a.satir:
+        ok, sorunlar = satir_degistir(a.dosya, int(a.satir[0]), a.satir[1])
+        if ok:
+            print(f"{a.satir[0]}. satir degisti, kapidan gecti, kaydedildi.")
+            return 0
+        print("KAPIDAN GECMEDI - dosya DEGISMEDI:")
+        for kod, msg in sorunlar:
+            print(f"  - {kod}: {msg}")
+        return 2
     if a.oy:
         s = oy_ekle(a.oy[0].lower(), int(a.oy[1]))
         print(f"Skor: Alpha {s['alpha']}, Beta {s['beta']}")

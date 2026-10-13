@@ -156,6 +156,34 @@ class KayitTest(unittest.TestCase):
         self.assertIn("GERCEK_ISIM", {k for k, _ in kf.kontrol(b2, t2, h2)})
 
 
+class SatirTest(unittest.TestCase):
+    def setUp(self):
+        self.yol = os.path.join(tempfile.mkdtemp(), "s.json")
+        b, t, h = parse(IYI)
+        kf.senaryo_kaydet(self.yol, "x", {"title": t, "hookthumb": h, "beats": b})
+
+    def test_gecerli_satir_kaydedilir(self):
+        ok, sorun = kf.satir_degistir(self.yol, 2, "Three bills, one show a month. Cancel two. That's one for me.")
+        self.assertEqual((ok, sorun), (True, []))
+        self.assertIn("Three bills", kf.senaryo_yukle(self.yol)[1][1][2])
+        self.assertEqual(kf.senaryo_yukle(self.yol)[1][1][1], "PRICE MOVES")   # ekran etiketi/gorsel korunur
+
+    def test_gecmeyen_satir_dosyayi_degistirmez(self):
+        once = open(self.yol, encoding="utf-8").read()
+        ok, sorun = kf.satir_degistir(self.yol, 2, "Amazon adds the cost. That's one for me.")
+        self.assertFalse(ok)
+        self.assertIn("GERCEK_ISIM", {k for k, _ in sorun})
+        self.assertEqual(open(self.yol, encoding="utf-8").read(), once)
+
+    def test_isaret_silinemez(self):
+        ok, sorun = kf.satir_degistir(self.yol, 2, "Stores add the cost into item prices.")
+        self.assertFalse(ok)
+        self.assertIn("ALPHA_ISARET", {k for k, _ in sorun})
+
+    def test_gecersiz_satir_no(self):
+        self.assertFalse(kf.satir_degistir(self.yol, 9, "x")[0])
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")
