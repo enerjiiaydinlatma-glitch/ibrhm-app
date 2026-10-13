@@ -20,6 +20,15 @@ class Message {
   /// tasiyip AuraHale (sohbet arka planindaki ton-reaktif hale) bunu okur.
   final String? mood;
 
+  /// Bu turde tespit edilen TUM ruh halleri (mesajdaki sirayla). Eski
+  /// backend `moods` gondermiyorsa bos kalir - o durumda yalnizca [mood]
+  /// kullanilir (bkz. effectiveMoods).
+  final List<String> moods;
+
+  /// [moods] doluysa o, degilse tek [mood], ikisi de yoksa bos liste.
+  List<String> get effectiveMoods =>
+      moods.isNotEmpty ? moods : (mood != null ? [mood!] : const []);
+
   /// Kullanicinin bu Aura yanitina verdigi geri bildirim (2026-09-06):
   /// "up" | "down" | null (henuz verilmemis). Sadece yerel UI durumu -
   /// gonderim backend'e ates-et-unut yapilir (bkz. chat_notifier
@@ -34,6 +43,7 @@ class Message {
     this.fileName,
     this.animateIn = false,
     this.mood,
+    this.moods = const [],
     this.feedback,
   });
 
@@ -46,6 +56,7 @@ class Message {
       fileName: fileName,
       animateIn: animateIn,
       mood: mood ?? this.mood,
+      moods: moods,
       feedback: feedback ?? this.feedback,
     );
   }

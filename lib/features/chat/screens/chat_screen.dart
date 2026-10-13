@@ -1110,7 +1110,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // "Aura efekti" - mesaj balonlarinin (frosted-glass) ARKASINDA,
             // sohbetin tonuna gore yavasca renk degistiren yumusak hale.
             // Tamamen dekoratif - ekran okuyuculardan gizli.
-            ExcludeSemantics(child: AuraHale(mood: chatState.currentMood)),
+            ExcludeSemantics(
+              child: AuraHale(
+                mood: chatState.currentMood,
+                moods: chatState.currentMoods,
+              ),
+            ),
             Column(
               children: [
                 Expanded(child: _buildChatView(chatState)),

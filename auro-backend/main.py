@@ -25,6 +25,7 @@ from typing import Literal, Optional
 from google import genai
 from google.genai import types
 import database
+from mood_detection import detect_mood, detect_moods
 import metrics
 import legal
 import observability
@@ -350,46 +351,9 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     return user
 
 
-# KOD INCELEMESI BULGUSU (2026-08-27, kriz kelime listesindeki AYNI
-# desen): bazi kelimeler ASCII-transliterasyon (super/uzgun/kotu/endiseli)
-# olarak yazilmisti - dogru Turkce yazimlari (süper/üzgün/kötü/endişeli)
-# ö/ü/ş gibi fold_turkish_i'nin KAPSAMADIGI (I-varyanti disi) harfler
-# icerdigi icin eslesmiyordu. Kriz tespitindeki kadar guvenlik-kritik
-# degil (en kotu ihtimalle bir ruh hali kaydi kacar) ama ayni desen
-# tutarlilik icin duzeltildi.
-# COK DILLILIK (2026-08-31): her kategoriye Ingilizce karsiliklar da
-# eklendi - bkz. _CRISIS_KEYWORDS_EN'deki ayni gerekce (Aura artik
-# kullanicinin diline uyum sagliyor, tespit listeleri de uymali).
-MOOD_KEYWORDS = {
-    "mutlu": ["mutlu", "harika", "super", "süper", "keyifli", "sevindim",
-              "happy", "great", "wonderful", "delighted"],
-    "uzgun": ["uzgun", "üzgün", "kotu", "kötü", "berbat", "canim sikkin", "moralim bozuk",
-              # GECE DENETIMI BULGUSU: "down" burada duz bir alt-dize
-              # eslesmesiyle ("downtown", "download", "breakdown" gibi
-              # ALAKASIZ kelimeleri de yanlislikla "uzgun" olarak
-              # etiketliyordu) - cikarildi, "feeling down" gibi daha
-              # spesifik bir ifade eklendi.
-              "sad", "upset", "feeling down", "depressed", "unhappy"],
-    "yorgun": ["yorgun", "bitkinim", "halsiz", "uykum var",
-               "tired", "exhausted", "sleepy", "worn out"],
-    "stresli": ["stresli", "kaygili", "endiseli", "endişeli", "gergin", "sinirliyim",
-                "stressed", "anxious", "worried", "nervous", "irritated"],
-    "enerjik": ["enerjik", "heyecanliyim", "motiveyim", "haziriyim",
-                "energetic", "excited", "motivated", "pumped"],
-}
-
-
-def detect_mood(text: str) -> str | None:
-    # bkz. database.fold_turkish_i / fold_turkish_diacritics - Python'un
-    # .lower()'i Turkce ı/İ/I varyantlarini ayirt etmiyor, ve ayrica
-    # ö/ü/ş/ç/ğ gibi diger Turkce harfler ASCII'den TAMAMEN FARKLI
-    # karakterler (locale sorunu degil) - ikisi de dogru yazan bir
-    # kullanicinin ifadesini kacirabilirdi.
-    lowered = database.fold_turkish_diacritics(database.fold_turkish_i(text)).lower()
-    for mood, keywords in MOOD_KEYWORDS.items():
-        if any(kw in lowered for kw in keywords):
-            return mood
-    return None
+# Ruh hali (hale rengi) tespiti mood_detection.py'ye tasindi (olumsuzlama,
+# coklu duygu, tam-kelime eslesmesi - bkz. docs/MOOD_IYILESTIRME_PLANI.md).
+# Kriz tespiti (_CRISIS_KEYWORDS) asagida, bu degisiklikten ETKILENMEDEN kalir.
 
 
 # KENDI KENDINI INCELEME BULGUSU (gece guvenlik denetimi): aura_brain.py'ye
@@ -1086,8 +1050,10 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # birlikte donuyor - gizli moddaysa (hidden_now) BILEREK None kalir,
     # gizli modun disina hicbir sinyal sizmasin diye.
     mood: str | None = None
+    moods: list[str] = []
     if not hidden_now and user.get("mood_tracking_enabled", 1):
-        mood = detect_mood(message_text)
+        moods = detect_moods(message_text)
+        mood = moods[0] if moods else None
         if mood:
             database.add_mood(user["id"], mood, context=message_text[:100])
 
@@ -1114,7 +1080,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
         )
     ):
         metrics.record("daily_limit_hit", ok=True)
-        return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True, "mood": mood}
+        return {"reply": LIMIT_REACHED_REPLY, "limit_reached": True, "mood": mood, "moods": moods}
 
     # Ton dropdown'lari kaldirildi - Aura kendi uslubunu buradan ogreniyor.
     # extract_style_signals hicbir API cagrisi yapmiyor (saf anahtar
@@ -1248,7 +1214,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # Yuvarlanan konusma ozetini gerekiyorsa tazele (post-reply, gecikmesiz;
     # varsayilan KAPALI - bkz. AURA_SUMMARY_ENABLED).
     aura_brain.maybe_refresh_conversation_summary(user, hidden_now, MAX_HISTORY_MESSAGES)
-    return {"reply": reply_text, "mood": mood}
+    return {"reply": reply_text, "mood": mood, "moods": moods}
 
 
 @app.post("/api/chat")
