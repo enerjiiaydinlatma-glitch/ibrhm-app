@@ -344,6 +344,17 @@ def satir_degistir(yol, n, metin):
     return True, []
 
 
+def baslik_degistir(yol, metin):
+    """Kayitli senaryonun BASLIGINI degistirir (bicim duzeltilir). Kapidan gecmezse dosya DEGISMEZ. -> (kaydedildi, sorunlar)"""
+    topic, beats, title, hookthumb = senaryo_yukle(yol)
+    yeni = baslik_duzelt(metin)
+    sorunlar = kontrol(beats, yeni, hookthumb)
+    if sorunlar:
+        return False, sorunlar
+    senaryo_kaydet(yol, topic, {"title": yeni, "hookthumb": hookthumb, "beats": beats})
+    return True, []
+
+
 # --------------------------------------------------------------------------- uretim
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
@@ -374,8 +385,18 @@ def main(argv=None):
     ap.add_argument("--oy", nargs=2, metavar=("TARAF", "N"), help="gercek yorumlardan sayilan oy ekle: alpha|beta N")
     ap.add_argument("--skor", action="store_true", help="skoru goster")
     ap.add_argument("--satir", nargs=2, metavar=("N", "METIN"), help="kayitli senaryonun N. satirini degistir (kapidan gecerse)")
-    ap.add_argument("--dosya", default=KAYIT_YOL, help="--satir icin senaryo dosyasi")
+    ap.add_argument("--baslik", metavar="METIN", help="kayitli senaryonun basligini degistir (kapidan gecerse)")
+    ap.add_argument("--dosya", default=KAYIT_YOL, help="--satir/--baslik icin senaryo dosyasi")
     a = ap.parse_args(argv)
+    if a.baslik:
+        ok, sorunlar = baslik_degistir(a.dosya, a.baslik)
+        if ok:
+            print(f"Baslik degisti, kapidan gecti, kaydedildi: {baslik_duzelt(a.baslik)}")
+            return 0
+        print("KAPIDAN GECMEDI - dosya DEGISMEDI:")
+        for kod, msg in sorunlar:
+            print(f"  - {kod}: {msg}")
+        return 2
     if a.satir:
         ok, sorunlar = satir_degistir(a.dosya, int(a.satir[0]), a.satir[1])
         if ok:

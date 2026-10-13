@@ -180,6 +180,18 @@ class SatirTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("ALPHA_ISARET", {k for k, _ in sorun})
 
+    def test_baslik_degisir(self):
+        ok, sorun = kf.baslik_degistir(self.yol, "is free shipping really free")
+        self.assertEqual((ok, sorun), (True, []))
+        self.assertEqual(kf.senaryo_yukle(self.yol)[2], "Is free shipping really free?")
+
+    def test_uzun_baslik_dosyayi_degistirmez(self):
+        once = open(self.yol, encoding="utf-8").read()
+        ok, sorun = kf.baslik_degistir(self.yol, "Is free shipping really free or just priced in somewhere else")
+        self.assertFalse(ok)
+        self.assertIn("BASLIK_40", {k for k, _ in sorun})
+        self.assertEqual(open(self.yol, encoding="utf-8").read(), once)
+
     def test_gecersiz_satir_no(self):
         self.assertFalse(kf.satir_degistir(self.yol, 9, "x")[0])
 
