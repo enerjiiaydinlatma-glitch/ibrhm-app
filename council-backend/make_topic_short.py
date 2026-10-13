@@ -620,7 +620,13 @@ def _konsey_uret(topic):
     def llm(prompt):
         return call_gemini([{"role": "user", "content": prompt}],
                            "You are the Sign Council head writer. Follow the format exactly.")
-    r = konsey_format.uret(topic, llm, _parse_script)
+    kk = konsey_format.kanca_sec(topic, llm)
+    print("\nKANCA ADAYLARI:")
+    for h, ok in kk["adaylar"]:
+        print(f"  [{'+' if ok else '-'}] {h}{'   <== SECILEN' if h == kk['secilen'] else ''}")
+    if not kk["secilen"]:
+        print("  (gecerli aday yok - kanca senaryo asamasinda yazilacak)")
+    r = konsey_format.uret(topic, llm, _parse_script, kanca=kk["secilen"])
     print(f"\nKONSEY SENARYOSU (deneme {r['deneme']}):")
     for who, screen, line, _img in r["beats"]:
         print(f"  {who:5} | {screen} | {line}")

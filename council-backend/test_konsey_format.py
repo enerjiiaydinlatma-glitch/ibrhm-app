@@ -84,6 +84,48 @@ class OrnekTest(unittest.TestCase):
         self.assertIn("SATIR_UZUN", kodlar(uzun))
 
 
+class KancaTest(unittest.TestCase):
+    ADAY = "1: Free shipping is never free.\n2: Why is delivery never cheap?\n3: Monthly plans are expensive.\n4: Amazon deals just trick you.\n5: Three fees you just pay.\nPICK: 1"
+
+    def test_gecerli_ve_gecersiz_adaylar(self):
+        self.assertEqual(kf.kanca_gecerli("Free shipping is never free."), [])
+        self.assertTrue(kf.kanca_gecerli("Monthly plans are expensive."))                 # tetik yok
+        self.assertTrue(kf.kanca_gecerli("Amazon deals just trick you."))                 # isim
+        self.assertTrue(kf.kanca_gecerli("Why do we ever pay for access."))               # soyut
+        self.assertTrue(kf.kanca_gecerli("Never."))                                       # cok kisa
+
+    def test_pick_gecerliyse_secilir(self):
+        r = kf.kanca_sec("x", lambda p: self.ADAY)
+        self.assertEqual(r["secilen"], "Free shipping is never free.")
+        self.assertEqual(len(r["adaylar"]), 5)
+
+    def test_pick_gecersizse_ilk_gecerli(self):
+        r = kf.kanca_sec("x", lambda p: self.ADAY.replace("PICK: 1", "PICK: 3"))
+        self.assertEqual(r["secilen"], "Free shipping is never free.")
+
+    def test_llm_hatasi_secimsiz(self):
+        def hata(p):
+            raise RuntimeError("x")
+        self.assertEqual(kf.kanca_sec("x", hata), {"adaylar": [], "secilen": None})
+
+    def test_secilen_kanca_zorunlu(self):
+        self.assertIn("KANCA_DEGISTI", kodlar(IYI, kanca="Why is delivery never cheap?"))
+        self.assertNotIn("KANCA_DEGISTI", kodlar(IYI, kanca="free shipping is never free"))
+
+    def test_uret_kanca_ister(self):
+        gorulen = []
+
+        def llm(p):
+            gorulen.append(p)
+            return IYI
+        r = kf.uret("x", llm, parse, kanca="Free shipping is never free.")
+        self.assertTrue(r["ok"])
+        self.assertIn("PACKAGED HOOK", gorulen[0])
+
+    def test_soyut_kelime_engellenir(self):
+        self.assertIn("SOYUT", kodlar(IYI.replace("Shoppers deserve a clear price.", "Shoppers deserve clear value.")))
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")

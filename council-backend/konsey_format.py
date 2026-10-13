@@ -34,6 +34,8 @@ TOPLAM_KELIME_MAX = 80
 SATIR_KELIME_MAX = 16      # 2-5. satirlar
 KAPANIS_KELIME_MAX = 22    # skor cumlesi haric
 ENGELLEYICI = set(claim_lint.BLOCKING) | {"RAKAM"}
+SOYUT = re.compile(r"\b(access|trade[sd]?|values?|benefits?|systems?|models?|mechanisms?|consumers?|expenses?|optimi[sz]\w*|"
+                   r"leverage[sd]?|framework|incentives?|efficien\w+|structure[sd]?)\b", re.I)
 
 ORNEK = """aura | SMALL BILLS ADD UP | Small bills just add up. | a pile of unopened envelopes on a kitchen table
 alpha | MONTHLY MATH | Each plan looks cheap alone. Together they eat your pay. That's one for me. | a calculator beside a stack of receipts
@@ -68,6 +70,10 @@ PROMPT = (
     "the guilty habit in a few words.\n"
     "6 AURA closes: exactly one sentence 'Team Alpha or Team Beta?' then asks the viewer for THEIR guilty habit "
     "(use the word 'guilty' or 'habit'). Do not write any score; the system adds it.\n\n"
+    "STYLE: every line names ONE concrete everyday thing, moment or action (socks, a phone, a receipt, a cart, a Sunday "
+    "night). Never abstract words like access, trade, value, benefit, system, model, mechanism, consumer, expense, "
+    "structure, incentive, efficiency. Delta's reason must be a believable everyday consequence of what was just said, "
+    "not a new topic.\n\n"
     "HARD RULES (a script that breaks one is thrown away):\n"
     "- Do NOT name any real company, brand, product, app or person. Use generic words (online stores, streaming "
     "services, a phone plan).\n"
@@ -164,7 +170,11 @@ def kapanisa_skor_ekle(beats, yol=None):
 
 
 # --------------------------------------------------------------------------- kapi
-def kontrol(beats, title, hookthumb, gecmis_ilk=()):
+def _norm(x):
+    return re.sub(r"[^a-z0-9 ]", "", (x or "").lower()).strip()
+
+
+def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None):
     """-> [(kod, mesaj)]. Bos liste = gecti. Hicbir guvenlik kuralini gevsetmez; hook_gate + claim_lint + isim yasagi dahil."""
     s = []
     if len(beats) != 6:
@@ -202,6 +212,11 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=()):
         s.append(("KAPANIS_TAKIM", "Kapanista 'Team Alpha or Team Beta?' yok."))
     if not re.search(r"\b(guilty|habit)\b", L[5], re.I):
         s.append(("KAPANIS_ITIRAF", "Kapanis izleyiciden 'guilty habit' istemiyor."))
+    soyut = sorted({m.group(0).lower() for m in SOYUT.finditer(" ".join(L))})
+    if soyut:
+        s.append(("SOYUT", f"Soyut kelime kullanma, somut bir nesne/an soyle: {', '.join(soyut)}."))
+    if kanca and _norm(L[0]) != _norm(kanca):
+        s.append(("KANCA_DEGISTI", f"1. satir secilen kancayla BIREBIR ayni olmali: '{kanca}'."))
     # guvenlik
     metin = " ".join(L + [title or "", hookthumb or ""])
     isim = sorted({m.group(0).lower() for m in _entities().finditer(metin)})
@@ -219,22 +234,75 @@ def uyarilar(beats, title="", hookthumb=""):
     return [(ad, hits) for ad, hits, _ in claim_lint.lint(metin) if ad not in ENGELLEYICI]
 
 
+# --------------------------------------------------------------------------- kanca paketleme
+KANCA_PROMPT = (
+    "You are the head writer of Sign Council, a Shorts channel where five AI characters argue about everyday life.\n"
+    "TOPIC: {topic}\n\n"
+    "Write 5 DIFFERENT opening hooks for this topic (what the host says in the first two seconds). Each: 4-7 words, plain "
+    "spoken English, a bold contradiction OR a small concrete number OR a sharp question about ONE concrete everyday thing. "
+    "Each MUST contain a digit, a question mark, or one of these words: but, not, never, why, how, wrong, missing, only, "
+    "just, nobody, everyone, still, versus, worst, best, first, last, stop, before, after, instead. No real brand or "
+    "person names, no money amounts or percentages, no accusations (no hidden, lie, trap, scam, secret, force, rigged). "
+    "A stranger scrolling past must want to hear the next sentence.\n"
+    "Output EXACTLY:\n1: ...\n2: ...\n3: ...\n4: ...\n5: ...\nPICK: <number of the strongest>\n"
+)
+
+
+def kanca_gecerli(h):
+    """Tek bir kanca adayi kapidan (ilk cumle kurallari + guvenlik) gecer mi? -> [(kod,mesaj)]"""
+    s = []
+    n = len(_kelimeler(h))
+    if not (4 <= n <= 7):
+        s.append(("ADAY_UZUNLUK", f"{n} kelime (4-7 olmali)."))
+    if hook_gate.YASAK_ACILIS.search(h or "") or not hook_gate.TETIK.search(h or ""):
+        s.append(("ADAY_TETIK", "tetik kelimesi yok ya da yasak acilis."))
+    if _entities().search(h or ""):
+        s.append(("ADAY_ISIM", "gercek isim."))
+    for ad, hits, _ in claim_lint.lint(h or ""):
+        if ad in ENGELLEYICI:
+            s.append(("ADAY_" + ad, ", ".join(hits)))
+    if SOYUT.search(h or ""):
+        s.append(("ADAY_SOYUT", "soyut kelime."))
+    return s
+
+
+def kanca_sec(topic, llm):
+    """5 aday yazdirir, kapidan gecenler arasindan modelin PICK'ini (yoksa ilk gecerliyi) secer.
+    -> {"adaylar": [(metin, gecerli_mi)], "secilen": str|None}. Aday yoksa/LLM hata verirse secilen=None (senaryo yine yazilir)."""
+    try:
+        raw = llm(KANCA_PROMPT.format(topic=topic))
+    except Exception:
+        return {"adaylar": [], "secilen": None}
+    adaylar = {int(m.group(1)): m.group(2).strip().strip('"') for m in re.finditer(r"^\s*([1-5])\s*[:.)]\s*(.+)$", raw, re.M)}
+    liste = [(adaylar[k], not kanca_gecerli(adaylar[k])) for k in sorted(adaylar)]
+    pick = re.search(r"PICK:\s*([1-5])", raw)
+    secilen = None
+    if pick and int(pick.group(1)) in adaylar and not kanca_gecerli(adaylar[int(pick.group(1))]):
+        secilen = adaylar[int(pick.group(1))]
+    if secilen is None:
+        secilen = next((h for h, ok in liste if ok), None)
+    return {"adaylar": liste, "secilen": secilen}
+
+
 # --------------------------------------------------------------------------- uretim
-def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3):
+def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
     Kapidan gecmezse sorunlari geri besleyip yeniden yazdirir (en fazla 3 deneme). -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
-    prompt = PROMPT.format(topic=topic)
+    temel = PROMPT.format(topic=topic)
+    if kanca:
+        temel += f"\n\nPACKAGED HOOK (already chosen): line 1 must be EXACTLY this, word for word: {kanca}"
+    prompt = temel
     ham, sorunlar, beats, title, hookthumb = "", [], [], "", ""
     for n in range(1, deneme + 1):
         ham = llm(prompt)
         beats, title, hookthumb = parse(ham)
         title = baslik_duzelt(title)
         beats = kapanisa_skor_ekle(beats, skor_yolu)
-        sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk)
+        sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk, kanca)
         if not sorunlar:
             return {"ok": True, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": [], "ham": ham, "deneme": n,
                     "uyarilar": uyarilar(beats, title, hookthumb)}
-        prompt = PROMPT.format(topic=topic) + (
+        prompt = temel + (
             "\n\nYour previous attempt was REJECTED for these reasons - fix every one and keep all rules:\n"
             + "\n".join(f"- {m}" for _, m in sorunlar))
     return {"ok": False, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": sorunlar, "ham": ham, "deneme": deneme,
