@@ -184,6 +184,15 @@ class SatirTest(unittest.TestCase):
         self.assertFalse(kf.satir_degistir(self.yol, 9, "x")[0])
 
 
+class EtiketTest(unittest.TestCase):
+    def test_etiketler(self):
+        e = kf.etiketler("Are Movie Subscriptions Worth It?")
+        self.assertEqual(e[:4], ["Sign Council", "AI debate", "everyday life", "shorts"])
+        self.assertEqual(e[4:], ["movie", "subscriptions"])
+        self.assertNotIn("OpenAI", " ".join(e))
+        self.assertLessEqual(len(kf.etiketler("alpha bravo charlie delta echoes foxtrot golfs")), 7)
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")

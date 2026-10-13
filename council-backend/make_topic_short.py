@@ -717,7 +717,9 @@ if __name__ == "__main__":
             print("\n(--sadece-senaryo: video uretilmedi)")
             raise SystemExit(0)
         desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\n#Shorts #SignCouncil")
+        import konsey_format
         meta = build(a.topic, "", title_override=r["title"], desc_override=desc,
+                     tags=konsey_format.etiketler(r["title"]),
                      hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
         meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
         with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:

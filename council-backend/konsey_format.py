@@ -317,6 +317,18 @@ def senaryo_yukle(yol):
     return d["topic"], [tuple(b) for b in d["beats"]], d["title"], d["hookthumb"]
 
 
+_ETIKET_DURAK = set("this that with from have your what when where which would could should about really worth many much more most too".split())
+
+
+def etiketler(title):
+    """Konsey Short'u icin YouTube etiketleri: sabit marka etiketleri + basliktan en fazla 3 anahtar kelime. AI-haber etiketi YOK."""
+    kelimeler = []
+    for w in re.findall(r"[a-z]{5,}", (title or "").lower()):
+        if w not in _ETIKET_DURAK and w not in kelimeler:
+            kelimeler.append(w)
+    return ["Sign Council", "AI debate", "everyday life", "shorts"] + kelimeler[:3]
+
+
 def satir_degistir(yol, n, metin):
     """Kayitli senaryonun n. satirinin (1-6) metnini degistirir. Yeni senaryo kapidan GECMEZSE dosya DEGISMEZ.
     -> (kaydedildi: bool, sorunlar)"""
