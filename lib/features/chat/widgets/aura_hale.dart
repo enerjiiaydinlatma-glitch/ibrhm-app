@@ -130,6 +130,15 @@ class _AuraHaleState extends State<AuraHale> with TickerProviderStateMixin {
 
   static const Color _pink = Color(0xFFFF9EC4); // cosku hali ilik pembe
 
+  // Parilti kutusu. GRADYAN kutunun kenarinda SIFIRLANMALI; yoksa parilti
+  // sert bir dikdortgen gibi kesilir (gercek ekranda gorulen hata: ust kenarda
+  // yatay cizgi, bkz. cosku hali). Kutu parilti yaricapindan (315px) buyuk
+  // tutulur; parilti merkezi eskisi gibi tabandan 210px yukarida kalir.
+  static const double _boxW = 800;
+  static const double _boxH = 640;
+  static const double _centerFromBottom = 210;
+  static const double _radiusPx = 315;
+
   // "Nefes alma" nabzi - surekli, cok yavas ve hafif bir opaklik/olcek
   // salinimi. Kasitli olarak UZUN (6sn) ve DAR bir aralikta (0.85-1.0) -
   // goz ucuyla farkedilecek kadar canli ama asla "yanip sonme" gibi
@@ -243,7 +252,7 @@ class _AuraHaleState extends State<AuraHale> with TickerProviderStateMixin {
           final aAlpha = baseOpacity;
           final bAlpha = baseOpacity * look.spread;
           final pinkAlpha = baseOpacity * 0.55 * look.joy;
-          final radius = 0.75 - 0.20 * look.spread;
+          final radiusPx = _radiusPx - 84 * look.spread;
 
           return Align(
             alignment: Alignment.bottomCenter,
@@ -251,29 +260,39 @@ class _AuraHaleState extends State<AuraHale> with TickerProviderStateMixin {
               scale: scale,
               alignment: Alignment.bottomCenter,
               child: SizedBox(
-                width: 520,
-                height: 420,
+                width: _boxW,
+                height: _boxH,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     _glow(
                       look.a,
                       aAlpha,
-                      Alignment(-0.55 * look.spread, 0.05 * look.spread),
-                      radius,
+                      dx: -143 * look.spread,
+                      dy: 10.5 * look.spread,
+                      radiusPx: radiusPx,
                     ),
                     _glow(
                       look.b,
                       bAlpha,
-                      Alignment(0.55 * look.spread, -0.10 * look.spread),
-                      radius,
+                      dx: 143 * look.spread,
+                      dy: -21 * look.spread,
+                      radiusPx: radiusPx,
                     ),
-                    _glow(_pink, pinkAlpha, const Alignment(0.0, -0.25), 0.75),
+                    _glow(_pink, pinkAlpha, dy: -52.5, radiusPx: _radiusPx),
+                    // Parcaciklar eski 520x420 alanda (tabana ortali) kalir.
                     if (_burst.isAnimating)
-                      CustomPaint(
-                        painter: _SparklePainter(
-                          progress: _burst.value,
-                          colors: [look.a, look.b, _pink],
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          width: 520,
+                          height: 420,
+                          child: CustomPaint(
+                            painter: _SparklePainter(
+                              progress: _burst.value,
+                              colors: [look.a, look.b, _pink],
+                            ),
+                          ),
                         ),
                       ),
                   ],
@@ -286,12 +305,23 @@ class _AuraHaleState extends State<AuraHale> with TickerProviderStateMixin {
     );
   }
 
-  Widget _glow(Color color, double alpha, Alignment center, double radius) {
+  /// [dx]/[dy]: parilti merkezinin, eski merkezden (tabandan 210px yukari)
+  /// piksel olarak kaymasi (dy asagi pozitif).
+  Widget _glow(
+    Color color,
+    double alpha, {
+    double dx = 0,
+    double dy = 0,
+    required double radiusPx,
+  }) {
+    final fromTop = (_boxH - _centerFromBottom) + dy;
+    final center = Alignment(dx / (_boxW / 2), (fromTop / _boxH) * 2 - 1);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
           center: center,
-          radius: radius,
+          // yaricap en kisa kenara (yukseklik) gore oran
+          radius: radiusPx / _boxH,
           colors: [
             color.withValues(alpha: alpha),
             color.withValues(alpha: 0.0),

@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ibrhm_app/features/chat/models/chat_state.dart';
 import 'package:ibrhm_app/features/chat/models/message.dart';
@@ -285,4 +287,76 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group(
+    'AuraHale parilti kenari (gercek ekranda gorulen sert cizgi hatasi)',
+    () {
+      // Parilti gradyani kutunun kenarinda sifirlanmali. Aksi halde parilti
+      // sert bir dikdortgen gibi kesilir. Siyah zeminde bir sutunun satirlari
+      // arasindaki en buyuk ani sicrayis kucuk kalmali.
+      Future<int> maxRowStep(WidgetTester tester, List<String> moods) async {
+        final key = GlobalKey();
+        await tester.binding.setSurfaceSize(const Size(430, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: key,
+            child: MediaQuery(
+              data: const MediaQueryData(size: Size(430, 900)),
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: ColoredBox(
+                  color: const Color(0xFF000000),
+                  child: SizedBox(
+                    width: 430,
+                    height: 900,
+                    child: AuraHale(moods: moods),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        // Gecis + nefes sirasinda en parlak ana yakin bir kare.
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pump(const Duration(seconds: 3));
+        late int step;
+        await tester.runAsync(() async {
+          final boundary =
+              key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final image = await boundary.toImage();
+          final data = (await image.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          ))!;
+          final w = image.width;
+          final h = image.height;
+          var maxStep = 0;
+          for (final x in [w ~/ 4, w ~/ 2, 3 * w ~/ 4]) {
+            for (var y = 1; y < h; y++) {
+              final a = (y - 1) * w * 4 + x * 4;
+              final b = y * w * 4 + x * 4;
+              for (var c = 0; c < 3; c++) {
+                final d = (data.getUint8(b + c) - data.getUint8(a + c)).abs();
+                if (d > maxStep) maxStep = d;
+              }
+            }
+          }
+          step = maxStep;
+        });
+        return step;
+      }
+
+      for (final entry in {
+        'cosku (mutlu)': ['mutlu'],
+        'cosku (mutlu+enerjik)': ['mutlu', 'enerjik'],
+        'harman (yorgun+mutlu)': ['yorgun', 'mutlu'],
+        'tek duygu (uzgun)': ['uzgun'],
+      }.entries) {
+        testWidgets('${entry.key}: yatay/dikey sert kenar yok', (tester) async {
+          final step = await maxRowStep(tester, entry.value);
+          expect(step, lessThan(6), reason: 'en buyuk ani sicrayis: $step');
+        });
+      }
+    },
+  );
 }
