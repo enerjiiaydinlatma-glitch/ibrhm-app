@@ -253,10 +253,17 @@ _OUTROS = [
 ]
 
 
-def _outro_line():
+_OUTROS_KONSEY = [
+    "New council debate tomorrow. Follow Sign Council.",
+    "Five characters, one argument, every day. Follow to join in.",
+]
+
+
+def _outro_line(konsey=False):
     """Sesli kapanis (Aura): durust bir deger vaadi + takip cagrisi. Gune gore doner."""
     import datetime
-    return _OUTROS[datetime.date.today().toordinal() % len(_OUTROS)]
+    liste = _OUTROS_KONSEY if konsey else _OUTROS
+    return liste[datetime.date.today().toordinal() % len(liste)]
 
 
 def _close_card_lines(next_hint=""):
@@ -535,11 +542,11 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
         print(f"  beat {i} ({who}, {dur:.1f}s): {line[:60]}")
 
     cf = os.path.join(OUT_DIR, "99_frame.png")
-    _text_card(_close_card_lines(), cf, big=False)
+    _text_card(_close_card_lines("Team Alpha or Team Beta?" if hazir_senaryo else ""), cf, big=False)
     try:  # 26 Eylul 2026: kapanis artik SESLI (konsey + veri: abone donusumu 7,6 -> 2,7/1000)
         oa = os.path.join(OUT_DIR, "99.mp3")
         with open(oa, "wb") as f:
-            f.write(synthesize(_outro_line(), "aura"))
+            f.write(synthesize(_outro_line(konsey=bool(hazir_senaryo)), "aura"))
         od = _dur(oa)
         _segment(cf, oa, od + 0.4, os.path.join(OUT_DIR, "99.mp4"))
         total += od + 0.4
