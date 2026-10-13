@@ -76,6 +76,29 @@ def yorum_kelimeleri(yorumlar, k=15):
     return c.most_common(k)
 
 
+def oneriler_ayir(karne):
+    """ogrenme.oneriler'i HAM medyanla capraz kontrol eder. 'Dönemine göre' olcusu kanalin dusuk izlenmeli donemindeki videolari
+    'iyi' gosterebilir; ham medyan genel medyanin ayni tarafinda degilse oneri CELISKILI sayilir ve onerilmez.
+    -> (guvenilir_oneriler, celisenler)"""
+    genel = karne["genel"].get("med_izlenme")
+    ham = {}
+    for bolum, satirlar in karne["bolumler"].items():
+        for r in satirlar:
+            ham[(bolum, r["ad"])] = r.get("med_izlenme")
+    ok, cel = [], []
+    for o in karne["oneriler"]:
+        m = ham.get((o["tur"], o["ad"]))
+        if genel is None or m is None:
+            ok.append(o)
+            continue
+        yukari = o["oran"] >= 1
+        if (yukari and m < genel) or (not yukari and m > genel):
+            cel.append({**o, "ham": m, "genel": genel})
+        else:
+            ok.append(o)
+    return ok, cel
+
+
 def _tablo(satirlar):
     if not satirlar:
         return "_Veri yok._\n"
@@ -107,10 +130,15 @@ def rapor(videolar, yorumlar=None, now=None, baslangic=BASLANGIC):
         for ad, baslik in (("sutun", "Sütun (format)"), ("sayi", "Başlıkta sayı"), ("soru", "Soru / ifade"), ("uzunluk", "Başlık uzunluğu")):
             s += [f"## {baslik}", "", _tablo(k["bolumler"][ad]), ""]
     s += ["## Bu hafta ne yapmalı?", ""]
-    if k["oneriler"]:
-        s += [f"- {o['metin']}" for o in k["oneriler"]]
+    ok, cel = oneriler_ayir(k)
+    if ok:
+        s += [f"- {o['metin']}" for o in ok]
     else:
-        s.append("- Henüz yeterli veri/belirgin fark yok. Öneri üretilmedi (uydurma yok).")
+        s.append("- Henüz yeterli ve tutarlı veri yok. Öneri üretilmedi (uydurma yok).")
+    if cel:
+        s += ["", "**Güvenilmez (ölçüler çelişiyor, UYGULAMA):** 'dönemine göre' ölçüsü ile ham medyan farklı yönü gösteriyor.", ""]
+        s += [f"- {o['tur']} / {o['ad']}: dönemine göre {o['oran']}x ama ham medyan {o['ham']} (genel {o['genel']})." for o in cel]
+        s.append("")
     s.append(f"- Keşif kuralı: yayınların ~%{int(KESIF_PAYI * 100)}'i en az denenmiş kanca tipi/konu/karakter ikilisinden olsun.")
     s.append("")
     tek = tekrar_acilislar(vs)

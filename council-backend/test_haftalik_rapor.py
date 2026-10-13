@@ -36,6 +36,24 @@ class RaporTest(unittest.TestCase):
         self.assertNotIn("veri yetersiz", m)
         self.assertIn("Deneme olarak öne al", m)
 
+    def test_celisen_oneri_uygulanmaz(self):
+        # 'dönemine göre' yukari ama ham medyan genelin altinda -> celiskili; tutarli olan korunur.
+        karne = {"genel": {"med_izlenme": 48},
+                 "bolumler": {"uzunluk": [{"ad": "uzun (13+)", "med_izlenme": 18.0}, {"ad": "kisa", "med_izlenme": 105.0}]},
+                 "oneriler": [{"tur": "uzunluk", "ad": "uzun (13+)", "oran": 1.8, "metin": "uzun"},
+                              {"tur": "uzunluk", "ad": "kisa", "oran": 1.5, "metin": "kisa"}]}
+        ok, cel = hr.oneriler_ayir(karne)
+        self.assertEqual([o["ad"] for o in ok], ["kisa"])
+        self.assertEqual([o["ad"] for o in cel], ["uzun (13+)"])
+        self.assertEqual(cel[0]["ham"], 18.0)
+
+    def test_azaltma_onerisi_celiskisi(self):
+        karne = {"genel": {"med_izlenme": 48},
+                 "bolumler": {"sutun": [{"ad": "x", "med_izlenme": 90.0}]},
+                 "oneriler": [{"tur": "sutun", "ad": "x", "oran": 0.5, "metin": "azalt"}]}
+        ok, cel = hr.oneriler_ayir(karne)
+        self.assertEqual((ok, len(cel)), ([], 1))
+
     def test_yorum_kelimeleri_metni_kopyalamaz(self):
         yorumlar = [{"video_id": "v1", "text": "Team Alpha is right, shipping fees are a scam"},
                     {"video_id": "v1", "text": "alpha wins again"}]
