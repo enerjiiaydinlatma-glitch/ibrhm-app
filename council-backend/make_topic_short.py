@@ -612,6 +612,32 @@ def _dur(path):
                                  "-of", "csv=p=0", path], capture_output=True, text=True).stdout.strip() or 4)
 
 
+KONSEY_KAYIT = os.path.join(OUT_DIR, "konsey_son_senaryo.json")
+
+
+def _konsey_kayittan():
+    """Kayitli senaryoyu YENIDEN kapidan gecirir (dosya elle duzenlenmis olabilir). Gecmezse None."""
+    import konsey_format
+    from sensitivity_gate import assess
+    topic, beats, title, hookthumb = konsey_format.senaryo_yukle(KONSEY_KAYIT)
+    sorunlar = konsey_format.kontrol(beats, title, hookthumb)
+    print(f"\nKAYITLI SENARYO ({KONSEY_KAYIT}):")
+    for who, screen, line, _img in beats:
+        print(f"  {who:5} | {screen} | {line}")
+    print(f"  TITLE: {title}\n  HOOKTHUMB: {hookthumb}")
+    if sorunlar:
+        print("\nKAPIDAN GECMEDI - video uretilmeyecek:")
+        for kod, msg in sorunlar:
+            print(f"  - {kod}: {msg}")
+        return None
+    g = assess(topic, " ".join(b[2] for b in beats), title)
+    print(f"  [sensitivity_gate: sensitive={g['sensitive']} severity={g['severity']} ({g['checked_by']})]")
+    if g["sensitive"]:
+        print("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
+        return None
+    return {"topic": topic, "beats": beats, "title": title, "hookthumb": hookthumb}
+
+
 def _konsey_uret(topic):
     """Konsey karakter formati: senaryo + kapi (hook_gate, claim_lint, isim yasagi). Gecmezse None. Yayin/yukleme YAPMAZ."""
     import konsey_format
@@ -648,6 +674,8 @@ def _konsey_uret(topic):
     if g["sensitive"]:
         print("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
         return None
+    konsey_format.senaryo_kaydet(KONSEY_KAYIT, topic, r)
+    print(f"  [senaryo kaydedildi: {KONSEY_KAYIT}]")
     return r
 
 
@@ -660,17 +688,24 @@ if __name__ == "__main__":
     ap.add_argument("--public", action="store_true", help="HERKESE ACIK yukle (varsayilan private)")
     ap.add_argument("--konsey", action="store_true", help="Konsey karakter tartismasi formati (gunluk-hayat konusu; --topic gerekir; yukleme YOK)")
     ap.add_argument("--sadece-senaryo", action="store_true", help="--konsey ile: yalniz senaryoyu ve kapi sonucunu yazdir, video uretme")
+    ap.add_argument("--son-senaryo", action="store_true", help="--konsey ile: model yazmasin; en son KAYDEDILEN (onayladigin) senaryodan video uret")
     a = ap.parse_args()
 
     if a.konsey:
         if a.upload or a.public:
             raise SystemExit("--konsey modunda --upload/--public KAPALI: gunluk sinir ve onay akisi atlanmasin. "
                              "Yalniz yerel dosya uretilir; yukleme mevcut onayli yoldan yapilir.")
-        if not a.topic:
-            raise SystemExit("--konsey icin --topic gerekir (ornek: --topic \"Is free shipping really free?\")")
-        r = _konsey_uret(a.topic)
-        if r is None:
-            raise SystemExit(2)
+        if a.son_senaryo:
+            r = _konsey_kayittan()
+            if r is None:
+                raise SystemExit(2)
+            a.topic = r["topic"]
+        else:
+            if not a.topic:
+                raise SystemExit("--konsey icin --topic gerekir (ornek: --topic \"Is free shipping really free?\")")
+            r = _konsey_uret(a.topic)
+            if r is None:
+                raise SystemExit(2)
         if a.sadece_senaryo:
             print("\n(--sadece-senaryo: video uretilmedi)")
             raise SystemExit(0)

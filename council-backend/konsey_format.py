@@ -300,6 +300,22 @@ def kanca_secimi(kk, cevap):
     return kk["secilen"], "gecersiz cevap, modelin secimi kullanildi"
 
 
+# --------------------------------------------------------------------------- kayit (onayla -> sonra uret)
+def senaryo_kaydet(yol, topic, r):
+    """Kapidan gecmis senaryoyu diske yazar; video uretimi bu dosyadan yapilabilir (model yeniden yazmaz)."""
+    os.makedirs(os.path.dirname(yol), exist_ok=True)
+    with open(yol, "w", encoding="utf-8") as f:
+        json.dump({"topic": topic, "title": r["title"], "hookthumb": r["hookthumb"],
+                   "beats": [list(b) for b in r["beats"]]}, f, ensure_ascii=False, indent=2)
+
+
+def senaryo_yukle(yol):
+    """-> (topic, beats(list of tuple), title, hookthumb). Dosya sahibi elle duzeltmis olabilir: cagiran kapiyi YENIDEN calistirmali."""
+    with open(yol, encoding="utf-8") as f:
+        d = json.load(f)
+    return d["topic"], [tuple(b) for b in d["beats"]], d["title"], d["hookthumb"]
+
+
 # --------------------------------------------------------------------------- uretim
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).

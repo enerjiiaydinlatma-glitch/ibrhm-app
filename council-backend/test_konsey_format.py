@@ -135,6 +135,27 @@ class KancaTest(unittest.TestCase):
         self.assertIn("SOYUT", kodlar(IYI.replace("Shoppers deserve a clear price.", "Shoppers deserve clear value.")))
 
 
+class KayitTest(unittest.TestCase):
+    def test_kaydet_yukle_ve_kapi(self):
+        yol = os.path.join(tempfile.mkdtemp(), "alt", "s.json")
+        b, t, h = parse(IYI)
+        kf.senaryo_kaydet(yol, "free shipping", {"title": t, "hookthumb": h, "beats": b})
+        topic, b2, t2, h2 = kf.senaryo_yukle(yol)
+        self.assertEqual((topic, t2, h2), ("free shipping", t, h))
+        self.assertEqual(b2, b)                     # tuple olarak geri gelir
+        self.assertEqual(kf.kontrol(b2, t2, h2), [])
+
+    def test_elle_bozulan_kayit_kapida_yakalanir(self):
+        yol = os.path.join(tempfile.mkdtemp(), "s.json")
+        b, t, h = parse(IYI)
+        kf.senaryo_kaydet(yol, "x", {"title": t, "hookthumb": h, "beats": b})
+        d = json.load(open(yol, encoding="utf-8"))
+        d["beats"][1][2] = "Amazon adds the shipping cost. That's one for me."
+        json.dump(d, open(yol, "w", encoding="utf-8"))
+        _, b2, t2, h2 = kf.senaryo_yukle(yol)
+        self.assertIn("GERCEK_ISIM", {k for k, _ in kf.kontrol(b2, t2, h2)})
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")
