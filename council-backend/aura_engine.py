@@ -490,7 +490,7 @@ def run(short_upload=False, public=False, learn=False, plan_only=False, leaderbo
 
 def _short_desc(plan):
     hook = (plan.get("short_hooks") or [plan["decision"]])[0][:200]
-    body = "Sign Council's five AIs debate it, unscripted. Full breakdown on the channel."
+    body = "Sign Council's five AI characters argue it out. Full breakdown on the channel."
     try:
         from hashtag_agent import compose_description
         return compose_description(hook, body, plan["decision"],

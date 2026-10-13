@@ -592,10 +592,10 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
         try:
             from hashtag_agent import compose_description
             desc = compose_description(
-                beats[0][2], "Sign Council's five AIs debate it, unscripted. "
+                beats[0][2], "Sign Council's five AI characters argue it out. "
                 "Full breakdown on the channel.", topic, script_text)
         except Exception:
-            desc = (f"{beats[0][2]}\n\nSign Council's five AIs debate it, unscripted. "
+            desc = (f"{beats[0][2]}\n\nSign Council's five AI characters argue it out. "
                     "Full breakdown on the channel.\n\n"
                     "#AI #TechNews #ArtificialIntelligence #SignCouncil")
     meta = {"title": (title[:88].rstrip() + " #Shorts"), "description": desc,
