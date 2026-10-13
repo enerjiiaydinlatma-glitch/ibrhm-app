@@ -17,40 +17,57 @@ from googleapiclient.http import MediaFileUpload
 from youtube_auth import get_credentials
 
 
-def upload_video(file_path, title, description, tags=None, privacy_status="private"):
+def upload_video(file_path, title, description, tags=None, privacy_status="private",
+                 publish_at=None):
     """privacy_status: 'private' (varsayilan, guvenli), 'unlisted' veya
     'public'. 'public' HICBIR ZAMAN varsayilan olarak kullanilmamali -
     bu fonksiyonu 'public' ile cagirmadan once kullanicidan aciktan
-    onay alinmis olmali."""
+    onay alinmis olmali.
+
+    publish_at: ISO-8601 UTC (or. '2026-09-06T15:00:00Z'). Verilirse video
+    'private' yuklenir ve o anda otomatik HERKESE ACIK olur - butun abonelere
+    ayni anda bildirim gider ('koordineli dusum': ilk saatteki yorum hizi =
+    algoritma sinyali, bos canli yayin riski YOK)."""
     creds = get_credentials()
     youtube = build("youtube", "v3", credentials=creds)
 
+    status = {"selfDeclaredMadeForKids": False}
+    if publish_at:
+        status["privacyStatus"] = "private"
+        status["publishAt"] = publish_at
+    else:
+        status["privacyStatus"] = privacy_status
+
+    from yukleme_meta import video_snippet
     body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": tags or [],
-            "categoryId": "28",  # Science & Technology
-        },
-        "status": {
-            "privacyStatus": privacy_status,
-            "selfDeclaredMadeForKids": False,
-        },
+        # categoryId 28 = Science & Technology; defaultLanguage/defaultAudioLanguage = 'en' (13 Ekim 2026: dil sinyali eksikti)
+        "snippet": video_snippet(title, description, tags),
+        "status": status,
     }
 
-    media = MediaFileUpload(file_path, chunksize=-1, resumable=True, mimetype="video/mp4")
-    request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+    def _yukle():
+        # her denemede YENI oturum (410 'Gone' = eski resumable oturum gecersiz)
+        media = MediaFileUpload(file_path, chunksize=-1, resumable=True, mimetype="video/mp4")
+        request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+        response = None
+        while response is None:
+            ilerleme, response = request.next_chunk()
+            if ilerleme:
+                print(f"Yukleniyor: %{int(ilerleme.progress() * 100)}")
+        return response
 
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            print(f"Yukleniyor: %{int(status.progress() * 100)}")
-
+    from yukleme_dene import dene
+    response = dene(_yukle)
     video_id = response["id"]
-    print(f"Yuklendi (privacyStatus={privacy_status}): https://youtu.be/{video_id}")
-    print("Bu video henuz HERKESE ACIK DEGIL - yayinlamak icin: "
-          f"python publish_youtube.py {video_id}")
+    if publish_at:
+        print(f"Yuklendi (ZAMANLANMIS -> {publish_at} otomatik herkese acik): "
+              f"https://youtu.be/{video_id}")
+    elif privacy_status == "public":
+        print(f"Yuklendi (HERKESE ACIK): https://youtu.be/{video_id}")
+    else:
+        print(f"Yuklendi (privacyStatus={privacy_status}): https://youtu.be/{video_id}")
+        print("Bu video henuz HERKESE ACIK DEGIL - yayinlamak icin: "
+              f"python publish_youtube.py {video_id}")
     return video_id
 
 

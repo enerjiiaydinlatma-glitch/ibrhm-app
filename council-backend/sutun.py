@@ -1,0 +1,183 @@
+"""ICERIK SUTUNLARI - hangi sutunla uretecegiz? Karar kanalin KENDI sonuclarindan gelir.
+
+Sutunlar (motorun mevcut bayraklari):
+  haber      (bayraksiz)         tekil konu haber sorusu - kanalin asil formati (motorun varsayilan yolu)
+  ikilem     --council-decides   izleyici ikilemi; yorum oylamasi motorda hazir (council_standings)
+  siralama   --leaderboard       siralama / guc listesi
+  aciklayici --evergreen         zamansiz mekanizma anlatimi (hafta sonu)
+  receipt    (kaynak paketi)     belge kontrolu: tek iddia, tek birincil belge
+
+Secim: her sutun >= MIN_DENEME kez denenmeden hicbiri elenmez (veri az; ~birkac izlenme gurultudur).
+Yeterli veri varsa: %70 su ana kadar en iyi sutun, %30 en az denenen (kesif). Tohum = tarih (ayni gun ayni oneri).
+Sonuc olcutu (skor): zamana gore duzeltilmis medyan izlenme x100 (yoksa ort. izlenme) + 20 x ort. yorum + 300 x ort. abone + 1 x medyan tutma% (video basina). Bu bir TAHMIN degil, gecmis sonuctur.
+"""
+import datetime
+import json
+import os
+import random
+import re
+import statistics
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ENGINE = os.path.join(HERE, "_engine")
+GECMIS_YOL = os.path.join(ENGINE, "sutun_gecmis.jsonl")
+
+SUTUNLAR = {
+    "haber": {"ad": "Haber sorusu (tekil konu)", "bayrak": [], "kaynak": False},
+    "ikilem": {"ad": "İkilem (Konsey Karar Veriyor)", "bayrak": ["--council-decides"], "kaynak": False},
+    "siralama": {"ad": "Sıralama / haber", "bayrak": ["--leaderboard"], "kaynak": False},
+    "receipt": {"ad": "Receipt (belge kontrolü)", "bayrak": [], "kaynak": True},
+    "aciklayici": {"ad": "Açıklayıcı (zamansız)", "bayrak": ["--evergreen"], "kaynak": False},
+}
+HAFTA_ICI = ["haber", "ikilem", "siralama", "receipt"]   # 'haber' = kanalin asil formati (motorun varsayilan yolu); veri onu gosterdi
+HAFTA_SONU = ["haber", "ikilem", "siralama", "receipt", "aciklayici"]
+MIN_DENEME = 3
+ELEME_N = 10            # bu kadar denemeden sonra ...
+ELEME_ORAN = 0.4        # ... skoru en iyinin %40'indan dusukse oneri disi birakilir
+SOMURU = 0.70
+YORUM_AGIRLIK = 20
+ABONE_AGIRLIK = 300     # video basina ortalama abone: tipik video ~0.1 abone getirir; 1 abone ~ tipik izlenmenin 3 kati deger (hedef: abone)
+TUTMA_AGIRLIK = 1.0     # medyan tutma % (en fazla 100 sayilir): izlenme sinyali, dagitimi surduren sey
+OLGUNLUK_SAAT = 24      # bir video sonucu en az bu kadar sure sonra sayilir
+
+_ETIKET = [
+    ("receipt", re.compile(r"receipt|fail inspection|claims? checked|says otherwise|graded its own|the filing says|own benchmark", re.I)),
+    # ikilem: 'Council Case/Decides' + izleyici ikilemi kaliplari (kisisel/ahlaki 'ne yapmali' sorulari)
+    ("ikilem", re.compile(r"council (?:case|decides)|the council decides|\bshould (?:i|we)\b|dilemma|\bdo (?:i|you) (?:say|re|think)|"
+                          r"\bis it (?:wrong|ok|okay|a red flag|fair)\b|\ba friend\b|^if an? |^you can replace|"
+                          r"^your (?:data center|company|boss)|nobody let you vote|someone you", re.I)),
+    ("aciklayici", re.compile(r"^what (?:is|are)\b|^how (?:does|do)\b|explained|\bexplainer\b", re.I)),
+    ("siralama", re.compile(r"\brank|leaderboard|top \d|jumps to|power list|\bvs\.? ", re.I)),
+]
+# Geri kalan her sey 'haber': kanalin asil formati (tekil konu haber sorusu/ifadesi). Veri (8 Ekim 2026, 41 video):
+# haber medyan ~70 izlenme, kisisel ikilem medyan ~10.
+
+
+def etiketle(baslik):
+    """Gecmis videolari sutuna ata (baslik kalibindan). Eslesmezse 'diger'."""
+    if not (baslik or "").strip():
+        return "diger"
+    for ad, rx in _ETIKET:
+        if rx.search(baslik):
+            return ad
+    return "haber"
+
+
+def aktif_sutunlar(bugun=None):
+    bugun = bugun or datetime.date.today()
+    return list(HAFTA_SONU if bugun.weekday() >= 5 else HAFTA_ICI)
+
+
+# ----------------------------------------------------------------------------- kayit
+def kaydet(video_id, sutun, zaman=None):
+    """Uretilen videoyu sutuna bagla (motor video_id verdikten sonra)."""
+    try:
+        os.makedirs(ENGINE, exist_ok=True)
+        with open(GECMIS_YOL, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"video_id": video_id, "sutun": sutun,
+                                "zaman": zaman or datetime.datetime.now().isoformat(timespec="seconds")}) + "\n")
+    except Exception:
+        pass
+
+
+def kayitlar():
+    out = {}
+    try:
+        with open(GECMIS_YOL, encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    r = json.loads(ln)
+                    out[r["video_id"]] = r["sutun"]
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return out
+
+
+# ----------------------------------------------------------------------------- istatistik
+def _yas_saat(yayin, now):
+    try:
+        t = datetime.datetime.fromisoformat(yayin.replace("Z", "+00:00")).replace(tzinfo=None)
+        return (now - t).total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
+def istatistik(videolar, kayit=None, now=None):
+    """videolar: analiz.kanal_videolari()['videolar']. Sutun -> {deneme, ort_izlenme, ort_yorum, skor}.
+    Etiket: kayitli (motorla uretilen) varsa o, yoksa baslik kalibi. Yalnizca public ve >= OLGUNLUK_SAAT."""
+    now = now or datetime.datetime.utcnow()
+    kayit = kayit if kayit is not None else kayitlar()
+    tablo = {}
+    for v in videolar:
+        if v.get("privacy", "public") != "public":
+            continue
+        yas = _yas_saat(v.get("published", ""), now)
+        if yas is None or yas < OLGUNLUK_SAAT:
+            continue
+        s = kayit.get(v["id"]) or etiketle(v["title"])
+        t = tablo.setdefault(s, {"deneme": 0, "izlenme": 0, "yorum": 0, "abone": 0, "tutma": [], "rel": [], "ornek": []})
+        if v.get("rel") is not None:
+            t["rel"].append(v["rel"])
+        t["deneme"] += 1
+        t["izlenme"] += v.get("views", 0)
+        t["yorum"] += v.get("comments", 0)
+        t["abone"] += v.get("subs", 0) or 0
+        if v.get("retention") is not None:
+            t["tutma"].append(v["retention"])
+        if len(t["ornek"]) < (12 if s == "diger" else 2):
+            t["ornek"].append(v["title"][:60])
+    for t in tablo.values():
+        n = max(t["deneme"], 1)
+        t["ort_izlenme"] = round(t["izlenme"] / n, 1)
+        t["ort_yorum"] = round(t["yorum"] / n, 2)
+        t["ort_abone"] = round(t["abone"] / n, 2)
+        t["med_tutma"] = round(statistics.median(t["tutma"]), 1) if t["tutma"] else None
+        t["med_goreli"] = round(statistics.median(t["rel"]), 2) if t["rel"] else None
+        # zamana gore duzeltilmis izlenme varsa onu (100 = kendi doneminde tipik video), yoksa ham ortalama izlenme
+        temel = t["med_goreli"] * 100 if t["med_goreli"] is not None else t["ort_izlenme"]
+        tutma = min(t["med_tutma"], 100) if t["med_tutma"] is not None else 0
+        t["skor"] = round(temel + YORUM_AGIRLIK * t["ort_yorum"] + ABONE_AGIRLIK * t["ort_abone"] + TUTMA_AGIRLIK * tutma, 1)
+    return tablo
+
+
+def oner(tablo, bugun=None):
+    """-> {sutun, neden, mod:'veri-topla'|'somur'|'kesif', tablo_satirlari}"""
+    bugun = bugun or datetime.date.today()
+    aktif = aktif_sutunlar(bugun)
+    elenen = []
+    deneyimli = {s: tablo[s]["skor"] for s in aktif if s in tablo and tablo[s]["deneme"] >= MIN_DENEME}
+    if deneyimli:
+        en = max(deneyimli.values())
+        elenen = [s for s in aktif if s in tablo and tablo[s]["deneme"] >= ELEME_N and tablo[s]["skor"] < ELEME_ORAN * en]
+        aktif = [s for s in aktif if s not in elenen] or aktif
+    n = {s: tablo.get(s, {}).get("deneme", 0) for s in aktif}
+    eksik = [s for s in aktif if n[s] < MIN_DENEME]
+    if eksik:
+        s = min(eksik, key=lambda x: (n[x], aktif.index(x)))
+        return {"sutun": s, "mod": "veri-topla", "elenen": elenen,
+                "neden": f"{SUTUNLAR[s]['ad']} henüz {n[s]}/{MIN_DENEME} kez denendi; karar vermek için her sütun en az {MIN_DENEME} kez denenir."
+                         + (f" (Düşük sonuçlu, öneri dışı: {', '.join(SUTUNLAR[e]['ad'] for e in elenen)})" if elenen else "")}
+    en_iyi = max(aktif, key=lambda x: tablo[x]["skor"])
+    rng = random.Random(bugun.isoformat())
+    if rng.random() < SOMURU:
+        return {"sutun": en_iyi, "mod": "somur", "elenen": elenen,
+                "neden": f"{SUTUNLAR[en_iyi]['ad']} şimdiye dek en iyi sonucu verdi (skor {tablo[en_iyi]['skor']}: ort. {tablo[en_iyi]['ort_izlenme']} izlenme, {tablo[en_iyi]['ort_yorum']} yorum)."}
+    diger = [s for s in aktif if s != en_iyi] or aktif
+    s = min(diger, key=lambda x: (n[x], aktif.index(x)))
+    return {"sutun": s, "mod": "kesif", "elenen": elenen, "neden": f"Keşif günü (%{int((1-SOMURU)*100)}): {SUTUNLAR[s]['ad']} daha az denendi ({n[s]} video)."}
+
+
+def satirlar(tablo, aktif=None):
+    aktif = aktif or aktif_sutunlar()
+    out = []
+    for s in list(SUTUNLAR) + ["diger"]:
+        t = tablo.get(s)
+        out.append({"sutun": s, "ad": SUTUNLAR.get(s, {}).get("ad", "Diğer / sınıflanamadı"), "aktif": s in aktif,
+                    "deneme": t["deneme"] if t else 0, "ort_izlenme": t["ort_izlenme"] if t else None,
+                    "ort_yorum": t["ort_yorum"] if t else None, "skor": (t["skor"] if t and t["deneme"] >= MIN_DENEME else None),   # <3 denemede skor gosterilmez (anlamsiz)
+                    "ort_abone": t["ort_abone"] if t else None, "med_tutma": t["med_tutma"] if t else None,
+                    "med_goreli": t.get("med_goreli") if t else None,
+                    "ornek": t["ornek"] if t else []})
+    return out
