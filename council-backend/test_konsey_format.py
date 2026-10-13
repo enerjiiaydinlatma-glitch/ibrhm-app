@@ -67,6 +67,23 @@ class KapiTest(unittest.TestCase):
         self.assertIn("ACILIS_TEKRAR", kodlar(IYI, gecmis_ilk=["Free shipping is odd", "Free shipping is cheap"]))
 
 
+class OrnekTest(unittest.TestCase):
+    def test_komut_icindeki_ornek_kapidan_gecer(self):
+        b, t, h = parse(kf.ORNEK)
+        self.assertEqual(kf.kontrol(b, t, h), [])
+        self.assertIn(kf.ORNEK, kf.PROMPT.format(topic="x"))
+
+    def test_baslik_duzelt(self):
+        self.assertEqual(kf.baslik_duzelt("is free shipping really free"), "Is free shipping really free?")
+        self.assertEqual(kf.baslik_duzelt("Free shipping is a story"), "Free shipping is a story")
+        self.assertEqual(kf.baslik_duzelt("Why subscriptions pile up?"), "Why subscriptions pile up?")
+        self.assertEqual(kf.baslik_duzelt(""), "")
+
+    def test_uzun_satir_engellenir(self):
+        uzun = IYI.replace("Stores add the shipping cost into item prices.", "Stores add the shipping cost into the item prices that you see on every single product page today.")
+        self.assertIn("SATIR_UZUN", kodlar(uzun))
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")

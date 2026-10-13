@@ -30,9 +30,19 @@ SKOR_YOL = os.path.join(ENGINE, "konsey_skor.json")
 
 SIRA = ["aura", "alpha", "beta", "delta", "gamma", "aura"]
 BASLIK_MAX = 40
-TOPLAM_KELIME_MAX = 90
-SATIR_KELIME_MAX = 24
+TOPLAM_KELIME_MAX = 80
+SATIR_KELIME_MAX = 16      # 2-5. satirlar
+KAPANIS_KELIME_MAX = 22    # skor cumlesi haric
 ENGELLEYICI = set(claim_lint.BLOCKING) | {"RAKAM"}
+
+ORNEK = """aura | SMALL BILLS ADD UP | Small bills just add up. | a pile of unopened envelopes on a kitchen table
+alpha | MONTHLY MATH | Each plan looks cheap alone. Together they eat your pay. That's one for me. | a calculator beside a stack of receipts
+beta | HOLD ON | Hold on. So I pay monthly for things I forgot I own? | a person squinting at a phone screen
+delta | SIDE SWITCH | Actually... Beta, you're correct. Forgetting is the real cost. | a seesaw tipping in an empty playground
+gamma | CHECK YOUR LIST | Review your plans every few months. I do this too, honestly. I forgot a gym plan. | a gym bag collecting dust in a closet
+aura | PICK A TEAM | Team Alpha or Team Beta? What's your guilty habit? | two doors, one red and one blue
+TITLE: Are Small Plans Worth It?
+HOOKTHUMB: SMALL BILLS ADD UP"""
 
 PROMPT = (
     "Write a vertical YouTube Short script (about 25 seconds spoken) for Sign Council: five AI characters argue about an "
@@ -41,12 +51,13 @@ PROMPT = (
     "Output EXACTLY 6 lines, in this exact speaker order: aura, alpha, beta, delta, gamma, aura. Format per line:\n"
     "SPEAKER | SCREEN | LINE | IMAGE\n"
     "- SCREEN: 2-4 word ALL-CAPS on-screen phrase.\n"
-    "- LINE: plain spoken English, no markdown, max 20 words (the last line max 24).\n"
+    "- LINE: how friends argue out loud - short, plain, concrete words, no jargon, no markdown. Lines 2-5: 14 words or "
+    "FEWER. Last line: 20 words or fewer. TOTAL under 75 words.\n"
     "- IMAGE: one-sentence cinematic photo prompt of a concrete everyday object or scene for this line; no text, logos, "
     "robots or AI cliches.\n\n"
     "CHARACTERS (each has a flaw that must show every time):\n"
-    "1 AURA opens with the HOOK: a line of 8 words or FEWER that holds a question, a number, or a contradiction. Never "
-    "start with 'The claim', 'Today', 'Hello', 'Did you know'. Aura secretly favors Alpha.\n"
+    "1 AURA opens with the HOOK: 4-7 words, a bold CONTRADICTION or a small concrete number about the topic (not a slow "
+    "'Why do...' question). Never start with 'The claim', 'Today', 'Hello', 'Did you know'. Aura secretly favors Alpha.\n"
     "2 ALPHA explains the mechanism coldly, then ends with the exact words 'That's one for me.' (he keeps score, "
     "prematurely).\n"
     "3 BETA starts with 'Hold on.' and pushes back with a sharp question. Beta never offers a solution.\n"
@@ -67,6 +78,8 @@ PROMPT = (
     "enforce, strap, quiet - use simple synonyms (say 'correct', not 'right').\n"
     "- Do not use comparisons with the word 'than'. Avoid 'always', 'never', 'everyone', 'nobody' as claims.\n"
     "- Every claim must be common knowledge about how everyday things work; no news, no accusations.\n"
+    "FORMAT EXAMPLE ONLY (different topic - copy the rhythm and the tells, never the content):\n"
+    + ORNEK + "\n"
     "After the 6 lines add:\n"
     "TITLE: <max 40 characters, no colon, no quotes, a question or contradiction about the topic>\n"
     "HOOKTHUMB: <3-5 ALL CAPS words for the opening card, not generic>"
@@ -87,6 +100,20 @@ def _entities():
                  "starbucks", "mcdonald", "disney", "samsung"]
         _ENTITY_RX = re.compile(r"\b(" + "|".join(re.escape(e) for e in sorted(set(ents), key=len, reverse=True)) + r")\b", re.I)
     return _ENTITY_RX
+
+
+_SORU_BASI = ("is", "are", "why", "how", "do", "does", "can", "will", "should", "what", "who", "when", "did", "would")
+
+
+def baslik_duzelt(title):
+    """Yalniz bicim: bas harf buyuk, soru kelimesiyle basliyorsa '?' ekle. Icerige dokunmaz."""
+    t = (title or "").strip()
+    if not t:
+        return t
+    t = t[0].upper() + t[1:]
+    if t.split()[0].lower() in _SORU_BASI and not t.endswith("?"):
+        t += "?"
+    return t
 
 
 def _kelimeler(s):
@@ -148,8 +175,12 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=()):
     if toplam > TOPLAM_KELIME_MAX:
         s.append(("UZUN", f"Toplam {toplam} kelime (en fazla {TOPLAM_KELIME_MAX}); ~25 sn hedefi."))
     for i, x in enumerate(L, 1):
-        if len(_kelimeler(x)) > SATIR_KELIME_MAX and i != 1:
-            s.append(("SATIR_UZUN", f"{i}. satir {len(_kelimeler(x))} kelime (en fazla {SATIR_KELIME_MAX})."))
+        if i == 6:
+            n, limit = len(_kelimeler(re.sub(r"^Score:[^.]*\.\s*", "", x))), KAPANIS_KELIME_MAX
+        else:
+            n, limit = len(_kelimeler(x)), SATIR_KELIME_MAX
+        if i != 1 and n > limit:
+            s.append(("SATIR_UZUN", f"{i}. satir {n} kelime (en fazla {limit})."))
     # kanca + baslik + kapanis: hook_gate (ayni kapi)
     for kod, msg in hook_gate.kontrol(title, L[0], L[-1], hookthumb):
         s.append((kod, msg))
@@ -195,6 +226,7 @@ def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=2):
     for n in range(1, deneme + 1):
         ham = llm(prompt)
         beats, title, hookthumb = parse(ham)
+        title = baslik_duzelt(title)
         beats = kapanisa_skor_ekle(beats, skor_yolu)
         sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk)
         if not sorunlar:
