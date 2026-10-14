@@ -39,6 +39,16 @@ try:
 except Exception as e:
     ok_cards, err = False, repr(e)
 ck("tum kartlar (57 cumle) hatasiz cizilir, 1920x1080", ok_cards, err)
+# --- skor tablosu: kapanis cumlesi footer'a (alt 90 px) binmemeli (10-14 gercek render'da goruldu)
+sb = next(s for s in SCRIPT["scenes"] if s["kind"] == "scoreboard")
+blank = copy.deepcopy(sb); blank["sentences"] = [dict(x, en="x") for x in blank["sentences"]]
+band = (0, ml.H - 88, ml.W, ml.H - 12)
+overlap = []
+for j in range(len(sb["sentences"])):
+    a = ml.render_card(SCRIPT, sb, j, 0.5).crop(band).tobytes()
+    b = ml.render_card(SCRIPT, blank, j, 0.5).crop(band).tobytes()
+    if a != b: overlap.append(j)
+ck("skor tablosu: gövde metni footer bandina binmez (tum cumleler)", not overlap, overlap)
 src = open(os.path.join("_studio", "make_longform.py"), encoding="utf-8").read()
 ck("modulde GOMULU anahtar yok (Voice Mesh anahtari ortam degiskeninden)", not [x for x in re.findall(r"[A-Za-z0-9_\-]{36,}", re.sub(r"https?://\S+", "", src)) if re.search(r"[A-Za-z]", x) and re.search(r"[0-9]", x)] and "AURA_VOICE_KEY" in src)
 

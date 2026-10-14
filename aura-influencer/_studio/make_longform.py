@@ -255,18 +255,24 @@ def render_card(script, scene, idx, progress):
         x = 130
         for k in VERDICTS:
             x = _chip(d, (x, 170), f"{k} {counts[k]}", VCOLOR[k], size=44) + 28
-        y = 330
+        y = 290
+        pitch = max(110, min(150, (H - 100 - 290 - 190) // max(len(rows), 1)))  # kapanis cumlesine ve footer'a yer birak
         for i, (r, v) in enumerate(zip(rows, verdicts)):
             d.text((130, y), f"{i + 1}.", font=_font(54, True), fill=MUTED)
             lines = _wrap(d, r, _font(54), 1100)
             for j, ln in enumerate(lines[:2]):
-                d.text((220, y + j * 62), ln, font=_font(54), fill=WHITE)
+                d.text((220, y + j * 58), ln, font=_font(54), fill=WHITE)
             _chip(d, (W - 130 - 300, y - 4), v, VCOLOR[v], size=40)
-            y += 150
+            y += pitch
         y += 10
-        for ln in _wrap(d, cur["en"], _font(44), maxw):
-            d.text((130, y), ln, font=_font(44), fill=MUTED)
-            y += 58
+        # kapanis cumlesi: footer'a (H-62) binmesin; sigmazsa punto kucult
+        for pt, lh in ((44, 58), (40, 52), (36, 46)):
+            ls = _wrap(d, cur["en"], _font(pt), maxw)
+            if y + len(ls) * lh <= H - 90:
+                break
+        for ln in ls:
+            d.text((130, y), ln, font=_font(pt), fill=MUTED)
+            y += lh
     elif kind == "outro":
         y = 330
         for ln in _wrap(d, cur["en"], _font(86, True), maxw):
