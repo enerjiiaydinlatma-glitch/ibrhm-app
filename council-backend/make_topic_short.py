@@ -686,6 +686,20 @@ def _konsey_uret(topic):
     return r
 
 
+def konsey_video(topic, r):
+    """Kapidan gecmis Konsey senaryosundan videoyu uretir (yukleme YOK); meta (.json dahil) dondurur."""
+    import konsey_format
+    desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\n#Shorts #SignCouncil")
+    meta = build(topic, "", title_override=r["title"], desc_override=desc,
+                 tags=konsey_format.etiketler(r["title"]),
+                 hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
+    meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
+    meta["konu"] = topic
+    with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    return meta
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--auto", action="store_true", help="Aura konuyu + acisini secsin (aura_editorial)")
@@ -724,15 +738,7 @@ if __name__ == "__main__":
         if a.sadece_senaryo:
             print("\n(--sadece-senaryo: video uretilmedi)")
             raise SystemExit(0)
-        desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\n#Shorts #SignCouncil")
-        import konsey_format
-        meta = build(a.topic, "", title_override=r["title"], desc_override=desc,
-                     tags=konsey_format.etiketler(r["title"]),
-                     hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
-        meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
-        meta["konu"] = a.topic
-        with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
-            json.dump(meta, f, ensure_ascii=False, indent=2)
+        meta = konsey_video(a.topic, r)
         print(f"\nSabitlenecek yorum: {meta['sabit_yorum']}")
         raise SystemExit(0)
 
