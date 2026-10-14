@@ -1096,6 +1096,12 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="gm_tt" class="sub"></div>
 <h2>&#128197; 6) Haftalik Rapor</h2>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="qa" style="width:auto" onclick="gmReport(this)">&#128196; Simdi Rapor Uret (+ aksiyon plani)</button><select id="gm_rep_sel" onchange="gmShowReport()" style="width:auto"></select><span id="gm_rep_info" class="sub"></span></div>
+<h2>&#127910; 8) Uzun Video (Hype or Real: Haftanin Skor Tablosu)</h2>
+<div class="sub">5-10 dk, 16:9, her cumlede kaynakli kanit karti + karar damgasi. Senaryolar <b>_studio/longform/*.json</b>. Render sesi <b>Voice Mesh</b> ile uretir (birkac dakika, arka planda). Yayin icin <b>onay penceresi</b> + sunucuda confirm sart; ilk testte "Listelenmemis" sec.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="lf_sel" style="width:auto" onchange="lfShow()"></select><button class="qa" style="width:auto" onclick="lfList()">&#8635; Yenile</button><button class="qa" style="width:auto;background:#238636" id="lf_render_btn" onclick="lfRender(this)">&#127916; Render Et (ses + video)</button></div>
+<div id="lf_info" class="sub" style="margin-top:6px"></div>
+<div id="lf_status" style="margin-top:6px"></div>
+<div id="lf_pub" style="margin-top:6px"></div>
 <h2>&#129504; 7) Ogrenme Sistemi (kendi verimizden)</h2>
 <div class="sub">Gunde bir otomatik: veri topla, istatistik (permutasyon + FDR) uygula, yalniz kanitlananlari YUMUSAK ipucu yap. Sert kurallara (Ingilizce, uydurma yok, onayli yayin) HICBIR zaman dokunmaz. Cogu zaman sonuc cikmaz - normal.</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="qa" style="width:auto" onclick="gmLearn(this)">&#129504; Ogrenme Turu Calistir</button><label class="sub">CTR CSV (YouTube Studio &gt; Verileri indir): <input type="file" accept=".csv" onchange="gmCtr(this)"></label></div>
@@ -1942,6 +1948,66 @@ async function tdMake(btn){
 }
 tdLoad();
 setInterval(() => { const v = document.getElementById('view-today'); if(v && v.classList.contains('active-view')) tdLoad(true); }, 300000);
+
+// ---- UZUN VIDEO paneli (JS'te ters egik cizgi YOK) ----
+let LF = null, LF_TIMER = null;
+async function lfList(){
+  try { LF = await (await fetch('/api/longform/list')).json(); } catch(e) { document.getElementById('lf_info').textContent = 'Hata: ' + e; return; }
+  const sel = document.getElementById('lf_sel'); const cur = sel.value;
+  sel.innerHTML = (LF.scripts || []).map(x => '<option value="' + esc(x.name) + '">' + esc(x.title || x.name) + '</option>').join('');
+  if(cur) sel.value = cur;
+  lfShow();
+  lfStatus(LF.job);
+}
+function lfShow(){
+  const name = document.getElementById('lf_sel').value;
+  const x = ((LF || {}).scripts || []).find(y => y.name === name);
+  const box = document.getElementById('lf_info'), pub = document.getElementById('lf_pub');
+  if(!x){ box.innerHTML = 'Senaryo yok (_studio/longform/*.json).'; pub.innerHTML = ''; return; }
+  let h = x.blockers.length ? '<div style="color:#f85149">Senaryo kurallari ENGEL: ' + x.blockers.map(esc).join(' | ') + '</div>' : '<div style="color:#3fb950">&#10003; Senaryo kurallari temiz</div>';
+  h += x.notes.length ? '<div>' + x.notes.map(esc).join(' | ') + '</div>' : '';
+  box.innerHTML = h;
+  let p = '';
+  if(x.published){ p = '<div style="color:#3fb950">&#10003; Yayinlandi: <a href="' + esc(x.published) + '" target="_blank" style="color:#58a6ff">' + esc(x.published) + '</a></div>'; }
+  else if(x.rendered){
+    p = '<a class="qa" style="width:auto;text-decoration:none;display:inline-block" href="/download/' + encodeURIComponent(x.video) + '" download>&#11015; Izle / Indir</a> ' +
+        '<select id="lf_priv" style="width:auto"><option value="unlisted">Listelenmemis (once bununla)</option><option value="private">Gizli</option><option value="public">Herkese acik</option></select> ' +
+        '<button class="qa" style="width:auto;background:#8957e5" onclick="lfPublish(this)">&#128640; YouTube' + String.fromCharCode(39) + 'a Yukle</button>';
+  } else { p = '<div class="sub">Henuz render edilmedi.</div>'; }
+  pub.innerHTML = p;
+}
+function lfStatus(job){
+  const box = document.getElementById('lf_status');
+  if(!job || job.state === 'idle'){ box.textContent = ''; return; }
+  if(job.state === 'running'){ box.innerHTML = '<span style="color:#d29922">&#9203; Uretiliyor: ' + esc(job.msg || '') + ' (sayfayi yenileme, bekle)</span>'; return; }
+  if(job.state === 'error'){ box.innerHTML = '<span style="color:#f85149">Hata: ' + esc(job.error || '') + '</span>'; return; }
+  if(job.state === 'done' && job.result){ box.innerHTML = '<span style="color:#3fb950">&#10003; Render bitti: ' + Math.round(job.result.duration / 60 * 10) / 10 + ' dk.</span> <span class="sub">Bolumler: ' + (job.result.chapters || []).map(esc).join(' | ') + '</span>'; }
+}
+async function lfPoll(){
+  clearInterval(LF_TIMER);
+  LF_TIMER = setInterval(async () => {
+    try { const j = await (await fetch('/api/longform/list')).json(); LF = j; lfStatus(j.job); if(j.job.state !== 'running'){ clearInterval(LF_TIMER); lfShow(); document.getElementById('lf_render_btn').disabled = false; } } catch(e) {}
+  }, 3000);
+}
+async function lfRender(btn){
+  const name = document.getElementById('lf_sel').value; if(!name) return;
+  if(!confirm('Render baslasin mi? Ses motoru calisir ve birkac dakika surer. Bu sirada baska uretim/yayin yapma.')) return;
+  btn.disabled = true;
+  const j = await gmPost('/api/longform/render', {name: name});
+  if(!j.ok){ document.getElementById('lf_status').innerHTML = '<span style="color:#f85149">' + esc(j.error) + '</span>'; btn.disabled = false; return; }
+  lfStatus({state: 'running', msg: 'basliyor'}); lfPoll();
+}
+async function lfPublish(btn){
+  const name = document.getElementById('lf_sel').value; const priv = document.getElementById('lf_priv').value;
+  const label = {unlisted: 'LISTELENMEMIS', private: 'GIZLI', public: 'HERKESE ACIK'}[priv];
+  if(!confirm('YouTube' + String.fromCharCode(39) + 'a ' + label + ' olarak yuklensin mi? Bu islem geri alinmaz (silme ayri bir islemdir). Videoyu izlediysen Tamam.')) return;
+  btn.disabled = true; btn.textContent = 'Yukleniyor (birkac dakika, tekrar tiklama)...';
+  try { const j = await gmPost('/api/longform/publish', {name: name, privacy: priv, confirm: true});
+    if(!j.ok) alert(j.error || 'Basarisiz'); else alert('Yuklendi: ' + j.link + (j.tr_cc ? ' (Turkce CC eklendi)' : ' (UYARI: Turkce CC dogrulanamadi)')); }
+  catch(e) { alert('Hata: ' + e); }
+  lfList();
+}
+lfList();
 </script>
 <script>
 async function loadStatus(){
@@ -2811,6 +2877,132 @@ def _learn_ctx():
         return ""
 
 
+# ---- UZUN VIDEO (2026-10-14): _studio/longform/*.json senaryolari -> make_longform.py ----
+LONGFORM_DIR = os.path.join(STUDIO_DIR, "longform")
+LF_JOB = {"state": "idle", "msg": "", "name": None, "result": None, "error": None}
+
+
+def _lf_path(name):
+    name = os.path.basename(str(name or ""))
+    if not name.endswith(".json"):
+        return None, name
+    p = os.path.join(LONGFORM_DIR, name)
+    return (p if os.path.isfile(p) else None), name
+
+
+def _lf_files(name):
+    stem = os.path.splitext(name)[0]
+    mp4 = os.path.join(OUTPUT_DIR, f"aura_longform_{stem}.mp4")
+    base = os.path.splitext(mp4)[0]
+    return {"mp4": mp4, "tr_srt": base + "_tr.srt", "en_srt": base + "_en.srt", "description": base + "_description.txt",
+            "published": os.path.join(LONGFORM_DIR, stem + ".published.json")}
+
+
+def _lf_list():
+    import make_longform as ml
+    out = []
+    if os.path.isdir(LONGFORM_DIR):
+        for fn in sorted(os.listdir(LONGFORM_DIR)):
+            if not fn.endswith(".json") or fn.endswith(".published.json"):
+                continue
+            try:
+                sc = json.load(open(os.path.join(LONGFORM_DIR, fn), encoding="utf-8"))
+                checks = ml.check_script(sc)
+            except Exception as e:
+                out.append({"name": fn, "title": "(okunamadi)", "blockers": [f"{type(e).__name__}: {e}"], "notes": [], "rendered": False})
+                continue
+            f = _lf_files(fn)
+            pub = None
+            if os.path.exists(f["published"]):
+                try:
+                    pub = json.load(open(f["published"], encoding="utf-8")).get("link")
+                except Exception:
+                    pub = "?"
+            out.append({"name": fn, "title": sc.get("title", ""), "blockers": [l for ok, l, d in checks if ok is False],
+                        "notes": [l for ok, l, d in checks if ok is None], "rendered": os.path.exists(f["mp4"]),
+                        "video": os.path.basename(f["mp4"]) if os.path.exists(f["mp4"]) else None, "published": pub})
+    return {"ok": True, "scripts": out, "job": dict(LF_JOB)}
+
+
+def _lf_worker(name, path):
+    import make_longform as ml
+    try:
+        script = json.load(open(path, encoding="utf-8"))
+        f = _lf_files(name)
+        r = ml.make_longform(script, f["mp4"], ml.voice_mesh_tts(VOICE_MESH_URL, VOICE_MESH_KEY), os.path.join(VIDEO_WORK_DIR, "longform"),
+                             status=lambda m: LF_JOB.update(msg=m))
+        LF_JOB.update(state="done", msg="bitti", result={"video": os.path.basename(f["mp4"]), "duration": round(r["duration"], 1), "chapters": r["chapters"]}, error=None)
+    except Exception as e:
+        LF_JOB.update(state="error", error=f"{type(e).__name__}: {str(e)[:400]}", msg="hata")
+    finally:
+        PUBLISH_LOCK.release()
+
+
+def _lf_render(name):
+    path, name = _lf_path(name)
+    if not path:
+        return {"ok": False, "error": "Senaryo bulunamadi."}
+    if LF_JOB["state"] == "running":
+        return {"ok": False, "error": "Bir uzun video zaten uretiliyor."}
+    import make_longform as ml
+    blockers = [l for ok, l, d in ml.check_script(json.load(open(path, encoding="utf-8"))) if ok is False]
+    if blockers:
+        return {"ok": False, "error": "Senaryo kurallari: " + "; ".join(blockers)}
+    if not PUBLISH_LOCK.acquire(blocking=False):
+        return {"ok": False, "error": "Baska bir uretim/yayin suruyor, bekle."}
+    LF_JOB.update(state="running", msg="basliyor", name=name, result=None, error=None)
+    threading.Thread(target=_lf_worker, args=(name, path), daemon=True).start()
+    return {"ok": True, "started": name}
+
+
+def _lf_publish(name, privacy, confirm):
+    path, name = _lf_path(name)
+    if not path:
+        return {"ok": False, "error": "Senaryo bulunamadi."}
+    if confirm is not True:
+        return {"ok": False, "error": "confirm:true gerekli (onay penceresi)."}
+    if privacy not in ("public", "unlisted", "private"):
+        return {"ok": False, "error": "Gecersiz gorunurluk."}
+    f = _lf_files(name)
+    if os.path.exists(f["published"]):
+        return {"ok": False, "error": "Bu senaryo zaten yayinlanmis: " + str(json.load(open(f["published"], encoding="utf-8")).get("link"))}
+    if not os.path.exists(f["mp4"]) or not os.path.exists(f["description"]):
+        return {"ok": False, "error": "Once render et."}
+    script = json.load(open(path, encoding="utf-8"))
+    title = script["title"]
+    try:
+        import insights
+        if any(v["title"].strip().lower() == title.strip().lower() for v in insights.channel_stats()["videos"]):
+            return {"ok": False, "error": f"'{title}' basligi kanalda zaten var (cift yayin engellendi)."}
+    except Exception as e:
+        return {"ok": False, "error": f"Kanal kontrolu yapilamadi ({type(e).__name__}); cift yayin riski, yayin durduruldu."}
+    if LF_JOB["state"] == "running" or not PUBLISH_LOCK.acquire(blocking=False):
+        return {"ok": False, "error": "Baska bir uretim/yayin suruyor, bekle."}
+    try:
+        cmd = [sys.executable, PUBLISH_SCRIPT, "--video", f["mp4"], "--title", title, "--description-file", f["description"],
+               "--privacy", privacy, "--tags", script.get("tags", "AuraAI,HypeOrReal"), "--tr-srt", f["tr_srt"]]
+        pr = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+        out = (pr.stdout or "") + "\n" + (pr.stderr or "")
+        m = re.search(r"Link:\s*(\S+)", out)
+        if pr.returncode != 0 or not m:
+            return {"ok": False, "error": "Yayin basarisiz: " + out[-400:]}
+        link = m.group(1)
+        vid = link.rstrip("/").split("/")[-1].split("?")[0]
+        tr_ok = _verify_tr(vid, f["tr_srt"])
+        json.dump({"link": link, "youtube_id": vid, "privacy": privacy, "at": time.strftime("%Y-%m-%d %H:%M"), "tr_cc": bool(tr_ok)},
+                  open(f["published"], "w", encoding="utf-8"), ensure_ascii=False)
+        try:
+            import learner
+            learner.log_script(vid, title, " ".join(x["en"] for sc in script["scenes"] for x in sc["sentences"]))
+        except Exception:
+            pass
+        return {"ok": True, "link": link, "tr_cc": bool(tr_ok), "privacy": privacy}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"}
+    finally:
+        PUBLISH_LOCK.release()
+
+
 TRENDS_CACHE = os.path.join(STUDIO_DIR, "trends_cache.json")
 TRENDS_SYSTEM = (
     "You scan the web (live Google Search results are provided) for the most-discussed REAL AI industry news stories of the last 5 days. "
@@ -3546,7 +3738,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"usage": _ai_usage_get(), "code_prefer": _ai_settings()["code_prefer"]})
         elif u.path.startswith("/download/"):
             _serve_download(self, u.path[len("/download/"):])
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/")) or u.path in ("/api/today", "/api/trends"):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends"):
             q = parse_qs(u.query)
             try:
                 import insights
@@ -3565,6 +3757,8 @@ class Handler(BaseHTTPRequestHandler):
                             self._json({"ok": True, "status": st, "error": f"{type(e).__name__}: {str(e)[:300]}", "rows": []})
                     else:
                         self._json({"ok": True, "status": st, "rows": []})
+                elif u.path == "/api/longform/list":
+                    self._json(_lf_list())
                 elif u.path == "/api/today":
                     self._json(_today_state())
                 elif u.path == "/api/trends":
@@ -3880,7 +4074,7 @@ class Handler(BaseHTTPRequestHandler):
             name = f"{time.strftime('%Y%m%d-%H%M')}-{slug}.md"
             open(os.path.join(DOCS_DIR, name), "w", encoding="utf-8").write(content)
             self._json({"name": name})
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/")) or u.path in ("/api/today", "/api/trends"):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends"):
             try:
                 import insights
                 if u.path == "/api/insights/hashtags":
@@ -3963,6 +4157,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_growth_agenda_candidate(body.get("topic"), body.get("series")))
                 elif u.path == "/api/growth/report":
                     self._json(_growth_report())
+                elif u.path == "/api/longform/render":
+                    self._json(_lf_render(body.get("name")))
+                elif u.path == "/api/longform/publish":
+                    self._json(_lf_publish(body.get("name"), body.get("privacy", "unlisted"), body.get("confirm")))
                 elif u.path == "/api/learn/run":
                     import learner
                     self._json(learner.run_once())

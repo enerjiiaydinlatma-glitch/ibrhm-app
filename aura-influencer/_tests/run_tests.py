@@ -139,6 +139,14 @@ def main():
             check(f"Hype or Real serisi birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Hype or Real serisi birim testleri", False, (su.stderr[-400:] + su.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "longform_unit.py")) and shutil.which("ffmpeg"):
+        shutil.copy2(os.path.join(ROOT, "_tests", "longform_unit.py"), os.path.join(work, "_longform_unit.py"))
+        lf = subprocess.run([sys.executable, "_longform_unit.py"], cwd=work, capture_output=True, text=True, timeout=900, env=dict(os.environ, AURA_NO_OPEN="1", AURA_STUDIO_PORT="8892"))
+        try:
+            jr = json.loads(lf.stdout.strip().splitlines()[-1])
+            check(f"Uzun video birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("Uzun video birim testleri", False, (lf.stderr[-400:] + lf.stdout[-300:]) or repr(ex))
     node = shutil.which("node")
     if node and os.path.exists(os.path.join(work, "_page_test.js")):
         r = subprocess.run([node, "--check", "_page_test.js"], cwd=work, capture_output=True, text=True)
