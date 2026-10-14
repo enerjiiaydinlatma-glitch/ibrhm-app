@@ -21,12 +21,36 @@ class YukleTest(unittest.TestCase):
         self.kayit = os.path.join(self.d, "kayit.jsonl")
         self.cagri = []
 
-    def upload(self, f, t, d, tags):
+    def upload(self, f, t, d, tags, publish_at=None):
         self.cagri.append((f, t, d, tags))
+        self.publish_at = publish_at
         return "VID1"
 
-    def calistir(self, onay=True):
-        return ky.yukle(self.meta, self.upload, lambda m: onay, bugun=BUGUN, engine=self.d, kayit_yolu=self.kayit)
+    def calistir(self, onay=True, yayin_utc=None):
+        return ky.yukle(self.meta, self.upload, lambda m: onay, bugun=BUGUN, engine=self.d, kayit_yolu=self.kayit, yayin_utc=yayin_utc)
+
+    def test_zamanli_yukleme_publish_at_gecer_ve_kayda_yazar(self):
+        vid, msg = self.calistir(yayin_utc="2026-10-14T23:30:00Z")
+        self.assertEqual(vid, "VID1")
+        self.assertEqual(self.publish_at, "2026-10-14T23:30:00Z")
+        satir = json.loads(open(self.kayit, encoding="utf-8").read().strip())
+        self.assertEqual((satir["gizlilik"], satir["yayin_utc"]), ("scheduled", "2026-10-14T23:30:00Z"))
+
+    def test_zamansiz_yukleme_publish_at_yok(self):
+        self.calistir()
+        self.assertIsNone(self.publish_at)
+
+    def test_zamanla_utc_donusumu_ve_sinirlar(self):
+        simdi = datetime.datetime(2026, 10, 14, 15, 0)            # UTC
+        self.assertEqual(ky.zamanla_utc("2026-10-15 02:30", simdi), "2026-10-14T23:30:00Z")   # TR 02:30 = UTC 23:30
+        with self.assertRaises(ValueError):
+            ky.zamanla_utc("2026-10-14 18:05", simdi)             # TR 18:05 = UTC 15:05, 10 dk'dan yakin
+        with self.assertRaises(ValueError):
+            ky.zamanla_utc("2026-10-10 12:00", simdi)             # gecmis
+        with self.assertRaises(ValueError):
+            ky.zamanla_utc("2026-12-30 12:00", simdi)             # 30 gunden uzak
+        with self.assertRaises(ValueError):
+            ky.zamanla_utc("yarin aksam", simdi)                  # bicim
 
     def test_basarili_yukleme_sayaci_ve_kaydi_yazar(self):
         vid, msg = self.calistir()

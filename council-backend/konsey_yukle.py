@@ -5,7 +5,8 @@ Kullanim:
   python konsey_yukle.py --meta output\\shorts\\topic\\xxx.json
 
 Guvenlik (degismez):
-- Yalnizca 'private'. Public/unlisted/zamanlama secenegi YOK; yayin karari Studio'da insanda.
+- Varsayilan 'private'. Public/unlisted secenegi YOK. --zamanla 'YYYY-MM-DD HH:MM' (Turkiye saati) verilirse video private yuklenir ve
+  o saatte YouTube tarafindan kendiliginden herkese acik olur: saati senin vermen ve ozeti onaylaman yayin onayidir; saat >=10 dk ileride, <=30 gun icinde olmali.
 - Gunluk video siniri (daily_limit.MAX_DAILY) once kontrol edilir; --force YOK. Sayac mevcut sistemle ayni dosyayi kullanir
   (_engine/<tarih>/.uploaded_today.json).
 - Yalnizca 'sabit_yorum' alani olan (make_topic_short --konsey ciktisi) meta dosyalarini yukler.
@@ -28,6 +29,26 @@ ENGINE = os.path.join(HERE, "_engine")
 TOPIC_DIR = os.path.join(HERE, "output", "shorts", "topic")
 KAYIT_YOL = os.path.join(ENGINE, "konsey_kayit.jsonl")
 ATLA = {"konsey_son_senaryo.json"}
+
+
+TR_FARK = datetime.timedelta(hours=3)        # Turkiye sabit UTC+3
+MIN_ILERI = datetime.timedelta(minutes=10)
+MAX_ILERI = datetime.timedelta(days=30)
+
+
+def zamanla_utc(metin, simdi_utc=None):
+    """'YYYY-MM-DD HH:MM' (TURKIYE saati) -> 'YYYY-MM-DDTHH:MM:00Z'. Gecmis/cok yakin (<10 dk)/cok uzak (>30 gun) saat reddedilir (ValueError)."""
+    simdi = simdi_utc or datetime.datetime.utcnow()
+    try:
+        tr = datetime.datetime.strptime((metin or "").strip(), "%Y-%m-%d %H:%M")
+    except ValueError:
+        raise ValueError("Saat bicimi 'YYYY-MM-DD HH:MM' (Turkiye saati) olmali, ornek: 2026-10-15 02:30")
+    utc = tr - TR_FARK
+    if utc < simdi + MIN_ILERI:
+        raise ValueError("Zaman gecmiste ya da 10 dakikadan yakin; ileri bir saat ver.")
+    if utc > simdi + MAX_ILERI:
+        raise ValueError("Zaman 30 gunden uzak; daha yakin bir saat ver.")
+    return utc.strftime("%Y-%m-%dT%H:%M:00Z")
 
 
 def gunluk_dosya(bugun=None, engine=ENGINE):
@@ -66,36 +87,39 @@ def kontrol(meta, bugun=None, engine=ENGINE):
     return s
 
 
-def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None):
+def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None, yayin_utc=None):
     """Analiz icin etiket satiri (haftalik raporun sonraki surumu bunu kullanir)."""
     import haftalik_rapor
     hook = ilk_cumle(meta.get("script", ""))
     satir = {"video_id": video_id, "ts": (simdi or datetime.datetime.now()).isoformat(timespec="seconds"),
              "format": "konsey", "konu": meta.get("konu", ""), "baslik": meta.get("title", ""), "kanca": hook,
-             "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "private"}
+             "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "scheduled" if yayin_utc else "private", "yayin_utc": yayin_utc or ""}
     os.makedirs(os.path.dirname(yol), exist_ok=True)
     with open(yol, "a", encoding="utf-8") as f:
         f.write(json.dumps(satir, ensure_ascii=False) + "\n")
     return satir
 
 
-def yukle(meta, upload, onay, bugun=None, engine=ENGINE, kayit_yolu=KAYIT_YOL):
-    """upload(file, title, description, tags)->video_id (private). onay(metin)->bool. -> (video_id|None, mesajlar)"""
+def yukle(meta, upload, onay, bugun=None, engine=ENGINE, kayit_yolu=KAYIT_YOL, yayin_utc=None):
+    """upload(file, title, description, tags, publish_at)->video_id (private; publish_at verilirse o ana kadar private). onay(metin)->bool.
+    -> (video_id|None, mesajlar)"""
     sorun = kontrol(meta, bugun, engine)
     if sorun:
         return None, sorun
     gf = gunluk_dosya(bugun, engine)
     _ok, info = daily_limit.can_upload(gf)
-    ozet = (f"\nYUKLENECEK (OZEL / private, herkese acik DEGIL):\n  Baslik   : {meta['title']}\n  Dosya    : {meta['file']}\n"
+    baslik = (f"\nYUKLENECEK ve ZAMANLANACAK: {yayin_utc} (UTC) tarihinde HERKESE ACIK olacak (o ana kadar ozel):"
+              if yayin_utc else "\nYUKLENECEK (OZEL / private, herkese acik DEGIL):")
+    ozet = (f"{baslik}\n  Baslik   : {meta['title']}\n  Dosya    : {meta['file']}\n"
             f"  Sure     : ~{meta.get('seconds', '?')} sn\n  Aciklama : {meta['description'].splitlines()[0]}\n"
             f"  Bugun    : {info['count']}/{daily_limit.MAX_DAILY} video yuklendi\n")
     if not onay(ozet):
         return None, ["Onay verilmedi, yuklenmedi."]
     etiket = konsey_format.etiketler(meta["title"].replace("#Shorts", ""))   # eski AI-haber etiketleri tasinmaz
-    vid = upload(meta["file"], meta["title"], meta["description"], etiket)
+    vid = upload(meta["file"], meta["title"], meta["description"], etiket, yayin_utc)
     os.makedirs(os.path.dirname(gf), exist_ok=True)
     daily_limit.record_upload(gf, vid)
-    kayit_yaz(meta, vid, kayit_yolu)
+    kayit_yaz(meta, vid, kayit_yolu, yayin_utc=yayin_utc)
     return vid, []
 
 
@@ -110,7 +134,16 @@ def _onay(metin):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Konsey Short'unu OZEL yukle (yayinlamaz)")
     ap.add_argument("--meta", default=None, help="meta .json (varsayilan: en yeni Konsey ciktisi)")
+    ap.add_argument("--zamanla", metavar="'YYYY-MM-DD HH:MM'", default=None,
+                    help="TURKIYE saatiyle yayin zamani: video ozel yuklenir, o saatte kendiliginden herkese acik olur (saati veren onay verir)")
     a = ap.parse_args(argv)
+    yayin = None
+    if a.zamanla:
+        try:
+            yayin = zamanla_utc(a.zamanla)
+        except ValueError as e:
+            print(e)
+            return 2
     yol = a.meta or son_meta()
     if not yol:
         print(f"Meta dosyasi bulunamadi: {TOPIC_DIR}")
@@ -118,19 +151,21 @@ def main(argv=None):
     with open(yol, encoding="utf-8") as f:
         meta = json.load(f)
 
-    def upload(file, title, desc, tags):
+    def upload(file, title, desc, tags, publish_at=None):
         from upload_youtube import upload_video
-        return upload_video(file, title, desc, tags=tags, privacy_status="private")
-    vid, mesajlar = yukle(meta, upload, _onay)
+        return upload_video(file, title, desc, tags=tags, privacy_status="private", publish_at=publish_at)
+    vid, mesajlar = yukle(meta, upload, _onay, yayin_utc=yayin)
     if not vid:
         for m in mesajlar:
             print(m)
         return 2
-    print(f"\nYUKLENDI (OZEL): https://youtu.be/{vid}")
-    print("\nSIRADAKI (Studio, sen yaparsin):")
-    print("  1) studio.youtube.com > Icerik > videoyu ac, izle.")
-    print("  2) Gorunurluk: 'Zamanla' sec, ABD aksami (~02:00-04:00 TR) bir saat belirle. Yayin karari sende.")
-    print("  3) Yayinlandiktan sonra su yorumu yaz ve SABITLE (API yorum sabitlemeyi desteklemez):")
+    if yayin:
+        print(f"\nYUKLENDI ve ZAMANLANDI: https://youtu.be/{vid}  ({a.zamanla} TR saatinde kendiliginden herkese acik olacak)")
+        print("\nSIRADAKI (yalniz bu, Studio'da): video yayinlaninca su yorumu yaz ve SABITLE (API yorum sabitlemeyi desteklemez):")
+    else:
+        print(f"\nYUKLENDI (OZEL): https://youtu.be/{vid}")
+        print("\nSIRADAKI: yayin icin bir sonraki seferde --zamanla 'YYYY-MM-DD HH:MM' kullan (Studio'ya gerek kalmaz).")
+        print("Yayinlandiktan sonra su yorumu yaz ve SABITLE (API yorum sabitlemeyi desteklemez):")
     print(f"     {meta['sabit_yorum']}")
     return 0
 
