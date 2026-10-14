@@ -355,6 +355,17 @@ def baslik_degistir(yol, metin):
     return True, []
 
 
+def ekran_degistir(yol, metin):
+    """Kayitli senaryonun ilk kart metnini (HOOKTHUMB) degistirir (BUYUK HARF). Kapidan gecmezse dosya DEGISMEZ. -> (kaydedildi, sorunlar)"""
+    topic, beats, title, hookthumb = senaryo_yukle(yol)
+    yeni = " ".join((metin or "").split()).upper()
+    sorunlar = kontrol(beats, title, yeni)
+    if sorunlar:
+        return False, sorunlar
+    senaryo_kaydet(yol, topic, {"title": title, "hookthumb": yeni, "beats": beats})
+    return True, []
+
+
 # --------------------------------------------------------------------------- uretim
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
@@ -386,8 +397,18 @@ def main(argv=None):
     ap.add_argument("--skor", action="store_true", help="skoru goster")
     ap.add_argument("--satir", nargs=2, metavar=("N", "METIN"), help="kayitli senaryonun N. satirini degistir (kapidan gecerse)")
     ap.add_argument("--baslik", metavar="METIN", help="kayitli senaryonun basligini degistir (kapidan gecerse)")
-    ap.add_argument("--dosya", default=KAYIT_YOL, help="--satir/--baslik icin senaryo dosyasi")
+    ap.add_argument("--ekran", metavar="METIN", help="kayitli senaryonun ilk kart metnini (3-5 kelime) degistir (kapidan gecerse)")
+    ap.add_argument("--dosya", default=KAYIT_YOL, help="--satir/--baslik/--ekran icin senaryo dosyasi")
     a = ap.parse_args(argv)
+    if a.ekran:
+        ok, sorunlar = ekran_degistir(a.dosya, a.ekran)
+        if ok:
+            print(f"Ilk kart degisti, kapidan gecti, kaydedildi: {' '.join(a.ekran.split()).upper()}")
+            return 0
+        print("KAPIDAN GECMEDI - dosya DEGISMEDI:")
+        for kod, msg in sorunlar:
+            print(f"  - {kod}: {msg}")
+        return 2
     if a.baslik:
         ok, sorunlar = baslik_degistir(a.dosya, a.baslik)
         if ok:

@@ -192,6 +192,22 @@ class SatirTest(unittest.TestCase):
         self.assertIn("BASLIK_40", {k for k, _ in sorun})
         self.assertEqual(open(self.yol, encoding="utf-8").read(), once)
 
+    def test_ekran_degisir(self):
+        ok, sorun = kf.ekran_degistir(self.yol, "three texts   left on read")
+        self.assertEqual((ok, sorun), (True, []))
+        self.assertEqual(kf.senaryo_yukle(self.yol)[3], "THREE TEXTS LEFT ON READ")
+
+    def test_gecersiz_ekran_dosyayi_degistirmez(self):
+        once = open(self.yol, encoding="utf-8").read()
+        ok, sorun = kf.ekran_degistir(self.yol, "TOO LONG TO FIT ON THE FIRST CARD")
+        self.assertFalse(ok)
+        self.assertIn("EKRAN_UZUNLUK", {k for k, _ in sorun})
+        self.assertEqual(open(self.yol, encoding="utf-8").read(), once)
+
+    def test_alpha_onerisi_kapidan_gecer(self):
+        ok, sorun = kf.satir_degistir(self.yol, 2, "Read receipts tell them you saw it. Silence feels like an answer. That's one for me.")
+        self.assertEqual((ok, sorun), (True, []))
+
     def test_gecersiz_satir_no(self):
         self.assertFalse(kf.satir_degistir(self.yol, 9, "x")[0])
 
