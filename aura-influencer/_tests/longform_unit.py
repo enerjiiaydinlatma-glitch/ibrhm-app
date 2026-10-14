@@ -39,6 +39,10 @@ try:
 except Exception as e:
     ok_cards, err = False, repr(e)
 ck("tum kartlar (57 cumle) hatasiz cizilir, 1920x1080", ok_cards, err)
+# --- YouTube kucuk resmi: 1280x720, <2 MB
+from PIL import Image
+_tp = ml.render_thumbnail(SCRIPT, os.path.join(tempfile.mkdtemp(), "t.png"))
+ck("kucuk resim: 1280x720 ve YouTube siniri (<2 MB)", Image.open(_tp).size == (1280, 720) and os.path.getsize(_tp) < 2_000_000, _tp)
 # --- skor tablosu: kapanis cumlesi footer'a (alt 90 px) binmemeli (10-14 gercek render'da goruldu)
 sb = next(s for s in SCRIPT["scenes"] if s["kind"] == "scoreboard")
 blank = copy.deepcopy(sb); blank["sentences"] = [dict(x, en="x") for x in blank["sentences"]]

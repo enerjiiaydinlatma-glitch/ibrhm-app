@@ -283,6 +283,46 @@ def render_card(script, scene, idx, progress):
     return img
 
 
+def render_thumbnail(script, out_path, size=(1280, 720), line2=None):
+    """YouTube kucuk resmi (1280x720, <2 MB). Hicbir KARAR gostermez; seri adi + '4 claims, scored' + uc rozet.
+    Yuklemek icin YouTube Studio > video > Kucuk resim (otomatik yuklenmez)."""
+    from PIL import Image, ImageDraw
+    tw, th = size
+    img = Image.new("RGB", size, BG_TOP)
+    d = ImageDraw.Draw(img)
+    for y in range(th):
+        f = y / (th - 1)
+        d.line([(0, y), (tw, y)], fill=tuple(int(BG_TOP[i] + (BG_BOT[i] - BG_TOP[i]) * f) for i in range(3)))
+    n = sum(1 for s_ in script["scenes"] if s_.get("kind") == "claim")
+    line2 = line2 or f"{n} AI CLAIMS, SCORED"
+    # baslik: genislige sigana kadar kucult
+    pt = 220
+    while pt > 60 and d.textlength("HYPE OR REAL?", font=_font(pt, True)) > tw - 140:
+        pt -= 6
+    d.text((tw // 2, int(th * 0.30)), "HYPE OR REAL?", font=_font(pt, True), fill=ACCENT, anchor="mm")
+    pt2 = 96
+    while pt2 > 40 and d.textlength(line2, font=_font(pt2, True)) > tw - 160:
+        pt2 -= 4
+    d.text((tw // 2, int(th * 0.55)), line2, font=_font(pt2, True), fill=WHITE, anchor="mm")
+    # uc rozet, ortali
+    size_c = 54
+    f = _font(size_c, True)
+    widths = [d.textlength(v, font=f) + 44 for v in VERDICTS]
+    gap = 36
+    x = (tw - (sum(widths) + gap * (len(VERDICTS) - 1))) / 2
+    y = int(th * 0.72)
+    for v, w in zip(VERDICTS, widths):
+        d.rounded_rectangle([x, y, x + w, y + size_c + 30], radius=(size_c + 30) // 2, fill=VCOLOR[v])
+        d.text((x + 22, y + 13), v, font=f, fill=(15, 10, 25))
+        x += w + gap
+    d.text((tw // 2, th - 38), "Aura - an AI. Sources on screen.", font=_font(30), fill=MUTED, anchor="mm")
+    img.save(out_path, "PNG", optimize=True)
+    if os.path.getsize(out_path) > 1_900_000:      # YouTube siniri 2 MB
+        out_path = os.path.splitext(out_path)[0] + ".jpg"
+        img.save(out_path, "JPEG", quality=92)
+    return out_path
+
+
 # ------------------------------------------------------------------ ffmpeg / ses
 def _run(args):
     p = subprocess.run(args, capture_output=True, text=True)
@@ -419,8 +459,12 @@ def main():
     ap.add_argument("--out", help="cikti mp4")
     ap.add_argument("--preview", help="ses olmadan kare onizlemesi klasoru")
     ap.add_argument("--check", action="store_true", help="sadece kural kontrolu")
+    ap.add_argument("--thumbnail", help="YouTube kucuk resmi (1280x720 PNG) yolu")
     a = ap.parse_args()
     script = json.load(open(a.script, encoding="utf-8"))
+    if a.thumbnail:
+        print(render_thumbnail(script, a.thumbnail))
+        return
     if a.check or not (a.out or a.preview):
         for ok, label, detail in check_script(script):
             print({True: "[OK] ", False: "[XX] ", None: "[..] "}[ok] + label + (f" - {detail}" if detail else ""))
