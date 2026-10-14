@@ -136,6 +136,8 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
     else:
         add(False, "Script bos")
     add(12 <= est_sec <= 28, "Tahmini sure 12-28 sn", f"~{est_sec} sn ({len(words)} kelime)")
+    # 2026-10-14 hipotez (n=14, YouTube 28 gun): 0:28-0:29 videolarin 3/4'u %23-36 izlenme yuzdesi, 0:20-0:26 genelde >%40. Bloklamaz.
+    add(None if est_sec > 26 else True, "Kisa sure ipucu: <=26 sn (hipotez, n=14; 29 sn'likler en zayif tutmayi verdi)", f"~{est_sec} sn")
     if tr_text and tr_text.strip():
         tr_sents = _sentences(tr_text)
         add(len(tr_sents) == len(sents), "EN/TR cumle sayisi esit", f"EN {len(sents)} / TR {len(tr_sents)}")
