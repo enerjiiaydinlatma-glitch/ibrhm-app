@@ -85,6 +85,10 @@ PROMPT = (
     "in neutral words.\n"
     "- The linter matches word FRAGMENTS, so also avoid words like right, bright, origin, trigger, believe, belief, "
     "enforce, strap, quiet - use simple synonyms (say 'correct', not 'right').\n"
+    "- NO ratios or fractions of any kind ('1 in 3', 'half of', 'most of', 'thousands of', 'percent', '3 times') and NO claims about "
+    "how accurate, safe, reliable or often wrong any group is (doctors, teachers, drivers, AI, stores). Ask a question or state a "
+    "personal preference instead of a fact. On medical topics (doctors, pills, diagnosis, surgery) never claim anyone is wrong, "
+    "accurate, safe, dangerous or harmful - ask questions only.\n"
     "- Do not use comparisons with the word 'than'. Avoid 'always', 'never', 'everyone', 'nobody' as claims.\n"
     "- Every claim must be common knowledge about how everyday things work; no news, no accusations.\n"
     "FORMAT EXAMPLE ONLY (different topic - copy the rhythm and the tells, never the content):\n"
@@ -93,6 +97,17 @@ PROMPT = (
     "TITLE: <max 40 characters, no colon, no quotes, a question or contradiction about the topic>\n"
     "HOOKTHUMB: <3-5 ALL CAPS words for the opening card, not generic>"
 )
+
+# Uydurma istatistik/oran: '1 in 3', 'half of', 'thousands of', 'percent', '3 times', 'twice as'. claim_lint RAKAM yalniz $, %, k/million/billion yakalar;
+# duz rakam/kelimeyle yazilmis oranlar ('1 in 3 wrong') kaciyordu (15 Ekim 2026: doktor konusunda 'Human doctors get 1 in 3 wrong.').
+_SAYI = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
+ISTATISTIK = re.compile(
+    rf"\b{_SAYI}\s+(?:in|out of)\s+{_SAYI}\b|\b(?:half|most|majority|minority|nearly all|almost all)\s+of\b|"
+    r"\b(?:hundreds|thousands|millions|billions)\s+of\b|\bpercent\b|\b\d+\s*(?:x|times)\b|\b(?:twice|double|triple)\s+as\b", re.I)
+
+# Tibbi konularda (doktor, hap, teshis...) dogruluk/guvenlik/zarar iddiasi YASAK: yanlis tibbi bilgi riski. Yalniz metinde tibbi kelime varsa calisir.
+MEDIKAL = re.compile(r"\b(doctors?|nurses?|medicine|medical|pills?|prescri\w+|surgery|surgeons?|diagnos\w+|symptoms?|patients?|disease|illness|cancer|hospitals?|clinic|treatment)\b", re.I)
+TIBBI_IDDIA = re.compile(r"\b(wrong|mistakes?|errors?|misdiagnos\w+|guess\w*|accura\w+|inaccura\w+|safer|safe|dangerous|harm\w*|kill\w*|die[sd]?|deadly|misses|missed)\b", re.I)
 
 _ENTITY_RX = None
 
@@ -213,6 +228,14 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None):
         s.append(("KAPANIS_TAKIM", "Kapanista 'Team Alpha or Team Beta?' yok."))
     if not re.search(r"\b(guilty|habit)\b", L[5], re.I):
         s.append(("KAPANIS_ITIRAF", "Kapanis izleyiciden 'guilty habit' istemiyor."))
+    stat = sorted({m.group(0).lower() for m in ISTATISTIK.finditer(" ".join(L) + " " + (title or ""))})
+    if stat:
+        s.append(("ISTATISTIK", f"Oran/istatistik/dogruluk iddiasi yasak (uydurma olabilir): {', '.join(stat)}."))
+    tum = " ".join(L) + " " + (title or "")
+    if MEDIKAL.search(tum):
+        tibbi = sorted({m.group(0).lower() for m in TIBBI_IDDIA.finditer(tum)})
+        if tibbi:
+            s.append(("TIBBI_IDDIA", f"Tibbi konuda dogruluk/guvenlik/zarar iddiasi yasak: {', '.join(tibbi)}. Soru sor ya da kisisel tercih soyle."))
     soyut = sorted({m.group(0).lower() for m in SOYUT.finditer(" ".join(L))})
     if soyut:
         s.append(("SOYUT", f"Soyut kelime kullanma, somut bir nesne/an soyle: {', '.join(soyut)}."))
@@ -243,7 +266,7 @@ KANCA_PROMPT = (
     "spoken English, a bold contradiction OR a small concrete number OR a sharp question about ONE concrete everyday thing. "
     "Each MUST contain a digit, a question mark, or one of these words: but, not, never, why, how, wrong, missing, only, "
     "just, nobody, everyone, still, versus, worst, best, first, last, stop, before, after, instead. No real brand or "
-    "person names, no money amounts or percentages, no accusations (no hidden, lie, trap, scam, secret, force, rigged). "
+    "person names, no money amounts, percentages, ratios ('1 in 3') or accuracy claims about any group, no accusations (no hidden, lie, trap, scam, secret, force, rigged). "
     "A stranger scrolling past must want to hear the next sentence.\n"
     "Output EXACTLY:\n1: ...\n2: ...\n3: ...\n4: ...\n5: ...\nPICK: <number of the strongest>\n"
 )
@@ -264,6 +287,10 @@ def kanca_gecerli(h):
             s.append(("ADAY_" + ad, ", ".join(hits)))
     if SOYUT.search(h or ""):
         s.append(("ADAY_SOYUT", "soyut kelime."))
+    if ISTATISTIK.search(h or ""):
+        s.append(("ADAY_ISTATISTIK", "oran/istatistik iddiasi."))
+    if MEDIKAL.search(h or "") and TIBBI_IDDIA.search(h or ""):
+        s.append(("ADAY_TIBBI", "tibbi konuda dogruluk/guvenlik iddiasi."))
     return s
 
 

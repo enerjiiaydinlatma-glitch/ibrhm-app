@@ -221,6 +221,43 @@ class EtiketTest(unittest.TestCase):
         self.assertLessEqual(len(kf.etiketler("alpha bravo charlie delta echoes foxtrot golfs")), 7)
 
 
+class IstatistikTest(unittest.TestCase):
+    def test_oran_ve_istatistik_ifadeleri_engellenir(self):
+        for cumle in ("Human doctors get 1 in 3 wrong.", "Nine out of ten people skip it.", "Half of all orders arrive late.",
+                      "Most of us never read it.", "Thousands of pages checked instantly.", "It costs 3 times more.",
+                      "Twice as fast, really.", "Ten percent of users agree."):
+            self.assertTrue(kf.ISTATISTIK.search(cumle), cumle)
+
+    def test_zararsiz_sayilar_gecer(self):
+        for cumle in ("Why buy 2 shirts for free shipping?", "You left 3 texts on read.", "Three bills, one show a month.",
+                      "Most shows just sit unwatched.", "Only 1 item, 3 fees."):
+            self.assertFalse(kf.ISTATISTIK.search(cumle), cumle)
+
+    def test_kapi_senaryodaki_istatistigi_reddeder(self):
+        s = IYI.replace("Why buy", "x").replace("Free shipping is never free.", "Doctors get 1 in 3 wrong.")
+        self.assertIn("ISTATISTIK", kodlar(s))
+
+    def test_kanca_adayi_istatistikse_gecersiz(self):
+        self.assertTrue(kf.kanca_gecerli("Human doctors get 1 in 3 wrong."))
+        self.assertEqual(kf.kanca_gecerli("Why buy 2 shirts for free shipping?"), [])
+
+    def test_tibbi_iddia_engellenir_ama_diger_konulara_dokunmaz(self):
+        tibbi = IYI.replace("Free shipping is never free.", "Would you trust a doctor who is wrong?")
+        self.assertIn("TIBBI_IDDIA", kodlar(tibbi))
+        self.assertNotIn("TIBBI_IDDIA", kodlar(IYI.replace("Free shipping is never free.", "Is free shipping safe? Never, really.")))
+        self.assertTrue(kf.kanca_gecerli("Doctors get it wrong too often."))
+        self.assertEqual(kf.kanca_gecerli("Would you let a computer prescribe pills?"), [])
+        self.assertNotIn("TIBBI_IDDIA", kodlar(IYI.replace("Free shipping is never free.", "Would a computer catch a swollen knee?")))
+
+    def test_komut_oran_yasagini_iceriyor(self):
+        self.assertIn("NO ratios or fractions", kf.PROMPT)
+        self.assertIn("ratios", kf.KANCA_PROMPT)
+
+    def test_ornek_ve_mevcut_senaryo_hala_gecer(self):
+        b, t, h = parse(kf.ORNEK)
+        self.assertEqual(kf.kontrol(b, t, h), [])
+
+
 class SkorTest(unittest.TestCase):
     def setUp(self):
         self.yol = os.path.join(tempfile.mkdtemp(), "skor.json")
