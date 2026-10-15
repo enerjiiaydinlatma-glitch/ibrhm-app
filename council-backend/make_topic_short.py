@@ -418,7 +418,9 @@ def _draw_beat_overlay(d, screen, who):
     d.text((36, 88), who.upper(),
            font=ImageFont.truetype(os.path.join(FONT_DIR, "segoeuib.ttf"), 28),
            fill=(120, 224, 196, 230))
-    f, lines = _wrap_fit(d, screen, W - 90, [80, 68, 56, 46])
+    # zoompan (_motion_vf) goruntuyu %10'a kadar buyutup kaydirir: kenar payi 45px yetmiyordu, uzun etiket ('RUINED SUNDAY DINNER')
+    # sag kenardan tasiyordu (15 Ekim 2026). 130px pay birakilir; uzun etiket kuculur ya da 2 satira sarilir.
+    f, lines = _wrap_fit(d, screen, W - 260, [80, 68, 56, 46])
     y = int(H * 0.71)
     for ln in lines:
         _center(d, W // 2, y, ln, f, INK)
