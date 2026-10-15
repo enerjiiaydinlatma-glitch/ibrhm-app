@@ -62,11 +62,12 @@ KONULAR = [
      "eksen": "Alpha: enerji eğrisi. Beta: sabah ben değilim."},
     {"id": 20, "konu": "Is an empty inbox really a clear mind?", "tr": "Boş gelen kutusu gerçekten düzenli zihin mi?", "kategori": "iş",
      "eksen": "Alpha: sıfır gelen kutusu. Beta: arama çubuğu var."},
-    # gelecek / yapay zeka (gorus ve tercih sorusu: olgu iddiasi, marka, suclama YOK)
+    # gelecek / yapay zeka (gorus ve tercih sorusu: olgu iddiasi, marka, suclama YOK). TIBBI konu (doktor/hap/teshis) EKLEME: kapiyi zorluyor,
+# uydurma saglik iddiasi riski ve kalitesiz senaryo veriyor (15 Ekim 2026).
     {"id": 21, "konu": "Will AI replace teachers?", "tr": "Yapay zekâ öğretmenlerin yerini alacak mı?", "kategori": "gelecek",
      "eksen": "Alpha: kişiye özel ders. Beta: öğretmen insan bağıdır."},
-    {"id": 22, "konu": "Would you trust an AI doctor?", "tr": "Yapay zekâ doktora güvenir miydin?", "kategori": "gelecek",
-     "eksen": "Alpha: hata payı düşük olabilir. Beta: bana insan bak."},
+    {"id": 22, "konu": "Would you let AI plan your week?", "tr": "Yapay zekâ haftanı planlasın ister miydin?", "kategori": "gelecek",
+     "eksen": "Alpha: verimli takvim. Beta: plansızlık da keyif."},
     {"id": 23, "konu": "Would you ride in a car with no driver?", "tr": "Şoförsüz bir arabaya biner miydin?", "kategori": "gelecek",
      "eksen": "Alpha: insandan iyi sürer. Beta: direksiyon bende kalsın."},
     {"id": 24, "konu": "Should a car be allowed to record you?", "tr": "Araba seni kaydedebilmeli mi?", "kategori": "gelecek",

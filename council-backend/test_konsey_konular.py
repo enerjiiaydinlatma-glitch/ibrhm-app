@@ -28,6 +28,11 @@ class HavuzTest(unittest.TestCase):
             engel = [ad for ad, _h, _w in claim_lint.lint(k["konu"]) if ad in konsey_format.ENGELLEYICI]
             self.assertEqual(engel, [], k["konu"])
 
+    def test_havuzda_tibbi_konu_yok(self):
+        import konsey_format
+        for k in kk.KONULAR:
+            self.assertIsNone(konsey_format.MEDIKAL.search(k["konu"]), k["konu"])
+
     def test_kategori_cesitli(self):
         self.assertGreaterEqual(len({k["kategori"] for k in kk.KONULAR}), 5)
 
