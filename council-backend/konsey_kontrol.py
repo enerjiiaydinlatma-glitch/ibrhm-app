@@ -6,6 +6,7 @@ Gosterir: baslik, gizlilik (private / zamanlandi / HERKESE ACIK), yayin zamani, 
 Ulke dagilimi icin Studio > Analytics > Ulke (burada yok).
 """
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -38,7 +39,20 @@ def durum(item):
     return {"private": "ozel (private)", "public": "HERKESE ACIK", "unlisted": "liste disi"}.get(st.get("privacyStatus"), st.get("privacyStatus", "?"))
 
 
-def satirlar(items, istenen):
+def yas_saat(item, simdi_utc=None):
+    """Videonun yayinda gecirdigi saat (publishedAt'ten); zamanli/ozel videoda None."""
+    st = item.get("status", {})
+    if st.get("publishAt") or st.get("privacyStatus") != "public":
+        return None
+    try:
+        yayin = datetime.datetime.strptime(item["snippet"]["publishedAt"][:19], "%Y-%m-%dT%H:%M:%S")
+    except (KeyError, ValueError):
+        return None
+    simdi = simdi_utc or datetime.datetime.utcnow()
+    return max((simdi - yayin).total_seconds() / 3600, 0.0)
+
+
+def satirlar(items, istenen, simdi_utc=None):
     bulunan = {it["id"]: it for it in items}
     out = []
     for vid in istenen:
@@ -47,8 +61,13 @@ def satirlar(items, istenen):
             out.append(f"{vid}: BULUNAMADI (silinmis ya da erisim yok)")
             continue
         s = it.get("statistics", {})
+        yas = yas_saat(it, simdi_utc)
+        hiz = ""
+        if yas is not None:
+            izl = int(s.get("viewCount", 0))
+            hiz = f" | Yas: {yas:.0f} sa | Saatlik: {izl / yas:.2f}" if yas >= 1 else f" | Yas: {yas:.1f} sa (cok yeni)"
         out.append(f"{it['snippet']['title']}\n  https://youtu.be/{vid}\n  Durum: {durum(it)} | yayin: {it['snippet'].get('publishedAt', '?')}\n"
-                   f"  Izlenme: {s.get('viewCount', '0')} | Begeni: {s.get('likeCount', '0')} | Yorum: {s.get('commentCount', '0')}")
+                   f"  Izlenme: {s.get('viewCount', '0')} | Begeni: {s.get('likeCount', '0')} | Yorum: {s.get('commentCount', '0')}{hiz}")
     return out
 
 

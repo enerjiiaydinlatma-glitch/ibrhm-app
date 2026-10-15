@@ -26,5 +26,23 @@ class KontrolTest(unittest.TestCase):
         self.assertIn("BULUNAMADI", s[1])
 
 
+class YasTest(unittest.TestCase):
+    def it(self, yayin, gizlilik="public", publish_at=None, izl="10"):
+        st = {"privacyStatus": gizlilik}
+        if publish_at:
+            st["publishAt"] = publish_at
+        return {"id": "A", "snippet": {"title": "T", "publishedAt": yayin}, "status": st, "statistics": {"viewCount": izl}}
+
+    def test_yas_ve_saatlik(self):
+        import datetime
+        simdi = datetime.datetime(2026, 10, 15, 6, 0, 0)
+        it = self.it("2026-10-14T18:00:00Z")                      # 12 saat once
+        self.assertAlmostEqual(kk.yas_saat(it, simdi), 12.0)
+        self.assertIn("Saatlik: 0.83", kk.satirlar([it], ["A"], simdi)[0])    # 10 / 12
+        self.assertIsNone(kk.yas_saat(self.it("2026-10-14T18:00:00Z", "private"), simdi))
+        self.assertIsNone(kk.yas_saat(self.it("2026-10-14T18:00:00Z", "private", "2026-10-16T00:00:00Z"), simdi))
+        self.assertIn("cok yeni", kk.satirlar([self.it("2026-10-15T05:30:00Z")], ["A"], simdi)[0])
+
+
 if __name__ == "__main__":
     unittest.main()
