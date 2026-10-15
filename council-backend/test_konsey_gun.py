@@ -124,6 +124,44 @@ class AkisTest(unittest.TestCase):
         self.assertEqual(o.llm_istemleri, [])
 
 
+class DuzenlemeTest(unittest.TestCase):
+    def test_satir_duzenleme_render_edilene_yansir(self):
+        o = Ortam(["s 2 Stores tuck the cost into every item price. That's one for me.", "evet"])
+        self.assertEqual(kg.calistir(Args(saat=gelecek_saat()), o.sozluk()), 0)
+        beats = o.render_cagri[0][1]["beats"]
+        self.assertIn("tuck the cost", beats[1][2])
+        self.assertEqual(len([p for p in o.llm_istemleri if "5 DIFFERENT" not in p]), 1)    # yeniden yazdirilmadi
+        self.assertIn("-> degisti", o.metin)
+
+    def test_kapidan_gecmeyen_duzenleme_senaryoyu_degistirmez(self):
+        o = Ortam(["s 2 Amazon adds the cost. That's one for me.", "evet"])
+        kg.calistir(Args(saat=gelecek_saat()), o.sozluk())
+        self.assertIn("DEGISIKLIK KAPIDAN GECMEDI", o.metin)
+        self.assertIn("GERCEK_ISIM", o.metin)
+        self.assertNotIn("Amazon", o.render_cagri[0][1]["beats"][1][2])
+
+    def test_baslik_ve_kart_duzenleme(self):
+        o = Ortam(["b is it really free", "k WHO PAYS FOR DELIVERY", "evet"])
+        kg.calistir(Args(saat=gelecek_saat()), o.sozluk())
+        r = o.render_cagri[0][1]
+        self.assertEqual(r["title"], "Is it really free?")
+        self.assertEqual(r["hookthumb"], "WHO PAYS FOR DELIVERY")
+
+    def test_istatistikli_duzenleme_reddedilir(self):
+        o = Ortam(["s 3 Hold on. Half of all orders arrive late.", "evet"])
+        kg.calistir(Args(saat=gelecek_saat()), o.sozluk())
+        self.assertIn("ISTATISTIK", o.metin)
+
+    def test_duzenleme_coz(self):
+        import konsey_format as kf
+        self.assertEqual(kf.duzenleme_coz("s 2 Yeni cumle."), ("s", 2, "Yeni cumle."))
+        self.assertEqual(kf.duzenleme_coz("S 5 Big Text"), ("s", 5, "Big Text"))
+        self.assertEqual(kf.duzenleme_coz("b New Title"), ("b", "New Title"))
+        self.assertEqual(kf.duzenleme_coz("k NEW CARD"), ("k", "NEW CARD"))
+        for cevap in ("evet", "hayir", "3", "s 9 x", "s 2", "bilmem"):
+            self.assertIsNone(kf.duzenleme_coz(cevap), cevap)
+
+
 class YardimciTest(unittest.TestCase):
     KONULAR = [{"id": 1, "konu": "A?", "kategori": "para"}, {"id": 2, "konu": "B?", "kategori": "gelecek"}, {"id": 3, "konu": "C?", "kategori": "gelecek"}]
 

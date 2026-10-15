@@ -7,7 +7,7 @@ Kullanim:
   python konsey_gun.py --saat "2026-10-16 02:30"   # yayin saatini bastan ver (TURKIYE saati); verilmezse sorar
 
 Senin vereceğin kararlar (yalniz bunlar):
-  1) Senaryo iyi mi?   evet = uret | 1-5 = o kancayla yeniden yaz | hayir = iptal
+  1) Senaryo iyi mi?   evet = uret | 1-5 = o kancayla yeniden yaz | s 2 yeni cumle | b Yeni Baslik | k YENI KART | hayir = iptal
   2) Yayin saati (TR)  'YYYY-MM-DD HH:MM' = o saatte otomatik herkese acik | Enter = zamansiz ozel yukle | hayir = yukleme yok
   3) Ozeti onayla (evet)
 
@@ -120,35 +120,55 @@ def calistir(a, d):
     secilen = kk["secilen"]
 
     r = None
-    for _tur in range(6):
-        r = konsey_format.uret(topic, d["llm"], d["parse"], kanca=secilen)
+    yeniden = True
+    for _tur in range(12):
+        if yeniden:
+            r = konsey_format.uret(topic, d["llm"], d["parse"], kanca=secilen)
+            if not r["ok"]:
+                yaz("\nSENARYO (deneme %d):" % r["deneme"])
+                for who, screen, line, _img in r["beats"]:
+                    yaz(f"  {who:5} | {line}")
+                yaz("\nKAPIDAN GECMEDI - video uretilmeyecek:")
+                for kod, msg in r["sorunlar"]:
+                    yaz(f"  - {kod}: {msg}")
+                return 2
         yaz("\nSENARYO (deneme %d):" % r["deneme"])
-        for who, screen, line, _img in r["beats"]:
-            yaz(f"  {who:5} | {line}")
+        for i, (who, screen, line, _img) in enumerate(r["beats"], 1):
+            yaz(f"  {i}. {who:5} | {line}")
         yaz(f"  BASLIK: {r['title']}   KART: {r['hookthumb']}")
         for ad, hits in r.get("uyarilar", []):
             yaz(f"  [uyari] {ad}: {', '.join(hits)}")
-        if not r["ok"]:
-            yaz("\nKAPIDAN GECMEDI - video uretilmeyecek:")
-            for kod, msg in r["sorunlar"]:
-                yaz(f"  - {kod}: {msg}")
-            return 2
         g = d["duyarlilik"](topic, r)
         yaz(f"  [sensitivity_gate: sensitive={g['sensitive']} severity={g['severity']}]")
         if g["sensitive"]:
             yaz("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
             return 2
-        cevap = gir("\nSenaryo iyi mi?  evet = uret | 1-5 = o kancayla yeniden yaz | hayir = iptal > ").strip().lower()
+        ham = gir("\nSenaryo iyi mi?  evet = uret | 1-5 = o kancayla yeniden yaz | s 2 yeni cumle = 2. satiri degistir | "
+                  "b Yeni Baslik | k YENI KART | hayir = iptal > ")
+        cevap = ham.strip().lower()
         if cevap in ("evet", "e", "yes", "y"):
             break
+        komut = konsey_format.duzenleme_coz(ham)
+        if komut:
+            yeni_r, sorun = konsey_format.duzenle(r, komut, kanca=secilen)
+            if yeni_r is None:
+                yaz("  DEGISIKLIK KAPIDAN GECMEDI (senaryo ayni kaldi):")
+                for kod, msg in sorun:
+                    yaz(f"  - {kod}: {msg}")
+            else:
+                r = yeni_r
+                yaz("  -> degisti.")
+            yeniden = False
+            continue
         if cevap.isdigit() and 1 <= int(cevap) <= len(kk["adaylar"]) and kk["adaylar"][int(cevap) - 1][1]:
             secilen = kk["adaylar"][int(cevap) - 1][0]
             yaz(f"  -> kanca: {secilen}")
+            yeniden = True
             continue
         yaz("Iptal edildi. Hicbir sey uretilmedi/yuklenmedi.")
         return 0
     else:
-        yaz("Cok fazla yeniden yazim; iptal.")
+        yaz("Cok fazla tur; iptal.")
         return 0
 
     d["kaydet"](topic, r)

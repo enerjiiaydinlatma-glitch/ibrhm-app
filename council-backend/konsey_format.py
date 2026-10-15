@@ -356,6 +356,40 @@ def etiketler(title):
     return ["Sign Council", "AI debate", "everyday life", "shorts"] + kelimeler[:3]
 
 
+def duzenle(r, komut, kanca=None):
+    """Senaryo sonucu r'yi (dict: beats, title, hookthumb) bellekte duzenler. komut: ('s', n, metin) | ('b', metin) | ('k', metin).
+    Kapidan gecmezse r DEGISMEZ. -> (yeni_r | None, sorunlar)"""
+    beats, title, kart = list(r["beats"]), r["title"], r["hookthumb"]
+    if komut[0] == "s":
+        n, metin = int(komut[1]), komut[2].strip()
+        if not 1 <= n <= len(beats):
+            return None, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
+        who, screen, _eski, img = beats[n - 1]
+        beats[n - 1] = (who, screen, metin, img)
+    elif komut[0] == "b":
+        title = baslik_duzelt(komut[1])
+    elif komut[0] == "k":
+        kart = " ".join(komut[1].split()).upper()
+    else:
+        return None, [("KOMUT", "Bilinmeyen duzenleme.")]
+    sorunlar = kontrol(beats, title, kart, kanca=kanca)
+    if sorunlar:
+        return None, sorunlar
+    return {**r, "beats": beats, "title": title, "hookthumb": kart, "uyarilar": uyarilar(beats, title, kart)}, []
+
+
+def duzenleme_coz(cevap):
+    """'s 2 yeni cumle' | 'b Yeni Baslik' | 'k YENI KART' -> komut tuple'i; degilse None."""
+    import re as _re
+    m = _re.match(r"^\s*s\s+([1-6])\s+(.+\S)\s*$", cevap or "", _re.I | _re.S)
+    if m:
+        return ("s", int(m.group(1)), m.group(2))
+    m = _re.match(r"^\s*([bk])\s+(.+\S)\s*$", cevap or "", _re.I | _re.S)
+    if m:
+        return (m.group(1).lower(), m.group(2))
+    return None
+
+
 def satir_degistir(yol, n, metin):
     """Kayitli senaryonun n. satirinin (1-6) metnini degistirir. Yeni senaryo kapidan GECMEZSE dosya DEGISMEZ.
     -> (kaydedildi: bool, sorunlar)"""
