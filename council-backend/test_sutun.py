@@ -153,3 +153,54 @@ class SkorGizleTest(unittest.TestCase):
         satir = {r["sutun"]: r for r in sutun.satirlar(tablo)}
         self.assertEqual(satir["siralama"]["deneme"], 1)
         self.assertIsNone(satir["siralama"]["skor"])
+
+
+class KonseySutunTest(unittest.TestCase):
+    def setUp(self):
+        import json
+        import os
+        import tempfile
+        self.json, self.os = json, os
+        self.d = tempfile.mkdtemp()
+        self.eski = (sutun.GECMIS_YOL, sutun.KONSEY_KAYIT)
+        sutun.GECMIS_YOL = os.path.join(self.d, "sutun_gecmis.jsonl")
+        sutun.KONSEY_KAYIT = os.path.join(self.d, "konsey_kayit.jsonl")
+
+    def tearDown(self):
+        sutun.GECMIS_YOL, sutun.KONSEY_KAYIT = self.eski
+
+    def test_konsey_kayitlari_konsey_sutununa_gider(self):
+        with open(sutun.KONSEY_KAYIT, "w", encoding="utf-8") as f:
+            f.write(self.json.dumps({"video_id": "K1"}) + "\nbozuk\n" + self.json.dumps({"video_id": "K2"}) + "\n")
+        self.assertEqual(sutun.kayitlar(), {"K1": "konsey", "K2": "konsey"})
+
+    def test_elle_kayit_kazanir(self):
+        with open(sutun.GECMIS_YOL, "w", encoding="utf-8") as f:
+            f.write(self.json.dumps({"video_id": "K1", "sutun": "haber"}) + "\n")
+        with open(sutun.KONSEY_KAYIT, "w", encoding="utf-8") as f:
+            f.write(self.json.dumps({"video_id": "K1"}) + "\n")
+        self.assertEqual(sutun.kayitlar()["K1"], "haber")
+
+    def test_dosya_yoksa_bos(self):
+        self.assertEqual(sutun.kayitlar(), {})
+
+    def test_konsey_tabloda_gorunur_ama_otomatik_oneriye_girmez(self):
+        import datetime
+        for gun in (datetime.date(2026, 10, 14), datetime.date(2026, 10, 17)):       # hafta ici + hafta sonu
+            self.assertNotIn("konsey", sutun.aktif_sutunlar(gun))
+        videolar = [{"id": f"K{i}", "title": f"Konu {i}?", "published": "2026-10-10T12:00:00Z", "views": 10 + i, "comments": 0, "privacy": "public"}
+                    for i in range(3)]
+        with open(sutun.KONSEY_KAYIT, "w", encoding="utf-8") as f:
+            for v in videolar:
+                f.write(self.json.dumps({"video_id": v["id"]}) + "\n")
+        tablo = sutun.istatistik(videolar, now=datetime.datetime(2026, 10, 16))
+        self.assertEqual(tablo["konsey"]["deneme"], 3)
+        satir = {r["sutun"]: r for r in sutun.satirlar(tablo, sutun.aktif_sutunlar(datetime.date(2026, 10, 14)))}
+        self.assertEqual(satir["konsey"]["deneme"], 3)
+        self.assertFalse(satir["konsey"]["aktif"])
+        for _ in range(20):                                                           # oner() hicbir kosulda konsey donmez
+            self.assertNotEqual(sutun.oner(tablo, datetime.date(2026, 10, 14))["sutun"], "konsey")
+
+
+if __name__ == "__main__":
+    unittest.main()

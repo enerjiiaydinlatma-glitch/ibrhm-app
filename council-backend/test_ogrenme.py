@@ -12,6 +12,14 @@ def v(i, title, views, tarih="2026-09-20", retention=20.0, subs=0, comments=0, h
             "shares": 0, "retention": retention, "subs": subs, "hashtags": hashtags or ["#Shorts", "#SignCouncil"]}
 
 
+class KayitliSutunTest(unittest.TestCase):
+    def test_uretim_kaydi_baslik_tahminini_gecer(self):
+        vid = v(1, "Is Free Shipping Really Free?", 10)
+        self.assertEqual(ogrenme.ozellikler(vid)["sutun"], "haber")                       # kayit yoksa baslik tahmini
+        self.assertEqual(ogrenme.ozellikler(vid, {"v1": "konsey"})["sutun"], "konsey")    # kayit varsa o
+        self.assertEqual(ogrenme.ozellikler(vid, {"baska": "konsey"})["sutun"], "haber")
+
+
 class KarneTest(unittest.TestCase):
     def liste(self):
         out = []

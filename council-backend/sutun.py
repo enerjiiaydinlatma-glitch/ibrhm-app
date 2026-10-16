@@ -21,6 +21,7 @@ import statistics
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
 GECMIS_YOL = os.path.join(ENGINE, "sutun_gecmis.jsonl")
+KONSEY_KAYIT = os.path.join(ENGINE, "konsey_kayit.jsonl")     # konsey_yukle.py her yuklemede yazar
 
 SUTUNLAR = {
     "haber": {"ad": "Haber sorusu (tekil konu)", "bayrak": [], "kaynak": False},
@@ -28,6 +29,9 @@ SUTUNLAR = {
     "siralama": {"ad": "Sıralama / haber", "bayrak": ["--leaderboard"], "kaynak": False},
     "receipt": {"ad": "Receipt (belge kontrolü)", "bayrak": [], "kaynak": True},
     "aciklayici": {"ad": "Açıklayıcı (zamansız)", "bayrak": ["--evergreen"], "kaynak": False},
+    # Konsey karakter tartismasi (konsey_gun.py): ELLE uretilir; HAFTA_ICI/HAFTA_SONU'na ve 'bayrak' akisina BILEREK eklenmedi -
+    # gunluk otomatik oneriye (eski haber hatti) karismaz, yalniz tabloda gorunur (deneme, ort. izlenme, yorum, skor).
+    "konsey": {"ad": "Konsey tartışması (karakterler)", "bayrak": [], "kaynak": False},
 }
 HAFTA_ICI = ["haber", "ikilem", "siralama", "receipt"]   # 'haber' = kanalin asil formati (motorun varsayilan yolu); veri onu gosterdi
 HAFTA_SONU = ["haber", "ikilem", "siralama", "receipt", "aciklayici"]
@@ -90,6 +94,18 @@ def kayitlar():
                     out[r["video_id"]] = r["sutun"]
                 except Exception:
                     continue
+    except Exception:
+        pass
+    # Konsey yuklemeleri (konsey_kayit.jsonl) 'konsey' sutununa; sutun_gecmis'te elle verilmis kayit varsa o kazanir.
+    try:
+        with open(KONSEY_KAYIT, encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    vid = json.loads(ln).get("video_id")
+                except Exception:
+                    continue
+                if vid:
+                    out.setdefault(vid, "konsey")
     except Exception:
         pass
     return out

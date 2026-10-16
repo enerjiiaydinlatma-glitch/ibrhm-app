@@ -56,11 +56,12 @@ def guven(n):
     return "çok az" if n < MIN_N else ("yön" if n < GUVENILIR_N else "daha güvenilir")
 
 
-def ozellikler(v):
+def ozellikler(v, kayit=None):
+    """kayit: sutun.kayitlar() ({video_id: sutun}); verilirse uretim kaydi (or. 'konsey') baslik tahmininin onune gecer."""
     t = v.get("title", "") or ""
     kelime = len(t.split())
     return {
-        "sutun": sutun.etiketle(t),
+        "sutun": (kayit or {}).get(v.get("id")) or sutun.etiketle(t),
         "sayi": "başlıkta sayı var" if re.search(r"\d", t) else "başlıkta sayı yok",
         "soru": "soru başlığı" if "?" in t else "ifade başlığı",
         "uzunluk": "kısa (≤8 kelime)" if kelime <= 8 else ("orta (9-12)" if kelime <= 12 else "uzun (13+)"),
@@ -105,8 +106,9 @@ def karne(videolar, now=None):
             yas = v.get("age_days", 99)
         if yas >= OLGUN_GUN:
             vs.append(v)
+    kayit = sutun.kayitlar()
     for v in vs:
-        v["_f"] = ozellikler(v)
+        v["_f"] = ozellikler(v, kayit)
     genel = _satir("Tüm videolar", vs)
     bolumler = {
         "sutun": _grupla(vs, lambda v: [v["_f"]["sutun"]]),

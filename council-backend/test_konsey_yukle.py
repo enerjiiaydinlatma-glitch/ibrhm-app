@@ -118,5 +118,15 @@ class YukleTest(unittest.TestCase):
         self.assertNotIn('"public"', src.replace("'public/unlisted", ""))
 
 
+class GunTest(unittest.TestCase):
+    def test_yukleme_gunleri(self):
+        yol = os.path.join(tempfile.mkdtemp(), "k.jsonl")
+        with open(yol, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"ts": "2026-10-14T14:17:27"}) + "\nbozuk\n" + json.dumps({"ts": "2026-10-15T09:00:00"}) + "\n"
+                    + json.dumps({"ts": "yanlis"}) + "\n" + json.dumps({"ts": "2026-10-14T20:00:00"}) + "\n")
+        self.assertEqual(ky.yukleme_gunleri(yol), {"20261014", "20261015"})
+        self.assertEqual(ky.yukleme_gunleri(os.path.join(tempfile.mkdtemp(), "yok")), set())
+
+
 if __name__ == "__main__":
     unittest.main()

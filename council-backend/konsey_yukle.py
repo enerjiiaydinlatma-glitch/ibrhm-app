@@ -87,6 +87,23 @@ def kontrol(meta, bugun=None, engine=ENGINE):
     return s
 
 
+def yukleme_gunleri(yol=KAYIT_YOL):
+    """konsey_kayit.jsonl'deki yukleme gunleri: {'YYYYMMDD', ...} (panel saglik kontrolleri icin)."""
+    out = set()
+    try:
+        with open(yol, encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    ts = str(json.loads(ln).get("ts", ""))
+                except Exception:
+                    continue
+                if len(ts) >= 10 and ts[4] == "-" and ts[7] == "-":
+                    out.add(ts[:10].replace("-", ""))
+    except OSError:
+        pass
+    return out
+
+
 def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None, yayin_utc=None):
     """Analiz icin etiket satiri (haftalik raporun sonraki surumu bunu kullanir)."""
     import haftalik_rapor

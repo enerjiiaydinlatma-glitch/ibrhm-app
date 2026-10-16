@@ -380,6 +380,12 @@ def t_uretim(x):
         if f.startswith("_daily_auto_") and f.endswith(".log"):
             for r in health._log_runs(os.path.join(HERE, f)):
                 days.setdefault(f[12:20], []).append(r["ok"])
+    try:   # Konsey yuklemeleri _daily_auto loglarinda gorunmez (konsey_gun/konsey_yukle ile elle yuklenir) - sayima kat
+        import konsey_yukle
+        for g_ in konsey_yukle.yukleme_gunleri():
+            days.setdefault(g_, []).append(True)
+    except Exception:
+        pass
     last7 = sorted(days)[-7:]
     got = [d for d in last7 if any(days[d])]
     x.add(g, "son 7 uretim gununun >=5'inde video yuklendi", len(got) >= 5, f"{len(got)}/{len(last7)} gun", warn=True)
