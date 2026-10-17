@@ -385,6 +385,8 @@ def kanca_gecerli(h, konu=None):
         s.append(("ADAY_RAKAM", "kaynaksiz rakam/sayim: " + ", ".join(kaynaksiz)))
     if rakam_bankasi.onkosul_eksik(h or "", konu):
         s.append(("ADAY_ONKOSUL", "rakamin kosulu (varsayim) kancada yok."))
+    if evren_mi(konu) and any(m.group(0).lower() not in (konu or "").lower() for m in ZAMAN_SIMDI.finditer(h or "")):
+        s.append(("ADAY_SIMDI", "varsayim 'simdi oluyor' gibi okunuyor (now/today/tonight)."))
     if MEDIKAL.search(h or "") and TIBBI_IDDIA.search(h or ""):
         s.append(("ADAY_TIBBI", "tibbi konuda dogruluk/guvenlik iddiasi."))
     return s
