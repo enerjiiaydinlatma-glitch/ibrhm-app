@@ -18,7 +18,7 @@ class BankaTest(unittest.TestCase):
             self.assertIn(o["tur"], ("kaynak", "turetilmis"))
             self.assertTrue(set(o["konular"]) <= idler, o["id"])
             for n in o["sayilar"]:                      # olgu cumlesi kendi rakamini icermeli
-                self.assertIn(n, o["olgu"], o["id"])
+                self.assertIn(n, o["olgu"].replace(",", ""), o["id"])
 
     def test_olgu_secimi(self):
         self.assertEqual({o["id"] for o in rb.olgular(T79)}, {"buz_toplam", "gronland", "buz_ceyrek", "deniz_1880"})

@@ -195,11 +195,17 @@ KONULAR = [
      "eksen": "Alpha: yeni deniz yolları. Beta: hava düzeni nasıl bozulur?"},
     {"id": 81, "konu": "What if 60 centimeters of water ran down your street?", "tr": "Sokağından 60 santim yüksekliğinde su aksa ne olur?", "kategori": "afet", "risk": "yesil",
      "eksen": "Alpha: araçlar sürüklenir. Beta: en rahatsız edici soru: kimler içeride kalır?"},
+    {"id": 82, "konu": "Would you trust a robot with a human face?", "tr": "İnsan yüzlü bir robota güvenir miydin?", "kategori": "robot", "risk": "yesil",
+     "eksen": "Alpha: yüz güven verir. Beta: en rahatsız edici soru: kimin yüzü?"},
+    {"id": 83, "konu": "What if you could not tell a robot from a human?", "tr": "Bir robotu insandan ayıramasan ne olur?", "kategori": "robot", "risk": "sari",
+     "eksen": "Alpha: fark etmez. Beta: nasıl anlayacağız?"},
+    {"id": 84, "konu": "What if robots built every new robot?", "tr": "Her yeni robotu robotlar üretse ne olur?", "kategori": "robot", "risk": "sari",
+     "eksen": "Alpha: durmayan üretim. Beta: durdurma düğmesi kimde?"},
 ]
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84]
 
 
 def kullanilanlar(yol=KAYIT_YOL):
