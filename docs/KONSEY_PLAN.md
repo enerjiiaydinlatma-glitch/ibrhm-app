@@ -32,6 +32,17 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Yorum kalitesi: kisisel cevap orani ve yorum sayisi (espri yorumlari etkilesim sayilmaz).
 - Hafta 2: en iyi 2 sutunu tekrarla, en zayif 2'yi yenisiyle degistir. Saat degisecekse TEK degisken olarak.
 
+## Kanal tabani (Studio, 19 Eyl - 16 Eki 2026, Sign Council kanali; 17 Eki 2026'da alindi)
+- 28 gun: **700** goruntuleme (onceki 28 gune gore %92 az), 0,9 saat izlenme (%92 az), **+1 abone** (%95 az). Son 48 saat: **42** goruntuleme.
+- En cok izlenenler eski AI-haber formatindan (223, 138, 46, 37, 19). Konsey (gunluk konular) son 48 saatte: 21, 12, 8.
+- Yeni videolarin ilk 12 saatinde 0 goruntuleme gorulebiliyor (ornek: "Would You Let AI Plan Your Week?").
+- Yorum: dusus yeni formattan ONCE basladi (haftalik rapor); format/konu tek basina cozmeyebilir, dagitim (kucuk kanala test kitlesi) etkili olabilir.
+
+## Basari esikleri (taban uzerinden)
+- Taban: Konsey videosu basina 48 saatte ~8-21 goruntuleme. **50+ = belirgin basari (tabanin 3-5 kati)**; **25 alti = gurultu**.
+- Bu duzeyde sutunlar arasi fark rastgele olabilir. Hafta 1'in ana sorusu: yeni nisteki videolar 8-21 tabanini KIRIYOR MU (evet/hayir). Sutun sirasi kararlari n>=3 olmadan verilmez.
+- Kisa video etkisi (tek gozlem): %106 ortalama izleme yuzdesi yalniz kisa (13-22 sn) videolarda goruldu; bizimkiler 33-38 sn. Hafta 2'de 20-25 sn'lik bir versiyon denenecek (karar noktasi).
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
