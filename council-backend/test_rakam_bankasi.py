@@ -79,3 +79,23 @@ class KapiTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OnkosulTest(unittest.TestCase):
+    def test_premise_olmadan_rakam_reddedilir(self):
+        self.assertEqual(rb.onkosul_eksik("Melting ice raises water roughly 15 meters?", T79), ["buz_ceyrek"])
+        self.assertEqual(rb.onkosul_eksik("A quarter of the ice melts. The sea rises roughly 15 meters.", T79), [])
+        self.assertEqual(rb.onkosul_eksik("Welcome.", T79), [])
+        self.assertEqual(rb.onkosul_eksik("In 2012 a person was teleported 143 kilometers.", "Would you step into a teleporter?"), ["isinlanma_143"])
+        self.assertEqual(rb.onkosul_eksik("In 2012 a light particle crossed 143 kilometers.", "Would you step into a teleporter?"), [])
+
+    def test_yer_sayimi_kaynaksiz(self):
+        self.assertEqual(rb.yasakli_rakamlar("3 major cities will flood first.", T79), ["3 major cities"])
+        self.assertEqual(rb.yasakli_rakamlar("Three fees and 4 bills.", T1), [])
+
+    def test_kapi_ve_kanca_onkosulu(self):
+        k = KapiTest().beats("Melting ice raises water roughly 15 meters?")
+        self.assertIn("ONKOSUL_EKSIK", {c for c, _ in kf.kontrol(k, "Ice melts?", "SEA RISES FAST", konu=T79)})
+        self.assertIn("ADAY_ONKOSUL", {c for c, _ in kf.kanca_gecerli("Melting ice raises water roughly 15 meters?", T79)})
+        self.assertNotIn("ADAY_ONKOSUL", {c for c, _ in kf.kanca_gecerli("A quarter of ice means 15 meters, not 1.", T79)})
+        self.assertIn("ADAY_RAKAM", {c for c, _ in kf.kanca_gecerli("3 major cities will flood first.", T79)})

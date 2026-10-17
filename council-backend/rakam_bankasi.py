@@ -15,23 +15,23 @@ import konsey_konular
 OLGULAR = [
     {"id": "buz_toplam", "konular": [30, 79, 80],
      "olgu": "If all the ice on land melted, the sea would rise by about 60 meters.",
-     "sayilar": ["60"], "tur": "kaynak", "kaynak": "NASA Sea Level Change",
+     "sayilar": ["60"], "onkosul": r"\b(?:all|whole|entire|every)\b", "tur": "kaynak", "kaynak": "NASA Sea Level Change",
      "url": "https://sealevel.nasa.gov/understanding-sea-level/global-sea-level/ice-melt"},
     {"id": "gronland", "konular": [30, 79],
      "olgu": "Greenland's ice alone holds about 7 meters of sea level.",
-     "sayilar": ["7"], "tur": "kaynak", "kaynak": "Scientific American",
+     "sayilar": ["7"], "onkosul": r"greenland", "tur": "kaynak", "kaynak": "Scientific American",
      "url": "https://www.scientificamerican.com/article/how-much-will-global-warming-raise-sea-levels"},
     {"id": "buz_ceyrek", "konular": [79],
      "olgu": "A quarter of that ice would raise the sea roughly 15 meters (60 meters divided by four).",
-     "sayilar": ["15"], "tur": "turetilmis", "kaynak": "NASA figure, our own arithmetic",
+     "sayilar": ["15"], "onkosul": r"\bquarter\b", "tur": "turetilmis", "kaynak": "NASA figure, our own arithmetic",
      "url": "https://sealevel.nasa.gov/understanding-sea-level/global-sea-level/ice-melt"},
     {"id": "deniz_1880", "konular": [29, 30, 31, 32, 33, 79],
      "olgu": "Sea level has already risen about 8 to 9 inches (roughly 20 to 23 centimeters) since 1880.",
-     "sayilar": ["8", "9", "20", "23", "1880"], "tur": "kaynak", "kaynak": "NASA Earthdata climate indicators",
+     "sayilar": ["8", "9", "20", "23", "1880"], "onkosul": r"\b(?:since|already|so far)\b", "tur": "kaynak", "kaynak": "NASA Earthdata climate indicators",
      "url": "https://www.earthdata.nasa.gov/topics/climate-indicators"},
     {"id": "isinlanma_143", "konular": [65, 66],
      "olgu": "In 2012, scientists teleported the quantum state of a light particle across 143 kilometers. No object or person has been teleported.",
-     "sayilar": ["2012", "143"], "tur": "kaynak", "kaynak": "Max Planck Institute of Quantum Optics",
+     "sayilar": ["2012", "143"], "onkosul": r"\b(?:particle|photon|quantum|light)\b", "tur": "kaynak", "kaynak": "Max Planck Institute of Quantum Optics",
      "url": "https://www.mpq.mpg.de/4860079/12_09_06"},
     {"id": "kara_delik_2019", "konular": [69, 70],
      "olgu": "The first photo of a black hole was released in 2019.",
@@ -88,7 +88,30 @@ def yasakli_rakamlar(metin, topic):
     for w in _YAZILI.findall(metin or ""):
         if w.lower() not in konu_kelime:
             out.append(w.lower())
+    out += sayim_iddialari(metin)
     return sorted(set(out))
+
+
+# '3 major cities will flood' gibi YER/GRUP sayimi kaynaksiz iddiadir (10'dan kucuk olsa da).
+_SAYIM_IDDIA = re.compile(r"\b\d+\s+(?:major\s+|big\s+|biggest\s+|large\s+)?(?:cities|countries|nations|states|continents|people|families|islands)\b", re.I)
+
+
+def sayim_iddialari(metin):
+    return sorted({m.group(0).lower() for m in _SAYIM_IDDIA.finditer(metin or "")})
+
+
+def _sayi_var(n, metin):
+    return re.search(rf"(?<![\d.]){re.escape(n)}(?![\d])", metin or "") is not None
+
+
+def onkosul_eksik(metin, topic):
+    """Metinde rakami gecen bir olgunun onkosulu (ornegin 'a quarter', 'all', 'since') metinde yoksa o olgularin id'leri.
+    Dogru rakamin yanlis varsayimla kullanilmasini engeller (15 m = buzun DORTTE BIRI; 'buz erirse 15 m' denemez)."""
+    out = []
+    for o in olgular(topic):
+        if o.get("onkosul") and any(_sayi_var(n, metin) for n in o["sayilar"]) and not re.search(o["onkosul"], metin or "", re.I):
+            out.append(o["id"])
+    return out
 
 
 def prompt_bolumu(topic):
@@ -101,7 +124,10 @@ def prompt_bolumu(topic):
     return ("\n\nVERIFIED FACTS (the ONLY numbers, measurements and years you may use; use at least one in the script, ideally in the "
             "hook or the closing line; copy each number exactly, never round or invent another):\n" + satir +
             "\nThe topic's own what-if numbers (for example '20 centimeters') are the premise and may be repeated. "
-            "State facts plainly; never add any other figure, percentage or date.")
+            "State facts plainly; never add any other figure, percentage or date. Whenever you use a fact's number, the same script must also say "
+            "the condition it depends on (for example 'a quarter of the ice', 'all the ice', 'since 1880', 'a light particle'). "
+            "The HOOK must state the topic's premise. Never count or name specific cities, countries or groups. "
+            "TITLE (max 40 chars): a plain statement with the verified number when you used one, e.g. 'A quarter of ice: sea +15 m'.")
 
 
 def kaynak_satiri(topic, metin):

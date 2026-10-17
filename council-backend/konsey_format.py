@@ -245,6 +245,9 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
     kaynaksiz = rakam_bankasi.yasakli_rakamlar(tum + " " + (hookthumb or ""), konu)
     if kaynaksiz:
         s.append(("RAKAM_KAYNAK", f"Kaynaksiz rakam: {', '.join(kaynaksiz)}. Yalniz VERIFIED FACTS'teki rakamlar kullanilabilir (rakam_bankasi.py)."))
+    eksik = rakam_bankasi.onkosul_eksik(tum, konu)
+    if eksik:
+        s.append(("ONKOSUL_EKSIK", f"Rakam kullanildi ama bagli oldugu kosul soylenmedi ({', '.join(eksik)}): ornegin 'a quarter of the ice', 'all the ice', 'since 1880'."))
     if BEDEN.search(tum) or MEDIKAL.search(tum):
         for cumle in re.split(r"(?<=[.?!])\s+", tum):
             if ETKI_KELIME.search(cumle) and not VARSAYIM.search(cumle):
@@ -290,7 +293,7 @@ KANCA_PROMPT = (
 )
 
 
-def kanca_gecerli(h):
+def kanca_gecerli(h, konu=None):
     """Tek bir kanca adayi kapidan (ilk cumle kurallari + guvenlik) gecer mi? -> [(kod,mesaj)]"""
     s = []
     n = len(_kelimeler(h))
@@ -307,6 +310,11 @@ def kanca_gecerli(h):
         s.append(("ADAY_SOYUT", "soyut kelime."))
     if ISTATISTIK.search(h or ""):
         s.append(("ADAY_ISTATISTIK", "oran/istatistik iddiasi."))
+    kaynaksiz = rakam_bankasi.yasakli_rakamlar(h or "", konu)
+    if kaynaksiz:
+        s.append(("ADAY_RAKAM", "kaynaksiz rakam/sayim: " + ", ".join(kaynaksiz)))
+    if rakam_bankasi.onkosul_eksik(h or "", konu):
+        s.append(("ADAY_ONKOSUL", "rakamin kosulu (varsayim) kancada yok."))
     if MEDIKAL.search(h or "") and TIBBI_IDDIA.search(h or ""):
         s.append(("ADAY_TIBBI", "tibbi konuda dogruluk/guvenlik iddiasi."))
     return s
@@ -316,14 +324,14 @@ def kanca_sec(topic, llm):
     """5 aday yazdirir, kapidan gecenler arasindan modelin PICK'ini (yoksa ilk gecerliyi) secer.
     -> {"adaylar": [(metin, gecerli_mi)], "secilen": str|None}. Aday yoksa/LLM hata verirse secilen=None (senaryo yine yazilir)."""
     try:
-        raw = llm(KANCA_PROMPT.format(topic=topic))
+        raw = llm(KANCA_PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic))
     except Exception:
         return {"adaylar": [], "secilen": None}
     adaylar = {int(m.group(1)): m.group(2).strip().strip('"') for m in re.finditer(r"^\s*([1-5])\s*[:.)]\s*(.+)$", raw, re.M)}
-    liste = [(adaylar[k], not kanca_gecerli(adaylar[k])) for k in sorted(adaylar)]
+    liste = [(adaylar[k], not kanca_gecerli(adaylar[k], topic)) for k in sorted(adaylar)]
     pick = re.search(r"PICK:\s*([1-5])", raw)
     secilen = None
-    if pick and int(pick.group(1)) in adaylar and not kanca_gecerli(adaylar[int(pick.group(1))]):
+    if pick and int(pick.group(1)) in adaylar and not kanca_gecerli(adaylar[int(pick.group(1))], topic):
         secilen = adaylar[int(pick.group(1))]
     if secilen is None:
         secilen = next((h for h, ok in liste if ok), None)
