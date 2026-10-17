@@ -124,7 +124,7 @@ def rapor_md(d, yorumlar=None, simdi=None):
          "## Özet", "",
          f"- {o['video']} video · medyan izlenme **{o['medyan_izlenme']}** · ortalama {o['ortalama_izlenme']} · en çok {o['en_cok']} · medyan süre {o['medyan_sure']} sn", ""]
 
-    s += ["## En çok izlenen 15", "", "| İzlenme | Saatlik | Yorum‰ | Süre | Abone | Kanal | Başlık |", "|---|---|---|---|---|---|---|"]
+    s += ["## En çok izlenen 15", "", "| İzlenme | Saatlik | Yorum % | Süre | Abone | Kanal | Başlık |", "|---|---|---|---|---|---|---|"]
     for r in sorted(sat, key=lambda x: -x["izlenme"])[:15]:
         s.append(f"| {r['izlenme']} | {r['saatlik']} | {r['yorum_orani']} | {r['sure']} | {r['abone']} | {r['kanal']} | {r['baslik']} |")
 

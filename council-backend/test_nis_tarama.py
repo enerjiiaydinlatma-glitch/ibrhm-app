@@ -52,6 +52,8 @@ class RaporTest(unittest.TestCase):
                        "## Etkileşim", "## Sen doldur"):
             self.assertIn(baslik, md)
         self.assertIn("yön göstergesidir", md.lower().replace("YÖN", "yön"))
+        self.assertIn("Yorum %", md)
+        self.assertNotIn("Yorum‰", md)
         self.assertIn("Veri yok", nt.rapor_md({"zaman": "x", "gun": 90, "sorgular": [], "satirlar": []}))
 
     def test_ayri_onbellek_ai_haber_onbellegini_bozmaz(self):
