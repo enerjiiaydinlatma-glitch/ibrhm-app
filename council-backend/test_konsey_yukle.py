@@ -130,3 +130,17 @@ class GunTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KayitAlanlariTest(unittest.TestCase):
+    def test_kayda_kategori_ve_rakam_bayraklari_yazilir(self):
+        d = tempfile.mkdtemp()
+        yol = os.path.join(d, "k.jsonl")
+        meta = {"konu": "What if a quarter of Earth's ice melted?", "title": "A quarter of ice means roughly 15 m",
+                "script": "Quarter of the ice? Roughly 15 meters. Harbors go under."}
+        satir = ky.kayit_yaz(meta, "VID", yol)
+        self.assertEqual((satir["konu_id"], satir["kategori"]), (79, "afet"))
+        self.assertTrue(satir["baslikta_rakam"])
+        self.assertTrue(satir["kaynakli_rakam"])
+        satir2 = ky.kayit_yaz({"konu": "Not in the pool", "title": "No digits here", "script": "Plain."}, "V2", yol)
+        self.assertEqual((satir2["konu_id"], satir2["kategori"], satir2["baslikta_rakam"], satir2["kaynakli_rakam"]), (None, "", False, False))

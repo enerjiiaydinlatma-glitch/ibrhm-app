@@ -107,10 +107,19 @@ def yukleme_gunleri(yol=KAYIT_YOL):
 def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None, yayin_utc=None):
     """Analiz icin etiket satiri (haftalik raporun sonraki surumu bunu kullanir)."""
     import haftalik_rapor
+    import konsey_konular
+    import rakam_bankasi
     hook = ilk_cumle(meta.get("script", ""))
+    konu = meta.get("konu", "")
+    kid = rakam_bankasi.konu_id(konu)
+    kk = konsey_konular.konu_bul(kid) if kid is not None else None
+    metin = f"{meta.get('script', '')} {meta.get('title', '')}"
     satir = {"video_id": video_id, "ts": (simdi or datetime.datetime.now()).isoformat(timespec="seconds"),
-             "format": "konsey", "konu": meta.get("konu", ""), "baslik": meta.get("title", ""), "kanca": hook,
-             "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "scheduled" if yayin_utc else "private", "yayin_utc": yayin_utc or ""}
+             "format": "konsey", "konu": konu, "baslik": meta.get("title", ""), "kanca": hook,
+             "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "scheduled" if yayin_utc else "private", "yayin_utc": yayin_utc or "",
+             # analiz icin (17 Ekim 2026): hangi sutun/konu, basliktaki rakam, kaynakli olgu kullanildi mi
+             "konu_id": kid, "kategori": (kk or {}).get("kategori", ""),
+             "baslikta_rakam": bool(re.search(r"\d", meta.get("title", ""))), "kaynakli_rakam": bool(rakam_bankasi.kaynak_satiri(konu, metin))}
     os.makedirs(os.path.dirname(yol), exist_ok=True)
     with open(yol, "a", encoding="utf-8") as f:
         f.write(json.dumps(satir, ensure_ascii=False) + "\n")
