@@ -396,7 +396,10 @@ def kanca_sec(topic, llm):
     """5 aday yazdirir, kapidan gecenler arasindan modelin PICK'ini (yoksa ilk gecerliyi) secer.
     -> {"adaylar": [(metin, gecerli_mi)], "secilen": str|None}. Aday yoksa/LLM hata verirse secilen=None (senaryo yine yazilir)."""
     try:
-        raw = llm(KANCA_PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic))
+        raw = llm(KANCA_PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
+                  + ("\nAt least ONE of the 5 hooks must be a plain declarative sentence (not a question) built from a VERIFIED FACT: "
+                     "surprising, with its number and condition (for example 'The sea already rose roughly 20 centimeters.')."
+                     if rakam_bankasi.olgular(topic) else ""))
     except Exception:
         return {"adaylar": [], "secilen": None}
     adaylar = {int(m.group(1)): m.group(2).strip().strip('"') for m in re.finditer(r"^\s*([1-5])\s*[:.)]\s*(.+)$", raw, re.M)}
@@ -464,6 +467,8 @@ def duzenle(r, komut, kanca=None):
             return None, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
         who, screen, _eski, img = beats[n - 1]
         beats[n - 1] = (who, screen, metin, img)
+        if n == 1:
+            kanca = None          # sahibi kancayi bilerek yeniden yaziyor: 'secilen kancayla ayni' sarti aranmaz, geri kalan kapi calisir
     elif komut[0] == "b":
         title = baslik_duzelt(komut[1])
     elif komut[0] == "k":

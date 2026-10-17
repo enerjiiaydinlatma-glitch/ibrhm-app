@@ -161,3 +161,19 @@ class PremisRakamiTest(unittest.TestCase):
     def test_aday_simdi_kelimesi_evrende_reddedilir(self):
         self.assertIn("ADAY_SIMDI", {c for c, _ in kf.kanca_gecerli("What if seas rise 20 centimeters today?", T29)})
         self.assertNotIn("ADAY_SIMDI", {c for c, _ in kf.kanca_gecerli("What if seas rise 20 centimeters?", T29)})
+
+
+class HookDuzenleTest(unittest.TestCase):
+    def test_ilk_satir_elle_degisince_kanca_esitligi_aranmaz(self):
+        r = {"topic": T29, "title": "20 centimeters of sea rise since 1880", "hookthumb": "ALREADY 20 CM",
+             "beats": [("aura", "X", "What if the sea rises 20 centimeters?", ""), ("alpha", "X", "8 inches since 1880. Storm tides already reach farther inland. That's one for me.", ""),
+                       ("beta", "X", "Hold on. Where does the ocean go when storm sewers fill up?", ""),
+                       ("delta", "X", "Actually... Beta, you're correct. Water spills onto coastal streets first.", ""),
+                       ("gamma", "X", "Move higher up the hill. I'd buy a house away from harbors.", ""),
+                       ("aura", "X", "Team Alpha or Team Beta? Which coastal city would you protect first?", "")]}
+        yeni, sorun = kf.duzenle(r, ("s", 1, "The sea already rose roughly 20 centimeters."), kanca="What if the sea rises 20 centimeters?")
+        self.assertEqual(sorun, [])
+        self.assertEqual(yeni["beats"][0][2], "The sea already rose roughly 20 centimeters.")
+        # diger satirlarda kanca esitligi hala sart
+        yeni2, sorun2 = kf.duzenle(r, ("s", 3, "Hold on. Which road floods first?"), kanca="Something else entirely here?")
+        self.assertIn("KANCA_DEGISTI", {c for c, _ in sorun2})
