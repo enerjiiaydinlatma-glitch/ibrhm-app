@@ -179,3 +179,14 @@ class HookDuzenleTest(unittest.TestCase):
             y2, s2 = kf.duzenle(yeni, komut, kanca="What if the sea rises 20 centimeters?")
             self.assertEqual(s2, [], komut)
             self.assertIsNotNone(y2)
+
+
+class SelOlgulariTest(unittest.TestCase):
+    T81 = "What if 60 centimeters of water ran down your street?"
+
+    def test_sel_olgulari_ve_onkosul(self):
+        self.assertEqual({o["id"] for o in rb.olgular(self.T81)}, {"sel_15cm", "sel_30cm", "sel_60cm"})
+        self.assertEqual(rb.onkosul_eksik("12 inches of water carries a small car.", self.T81), ["sel_30cm"])      # 'moving/flowing' yok
+        self.assertEqual(rb.onkosul_eksik("12 inches of flowing water carries a small car.", self.T81), [])
+        self.assertEqual(rb.yasakli_rakamlar("Just 15 centimeters of fast water knocks you down.", self.T81), [])
+        self.assertEqual(rb.yasakli_rakamlar("40 centimeters carries a bus.", self.T81), ["40"])

@@ -193,11 +193,13 @@ KONULAR = [
      "eksen": "Alpha: kıyılar yeniden çizilir. Beta: en rahatsız edici soru: kim önce taşınır?"},
     {"id": 80, "konu": "What if the Arctic had no summer ice?", "tr": "Kuzey Kutbu'nda yazın hiç buz kalmasa ne olur?", "kategori": "afet", "risk": "sari",
      "eksen": "Alpha: yeni deniz yolları. Beta: hava düzeni nasıl bozulur?"},
+    {"id": 81, "konu": "What if 60 centimeters of water ran down your street?", "tr": "Sokağından 60 santim yüksekliğinde su aksa ne olur?", "kategori": "afet", "risk": "yesil",
+     "eksen": "Alpha: araçlar sürüklenir. Beta: en rahatsız edici soru: kimler içeride kalır?"},
 ]
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81]
 
 
 def kullanilanlar(yol=KAYIT_YOL):
