@@ -190,3 +190,38 @@ class SelOlgulariTest(unittest.TestCase):
         self.assertEqual(rb.onkosul_eksik("12 inches of flowing water carries a small car.", self.T81), [])
         self.assertEqual(rb.yasakli_rakamlar("Just 15 centimeters of fast water knocks you down.", self.T81), [])
         self.assertEqual(rb.yasakli_rakamlar("40 centimeters carries a bus.", self.T81), ["40"])
+
+
+class RakamEngeliBankayaBagliTest(unittest.TestCase):
+    T25 = "Will AI change office jobs first?"
+
+    def beats(self, kanca, alpha="Clerks and routine desks shift first. That's one for me."):
+        return KapiTest().beats(kanca)[:1] + [("alpha", "X", alpha, "")] + KapiTest().beats(kanca)[2:]
+
+    def kodlar(self, beats, konu):
+        return {c for c, _ in kf.kontrol(beats, "Jobs shift by 2030", "JOBS BY 2030", konu=konu, kanca=None)}
+
+    def test_banka_rakami_milyon_ve_yuzde_gecer(self):
+        self.assertEqual(rb.yasakli_rakamlar("Employers expect 170 million new jobs.", self.T25), [])
+        for h in ("170 million", "92 million", "78 million", "22%", "22 %"):
+            self.assertTrue(rb.rakam_kaynakli(h, self.T25), h)
+        k = self.kodlar(self.beats("Employers expect 170 million new jobs by 2030."), self.T25)
+        self.assertNotIn("LINT_RAKAM", k)
+        self.assertNotIn("RAKAM_KAYNAK", k)
+
+    def test_bankada_olmayan_milyon_ve_yuzde_engelli(self):
+        for metin in ("Employers expect 180 million new jobs by 2030.", "Employers expect 30% of jobs to vanish by 2030."):
+            k = self.kodlar(self.beats(metin), self.T25)
+            self.assertIn("LINT_RAKAM", k, metin)
+
+    def test_olgusuz_konuda_milyon_engelli(self):
+        self.assertFalse(rb.rakam_kaynakli("170 million", "Is free shipping really free?"))
+        k = self.kodlar(self.beats("Employers expect 170 million new jobs by 2030."), "Would you ride in a car with no driver?")
+        self.assertIn("LINT_RAKAM", k)
+
+    def test_kanca_adayi_banka_rakami_gecer(self):
+        self.assertNotIn("ADAY_RAKAM", {c for c, _ in kf.kanca_gecerli("Employers expect 170 million new jobs.", self.T25)})
+        self.assertIn("ADAY_RAKAM", {c for c, _ in kf.kanca_gecerli("Employers expect 180 million new jobs.", self.T25)})
+
+    def test_onkosul_wef(self):
+        self.assertEqual(rb.onkosul_eksik("170 million new jobs by 2030.", self.T25), ["wef_2030_isler", "wef_2030_22"])

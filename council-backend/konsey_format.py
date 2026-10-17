@@ -338,6 +338,8 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
     if isim:
         s.append(("GERCEK_ISIM", f"Gercek sirket/urun adi yasak: {', '.join(isim)}."))
     for ad, hits, why in claim_lint.lint(metin):
+        if ad == "RAKAM" and hits and all(rakam_bankasi.rakam_kaynakli(h, konu) for h in hits):
+            continue          # '170 million' / '22%' konunun kaynakli olgusunda AYNEN varsa serbest; digerleri engelli kalir
         if ad in ENGELLEYICI:
             s.append(("LINT_" + ad.replace(" ", "_").replace("/", "_"), f"{ad}: {', '.join(hits)} - {why}"))
     return s
@@ -374,6 +376,8 @@ def kanca_gecerli(h, konu=None):
     if _entities().search(h or ""):
         s.append(("ADAY_ISIM", "gercek isim."))
     for ad, hits, _ in claim_lint.lint(h or ""):
+        if ad == "RAKAM" and hits and all(rakam_bankasi.rakam_kaynakli(x, konu) for x in hits):
+            continue
         if ad in ENGELLEYICI:
             s.append(("ADAY_" + ad, ", ".join(hits)))
     if SOYUT.search(h or ""):

@@ -57,6 +57,18 @@ OLGULAR = [
      "olgu": "As of March 2026, one robotaxi operator reported about 500,000 paid driverless rides a week in US cities.",
      "sayilar": ["500000", "2026"], "onkosul": r"\b(?:about|roughly|around|reported|as of)\b", "tur": "kaynak", "kaynak": "Industry press report of a robotaxi operator's weekly rides (secondary source)",
      "url": "https://www.automotiveworld.com/news/waymos-metric-for-2026-success-one-million-weekly-rides/"},
+    {"id": "wef_2030_isler", "konular": [25, 27],
+     "olgu": "By 2030, employers expect 170 million new jobs and 92 million jobs displaced worldwide, a net gain of 78 million (a survey of employers).",
+     "sayilar": ["2030", "170", "92", "78"], "onkosul": r"\b(?:employers|survey|expect\w*)\b", "tur": "kaynak", "kaynak": "World Economic Forum, Future of Jobs Report 2025 (employer survey)",
+     "url": "https://weforum.org/press/2025/01/future-of-jobs-report-2025-78-million-new-job-opportunities-by-2030-but-urgent-upskilling-needed-to-prepare-workforces/"},
+    {"id": "wef_2030_22", "konular": [25, 27],
+     "olgu": "Employers expect job disruption to affect 22% of jobs by 2030.",
+     "sayilar": ["22", "2030"], "onkosul": r"\b(?:employers|survey|expect\w*)\b", "tur": "kaynak", "kaynak": "World Economic Forum, Future of Jobs Report 2025 (employer survey)",
+     "url": "https://weforum.org/press/2025/01/future-of-jobs-report-2025-78-million-new-job-opportunities-by-2030-but-urgent-upskilling-needed-to-prepare-workforces/"},
+    {"id": "unesco_ogretmen_44", "konular": [21],
+     "olgu": "UNESCO estimates the world needs about 44 million more teachers by 2030 to give every child primary and secondary school.",
+     "sayilar": ["44", "2030"], "onkosul": r"\b(?:estimate\w*|about|roughly)\b", "tur": "kaynak", "kaynak": "UN News (UNESCO teacher shortage estimate)",
+     "url": "https://news.un.org/en/story/2024/02/1147067"},
     {"id": "isinlanma_143", "konular": [65, 66],
      "olgu": "In 2012, scientists teleported the quantum state of a light particle across 143 kilometers. No object or person has been teleported.",
      "sayilar": ["2012", "143"], "onkosul": r"\b(?:particle|photon|quantum|light)\b", "tur": "kaynak", "kaynak": "Max Planck Institute of Quantum Optics",
@@ -146,6 +158,18 @@ def onkosul_eksik(metin, topic):
         if o.get("onkosul") and any(_sayi_var(n, metin) for n in o["sayilar"] if n not in premis) and not re.search(o["onkosul"], metin or "", re.I):
             out.append(o["id"])
     return out
+
+
+def rakam_kaynakli(hit, topic):
+    """claim_lint RAKAM isabeti ('170 million', '22%') konunun bir olgusunda AYNEN (bosluk/buyuk-kucuk harf farksiz) geciyorsa True.
+    Yalniz bu durumda Konsey kapisi RAKAM engelini kaldirir; bankada olmayan hicbir milyon/yuzde rakami gecmez."""
+    h = re.sub(r"\s+", " ", (hit or "").strip().lower())
+    h2 = re.sub(r"\s+%", "%", h)
+    for o in olgular(topic):
+        t = re.sub(r"\s+", " ", o["olgu"].lower())
+        if h and (h in t or h2 in t):
+            return True
+    return False
 
 
 def prompt_bolumu(topic):

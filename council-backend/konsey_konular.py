@@ -64,7 +64,7 @@ KONULAR = [
      "eksen": "Alpha: sıfır gelen kutusu. Beta: arama çubuğu var."},
     # gelecek / yapay zeka (gorus ve tercih sorusu: olgu iddiasi, marka, suclama YOK). TIBBI konu (doktor/hap/teshis) EKLEME: kapiyi zorluyor,
 # uydurma saglik iddiasi riski ve kalitesiz senaryo veriyor (15 Ekim 2026).
-    {"id": 21, "konu": "Will AI replace teachers?", "tr": "Yapay zekâ öğretmenlerin yerini alacak mı?", "kategori": "gelecek",
+    {"id": 21, "konu": "Could AI help fill the world's teacher shortage?", "tr": "Yapay zekâ dünyadaki öğretmen açığını kapatabilir mi?", "kategori": "gelecek",
      "eksen": "Alpha: kişiye özel ders. Beta: öğretmen insan bağıdır."},
     {"id": 22, "konu": "Would you let AI plan your week?", "tr": "Yapay zekâ haftanı planlasın ister miydin?", "kategori": "gelecek",
      "eksen": "Alpha: verimli takvim. Beta: plansızlık da keyif."},
