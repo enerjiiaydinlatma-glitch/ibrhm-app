@@ -113,8 +113,9 @@ def onkosul_eksik(metin, topic):
     """Metinde rakami gecen bir olgunun onkosulu (ornegin 'a quarter', 'all', 'since') metinde yoksa o olgularin id'leri.
     Dogru rakamin yanlis varsayimla kullanilmasini engeller (15 m = buzun DORTTE BIRI; 'buz erirse 15 m' denemez)."""
     out = []
+    premis = {_norm(m.group(0)) for m in _SAYI.finditer(topic or "")}     # konunun kendi varsayim rakami (ornegin '20 centimeters') kosul istemez
     for o in olgular(topic):
-        if o.get("onkosul") and any(_sayi_var(n, metin) for n in o["sayilar"]) and not re.search(o["onkosul"], metin or "", re.I):
+        if o.get("onkosul") and any(_sayi_var(n, metin) for n in o["sayilar"] if n not in premis) and not re.search(o["onkosul"], metin or "", re.I):
             out.append(o["id"])
     return out
 

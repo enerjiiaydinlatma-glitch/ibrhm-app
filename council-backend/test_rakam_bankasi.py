@@ -147,3 +147,13 @@ class SabitYorumTest(unittest.TestCase):
         govde = kaynak.split("def konsey_video", 1)[1].split("\nif __name__", 1)[0]
         self.assertIn("konsey_format.evren_mi(topic)", govde)
         self.assertIn("what would YOU do?", govde)
+
+
+class PremisRakamiTest(unittest.TestCase):
+    def test_konunun_kendi_rakami_kosul_istemez(self):
+        self.assertEqual(rb.onkosul_eksik("What if seas rise 20 centimeters?", T29), [])
+        self.assertEqual(kf.kanca_gecerli("Why care if seas rise 20 centimeters?", T29), [])
+        self.assertEqual(rb.onkosul_eksik("Seas rose 21 cm.", T29), [])                 # 21 bankada yok -> yasakli_rakamlar yakalar
+        self.assertEqual(rb.yasakli_rakamlar("Seas rose 21 cm.", T29), ["21"])
+        self.assertEqual(rb.onkosul_eksik("The sea rose 8 inches.", T29), ["deniz_1880"])   # bankadaki baska rakam hala kosul ister
+        self.assertEqual(rb.onkosul_eksik("The sea rose 8 inches since 1880.", T29), [])
