@@ -249,6 +249,21 @@ class IstatistikTest(unittest.TestCase):
         self.assertEqual(kf.kanca_gecerli("Would you let a computer prescribe pills?"), [])
         self.assertNotIn("TIBBI_IDDIA", kodlar(IYI.replace("Free shipping is never free.", "Would a computer catch a swollen knee?")))
 
+    def test_beden_cip_etki_iddiasi_yalniz_varsayim_kipinde(self):
+        gecen = IYI.replace("Shoppers deserve a clear price.", "One day a chip might heal a broken heart.")
+        self.assertNotIn("ETKI_IDDIA", kodlar(gecen))
+        for yasak in ("A chip heals a broken heart.", "The implant cures pain.", "A brain chip treats fear."):
+            self.assertIn("ETKI_IDDIA", kodlar(IYI.replace("Shoppers deserve a clear price.", yasak)), yasak)
+        self.assertNotIn("ETKI_IDDIA", kodlar(IYI.replace("Shoppers deserve a clear price.", "A sale fixes nothing.")))   # beden/cip yok: calismaz
+
+    def test_komut_flying_flies_alien_yasagi(self):
+        for kelime in ("FLYING", "FLIES", "alien"):
+            self.assertIn(kelime, kf.PROMPT)
+        import claim_lint
+        for yasakli in ("flying cars", "a car that flies", "an alien visit"):
+            self.assertTrue([a for a, _h, _w in claim_lint.lint(yasakli) if a == "NIYET ATFI"], yasakli)
+        self.assertEqual([a for a, _h, _w in claim_lint.lint("Would you fly your car to work?") if a == "NIYET ATFI"], [])
+
     def test_komut_oran_yasagini_iceriyor(self):
         self.assertIn("NO ratios or fractions", kf.PROMPT)
         self.assertIn("ratios", kf.KANCA_PROMPT)

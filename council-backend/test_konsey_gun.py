@@ -176,7 +176,8 @@ class YardimciTest(unittest.TestCase):
         self.assertIsNone(kg.sonraki_konu(set(), "yok", self.KONULAR, []))
 
     def test_gercek_havuzda_ilk_oneri(self):
-        self.assertEqual(kg.sonraki_konu(set())["id"], 1)
+        self.assertEqual(kg.sonraki_konu(set())["id"], 29)          # yeni strateji: once deniz +20 cm
+        self.assertEqual(kg.sonraki_konu(set(), "robot")["id"], 42)  # kategoride oncelik listesi (robot yasalari)
 
     def test_sunucu_hazirla_yalniz_kapaliysa_baslatir(self):
         sayac = []

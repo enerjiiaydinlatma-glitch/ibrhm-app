@@ -254,7 +254,7 @@ def _gercek():
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Konsey Short'u - tek komut")
     ap.add_argument("--konu", type=int, default=None, help="havuz konu numarasi")
-    ap.add_argument("--kategori", default=None, help="siradaki konuyu yalniz bu kategoriden sec (para, yemek, teknoloji, sosyal, iş, ev, gelecek)")
+    ap.add_argument("--kategori", default=None, help="siradaki konuyu yalniz bu kategoriden sec (afet, sehir, robot, uzay, insan, son, fizik, gelecek, para, yemek, teknoloji, sosyal, iş, ev)")
     ap.add_argument("--saat", default=None, help="yayin saati, TURKIYE saati 'YYYY-MM-DD HH:MM' (verilmezse sorulur)")
     a = ap.parse_args(argv)
     if not sys.stdin.isatty():

@@ -36,6 +36,21 @@ class HavuzTest(unittest.TestCase):
     def test_kategori_cesitli(self):
         self.assertGreaterEqual(len({k["kategori"] for k in kk.KONULAR}), 5)
 
+    def test_yeni_evren_kategorileri_ve_risk_etiketi(self):
+        kats = {k["kategori"] for k in kk.KONULAR}
+        for k in ("afet", "sehir", "robot", "uzay", "insan", "son", "fizik"):
+            self.assertIn(k, kats)
+        for k in kk.KONULAR[28:]:
+            self.assertIn(k["risk"], ("yesil", "sari", "insan"), k["konu"])
+        for k in kk.KONULAR:
+            self.assertNotRegex(k["konu"], r"(?i)flying|flies|alien|believe|right|origin|trigger")
+
+    def test_onerilen_ilk_yeni_stratejiyi_izler(self):
+        ilk3 = [kk.konu_bul(i)["konu"] for i in kk.ONERILEN_ILK[:3]]
+        self.assertEqual(ilk3[0], "What if the sea rose 20 centimeters?")
+        self.assertIn("fly", ilk3[1].lower())
+        self.assertIn("Mars", ilk3[2])
+
     def test_onerilen_idler_gecerli(self):
         for i in kk.ONERILEN_ILK:
             self.assertIsNotNone(kk.konu_bul(i))

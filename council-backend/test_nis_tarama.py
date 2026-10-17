@@ -60,6 +60,34 @@ class RaporTest(unittest.TestCase):
         self.assertNotEqual(nt.CACHE, nt.va.CACHE)
 
 
+class NisSetleriTest(unittest.TestCase):
+    def test_nisler_ve_yollar(self):
+        self.assertEqual(set(nt.NISLER), {"afet", "robot", "insan", "uzay_yeralti", "fizik"})
+        for ad, q in nt.NISLER.items():
+            self.assertEqual(len(q), 8, ad)
+            self.assertIn(ad, nt.NIS_ADLARI)
+        yollar = {nt.cache_yolu(a) for a in nt.NISLER} | {nt.va.CACHE}
+        self.assertEqual(len(yollar), len(nt.NISLER) + 1)            # her nis ayri onbellek, AI-haber onbellegi ayri
+        self.assertEqual(nt.cache_yolu("afet"), nt.CACHE)
+
+    def test_yeni_konu_kovalari(self):
+        sat = [s(1, "What if robots ran the world?", 100), s(2, "Would you put a chip in your brain?", 90),
+               s(3, "A city under the ocean", 80), s(4, "What if gravity doubled?", 70)]
+        g = {r["konu"]: r["n"] for r in nt.konu_gruplari(sat)}
+        self.assertEqual(g["robot/makine"], 1)
+        self.assertEqual(g["beyin/cip/cyborg"], 1)
+        self.assertEqual(g["yer alti/su alti sehir"], 1)
+        self.assertEqual(g["fizik/absurt"], 1)
+
+    def test_karsilastirma(self):
+        kucuk = [s(i, "x", 20000, abone=500) for i in range(3)]
+        buyuk = [s(10 + i, "y", 900000, abone=5_000_000) for i in range(3)]
+        md = nt.karsilastirma_md({"robot": {"satirlar": kucuk}, "fizik": {"satirlar": buyuk}, "insan": {"satirlar": []}})
+        self.assertLess(md.index("robotlar"), md.index("fizik"))     # kucuk kanalda >=10k fazla olan once
+        self.assertIn("hayatta kalma", md)
+        self.assertIn("| **3** |", md)
+
+
 class YorumCekTest(unittest.TestCase):
     class _Yt:
         def __init__(self, tablo):

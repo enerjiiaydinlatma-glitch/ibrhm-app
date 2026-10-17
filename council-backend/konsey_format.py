@@ -84,7 +84,8 @@ PROMPT = (
     "deliberate, intentional, rigged, manipulate, force, illegal, crime, cheat. Explain the STRUCTURE and incentives "
     "in neutral words.\n"
     "- The linter matches word FRAGMENTS, so also avoid words like right, bright, origin, trigger, believe, belief, "
-    "enforce, strap, quiet - use simple synonyms (say 'correct', not 'right').\n"
+    "enforce, strap, quiet, FLYING, FLIES, alien - use simple synonyms (say 'correct', not 'right'; say 'fly' or 'airborne', never 'flying' or 'flies'; "
+    "say 'visitors from space', never 'alien').\n"
     "- NO ratios or fractions of any kind ('1 in 3', 'half of', 'most of', 'thousands of', 'percent', '3 times') and NO claims about "
     "how accurate, safe, reliable or often wrong any group is (doctors, teachers, drivers, AI, stores). Ask a question or state a "
     "personal preference instead of a fact. On medical topics (doctors, pills, diagnosis, surgery) never claim anyone is wrong, "
@@ -108,6 +109,13 @@ ISTATISTIK = re.compile(
 # Tibbi konularda (doktor, hap, teshis...) dogruluk/guvenlik/zarar iddiasi YASAK: yanlis tibbi bilgi riski. Yalniz metinde tibbi kelime varsa calisir.
 MEDIKAL = re.compile(r"\b(doctors?|nurses?|medicine|medical|pills?|prescri\w+|surgery|surgeons?|diagnos\w+|symptoms?|patients?|disease|illness|cancer|hospitals?|clinic|treatment)\b", re.I)
 TIBBI_IDDIA = re.compile(r"\b(wrong|mistakes?|errors?|misdiagnos\w+|guess\w*|accura\w+|inaccura\w+|safer|safe|dangerous|harm\w*|kill\w*|die[sd]?|deadly|misses|missed)\b", re.I)
+
+# Beden/cip/beyin konularinda 'tedavi eder / iyilestirir' gibi ETKI iddiasi: yalniz GELECEK/VARSAYIM kipinde (could, might, one day, what if...) serbest;
+# bugun gecerliymis gibi (olgu kipi) yasak. Gelecek hakkinda dusunce/hayal ozgurdur; yasak olan, kanitsiz etkiyi olgu gibi sunmaktir (platform tibbi yanlis
+# bilgi politikasi + yanlis umut riski). Yalniz metinde beden/tip kelimesi varsa calisir.
+BEDEN = re.compile(r"\b(chips?|brains?|implants?|organs?|cyborgs?|bod(?:y|ies)|genes?|nanobots?|neurons?)\b", re.I)
+ETKI_KELIME = re.compile(r"\b(cures?|cured|heals?|healed|treats?|treated|fix(?:es|ed)?|reverses?|prevents?|eliminates?)\b", re.I)
+VARSAYIM = re.compile(r"\b(could|might|may|maybe|perhaps|one day|someday|imagine|what if|would|if|someday|someday)\b", re.I)
 
 _ENTITY_RX = None
 
@@ -232,6 +240,11 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None):
     if stat:
         s.append(("ISTATISTIK", f"Oran/istatistik/dogruluk iddiasi yasak (uydurma olabilir): {', '.join(stat)}."))
     tum = " ".join(L) + " " + (title or "")
+    if BEDEN.search(tum) or MEDIKAL.search(tum):
+        for cumle in re.split(r"(?<=[.?!])\s+", tum):
+            if ETKI_KELIME.search(cumle) and not VARSAYIM.search(cumle):
+                s.append(("ETKI_IDDIA", f"Beden/cip konusunda etki iddiasi yalniz gelecek-varsayim kipinde olabilir (could/might/one day/what if): '{cumle.strip()[:80]}'."))
+                break
     if MEDIKAL.search(tum):
         tibbi = sorted({m.group(0).lower() for m in TIBBI_IDDIA.finditer(tum)})
         if tibbi:
