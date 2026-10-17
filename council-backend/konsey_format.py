@@ -23,6 +23,7 @@ import sys
 
 import claim_lint
 import hook_gate
+import konsey_konular
 import rakam_bankasi
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -99,6 +100,59 @@ PROMPT = (
     "TITLE: <max 40 characters, no colon, no quotes, a question or contradiction about the topic>\n"
     "HOOKTHUMB: <3-5 ALL CAPS words for the opening card, not generic>"
 )
+
+# --------------------------------------------------------------------------- EVREN formati (afet/sehir/robot/uzay/insan/son/fizik)
+# Gunluk-hayat formati 'I do this too, honestly' + 'guilty habit' ile biter; buyuk what-if konularinda bu uymuyor (17 Ekim 2026, konu 79 denemesi).
+# Evren formati: Gamma kisisel SECIM soyler ('I'd grab ...'), kapanis izleyiciye kisisel secim sorusu sorar (Which city would you save?) - yorumlari
+# espri yerine kisisel cevaba ceker. Beta: en rahatsiz edici takip sorusu, olguyu asla inkar etmez.
+EVREN_KATEGORILERI = {"afet", "sehir", "robot", "uzay", "insan", "son", "fizik"}
+
+ZAMAN_SIMDI = re.compile(r"\b(now|today|tonight|breaking|happening|happens)\b", re.I)
+KUCUK_OLCEK = re.compile(r"\b(benche?s?|chairs?|towels?|driveways?|pants|umbrellas?|sandals?|socks?|toys?)\b", re.I)
+
+ORNEK_EVREN = """aura | RIVER STREETS | Your street, but it's a river? | a flooded city street at dusk, water reflecting neon signs
+alpha | WATER MATH | Rain needs somewhere to go. Drains fill first, then streets. That's one for me. | storm drains overflowing at the curb
+beta | HOLD ON | Hold on. Where do the cars sleep tonight? | rows of parked cars with water at the door handles
+delta | SIDE SWITCH | Actually... Beta, you're correct. Parked cars are the first thing people lose. | a car roof barely above the water
+gamma | MY PICK | Pack light, move early. I'd grab my photos and one warm coat. | a backpack by a front door
+aura | PICK A TEAM | Team Alpha or Team Beta? Which room would you save first? | a dark apartment with one lit window
+TITLE: Could Streets Become Rivers?
+HOOKTHUMB: STREETS BECOME RIVERS"""
+
+def evren_mi(topic):
+    i = rakam_bankasi.konu_id(topic)
+    k = konsey_konular.konu_bul(i) if i is not None else None
+    return bool(k and k["kategori"] in EVREN_KATEGORILERI)
+
+
+# EVREN_PROMPT asagida, ORNEK_EVREN tanimindan sonra
+
+def _evren_prompt():
+    t = PROMPT
+    degisim = [
+        ("an EVERYDAY consumer/life topic", "a BIG what-if topic (disasters, future cities, robots, space, the human body, the end of the world)"),
+        ("(socks, a phone, a receipt, a cart, a Sunday night)", "(a coastline, a rocket, a street, a robot arm, a harbor)"),
+        ("- Every claim must be common knowledge about how everyday things work; no news, no accusations.\n",
+         "- Every claim is the topic's what-if premise, a VERIFIED FACT, or plain common sense. This is a WHAT-IF, not news: never say it is happening now, "
+         "never use the words now, today, tonight, breaking. Consequences must match the SCALE of the event: for a big event name big things "
+         "(coastlines, ports, whole streets, neighborhoods, power, water), never tiny objects (benches, chairs, towels, driveways, pants).\n"),
+        (ORNEK, ORNEK_EVREN),
+    ]
+    for a, b in degisim:
+        assert a in t, a
+        t = t.replace(a, b)
+    for desen, yeni in [
+        (r"^3 BETA .*$", "3 BETA starts with 'Hold on.' and asks the most unsettling follow-up question about the scenario. Beta never denies the scenario and never offers a solution."),
+        (r"^5 GAMMA .*$", "5 GAMMA gives one short practical point, then states a personal choice starting with the exact words \"I'd\" or \"I would\" (what Gamma would grab, do or choose)."),
+        (r"^6 AURA closes.*$", "6 AURA closes: exactly one sentence 'Team Alpha or Team Beta?' then asks the viewer ONE personal-choice question starting with Which, Where or What would you (for example 'Which city would you save?'). Do not write any score; the system adds it."),
+    ]:
+        t, n = re.subn(desen, lambda m, y=yeni: y, t, flags=re.M)
+        assert n == 1, desen
+    return t
+
+
+PROMPT_EVREN = _evren_prompt()
+
 
 # Uydurma istatistik/oran: '1 in 3', 'half of', 'thousands of', 'percent', '3 times', 'twice as'. claim_lint RAKAM yalniz $, %, k/million/billion yakalar;
 # duz rakam/kelimeyle yazilmis oranlar ('1 in 3 wrong') kaciyordu (15 Ekim 2026: doktor konusunda 'Human doctors get 1 in 3 wrong.').
@@ -231,12 +285,28 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
         s.append(("BETA_ISARET", "Beta 'Hold on.' ile baslamadi."))
     if not (re.search(r"\bactually\b", L[3], re.I) and re.search(r"\byou'?re correct\b|\byou are correct\b", L[3], re.I)):
         s.append(("DELTA_ISARET", "Delta taraf degistirmedi ('Actually... X, you're correct.')."))
-    if not re.search(r"\bi do this too\b", L[4], re.I):
+    evren = evren_mi(konu)
+    if evren:
+        if not re.search(r"\bi(?:'d|\u2019d| would)\b", L[4], re.I):
+            s.append(("GAMMA_ISARET", "Gamma kisisel secimini ('I'd ...' / 'I would ...') soylemedi."))
+    elif not re.search(r"\bi do this too\b", L[4], re.I):
         s.append(("GAMMA_ISARET", "Gamma 'I do this too, honestly.' itirafini yapmadi."))
     if not re.search(r"team alpha or team beta", L[5], re.I):
         s.append(("KAPANIS_TAKIM", "Kapanista 'Team Alpha or Team Beta?' yok."))
-    if not re.search(r"\b(guilty|habit)\b", L[5], re.I):
+    if evren:
+        if not re.search(r"\b(which|where|what would you)\b", L[5], re.I):
+            s.append(("KAPANIS_SECIM", "Kapanis izleyiciden kisisel secim istemiyor (Which/Where/What would you ...?)."))
+    elif not re.search(r"\b(guilty|habit)\b", L[5], re.I):
         s.append(("KAPANIS_ITIRAF", "Kapanis izleyiciden 'guilty habit' istemiyor."))
+    if evren:
+        yasak_zaman = sorted({m.group(0).lower() for m in ZAMAN_SIMDI.finditer(" ".join(L) + " " + (title or "") + " " + (hookthumb or ""))
+                              if m.group(0).lower() not in (konu or "").lower()})
+        if yasak_zaman:
+            s.append(("SIMDI_ZAMANI", f"Bu bir varsayim; 'simdi oluyor' gibi okunan kelime yasak: {', '.join(yasak_zaman)}."))
+        if rakam_bankasi.olgu_rakami_var(tum_metin := " ".join(L) + " " + (title or ""), konu):
+            kucuk = sorted({m.group(0).lower() for m in KUCUK_OLCEK.finditer(tum_metin)})
+            if kucuk:
+                s.append(("KUCUK_OLCEK", f"Buyuk olcekli rakamla kucuk nesneler uyusmuyor: {', '.join(kucuk)}. Kiyilar, limanlar, sokaklar, mahalleler gibi buyuk seyleri soyle."))
     stat = sorted({m.group(0).lower() for m in ISTATISTIK.finditer(" ".join(L) + " " + (title or ""))})
     if stat:
         s.append(("ISTATISTIK", f"Oran/istatistik/dogruluk iddiasi yasak (uydurma olabilir): {', '.join(stat)}."))
@@ -457,7 +527,7 @@ def ekran_degistir(yol, metin):
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
     Kapidan gecmezse sorunlari geri besleyip yeniden yazdirir (en fazla 3 deneme). -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
-    temel = PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
+    temel = (PROMPT_EVREN if evren_mi(topic) else PROMPT).format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
     if kanca:
         temel += f"\n\nPACKAGED HOOK (already chosen): line 1 must be EXACTLY this, word for word: {kanca}"
     prompt = temel

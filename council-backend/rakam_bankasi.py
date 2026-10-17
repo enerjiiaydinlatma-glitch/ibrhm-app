@@ -104,6 +104,11 @@ def _sayi_var(n, metin):
     return re.search(rf"(?<![\d.]){re.escape(n)}(?![\d])", metin or "") is not None
 
 
+def olgu_rakami_var(metin, topic):
+    """Metinde konuya ait bir olgunun rakami geciyor mu?"""
+    return any(_sayi_var(n, metin) for o in olgular(topic) for n in o["sayilar"])
+
+
 def onkosul_eksik(metin, topic):
     """Metinde rakami gecen bir olgunun onkosulu (ornegin 'a quarter', 'all', 'since') metinde yoksa o olgularin id'leri.
     Dogru rakamin yanlis varsayimla kullanilmasini engeller (15 m = buzun DORTTE BIRI; 'buz erirse 15 m' denemez)."""
@@ -127,7 +132,7 @@ def prompt_bolumu(topic):
             "State facts plainly; never add any other figure, percentage or date. Whenever you use a fact's number, the same script must also say "
             "the condition it depends on (for example 'a quarter of the ice', 'all the ice', 'since 1880', 'a light particle'). "
             "The HOOK must state the topic's premise. Never count or name specific cities, countries or groups. "
-            "TITLE (max 40 chars): a plain statement with the verified number when you used one, e.g. 'A quarter of ice: sea +15 m'.")
+            "TITLE (max 40 chars): a plain statement with the verified number when you used one, e.g. 'A quarter of ice means 15 m of sea' (no colon).")
 
 
 def kaynak_satiri(topic, metin):

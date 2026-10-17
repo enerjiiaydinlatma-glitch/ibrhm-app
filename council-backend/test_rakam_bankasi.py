@@ -99,3 +99,36 @@ class OnkosulTest(unittest.TestCase):
         self.assertIn("ADAY_ONKOSUL", {c for c, _ in kf.kanca_gecerli("Melting ice raises water roughly 15 meters?", T79)})
         self.assertNotIn("ADAY_ONKOSUL", {c for c, _ in kf.kanca_gecerli("A quarter of ice means 15 meters, not 1.", T79)})
         self.assertIn("ADAY_RAKAM", {c for c, _ in kf.kanca_gecerli("3 major cities will flood first.", T79)})
+
+
+class EvrenFormatiTest(unittest.TestCase):
+    def test_evren_mi(self):
+        self.assertTrue(kf.evren_mi(T79))
+        self.assertFalse(kf.evren_mi(T1))
+        self.assertFalse(kf.evren_mi("Will AI replace teachers?"))        # 'gelecek' kategorisi eski format
+        self.assertFalse(kf.evren_mi(None))
+
+    def test_ornek_evren_kendi_kapisindan_gecer(self):
+        t = kf.ORNEK_EVREN
+        beats = [tuple(x.split(" | ")) for x in t.split("\nTITLE:")[0].splitlines()]
+        self.assertEqual(kf.kontrol(beats, t.split("TITLE: ")[1].splitlines()[0], t.split("HOOKTHUMB: ")[1], konu="What if the Moon disappeared tonight?"), [])
+
+    def test_prompt_secimi(self):
+        self.assertIn("Which, Where or What would you", kf.PROMPT_EVREN)
+        self.assertNotIn("guilty habit in a few words", kf.PROMPT_EVREN)
+        self.assertIn("guilty habit", kf.PROMPT)
+
+    def test_konu79_kotu_senaryo_reddedilir(self):
+        b = [("aura", "X", "What if a quarter of ice melts?", ""), ("alpha", "X", "Roughly 15 meters of sea covers beach chairs. That's one for me.", ""),
+             ("beta", "X", "Hold on. Do my favorite pier benches get covered?", ""), ("delta", "X", "Actually... Beta, you're correct. Wet wooden benches ruin your pants.", ""),
+             ("gamma", "X", "Save your beach gear. I do this too, honestly. Leaving towels outside.", ""), ("aura", "X", "Team Alpha or Team Beta? What is your guilty habit?", "")]
+        kodlar = {c for c, _ in kf.kontrol(b, "A quarter of ice sea plus 15 meters", "QUARTER ICE MELTS NOW", konu=T79)}
+        for k in ("GAMMA_ISARET", "KAPANIS_SECIM", "SIMDI_ZAMANI", "KUCUK_OLCEK"):
+            self.assertIn(k, kodlar)
+
+    def test_iyi_senaryo_gecer(self):
+        b = [("aura", "X", "A quarter of ice melts, but then?", ""), ("alpha", "X", "The sea climbs roughly 15 meters. Harbors vanish first. That's one for me.", ""),
+             ("beta", "X", "Hold on. Where do a million port workers sleep?", ""), ("delta", "X", "Actually... Beta, you're correct. Whole neighborhoods go before the ports.", ""),
+             ("gamma", "X", "Move inland early. I'd grab my photos and my dog.", ""), ("aura", "X", "Team Alpha or Team Beta? Which city would you save?", "")]
+        sorun = kf.kontrol(b, "A quarter of ice means 15 m of sea", "THE SEA CLIMBS", konu=T79)
+        self.assertEqual([c for c, _ in sorun if c not in ("RAKAM", "LINT_RAKAM")], [], sorun)
