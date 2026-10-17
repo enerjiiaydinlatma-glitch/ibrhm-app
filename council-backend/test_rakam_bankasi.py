@@ -132,3 +132,10 @@ class EvrenFormatiTest(unittest.TestCase):
              ("gamma", "X", "Move inland early. I'd grab my photos and my dog.", ""), ("aura", "X", "Team Alpha or Team Beta? Which city would you save?", "")]
         sorun = kf.kontrol(b, "A quarter of ice means 15 m of sea", "THE SEA CLIMBS", konu=T79)
         self.assertEqual([c for c, _ in sorun if c not in ("RAKAM", "LINT_RAKAM")], [], sorun)
+
+
+class KayittanTest(unittest.TestCase):
+    def test_kayittan_yukleme_konuyu_kapiya_verir(self):
+        kaynak = open(__file__.replace("test_rakam_bankasi.py", "make_topic_short.py"), encoding="utf-8").read()
+        govde = kaynak.split("def _konsey_kayittan", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("konsey_format.kontrol(beats, title, hookthumb, konu=topic)", govde)

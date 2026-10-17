@@ -629,7 +629,7 @@ def _konsey_kayittan():
     import konsey_format
     from sensitivity_gate import assess
     topic, beats, title, hookthumb = konsey_format.senaryo_yukle(KONSEY_KAYIT)
-    sorunlar = konsey_format.kontrol(beats, title, hookthumb)
+    sorunlar = konsey_format.kontrol(beats, title, hookthumb, konu=topic)
     print(f"\nKAYITLI SENARYO ({KONSEY_KAYIT}):")
     for who, screen, line, _img in beats:
         print(f"  {who:5} | {screen} | {line}")
