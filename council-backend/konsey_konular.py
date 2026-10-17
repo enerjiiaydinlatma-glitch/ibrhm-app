@@ -189,8 +189,8 @@ KONULAR = [
      "eksen": "Alpha: yeni kurallar. Beta: sabah kim uyanır?"},
     {"id": 78, "konu": "What if your city was cut off from the world for a month?", "tr": "Şehrin bir ay dünyadan kopsa ne olur?", "kategori": "afet", "risk": "yesil",
      "eksen": "Alpha: su, gıda, enerji hesabı. Beta: en rahatsız edici soru: komşun kapıyı çalarsa?"},
-    {"id": 79, "konu": "What if half of the world's glaciers melted?", "tr": "Dünyadaki buzulların yarısı erise ne olur?", "kategori": "afet", "risk": "sari",
-     "eksen": "Alpha: nehirler ve kıyılar değişir. Beta: içme suyu kimde kalır?"},
+    {"id": 79, "konu": "What if a quarter of Earth's ice melted?", "tr": "Dünyadaki buzun dörtte biri erise ne olur?", "kategori": "afet", "risk": "sari",
+     "eksen": "Alpha: kıyılar yeniden çizilir. Beta: en rahatsız edici soru: kim önce taşınır?"},
     {"id": 80, "konu": "What if the Arctic had no summer ice?", "tr": "Kuzey Kutbu'nda yazın hiç buz kalmasa ne olur?", "kategori": "afet", "risk": "sari",
      "eksen": "Alpha: yeni deniz yolları. Beta: hava düzeni nasıl bozulur?"},
 ]
