@@ -467,15 +467,15 @@ def duzenle(r, komut, kanca=None):
             return None, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
         who, screen, _eski, img = beats[n - 1]
         beats[n - 1] = (who, screen, metin, img)
-        if n == 1:
-            kanca = None          # sahibi kancayi bilerek yeniden yaziyor: 'secilen kancayla ayni' sarti aranmaz, geri kalan kapi calisir
     elif komut[0] == "b":
         title = baslik_duzelt(komut[1])
     elif komut[0] == "k":
         kart = " ".join(komut[1].split()).upper()
     else:
         return None, [("KOMUT", "Bilinmeyen duzenleme.")]
-    sorunlar = kontrol(beats, title, kart, kanca=kanca, konu=r.get("topic"))
+    # Elle duzenlemede 'secilen kancayla ayni' sarti ARANMAZ (o sart modelin kancayi bozmasini onler; sahibi kancayi bilerek degistirebilir).
+    # Geri kalan kapi (hook_gate, rakam bankasi, claim_lint...) aynen calisir. `kanca` imzada uyumluluk icin duruyor.
+    sorunlar = kontrol(beats, title, kart, kanca=None, konu=r.get("topic"))
     if sorunlar:
         return None, sorunlar
     return {**r, "beats": beats, "title": title, "hookthumb": kart, "uyarilar": uyarilar(beats, title, kart)}, []

@@ -174,6 +174,8 @@ class HookDuzenleTest(unittest.TestCase):
         yeni, sorun = kf.duzenle(r, ("s", 1, "The sea already rose roughly 20 centimeters."), kanca="What if the sea rises 20 centimeters?")
         self.assertEqual(sorun, [])
         self.assertEqual(yeni["beats"][0][2], "The sea already rose roughly 20 centimeters.")
-        # diger satirlarda kanca esitligi hala sart
-        yeni2, sorun2 = kf.duzenle(r, ("s", 3, "Hold on. Which road floods first?"), kanca="Something else entirely here?")
-        self.assertIn("KANCA_DEGISTI", {c for c, _ in sorun2})
+        # kancayi elle degistirdikten SONRAKI duzenlemeler (baslik/kart/baska satir) de kanca esitligi aramaz
+        for komut in [("b", "20 centimeters of sea rise since 1880"), ("k", "already 20 cm"), ("s", 3, "Hold on. Which road floods first?")]:
+            y2, s2 = kf.duzenle(yeni, komut, kanca="What if the sea rises 20 centimeters?")
+            self.assertEqual(s2, [], komut)
+            self.assertIsNotNone(y2)
