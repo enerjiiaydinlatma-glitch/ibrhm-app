@@ -199,3 +199,10 @@ class YardimciTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ElenenKonuTest(unittest.TestCase):
+    def test_sonraki_konu_elenenleri_atlar(self):
+        konular = [{"id": 1, "konu": "a", "kategori": "x"}, {"id": 2, "konu": "b", "kategori": "x"}]
+        self.assertEqual(kg.sonraki_konu(set(), konular=konular, oncelik=[], elenen={1})["id"], 2)
+        self.assertIsNone(kg.sonraki_konu(set(), konular=konular, oncelik=[], elenen={1, 2}))

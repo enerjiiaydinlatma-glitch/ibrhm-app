@@ -230,7 +230,24 @@ KONULAR = [
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84, 90, 86, 91, 94]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84, 90, 86, 91, 94]
+
+
+# ELEME (17 Ekim 2026): konu basina etkilesim verisi YOK (yalniz 2 video yuklendi); eleme tarama verisi + editoryal olcute dayanir, kanit degildir.
+# Olcut: (a) tarama: afet/deniz-buz/ucan araba/fizik guclu, uzay zayif; (b) belirsiz/soyut soru ('nereye gidiyor', 'ne icin yapiliyor') = kanca yok;
+# (c) gundelik tuketici konulari nis kararinin disinda; (d) kisisel secim / somut sahne / rakam tasiyabilen konu kalir. 'elendi' = sonraki_konu secmez,
+# silinmez (tarihce + geri alinabilir). Elle --konu N ile hala uretilebilir. Ilk videolarin sonuclariyla (konsey_kontrol) yeniden degerlendir.
+GUNLUK_HAYAT = {i: "gündelik tüketici/yaşam konusu: niş kararının dışında, eski formatın düşük erişim bandında kaldı" for i in range(1, 21)}
+ELENENLER = {
+    **GUNLUK_HAYAT,
+    22: "gündelik YZ planlama: sıradan, kanca yok", 24: "araba kaydı: mahremiyet tartışması sıradan, görsel zayıf",
+    26: "ödev notlama: sıradan", 28: "e-posta yazımı: sıradan",
+    31: "belirsiz/soyut ('buzullar ne söylüyor'): somut sahne ve rakam taşımıyor (yerine 29, 30, 79)",
+    40: "belirsiz ('robotlar ne için yapılıyor'): kanca yok (yerine 82, 83, 84)", 41: "belirsiz ('robot çağı nereye'): soyut",
+    43: "zayıf varsayım (makineler ülke kurar): sarı risk, merak az", 45: "sıradan (şantiye robotları): görsel ve merak zayıf",
+    56: "soyut/klişe ('insanlık sona erebilir mi'): rakam ve sahne yok, sarı risk", 77: "belirsiz/siyasi ('dünya düzeni'): somut sahne yok",
+    87: "kanca yok ('şelalenin arkası'): yerine 85, 90",
+}
 
 
 def kullanilanlar(yol=KAYIT_YOL):
@@ -254,11 +271,17 @@ def konu_bul(n):
     return next((k for k in KONULAR if k["id"] == int(n)), None)
 
 
+def aktif(konular=None):
+    """Elenmemis konular."""
+    return [k for k in (konular if konular is not None else KONULAR) if k["id"] not in ELENENLER]
+
+
 def liste(kullanilan=None):
     kullanilan = kullanilan if kullanilan is not None else kullanilanlar()
     satir = ["KONSEY KONU HAVUZU (numara | durum | konu | Türkçesi | kategori)", ""]
     for k in KONULAR:
-        durum = "KULLANILDI" if k["konu"].lower() in kullanilan else ("önerilen" if k["id"] in ONERILEN_ILK else "         ")
+        durum = ("KULLANILDI" if k["konu"].lower() in kullanilan else ("ELENDİ" if k["id"] in ELENENLER
+                 else ("önerilen" if k["id"] in ONERILEN_ILK else "         ")))
         satir.append(f"{k['id']:>2} | {durum:10} | {k['konu']}\n   -> {k['tr']}  [{k['kategori']}]  {k['eksen']}")
     return "\n".join(satir)
 

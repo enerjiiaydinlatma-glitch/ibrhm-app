@@ -76,3 +76,15 @@ class KullanimTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ElemeTest(unittest.TestCase):
+    def test_elenenler_gecerli_ve_oneride_yok(self):
+        idler = {k["id"] for k in kk.KONULAR}
+        self.assertTrue(set(kk.ELENENLER) <= idler)
+        self.assertFalse(set(kk.ELENENLER) & set(kk.ONERILEN_ILK))
+        self.assertTrue(all(kk.ELENENLER.values()))                      # her elemenin nedeni yazili
+        self.assertEqual(len(kk.aktif()), len(kk.KONULAR) - len(kk.ELENENLER))
+
+    def test_liste_elendi_isaretler(self):
+        self.assertIn("ELENDİ", kk.liste(set()))

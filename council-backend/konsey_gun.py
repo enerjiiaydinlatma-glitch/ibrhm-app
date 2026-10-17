@@ -33,12 +33,16 @@ SES_BAT = os.path.join(HERE, "sign_council_voice.bat")
 
 
 # --------------------------------------------------------------------------- yardimcilar (test edilebilir)
-def sonraki_konu(kullanilan, kategori=None, konular=None, oncelik=None):
-    """Kullanilmamis ilk konu: once oncelik listesi (ONERILEN_ILK), sonra id sirasi. kategori verilirse yalniz o kategori. Yoksa None."""
+def sonraki_konu(kullanilan, kategori=None, konular=None, oncelik=None, elenen=None):
+    """Kullanilmamis ilk konu: once oncelik listesi (ONERILEN_ILK), sonra id sirasi; ELENEN konular atlanir. kategori verilirse yalniz o kategori. Yoksa None."""
+    if elenen is None:
+        elenen = konsey_konular.ELENENLER if konular is None else set()     # disaridan konu listesi verilirse (test) eleme uygulanmaz
     konular = konular if konular is not None else konsey_konular.KONULAR
     oncelik = oncelik if oncelik is not None else konsey_konular.ONERILEN_ILK
     sira = [k for i in oncelik for k in konular if k["id"] == i] + [k for k in konular if k["id"] not in oncelik]
     for k in sira:
+        if k["id"] in elenen:
+            continue
         if kategori and k["kategori"] != kategori:
             continue
         if k["konu"].lower() not in kullanilan:
@@ -108,6 +112,8 @@ def calistir(a, d):
             return 2
     topic = k["konu"]
     yaz(f"\nKONU {k['id']}: {topic}\n  ({k['tr']})  [{k['kategori']}]")
+    if k["id"] in konsey_konular.ELENENLER:
+        yaz(f"  [uyari] Bu konu ELENMIS: {konsey_konular.ELENENLER[k['id']]} (elle secildigi icin devam ediliyor)")
 
     # 2) ses sunucusu (arka planda yuklensin diye hemen)
     d["sunucu_hazirla"]()
