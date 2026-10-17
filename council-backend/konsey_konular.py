@@ -157,11 +157,41 @@ KONULAR = [
      "eksen": "Alpha: neyi düzeltirdin. Beta: ya her şey bozulursa?"},
     {"id": 64, "konu": "What if an asteroid landed in the ocean?", "tr": "Okyanusa bir asteroit düşse ne olur?", "kategori": "fizik", "risk": "sari",
      "eksen": "Alpha: dalga. Beta: kıyıdakiler."},
+    # 17 Ekim 2026 (ikinci dalga, Ibrahim'in listesi): isinlanma, klonlama, boyut kapisi, kara delik, gen, YZ yonetimi, robot seri uretimi.
+    # Arastirma notu: isinlanma yalniz kuantum DURUMU icin kanitlandi (143 km, 2012); insan isinlamasi yok. Kara delik goruntusu 2019 (M87).
+    # Gen: ilk CRISPR tedavisi 2023 (orak hucre); boy/dev-cuce icin tek bir gen yok, bu yuzden yalniz 'ya olsa' kipi.
+    # Biyolojik silah / yapay veba KASITLI YOK: YouTube zararli/tehlikeli icerik politikasi + Konsey kapi kurallari (suc/korku) ile uyumsuz.
+    {"id": 65, "konu": "What if you could teleport anywhere in one second?", "tr": "Bir saniyede istediğin yere ışınlanabilsen?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: mesafe biter. Beta: en rahatsız edici soru: gelen kim?"},
+    {"id": 66, "konu": "Would you step into a teleporter?", "tr": "Bir ışınlanma makinesine girer miydin?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: aynı atomlar, aynı sen. Beta: kopya mı geliyor?"},
+    {"id": 67, "konu": "What would you say if you met your clone?", "tr": "Klonunla karşılaşsan ona ne derdin?", "kategori": "insan", "risk": "insan",
+     "eksen": "Alpha: aynı biziz. Beta: hangimiz gerçek?"},
+    {"id": 68, "konu": "What if a door to another dimension opened in your room?", "tr": "Odanda başka bir boyuta açılan bir kapı olsa?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: önce incele. Beta: içeri girer miyim?"},
+    {"id": 69, "konu": "What would you see at the edge of a black hole?", "tr": "Bir kara deliğin kenarında ne görürdün?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: zaman yavaşlar. Beta: geri dönüş yok."},
+    {"id": 70, "konu": "What if another universe was one step away?", "tr": "Başka bir evren bir adım ötede olsa?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: kanıt ara. Beta: orada başka bir ben var mı?"},
+    {"id": 71, "konu": "What if humans grew twice as tall?", "tr": "İnsanlar iki kat uzun olsa ne olurdu?", "kategori": "insan", "risk": "insan",
+     "eksen": "Alpha: kapılar, yataklar, kalp. Beta: gökyüzüne bakmak başka olur."},
+    {"id": 72, "konu": "What if people could edit their own genes?", "tr": "İnsanlar kendi genlerini düzenleyebilse?", "kategori": "insan", "risk": "insan",
+     "eksen": "Alpha: ne istersen. Beta: kim sınır koyar?"},
+    {"id": 73, "konu": "Would you change your genes if you could?", "tr": "Yapabilsen genlerini değiştirir miydin?", "kategori": "insan", "risk": "insan",
+     "eksen": "Alpha: kusursuz ben. Beta: o artık ben miyim?"},
+    {"id": 74, "konu": "Who will steer AI: humans or the machines?", "tr": "Yapay zekâyı kim yönlendirecek: insanlar mı makineler mi?", "kategori": "robot", "risk": "sari",
+     "eksen": "Alpha: direksiyon bizde. Beta: son söz kimde?"},
+    {"id": 75, "konu": "What if AI ran the power and traffic of a whole country?", "tr": "Yapay zekâ bir ülkenin elektriğini ve trafiğini yönetse?", "kategori": "robot", "risk": "sari",
+     "eksen": "Alpha: kesintisiz düzen. Beta: bir hata olursa?"},
+    {"id": 76, "konu": "What if robots were built like cars, one a minute?", "tr": "Robotlar araba gibi, dakikada bir seri üretilse?", "kategori": "robot", "risk": "yesil",
+     "eksen": "Alpha: herkese bir tane. Beta: o kadar robotla ne yapacağız?"},
+    {"id": 77, "konu": "What if the world order changed overnight?", "tr": "Dünya düzeni bir gecede değişse?", "kategori": "son", "risk": "sari",
+     "eksen": "Alpha: yeni kurallar. Beta: sabah kim uyanır?"},
 ]
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72]
 
 
 def kullanilanlar(yol=KAYIT_YOL):
