@@ -23,6 +23,7 @@ import sys
 
 import claim_lint
 import hook_gate
+import rakam_bankasi
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "_engine")
@@ -79,7 +80,7 @@ PROMPT = (
     "- Do NOT name any real company, brand, product, app or person. Use generic words (online stores, streaming "
     "services, a phone plan).\n"
     "- NO statistics, percentages, dollar/money amounts or 'million/billion/k' figures. Small counts of things are "
-    "fine ('three fees').\n"
+    "fine ('three fees'). The only exception: numbers listed under VERIFIED FACTS below, if any.\n"
     "- NEVER attribute intent or wrongdoing: do not use the words hidden, hide, trap, lie, scam, fraud, secret, "
     "deliberate, intentional, rigged, manipulate, force, illegal, crime, cheat. Explain the STRUCTURE and incentives "
     "in neutral words.\n"
@@ -198,7 +199,7 @@ def _norm(x):
     return re.sub(r"[^a-z0-9 ]", "", (x or "").lower()).strip()
 
 
-def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None):
+def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
     """-> [(kod, mesaj)]. Bos liste = gecti. Hicbir guvenlik kuralini gevsetmez; hook_gate + claim_lint + isim yasagi dahil."""
     s = []
     if len(beats) != 6:
@@ -240,6 +241,10 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None):
     if stat:
         s.append(("ISTATISTIK", f"Oran/istatistik/dogruluk iddiasi yasak (uydurma olabilir): {', '.join(stat)}."))
     tum = " ".join(L) + " " + (title or "")
+    # rakam bankasi: bankada/konu sorusunda olmayan buyuk rakam, birimli rakam, yil, yazili 'sixty/hundred' -> red
+    kaynaksiz = rakam_bankasi.yasakli_rakamlar(tum + " " + (hookthumb or ""), konu)
+    if kaynaksiz:
+        s.append(("RAKAM_KAYNAK", f"Kaynaksiz rakam: {', '.join(kaynaksiz)}. Yalniz VERIFIED FACTS'teki rakamlar kullanilabilir (rakam_bankasi.py)."))
     if BEDEN.search(tum) or MEDIKAL.search(tum):
         for cumle in re.split(r"(?<=[.?!])\s+", tum):
             if ETKI_KELIME.search(cumle) and not VARSAYIM.search(cumle):
@@ -385,7 +390,7 @@ def duzenle(r, komut, kanca=None):
         kart = " ".join(komut[1].split()).upper()
     else:
         return None, [("KOMUT", "Bilinmeyen duzenleme.")]
-    sorunlar = kontrol(beats, title, kart, kanca=kanca)
+    sorunlar = kontrol(beats, title, kart, kanca=kanca, konu=r.get("topic"))
     if sorunlar:
         return None, sorunlar
     return {**r, "beats": beats, "title": title, "hookthumb": kart, "uyarilar": uyarilar(beats, title, kart)}, []
@@ -411,7 +416,7 @@ def satir_degistir(yol, n, metin):
         return False, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
     who, screen, _eski, img = beats[int(n) - 1]
     yeni = beats[:int(n) - 1] + [(who, screen, metin.strip(), img)] + beats[int(n):]
-    sorunlar = kontrol(yeni, title, hookthumb)
+    sorunlar = kontrol(yeni, title, hookthumb, konu=topic)
     if sorunlar:
         return False, sorunlar
     senaryo_kaydet(yol, topic, {"title": title, "hookthumb": hookthumb, "beats": yeni})
@@ -422,7 +427,7 @@ def baslik_degistir(yol, metin):
     """Kayitli senaryonun BASLIGINI degistirir (bicim duzeltilir). Kapidan gecmezse dosya DEGISMEZ. -> (kaydedildi, sorunlar)"""
     topic, beats, title, hookthumb = senaryo_yukle(yol)
     yeni = baslik_duzelt(metin)
-    sorunlar = kontrol(beats, yeni, hookthumb)
+    sorunlar = kontrol(beats, yeni, hookthumb, konu=topic)
     if sorunlar:
         return False, sorunlar
     senaryo_kaydet(yol, topic, {"title": yeni, "hookthumb": hookthumb, "beats": beats})
@@ -433,7 +438,7 @@ def ekran_degistir(yol, metin):
     """Kayitli senaryonun ilk kart metnini (HOOKTHUMB) degistirir (BUYUK HARF). Kapidan gecmezse dosya DEGISMEZ. -> (kaydedildi, sorunlar)"""
     topic, beats, title, hookthumb = senaryo_yukle(yol)
     yeni = " ".join((metin or "").split()).upper()
-    sorunlar = kontrol(beats, title, yeni)
+    sorunlar = kontrol(beats, title, yeni, konu=topic)
     if sorunlar:
         return False, sorunlar
     senaryo_kaydet(yol, topic, {"title": title, "hookthumb": yeni, "beats": beats})
@@ -444,7 +449,7 @@ def ekran_degistir(yol, metin):
 def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
     Kapidan gecmezse sorunlari geri besleyip yeniden yazdirir (en fazla 3 deneme). -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
-    temel = PROMPT.format(topic=topic)
+    temel = PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
     if kanca:
         temel += f"\n\nPACKAGED HOOK (already chosen): line 1 must be EXACTLY this, word for word: {kanca}"
     prompt = temel
@@ -454,14 +459,14 @@ def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None)
         beats, title, hookthumb = parse(ham)
         title = baslik_duzelt(title)
         beats = kapanisa_skor_ekle(beats, skor_yolu)
-        sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk, kanca)
+        sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk, kanca, konu=topic)
         if not sorunlar:
-            return {"ok": True, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": [], "ham": ham, "deneme": n,
+            return {"ok": True, "topic": topic, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": [], "ham": ham, "deneme": n,
                     "uyarilar": uyarilar(beats, title, hookthumb)}
         prompt = temel + (
             "\n\nYour previous attempt was REJECTED for these reasons - fix every one and keep all rules:\n"
             + "\n".join(f"- {m}" for _, m in sorunlar))
-    return {"ok": False, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": sorunlar, "ham": ham, "deneme": deneme,
+    return {"ok": False, "topic": topic, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": sorunlar, "ham": ham, "deneme": deneme,
             "uyarilar": []}
 
 

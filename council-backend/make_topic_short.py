@@ -691,7 +691,10 @@ def _konsey_uret(topic):
 def konsey_video(topic, r):
     """Kapidan gecmis Konsey senaryosundan videoyu uretir (yukleme YOK); meta (.json dahil) dondurur."""
     import konsey_format
-    desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\nA what-if story: imagination, not advice.\n\n#Shorts #SignCouncil")
+    import rakam_bankasi
+    kaynak = rakam_bankasi.kaynak_satiri(topic, " ".join([b[2] for b in r["beats"]] + [r["title"]]))
+    desc = (f"{r['beats'][0][2]}\n\nTeam Alpha or Team Beta? Tell us in the comments.\n\nA what-if story: imagination, not advice.\n"
+            + (f"\n{kaynak}\n" if kaynak else "") + "\n#Shorts #SignCouncil")
     meta = build(topic, "", title_override=r["title"], desc_override=desc,
                  tags=konsey_format.etiketler(r["title"]),
                  hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
