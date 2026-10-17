@@ -201,11 +201,25 @@ KONULAR = [
      "eksen": "Alpha: fark etmez. Beta: nasıl anlayacağız?"},
     {"id": 84, "konu": "What if robots built every new robot?", "tr": "Her yeni robotu robotlar üretse ne olur?", "kategori": "robot", "risk": "sari",
      "eksen": "Alpha: durmayan üretim. Beta: durdurma düğmesi kimde?"},
+    # 17 Ekim 2026 (gol/selale/gecit/boyut kapisi). Arastirma: gercek 'gizli gecit' ornekleri var (su alti magara sistemleri, buzul alti goller);
+    # boyut kapisi icin GOZLEMSEL KANIT YOK (ekstra boyutlar kuramsal). 'hidden/secret' kelimeleri claim_lint'te engelli: 'undiscovered/unseen' kullan.
+    {"id": 85, "konu": "What if an undiscovered tunnel ran under a lake?", "tr": "Bir gölün altından keşfedilmemiş bir tünel geçse?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: haritayı çıkar. Beta: en rahatsız edici soru: girişi kim bulur, içeriden ne çıkar?"},
+    {"id": 86, "konu": "What lives in lakes buried under four kilometers of ice?", "tr": "Dört kilometre buzun altına gömülü göllerde ne yaşar?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: mikroplar. Beta: ya daha fazlası?"},
+    {"id": 87, "konu": "What is behind a waterfall?", "tr": "Bir şelalenin arkasında ne var?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: kaya ve mağara. Beta: içeri girer miydin?"},
+    {"id": 88, "konu": "Where would a door to another dimension be?", "tr": "Başka bir boyuta açılan kapı nerede olurdu?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: kanıt aranırdı: nerede ölçüm var? Beta: kapıyı açan kim, kapatan kim?"},
+    {"id": 89, "konu": "How would you know you found a door to another world?", "tr": "Başka bir dünyaya açılan bir kapı bulduğunu nasıl anlardın?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: ölçüm ve kanıt. Beta: içeri girmeden anlaşılır mı?"},
+    {"id": 90, "konu": "What if a flooded cave led to another world?", "tr": "Su altı bir mağara başka bir dünyaya çıksa?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: haritalar bağlanıyor: gerçek mağaralar da birleşti. Beta: geri dönüş yolu var mı?"},
 ]
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84, 90, 86]
 
 
 def kullanilanlar(yol=KAYIT_YOL):
