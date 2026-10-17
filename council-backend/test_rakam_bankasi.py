@@ -139,3 +139,11 @@ class KayittanTest(unittest.TestCase):
         kaynak = open(__file__.replace("test_rakam_bankasi.py", "make_topic_short.py"), encoding="utf-8").read()
         govde = kaynak.split("def _konsey_kayittan", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("konsey_format.kontrol(beats, title, hookthumb, konu=topic)", govde)
+
+
+class SabitYorumTest(unittest.TestCase):
+    def test_evren_icin_guilty_habit_yok(self):
+        kaynak = open(__file__.replace("test_rakam_bankasi.py", "make_topic_short.py"), encoding="utf-8").read()
+        govde = kaynak.split("def konsey_video", 1)[1].split("\nif __name__", 1)[0]
+        self.assertIn("konsey_format.evren_mi(topic)", govde)
+        self.assertIn("what would YOU do?", govde)

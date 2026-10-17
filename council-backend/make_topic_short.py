@@ -698,7 +698,8 @@ def konsey_video(topic, r):
     meta = build(topic, "", title_override=r["title"], desc_override=desc,
                  tags=konsey_format.etiketler(r["title"]),
                  hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]))
-    meta["sabit_yorum"] = "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?"
+    meta["sabit_yorum"] = ("Team Alpha or Team Beta? Vote below. And what would YOU do?" if konsey_format.evren_mi(topic)
+                           else "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?")
     meta["konu"] = topic
     with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
