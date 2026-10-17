@@ -62,7 +62,7 @@ class RaporTest(unittest.TestCase):
 
 class NisSetleriTest(unittest.TestCase):
     def test_nisler_ve_yollar(self):
-        self.assertEqual(set(nt.NISLER), {"afet", "robot", "insan", "uzay_yeralti", "fizik"})
+        self.assertEqual(set(nt.NISLER), {"afet", "robot", "insan", "uzay_yeralti", "fizik", "gizem", "bilimkurgu_kuantum"})
         for ad, q in nt.NISLER.items():
             self.assertEqual(len(q), 8, ad)
             self.assertIn(ad, nt.NIS_ADLARI)
@@ -78,6 +78,13 @@ class NisSetleriTest(unittest.TestCase):
         self.assertEqual(g["beyin/cip/cyborg"], 1)
         self.assertEqual(g["yer alti/su alti sehir"], 1)
         self.assertEqual(g["fizik/absurt"], 1)
+
+    def test_gizem_ve_kuantum_kovalari(self):
+        sat = [s(1, "What is behind a waterfall cave?", 100), s(2, "Undiscovered tunnel under a lake", 90), s(3, "Quantum teleportation explained", 80),
+               s(4, "What if there is a door to another dimension?", 70), s(5, "What if the universe is a simulation?", 60)]
+        g = {r["konu"]: r["n"] for r in nt.konu_gruplari(sat)}
+        self.assertEqual(g["gizem/kesif"], 2)
+        self.assertEqual(g["kuantum/boyut"], 3)
 
     def test_karsilastirma(self):
         kucuk = [s(i, "x", 20000, abone=500) for i in range(3)]

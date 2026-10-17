@@ -2,8 +2,8 @@
 YouTube'a HICBIR sey yazmaz. viral_analiz.py'nin API katmanini kullanir (ayri onbellek: AI-haber analizini bozmaz).
 
 Kullanim:
-  python nis_tarama.py --nis robot  # nisler: afet (varsayilan), robot, insan, uzay_yeralti, fizik
-  python nis_tarama.py --hepsi      # 5 nisin hepsi + YAN YANA karsilastirma (kota ~4.000+ birim)
+  python nis_tarama.py --nis robot  # nisler: afet (varsayilan), robot, insan, uzay_yeralti, fizik, gizem, bilimkurgu_kuantum
+  python nis_tarama.py --hepsi      # 7 nisin hepsi + YAN YANA karsilastirma (kota ~5.000+ birim; gunluk 10.000 siniri icin --nis ile tek tek de calistirilabilir)
   python nis_tarama.py --plan       # yalniz plan + tahmini kota (istek atmaz)
   python nis_tarama.py              # onbellek (24 saat) tazeyse onu kullanir, degilse API'den ceker; _engine/nis_afet_rapor.md yazar
   python nis_tarama.py --yenile     # onbellegi yok sayar (kota harcar: ~sorgu sayisi x 100 + yorumlar ~5)
@@ -45,9 +45,14 @@ NISLER = {
                      "floating city future", "moon colony what life would be like", "mars colony what if", "space habitat future"],
     "fizik": ["what if the earth stopped spinning", "what if the moon disappeared", "what if gravity doubled", "what if humans lived forever",
               "what if time travel existed", "what if an asteroid hit earth", "what if the sun disappeared", "what if we lived underwater"],
+    "gizem": ["undiscovered tunnel under a lake", "mystery beneath the ocean", "what is behind a waterfall cave", "lake buried under ice what lives there",
+              "unexplained discovery in a cave", "underwater cave system mystery", "unsolved mystery nature", "what lies at the bottom of the deepest lake"],
+    "bilimkurgu_kuantum": ["what if you could teleport", "quantum physics explained what if", "parallel universe what if", "door to another dimension what if",
+                           "what if the universe is a simulation", "multiverse what if you met yourself", "what if you fell into a black hole", "science fiction future what if"],
 }
 NIS_ADLARI = {"afet": "afet / iklim / deniz-buz", "robot": "robotlar / makineler", "insan": "insan + teknoloji (çip, beyin, yarı robot)",
-              "uzay_yeralti": "uzay / Mars / yer altı-deniz altı şehirleri", "fizik": "'what if' fizik senaryoları (absürt/görsel)"}
+              "uzay_yeralti": "uzay / Mars / yer altı-deniz altı şehirleri", "fizik": "'what if' fizik senaryoları (absürt/görsel)",
+              "gizem": "gizem / keşfedilmemiş yerler (mağara, buz altı, şelale)", "bilimkurgu_kuantum": "bilim kurgu / kuantum / paralel evren"}
 
 def cache_yolu(nis):
     return CACHE if nis == "afet" else os.path.join(ENGINE, f"nis_{nis}.json")
@@ -71,6 +76,8 @@ KONULAR = {
     "robot/makine": r"\brobots?\b|android|automation|machines? (?:take|rule|build)|humanoid",
     "beyin/cip/cyborg": r"brain|\bchips?\b|cyborg|neural|implant|half[- ]human|mind upload",
     "yer alti/su alti sehir": r"underground|under the ocean|underwater|floating city|megacity|bunker",
+    "gizem/kesif": r"mystery|unexplained|undiscovered|unsolved|\bcaves?\b|tunnel|beneath|waterfall|lost city|bottom of",
+    "kuantum/boyut": r"quantum|dimension|portal|multiverse|parallel universe|teleport|simulation|schrodinger|entangle",
     "fizik/absurt": r"stopped spinning|gravity|time travel|live forever|lived forever|disappear|black hole|froze",
 }
 

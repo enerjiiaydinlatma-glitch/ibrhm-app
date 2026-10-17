@@ -215,11 +215,22 @@ KONULAR = [
      "eksen": "Alpha: ölçüm ve kanıt. Beta: içeri girmeden anlaşılır mı?"},
     {"id": 90, "konu": "What if a flooded cave led to another world?", "tr": "Su altı bir mağara başka bir dünyaya çıksa?", "kategori": "fizik", "risk": "yesil",
      "eksen": "Alpha: haritalar bağlanıyor: gerçek mağaralar da birleşti. Beta: geri dönüş yolu var mı?"},
+    # Kuantum / bilim kurgu / gizem (17 Ekim 2026). 'secret/hidden/lie' parcalari claim_lint'te engelli: mystery/unknown/undiscovered kullan.
+    {"id": 91, "konu": "What if you could be in two places at once?", "tr": "Aynı anda iki yerde olabilsen?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: iki iş birden. Beta: hangisi gerçek sen?"},
+    {"id": 92, "konu": "What would the other you in a parallel universe do?", "tr": "Paralel evrendeki öbür sen ne yapardı?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: aynı kararlar. Beta: ya bambaşka biriyse?"},
+    {"id": 93, "konu": "What if you woke up a thousand years from now?", "tr": "Bin yıl sonra uyansan ne olur?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: ilk önce dili öğren. Beta: tanıdık tek şey ne kalır?"},
+    {"id": 94, "konu": "What if the universe is a simulation?", "tr": "Evren bir simülasyon olsa?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: kanıt ara. Beta: fark eder mi?"},
+    {"id": 95, "konu": "What would you do if you found a door in a cave?", "tr": "Bir mağarada kapı bulsan ne yapardın?", "kategori": "fizik", "risk": "yesil",
+     "eksen": "Alpha: önce incele. Beta: açan kim kapatan kim?"},
 ]
 
 # Yeni strateji (17 Ekim 2026, tarama verisi): once afet/deniz-buz, ucan araba, Mars 'insan mi robot mu', robot yasalari, 'dunya durdu' fizigi.
 # Eski gunluk-hayat konulari (1-28) listede kalir ama oncelik disindadir (konsey_gun sonraki_konu: once bu liste, sonra id sirasi).
-ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84, 90, 86]
+ONERILEN_ILK = [29, 35, 46, 42, 59, 33, 50, 36, 30, 40, 60, 51, 65, 69, 74, 72, 78, 79, 81, 82, 84, 90, 86, 91, 94]
 
 
 def kullanilanlar(yol=KAYIT_YOL):
