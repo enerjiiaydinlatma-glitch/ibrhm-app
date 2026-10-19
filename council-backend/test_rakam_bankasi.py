@@ -225,3 +225,19 @@ class RakamEngeliBankayaBagliTest(unittest.TestCase):
 
     def test_onkosul_wef(self):
         self.assertEqual(rb.onkosul_eksik("170 million new jobs by 2030.", self.T25), ["wef_2030_isler", "wef_2030_22"])
+
+
+class Konu82Test(unittest.TestCase):
+    T82 = "Would you trust a robot with a human face?"
+
+    def test_82_robot_sevkiyat_olgusu_zorlanmaz(self):
+        self.assertEqual(rb.olgular(self.T82), [])                         # alakasiz olgu bu konuya bagli degil
+        self.assertIn("NEVER force a number", rb.prompt_bolumu("What if robots built every new robot?"))
+        self.assertIn("robot_18000", {o["id"] for o in rb.olgular("What if robots built every new robot?")})
+
+    def test_evren_tibbi_sahne_reddedilir(self):
+        self.assertIn("ADAY_MEDIKAL_SAHNE", {c for c, _ in kf.kanca_gecerli("Would you trust a robot nurse's face?", self.T82)})
+        self.assertNotIn("ADAY_MEDIKAL_SAHNE", {c for c, _ in kf.kanca_gecerli("Would you trust a robot's face?", self.T82)})
+        b = KapiTest().beats("Would you trust a robot nurse's face?")
+        self.assertIn("MEDIKAL_SAHNE", {c for c, _ in kf.kontrol(b, "Trust a robot face?", "TRUST ITS FACE", konu=self.T82)})
+        self.assertIn("never set the scene in medicine".lower(), kf.PROMPT_EVREN.lower())

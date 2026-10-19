@@ -41,7 +41,7 @@ OLGULAR = [
      "olgu": "18 to 24 inches (about 45 to 60 centimeters) of flowing water can carry away trucks, vans and SUVs.",
      "sayilar": ["18", "24", "45", "60"], "onkosul": r"\b(?:moving|flowing|rushing|fast)\b", "tur": "kaynak", "kaynak": "US National Weather Service flood safety brochure",
      "url": "https://www.weather.gov/media/safety/flood_brochure12A.pdf"},
-    {"id": "robot_18000", "konular": [76, 82, 83, 84, 41, 40],
+    {"id": "robot_18000", "konular": [76, 84],
      "olgu": "About 18,000 humanoid robots shipped worldwide in 2025, by one research firm's estimate; other estimates range from 13,000 to 20,000.",
      "sayilar": ["18000", "13000", "20000", "2025"], "onkosul": r"\b(?:estimate|estimated|estimates|about|roughly)\b", "tur": "kaynak", "kaynak": "IDC estimate (reported by Jiemian)",
      "url": "https://en.jiemian.com/article/13925066.html"},
@@ -179,8 +179,9 @@ def prompt_bolumu(topic):
         return ("\n\nNUMBERS: this topic has no verified facts. Use NO numbers of 10 or more, no measurements, no years, no spelled-out "
                 "large numbers (twenty, hundred, thousand). Small counts ('three fees') are fine.")
     satir = "\n".join(f"- {o['olgu']}" + (" [our own arithmetic: say 'roughly']" if o["tur"] == "turetilmis" else "") for o in ol)
-    return ("\n\nVERIFIED FACTS (the ONLY numbers, measurements and years you may use; use at least one in the script, ideally in the "
-            "hook or the closing line; copy each number exactly, never round or invent another):\n" + satir +
+    return ("\n\nVERIFIED FACTS (the ONLY numbers, measurements and years you may use; copy each number exactly, never round or invent another). "
+            "Use a fact ONLY when it is directly about the topic's subject, ideally in the hook; NEVER force a number into the closing line or into filler. "
+            "If no fact fits naturally, use no numbers at all:\n" + satir +
             "\nThe topic's own what-if numbers (for example '20 centimeters') are the premise and may be repeated. "
             "State facts plainly; never add any other figure, percentage or date. Whenever you use a fact's number, the same script must also say "
             "the condition it depends on (for example 'a quarter of the ice', 'all the ice', 'since 1880', 'a light particle'). "
