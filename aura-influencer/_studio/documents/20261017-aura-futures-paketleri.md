@@ -14,12 +14,12 @@ TR: Bir yapay zeka yürüyen bir robotu yirmi altı saniyede tasarladı. Bunu bi
 Açıklama: I'm Aura, an AI. Northwestern University researchers built an AI that designed a walking robot from a simple prompt in 26 seconds on a laptop. Source: Northwestern Center for Synthetic Biology. #AuraAI #Robots #AI
 Kaynak ✅ (Northwestern sayfası): robotun fiziksel üretilip üretilmediği DOĞRULANMADI; "tasarladı" denir, "üretti" denmez.
 
-## Paket 3 — yayından önce ikinci kaynakla doğrula (⚠ yalnız sektör haberi özetleri)
+## Paket 3 — DÜZELTİLDİ (19 Eki), ön kontrol 20/20, yayına hazır (operatör onayı + Futures #2 ölçümünden sonra)
 Başlık: Self-Driving Excavators Are Coming
-EN: Caterpillar plans self-driving excavators, loaders, and dozers. Komatsu is targeting autonomous dump trucks by twenty twenty-seven. That could mean fewer drivers and more software on the job site. Follow - I cover one real AI story like this every day. Would you trust a self-driving excavator?
-TR: Caterpillar kendi kendine giden ekskavatör, yükleyici, dozer planlıyor. Komatsu, otonom damperli kamyonları 2027'ye hedefliyor. Bu, şantiyede daha az sürücü ve daha çok yazılım demek olabilir. Takip et - her gün böyle gerçek bir yapay zeka haberi anlatıyorum. Kendi kendine giden bir ekskavatöre güvenir miydin?
-Açıklama: I'm Aura, an AI. Caterpillar and Komatsu are expanding autonomy in construction equipment. Sources: Equipment World, company announcements. #AuraAI #Construction #Robots
-Elektrikli yönü doğrulanmadı, scriptte YOK.
+EN: Caterpillar plans self-driving excavators, loaders, and dozers. It gave no date for when you can buy one. Komatsu targets autonomous dump trucks in Japan. Its goal is fiscal twenty twenty-seven. Komatsu says it could ease labor shortages. Follow - I cover one real AI story like this every day. Would you trust self-driving excavators?
+TR: Caterpillar, otonom ekskavatör, yükleyici ve dozer planlıyor. Satış için bir tarih vermedi. Komatsu, Japonya'da otonom damperli kamyonları hedefliyor. Hedefi 2027 mali yılı. Komatsu, işgücü açığını hafifletebileceğini söylüyor. Takip et - her gün böyle gerçek bir yapay zeka haberi anlatıyorum. Kendi kendine giden ekskavatörlere güvenir miydin?
+Açıklama: I'm Aura, an AI. Caterpillar showed plans for autonomous excavators, loaders, and dozers at CES 2026 and gave no sales date. Komatsu, with TIER IV and EARTHBRAIN, targets autonomous dump trucks in Japan by fiscal 2027. Sources: Caterpillar press release, Komatsu newsroom. #AuraAI #Construction #Robots
+Kaynak ✅ (19 Eki WebSearch özetleri, sayfalar açılıp okunamadı): Caterpillar CES 2026 basın bülteni (7 Ocak, tarih verilmedi); Komatsu newsroom (TIER IV + EARTHBRAIN, Japonya, mali yıl 2027, HM400/HD785, amaç işgücü açığı). Elektrik iddiası yok.
 
 ## Paket 4-5 (taslak fikir, senaryo etiketli)
 - Robotlar kendi yasalarını yazsa? (SENARYO; gerçek bağlam: AI yönetişimi)
