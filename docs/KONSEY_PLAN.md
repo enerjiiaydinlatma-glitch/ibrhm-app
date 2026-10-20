@@ -43,6 +43,13 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Bu duzeyde sutunlar arasi fark rastgele olabilir. Hafta 1'in ana sorusu: yeni nisteki videolar 8-21 tabanini KIRIYOR MU (evet/hayir). Sutun sirasi kararlari n>=3 olmadan verilmez.
 - Kisa video etkisi (tek gozlem): %106 ortalama izleme yuzdesi yalniz kisa (13-22 sn) videolarda goruldu; bizimkiler 33-38 sn. Hafta 2'de 20-25 sn'lik bir versiyon denenecek (karar noktasi).
 
+## Gozlem 20 Eki 2026 (Studio mobil, 28 gun) - yon, kanit degil
+- 28 gun: 668 goruntuleme, 0,8 saat. Kitle: %94 yeni izleyici, %6 sirada, duzenli <%0,1. Kesif: Shorts akisi %71,4, YouTube arama %24,3, kanal sayfalari %2,2.
+- Yeni videolar: 82 (insan yuzlu robot) ilk ~18 saatte 8 goruntuleme, 1 begeni, ort. izleme %24,2, son 10 videoda 4. sira; 29 (deniz 20 cm) ~41 saatte 2; 79 (buzun 1/4'u) 48 saatte 5.
+- Hipotez: kanalin son aylari AI-haberiydi; YouTube kanali AI/teknoloji izleyicisine gosteriyor. Robot ve gelecek/YZ konulari afetten iyi gidiyor (82 > 29/79; eski Konsey'de 21 ve 23 en iyiler). Tarama verisi (afet guclu) bu kanalda tutmadi.
+- ONERILEN SIRA (onay bekliyor): 22 Eki konu 74 (YZ'yi kim yonlendirecek), 23 Eki konu 27 (YZ is secer mi, WEF), 24 Eki konu 84 (robotlar robot uretse), 25 Eki konu 83. Afet (81) ve gizem/kuantum (90, 65) hafta 2'ye. Afet'e n>=3 kurali: 2 video yayinda.
+- Arama %24: arama terimleri listesi istendi (baslik/aciklama arama dostu yazilabilir).
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
