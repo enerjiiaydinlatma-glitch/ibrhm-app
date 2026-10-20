@@ -48,7 +48,9 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Yeni videolar: 82 (insan yuzlu robot) ilk ~18 saatte 8 goruntuleme, 1 begeni, ort. izleme %24,2, son 10 videoda 4. sira; 29 (deniz 20 cm) ~41 saatte 2; 79 (buzun 1/4'u) 48 saatte 5.
 - Hipotez: kanalin son aylari AI-haberiydi; YouTube kanali AI/teknoloji izleyicisine gosteriyor. Robot ve gelecek/YZ konulari afetten iyi gidiyor (82 > 29/79; eski Konsey'de 21 ve 23 en iyiler). Tarama verisi (afet guclu) bu kanalda tutmadi.
 - ONERILEN SIRA (onay bekliyor): 22 Eki konu 74 (YZ'yi kim yonlendirecek), 23 Eki konu 27 (YZ is secer mi, WEF), 24 Eki konu 84 (robotlar robot uretse), 25 Eki konu 83. Afet (81) ve gizem/kuantum (90, 65) hafta 2'ye. Afet'e n>=3 kurali: 2 video yayinda.
-- Arama %24: arama terimleri listesi istendi (baslik/aciklama arama dostu yazilabilir).
+
+- YouTube arama terimleri (28 gun, ~160 arama goruntulemesi; her terim 1-4): "laws in india require us to remind you ab..." 4, "movie subscription service" 2, "tvos 27" 2, ve 1'er: "gemini argon", "gemini mental breakdown", "mac studio ai", "macbook neo macos 27", "hals eulogy", "con quay"... Son 7 gun: "movie subscription service" 2 (arama goruntulemesinin %11'i), "sill open source" 1.
+- Okuma: arama trafigi uzun kuyruk ve haber-olayina bagli (eski AI-haber videolari); Konsey'den yalniz gundelik konulu "movie subscription" videosu aramadan geliyor (duz anahtar kelimeli baslik). Hacim cok kucuk (gunde ~1-2): henuz kaldirac degil. Kural: baslikta insanin aratacagi duz ifade bulunsun ("AI take jobs", "robot human face", "sea level rise"), ilk cumle/aciklama ayni ifadeyi tekrar etsin. Veri biriktikce tekrar bak.
 
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
