@@ -111,7 +111,8 @@ class EvrenFormatiTest(unittest.TestCase):
     def test_ornek_evren_kendi_kapisindan_gecer(self):
         t = kf.ORNEK_EVREN
         beats = [tuple(x.split(" | ")) for x in t.split("\nTITLE:")[0].splitlines()]
-        self.assertEqual(kf.kontrol(beats, t.split("TITLE: ")[1].splitlines()[0], t.split("HOOKTHUMB: ")[1], konu="What if the Moon disappeared tonight?"), [])
+        sorun = kf.kontrol(beats, t.split("TITLE: ")[1].splitlines()[0], t.split("HOOKTHUMB: ")[1], konu="What if the Moon disappeared tonight?")
+        self.assertEqual([c for c, _ in sorun if c != "KONU_DISI"], [])      # ornek baska konudan: yalniz konu-baglantisi (bilerek) tutmaz
 
     def test_prompt_secimi(self):
         self.assertIn("Which, Where or What would you", kf.PROMPT_EVREN)
@@ -241,3 +242,21 @@ class Konu82Test(unittest.TestCase):
         b = KapiTest().beats("Would you trust a robot nurse's face?")
         self.assertIn("MEDIKAL_SAHNE", {c for c, _ in kf.kontrol(b, "Trust a robot face?", "TRUST ITS FACE", konu=self.T82)})
         self.assertIn("never set the scene in medicine".lower(), kf.PROMPT_EVREN.lower())
+
+
+class KonuyaBagliTest(unittest.TestCase):
+    T74 = "Who will steer AI: humans or the machines?"
+
+    def test_anahtarlar_ve_baglilik(self):
+        self.assertTrue(kf.konuya_bagli("Who will steer AI, humans or machines?", self.T74))
+        self.assertTrue(kf.konuya_bagli("Who really steers your AI?", self.T74))
+        self.assertFalse(kf.konuya_bagli("Why does your phone choose dinner?", self.T74))
+        self.assertTrue(kf.konuya_bagli("Sea level rose 20 centimeters since 1880.", T29))
+        self.assertTrue(kf.konuya_bagli("Why give a machine a human face?", "Would you trust a robot with a human face?"))
+        self.assertTrue(kf.konuya_bagli("anything", ""))
+
+    def test_kanca_ve_senaryo_konu_disi(self):
+        self.assertIn("ADAY_KONU_DISI", {c for c, _ in kf.kanca_gecerli("Why does your phone choose dinner?", self.T74)})
+        self.assertNotIn("ADAY_KONU_DISI", {c for c, _ in kf.kanca_gecerli("Who will steer AI, humans or machines?", self.T74)})
+        b = KapiTest().beats("Why does your phone choose dinner?")
+        self.assertIn("KONU_DISI", {c for c, _ in kf.kontrol(b, "Who holds the steering wheel?", "WHO HOLDS THE WHEEL", konu=self.T74)})

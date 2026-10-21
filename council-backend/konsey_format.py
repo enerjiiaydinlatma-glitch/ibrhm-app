@@ -119,6 +119,27 @@ aura | PICK A TEAM | Team Alpha or Team Beta? Which room would you save first? |
 TITLE: Could Streets Become Rivers?
 HOOKTHUMB: STREETS BECOME RIVERS"""
 
+_KONU_DURAK = set("what where would could should which there their about other another every will have this that with from your into than then them they were been does did the and for you are not why how who whom when".split())
+
+
+def konu_anahtarlari(topic):
+    """Konunun anlamli kelimeleri (>=4 harf, durak kelime degil) + 'ai'. Kanca/ilk satir bunlardan en az birine (ilk 5 harf onekiyle) dayanmali."""
+    kel = re.findall(r"[a-z']+", (topic or "").lower())
+    k = {w for w in kel if len(w) >= 4 and w not in _KONU_DURAK}
+    if "ai" in kel:
+        k.add("ai")
+    return k
+
+
+def konuya_bagli(metin, topic):
+    """Metin konunun bir anahtar kelimesini (onek eslesmesiyle) iceriyor mu? Anahtar yoksa True."""
+    k = konu_anahtarlari(topic)
+    if not k:
+        return True
+    kel = re.findall(r"[a-z']+", (metin or "").lower())
+    return any(w == a or (len(a) >= 4 and w.startswith(a[:5])) for w in kel for a in k)
+
+
 def evren_mi(topic):
     i = rakam_bankasi.konu_id(topic)
     k = konsey_konular.konu_bul(i) if i is not None else None
@@ -136,7 +157,8 @@ def _evren_prompt():
          "- Every claim is the topic's what-if premise, a VERIFIED FACT, or plain common sense. This is a WHAT-IF, not news: never say it is happening now, "
          "never use the words now, today, tonight, breaking. Consequences must match the SCALE of the event: for a big event name big things "
          "(coastlines, ports, whole streets, neighborhoods, power, water), never tiny objects (benches, chairs, towels, driveways, pants). "
-         "Never set the scene in medicine (doctors, nurses, hospitals, patients, pills, surgery).\n"),
+         "Never set the scene in medicine (doctors, nurses, hospitals, patients, pills, surgery). "
+         "Stay on the topic's SUBJECT: the hook must use at least one key word of the topic itself (not a loose metaphor like a phone, a playlist or dinner).\n"),
         (ORNEK, ORNEK_EVREN),
     ]
     for a, b in degisim:
@@ -299,6 +321,8 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
             s.append(("KAPANIS_SECIM", "Kapanis izleyiciden kisisel secim istemiyor (Which/Where/What would you ...?)."))
     elif not re.search(r"\b(guilty|habit)\b", L[5], re.I):
         s.append(("KAPANIS_ITIRAF", "Kapanis izleyiciden 'guilty habit' istemiyor."))
+    if evren and not konuya_bagli(L[0], konu):
+        s.append(("KONU_DISI", f"Ilk satir konunun konusundan sapiyor; konunun kelimelerinden biri gecmeli: {', '.join(sorted(konu_anahtarlari(konu)))}."))
     if evren and MEDIKAL.search(" ".join(L) + " " + (title or "")) and not MEDIKAL.search(konu or ""):
         tibbi_sahne = sorted({m.group(0).lower() for m in MEDIKAL.finditer(" ".join(L) + " " + (title or ""))})
         s.append(("MEDIKAL_SAHNE", f"Evren konusunda tibbi sahne yasak (konu tibbi degil): {', '.join(tibbi_sahne)}."))
@@ -397,6 +421,8 @@ def kanca_gecerli(h, konu=None):
         s.append(("ADAY_SIMDI", "varsayim 'simdi oluyor' gibi okunuyor (now/today/tonight)."))
     if MEDIKAL.search(h or "") and TIBBI_IDDIA.search(h or ""):
         s.append(("ADAY_TIBBI", "tibbi konuda dogruluk/guvenlik iddiasi."))
+    if evren_mi(konu) and not konuya_bagli(h, konu):
+        s.append(("ADAY_KONU_DISI", "kanca konunun konusundan sapiyor (konunun anahtar kelimelerinden biri gecmeli)."))
     if evren_mi(konu) and MEDIKAL.search(h or "") and not MEDIKAL.search(konu or ""):
         s.append(("ADAY_MEDIKAL_SAHNE", "evren konusunda tibbi sahne (hemsire/doktor/hastane) yasak."))
     return s
