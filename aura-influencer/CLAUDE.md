@@ -1177,3 +1177,4 @@ Okuma: Futures #2 ≈ Apple Siri (~50) — "Futures daha iyi" değil, ikili dağ
 
 ### 2026-10-21 — Aura Futures video #3 YAYINDA
 "Self-Driving Excavators Are Coming": https://youtu.be/juEkkmpj5xs (operatör beyanı; yayın saati bildirilmedi; Studio/panel'den doğrulanmadı). Düzeltilmiş + preflight 20/20 paket (Komatsu Japonya/mali yıl 2027, Caterpillar tarih yok). TikTok yüklemesi operatörde, etkileşimsiz ölçüm istendi. 24 saat ölçümü send_later ile kuruldu.
+- 21 Eki 18:01 (TikTok Studio, ekran görüntüsü): Futures #3 TikTok'a yüklendi, Herkes, 0 izlenme, süre **00:30** (preflight tahmini ~21,5 sn idi → tahmin ~%40 düşük; #2 00:26, #1 00:22). ≤26 sn ipucuna uymuyor: #3'te süre de değişken (konu + süre karışıyor). Preflight kelime/sn katsayısı (2,6) kalibre edilmeli (somut süreler ffprobe ile PC'den alınmalı). TikTok toplam: 49 gönderi, B2 5, B3 0, TV 0, Apple 59, Futures #2 119, Turing 179.
