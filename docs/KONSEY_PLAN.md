@@ -52,6 +52,14 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - YouTube arama terimleri (28 gun, ~160 arama goruntulemesi; her terim 1-4): "laws in india require us to remind you ab..." 4, "movie subscription service" 2, "tvos 27" 2, ve 1'er: "gemini argon", "gemini mental breakdown", "mac studio ai", "macbook neo macos 27", "hals eulogy", "con quay"... Son 7 gun: "movie subscription service" 2 (arama goruntulemesinin %11'i), "sill open source" 1.
 - Okuma: arama trafigi uzun kuyruk ve haber-olayina bagli (eski AI-haber videolari); Konsey'den yalniz gundelik konulu "movie subscription" videosu aramadan geliyor (duz anahtar kelimeli baslik). Hacim cok kucuk (gunde ~1-2): henuz kaldirac degil. Kural: baslikta insanin aratacagi duz ifade bulunsun ("AI take jobs", "robot human face", "sea level rise"), ilk cumle/aciklama ayni ifadeyi tekrar etsin. Veri biriktikce tekrar bak.
 
+## Gozlem 22 Eki 2026 (Studio masaustu) - yon, kanit degil
+- 28 gun (24 Eyl-21 Eki): 582 goruntuleme (onceki 28 gune gore %93 az), 0,7 saat, +1 abone (%94 az). Abone: 26. Son 48 saat: 33 goruntuleme.
+- Yeni videolar (toplam goruntuleme): 79 buzun 1/4'u ~5, 29 deniz 20 cm 2, 82 insan yuzlu robot 17 (2 begeni), 25 YZ ofis isleri 11, 74 YZ'yi kim yonlendirir 9 (ilk ~16 saat, ort. izleme %46,2, son 10 videoda 2. sira). Eski gundelik "Would You Ride With No Driver?" 26. Yorum: tum yeni videolarda 0.
+- Siralama (yon): robot/YZ (9-17) >= gelecek (11) > afet (2-5). Tutarli: kanalin AI-izleyicisi robot/YZ'ye daha yakin. Afet duraklatildi (81 hafta 2); afet'te n=2.
+- Taban 8-21/48 saat; robot/YZ videolari tabanin ust-yarisinda, belirgin basari esigi (50+) HICBIRI gecmedi. Kanal hala 20-30 gorunt./gun bandinda.
+- YENI SIRA (uygulaniyor): 23 Eki konu 84 (robotlar robot uretse; robot_18000 olgusu), 24 Eki konu 83, 25 Eki konu 27 (WEF; 25 ile ayni rakamlari art arda kullanmamak icin ertelendi).
+- Acik soru: dagitim (abone 26, %94 yeni izleyici). Secenek: ayni videolari TikTok/Reels'e de koymak (calisan kanal disi dagitim, organik).
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
