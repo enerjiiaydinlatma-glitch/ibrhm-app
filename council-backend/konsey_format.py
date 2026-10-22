@@ -140,6 +140,16 @@ def konuya_bagli(metin, topic):
     return any(w == a or (len(a) >= 4 and w.startswith(a[:5])) for w in kel for a in k)
 
 
+def _gelecek_mi(topic):
+    i = rakam_bankasi.konu_id(topic)
+    k = konsey_konular.konu_bul(i) if i is not None else None
+    return bool(k and k["kategori"] == "gelecek")
+
+
+# Kaynaksiz DAVRANIS iddiasi: 'makes people open the door', 'causes users to ...' (olgu/kaynak yok; uydurma neden-sonuc)
+DAVRANIS_IDDIA = re.compile(r"\b(?:makes?|made|causes?|forces?)\s+(?:people|everyone|users|customers|kids|children|neighbors|workers|drivers)\b", re.I)
+
+
 def evren_mi(topic):
     i = rakam_bankasi.konu_id(topic)
     k = konsey_konular.konu_bul(i) if i is not None else None
@@ -158,7 +168,9 @@ def _evren_prompt():
          "never use the words now, today, tonight, breaking. Consequences must match the SCALE of the event: for a big event name big things "
          "(coastlines, ports, whole streets, neighborhoods, power, water), never tiny objects (benches, chairs, towels, driveways, pants). "
          "Never set the scene in medicine (doctors, nurses, hospitals, patients, pills, surgery). "
-         "Stay on the topic's SUBJECT: the hook must use at least one key word of the topic itself (not a loose metaphor like a phone, a playlist or dinner).\n"),
+         "Stay on the topic's SUBJECT in EVERY line: the hook must use a key word of the topic itself (not a loose metaphor like a phone, a playlist, dinner, a street or a power grid unless the topic is about it); "
+         "lines 2-6 must each reuse a word from the topic, the hook or the title, and Alpha and the closing line MUST. Beta's line must be a question ending with '?'; the closing must end with a question mark. "
+         "Never write a cause-and-effect claim about people ('makes people ...', 'causes users to ...').\n"),
         (ORNEK, ORNEK_EVREN),
     ]
     for a, b in degisim:
@@ -321,6 +333,16 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
             s.append(("KAPANIS_SECIM", "Kapanis izleyiciden kisisel secim istemiyor (Which/Where/What would you ...?)."))
     elif not re.search(r"\b(guilty|habit)\b", L[5], re.I):
         s.append(("KAPANIS_ITIRAF", "Kapanis izleyiciden 'guilty habit' istemiyor."))
+    if DAVRANIS_IDDIA.search(" ".join(L)):
+        dav = sorted({m.group(0).lower() for m in DAVRANIS_IDDIA.finditer(" ".join(L))})
+        s.append(("DAVRANIS_IDDIA", f"Kaynaksiz davranis/neden-sonuc iddiasi: '{', '.join(dav)}'. Soru sor ya da basit bir mekanizma soyle."))
+    if (evren or _gelecek_mi(konu)) and title and not konuya_bagli(title, konu):
+        s.append(("BASLIK_KONU_DISI", f"Baslik konunun konusundan sapiyor; konunun kelimelerinden biri gecmeli: {', '.join(sorted(konu_anahtarlari(konu)))}."))
+    if evren:
+        if "?" not in L[2]:
+            s.append(("BETA_SORU", "Beta'nin satiri bir SORU olmali ('?' yok)."))
+        if not L[5].strip().endswith("?"):
+            s.append(("KAPANIS_SORU", "Kapanis bir soruyla ('?') bitmeli."))
     if evren and not konuya_bagli(L[0], konu):
         s.append(("KONU_DISI", f"Ilk satir konunun konusundan sapiyor; konunun kelimelerinden biri gecmeli: {', '.join(sorted(konu_anahtarlari(konu)))}."))
     if evren and MEDIKAL.search(" ".join(L) + " " + (title or "")) and not MEDIKAL.search(konu or ""):
@@ -566,8 +588,27 @@ def ekran_degistir(yol, metin):
     return True, []
 
 
+# LLM hakemi: kelime esleme cok siki (sea/coast/tide/harbor ayni konu) ya da cok gevsek oldugundan ANLAM kontrolu modele yaptirilir (acik, sert bir editor istemi).
+KONU_HAKEMI = (
+    "You are a strict editor for short debate scripts. TOPIC: {topic}\n"
+    "Below are the 6 numbered lines of a script. For EACH line answer ON if it is clearly about the topic's subject, or a direct, plausible reaction "
+    "to what the previous line said about it; answer OFF if it drifts to an unrelated scene, object, event or metaphor (for example a power outage, a phone, "
+    "a street, a hospital when the topic is about something else).\n\n{satirlar}\n\n"
+    "Output EXACTLY 6 lines like '1: ON' or '3: OFF', then a last line 'VERDICT: PASS' if no line is OFF, otherwise 'VERDICT: FAIL'."
+)
+
+
+def konu_hakemi(topic, beats, llm):
+    """-> OFF denen satir numaralari (1 tabanli). Hakem hata verir / bicim bozuksa [] (acik-gecis): bu yalniz ek bir guvenlik katmanidir, tek kapi degil."""
+    try:
+        raw = llm(KONU_HAKEMI.format(topic=topic, satirlar="\n".join(f"{i}. {b[2]}" for i, b in enumerate(beats, 1))))
+    except Exception:
+        return []
+    return sorted({int(m.group(1)) for m in re.finditer(r"^\s*([1-6])\s*[:.)\-]\s*OFF\b", raw or "", re.M | re.I)})
+
+
 # --------------------------------------------------------------------------- uretim
-def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None):
+def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=5, kanca=None):
     """llm(prompt:str)->str; parse(raw)->(beats,title,hookthumb) (make_topic_short._parse_script).
     Kapidan gecmezse sorunlari geri besleyip yeniden yazdirir (en fazla 3 deneme). -> dict(ok, beats, title, hookthumb, sorunlar, ham, deneme)"""
     temel = (PROMPT_EVREN if evren_mi(topic) else PROMPT).format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
@@ -581,6 +622,11 @@ def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=3, kanca=None)
         title = baslik_duzelt(title)
         beats = kapanisa_skor_ekle(beats, skor_yolu)
         sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk, kanca, konu=topic)
+        if not sorunlar and evren_mi(topic):
+            off = konu_hakemi(topic, beats, llm)
+            if off:
+                sorunlar = [("SATIR_KONU_DISI", f"Satir(lar) {', '.join(map(str, off))} konunun konusundan sapiyor (editor hakemi). Konuya geri don: her satir '{topic}' konusunu "
+                                                 "dogrudan ya da onceki satira dogal bir tepki olarak islemeli; alakasiz sahne/nesne/metafor yazma.")]
         if not sorunlar:
             return {"ok": True, "topic": topic, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": [], "ham": ham, "deneme": n,
                     "uyarilar": uyarilar(beats, title, hookthumb)}

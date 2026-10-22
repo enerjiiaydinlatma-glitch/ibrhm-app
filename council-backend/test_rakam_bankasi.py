@@ -112,7 +112,7 @@ class EvrenFormatiTest(unittest.TestCase):
         t = kf.ORNEK_EVREN
         beats = [tuple(x.split(" | ")) for x in t.split("\nTITLE:")[0].splitlines()]
         sorun = kf.kontrol(beats, t.split("TITLE: ")[1].splitlines()[0], t.split("HOOKTHUMB: ")[1], konu="What if the Moon disappeared tonight?")
-        self.assertEqual([c for c, _ in sorun if c != "KONU_DISI"], [])      # ornek baska konudan: yalniz konu-baglantisi (bilerek) tutmaz
+        self.assertEqual([c for c, _ in sorun if c not in ("KONU_DISI", "BASLIK_KONU_DISI")], [])      # ornek baska konudan: yalniz konu-baglantisi (bilerek) tutmaz
 
     def test_prompt_secimi(self):
         self.assertIn("Which, Where or What would you", kf.PROMPT_EVREN)
@@ -260,3 +260,63 @@ class KonuyaBagliTest(unittest.TestCase):
         self.assertNotIn("ADAY_KONU_DISI", {c for c, _ in kf.kanca_gecerli("Who will steer AI, humans or machines?", self.T74)})
         b = KapiTest().beats("Why does your phone choose dinner?")
         self.assertIn("KONU_DISI", {c for c, _ in kf.kontrol(b, "Who holds the steering wheel?", "WHO HOLDS THE WHEEL", konu=self.T74)})
+
+
+class HakemVeYeniKurallarTest(unittest.TestCase):
+    T84 = "What if robots built every new robot?"
+
+    def beats(self, **kw):
+        satir = {"aura": "What if robots only build new robots?", "alpha": "A robot line runs day and night without a break. That's one for me.",
+                 "beta": "Hold on. Who switches the factory off if it won't stop?", "delta": "Actually... Beta, you're correct. Someone must keep a hand on the off switch.",
+                 "gamma": "Robots still need parts. I'd keep one human inspecting each build.",
+                 "aura2": "Team Alpha or Team Beta? Which would you trust with the off switch, a human or a robot?"}
+        satir.update(kw)
+        return [("aura", "X", satir["aura"], ""), ("alpha", "X", satir["alpha"], ""), ("beta", "X", satir["beta"], ""),
+                ("delta", "X", satir["delta"], ""), ("gamma", "X", satir["gamma"], ""), ("aura", "X", satir["aura2"], "")]
+
+    def kodlar(self, beats, baslik="What if robots build all new robots?"):
+        return {c for c, _ in kf.kontrol(beats, baslik, "ROBOTS BUILDING NEW ROBOTS", konu=self.T84)}
+
+    def test_iyi_senaryo_gecer(self):
+        self.assertEqual(self.kodlar(self.beats()), set())
+
+    def test_beta_ve_kapanis_soru_olmali(self):
+        self.assertIn("BETA_SORU", self.kodlar(self.beats(beta="Hold on. Nobody switches the factory off.")))
+        self.assertIn("KAPANIS_SORU", self.kodlar(self.beats(aura2="Team Alpha or Team Beta? Pick the off switch holder.")))
+
+    def test_davranis_iddiasi_ve_baslik_konu_disi(self):
+        self.assertIn("DAVRANIS_IDDIA", self.kodlar(self.beats(alpha="Silicone cheeks make people open the door faster. That's one for me.")))
+        self.assertIn("BASLIK_KONU_DISI", self.kodlar(self.beats(), baslik="Who Will Drive the Power Grid?"))
+
+    def test_hakem_off_satirlari_ve_acik_gecis(self):
+        b = self.beats()
+        self.assertEqual(kf.konu_hakemi(self.T84, b, lambda p: "1: ON\n2: ON\n3: OFF\n4: OFF\n5: ON\n6: ON\nVERDICT: FAIL"), [3, 4])
+        self.assertEqual(kf.konu_hakemi(self.T84, b, lambda p: "1: ON\n2: ON\n3: ON\n4: ON\n5: ON\n6: ON\nVERDICT: PASS"), [])
+        self.assertEqual(kf.konu_hakemi(self.T84, b, lambda p: "tamamen alakasiz cikti"), [])           # bicim bozuk: acik-gecis
+        def patla(p):
+            raise RuntimeError("api")
+        self.assertEqual(kf.konu_hakemi(self.T84, b, patla), [])
+
+    def test_uret_hakem_reddedince_yeniden_yazar(self):
+        cagri = {"hakem": 0, "yaz": 0}
+        iyi = ("aura | ROBOTS BUILD | What if robots only build new robots? | x\nalpha | ROBOT LINE | A robot line runs day and night without a break. That's one for me. | x\n"
+               "beta | OFF SWITCH | Hold on. Who switches the factory off if it won't stop? | x\ndelta | HAND ON IT | Actually... Beta, you're correct. Someone must keep a hand on the off switch. | x\n"
+               "gamma | ONE HUMAN | Robots still need parts. I'd keep one human inspecting each build. | x\naura | PICK A TEAM | Team Alpha or Team Beta? Which would you trust with the off switch, a human or a robot? | x\n"
+               "TITLE: What if robots build all new robots?\nHOOKTHUMB: ROBOTS BUILDING NEW ROBOTS")
+
+        def llm(prompt):
+            if "strict editor" in prompt:
+                cagri["hakem"] += 1
+                return "1: ON\n2: ON\n3: OFF\n4: ON\n5: ON\n6: ON\nVERDICT: FAIL" if cagri["hakem"] == 1 else "1: ON\n2: ON\n3: ON\n4: ON\n5: ON\n6: ON\nVERDICT: PASS"
+            cagri["yaz"] += 1
+            return iyi
+
+        def basit(raw):
+            satirlar = [l for l in raw.splitlines() if " | " in l]
+            beats = [tuple(x.strip() for x in l.split(" | ")) for l in satirlar]
+            baslik = next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("TITLE:"))
+            kart = next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("HOOKTHUMB:"))
+            return beats, baslik, kart
+        r = kf.uret(self.T84, llm, basit, deneme=3)
+        self.assertTrue(r["ok"])
+        self.assertEqual((cagri["yaz"], cagri["hakem"]), (2, 2))       # ilk deneme hakemden dondu, ikinci gecti

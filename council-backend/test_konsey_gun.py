@@ -206,3 +206,27 @@ class ElenenKonuTest(unittest.TestCase):
         konular = [{"id": 1, "konu": "a", "kategori": "x"}, {"id": 2, "konu": "b", "kategori": "x"}]
         self.assertEqual(kg.sonraki_konu(set(), konular=konular, oncelik=[], elenen={1})["id"], 2)
         self.assertIsNone(kg.sonraki_konu(set(), konular=konular, oncelik=[], elenen={1, 2}))
+
+
+class TamirModuTest(unittest.TestCase):
+    def test_tamir_modunda_kapidan_gecmeyen_senaryo_elle_duzeltilir(self):
+        o = Ortam(["evet", "s 2 Stores add the shipping cost into item prices. That's one for me.", "evet"],
+                  script=T.IYI.replace("Stores add", "Amazon adds"))
+        d = o.sozluk()
+        d["tamir"] = True
+        self.assertEqual(kg.calistir(Args(saat=gelecek_saat()), d), 0)
+        self.assertIn("KAPIDAN GECMEDI", o.metin)
+        self.assertIn("henuz kapidan gecmedi", o.metin)           # ilk 'evet' reddedildi
+        self.assertEqual(len(o.render_cagri), 1)                   # duzeltildikten sonra uretildi
+        self.assertIn("Stores add", o.render_cagri[0][1]["beats"][1][2])
+
+    def test_tamir_modunda_hayir_iptal_eder(self):
+        o = Ortam(["hayir"], script=T.IYI.replace("Stores add", "Amazon adds"))
+        d = o.sozluk()
+        d["tamir"] = True
+        self.assertEqual(kg.calistir(Args(saat=gelecek_saat()), d), 0)
+        self.assertEqual((o.render_cagri, o.yukle_cagri), ([], []))
+
+    def test_tamir_yokken_eski_davranis(self):
+        o = Ortam([], script=T.IYI.replace("Stores add", "Amazon adds"))
+        self.assertEqual(kg.calistir(Args(saat=gelecek_saat()), o.sozluk()), 2)

@@ -126,33 +126,43 @@ def calistir(a, d):
     secilen = kk["secilen"]
 
     r = None
+    gecersiz = False
     yeniden = True
     for _tur in range(12):
         if yeniden:
             r = konsey_format.uret(topic, d["llm"], d["parse"], kanca=secilen)
-            if not r["ok"]:
+            gecersiz = not r["ok"]
+            if gecersiz:
                 yaz("\nSENARYO (deneme %d):" % r["deneme"])
-                for who, screen, line, _img in r["beats"]:
-                    yaz(f"  {who:5} | {line}")
+                for i, (who, screen, line, _img) in enumerate(r["beats"], 1):
+                    yaz(f"  {i}. {who:5} | {line}")
+                yaz(f"  BASLIK: {r['title']}   KART: {r['hookthumb']}")
                 yaz("\nKAPIDAN GECMEDI - video uretilmeyecek:")
                 for kod, msg in r["sorunlar"]:
                     yaz(f"  - {kod}: {msg}")
+                if not d.get("tamir"):
+                    return 2
+                yaz("\n[tamir modu] Satirlari elle duzeltebilirsin (s N yeni cumle | b Baslik | k KART); her degisiklik kapidan gecer; "
+                    "senaryo kapidan gecene kadar 'evet' KABUL EDILMEZ. hayir = iptal.")
+        if not gecersiz:
+            yaz("\nSENARYO (deneme %d):" % r["deneme"])
+            for i, (who, screen, line, _img) in enumerate(r["beats"], 1):
+                yaz(f"  {i}. {who:5} | {line}")
+            yaz(f"  BASLIK: {r['title']}   KART: {r['hookthumb']}")
+            for ad, hits in r.get("uyarilar", []):
+                yaz(f"  [uyari] {ad}: {', '.join(hits)}")
+            g = d["duyarlilik"](topic, r)
+            yaz(f"  [sensitivity_gate: sensitive={g['sensitive']} severity={g['severity']}]")
+            if g["sensitive"]:
+                yaz("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
                 return 2
-        yaz("\nSENARYO (deneme %d):" % r["deneme"])
-        for i, (who, screen, line, _img) in enumerate(r["beats"], 1):
-            yaz(f"  {i}. {who:5} | {line}")
-        yaz(f"  BASLIK: {r['title']}   KART: {r['hookthumb']}")
-        for ad, hits in r.get("uyarilar", []):
-            yaz(f"  [uyari] {ad}: {', '.join(hits)}")
-        g = d["duyarlilik"](topic, r)
-        yaz(f"  [sensitivity_gate: sensitive={g['sensitive']} severity={g['severity']}]")
-        if g["sensitive"]:
-            yaz("DUYARLILIK KAPISI: insan incelemesi gerekir - video uretilmeyecek. " + g.get("reason", ""))
-            return 2
         ham = gir("\nSenaryo iyi mi?  evet = uret | 1-5 = o kancayla yeniden yaz | s 2 yeni cumle = 2. satiri degistir | "
                   "b Yeni Baslik | k YENI KART | hayir = iptal > ")
         cevap = ham.strip().lower()
         if cevap in ("evet", "e", "yes", "y"):
+            if gecersiz:
+                yaz("  Senaryo henuz kapidan gecmedi: once yukaridaki sorunlari s/b/k komutlariyla duzelt.")
+                continue
             break
         komut = konsey_format.duzenleme_coz(ham)
         if komut:
@@ -163,6 +173,7 @@ def calistir(a, d):
                     yaz(f"  - {kod}: {msg}")
             else:
                 r = yeni_r
+                gecersiz = False
                 yaz("  -> degisti.")
             yeniden = False
             continue
@@ -170,6 +181,7 @@ def calistir(a, d):
             secilen = kk["adaylar"][int(cevap) - 1][0]
             yaz(f"  -> kanca: {secilen}")
             yeniden = True
+            gecersiz = False
             continue
         yaz("Iptal edildi. Hicbir sey uretilmedi/yuklenmedi.")
         return 0
@@ -247,7 +259,7 @@ def _gercek():
             os.startfile(yol)          # noqa: S606 - varsayilan oynatici
 
     return {
-        "yaz": print, "gir": input, "llm": llm, "parse": mts._parse_script,
+        "yaz": print, "gir": input, "llm": llm, "parse": mts._parse_script, "tamir": True,
         "render": mts.konsey_video, "yukle": yukle, "izle": izle,
         "kullanilan": konsey_konular.kullanilanlar,
         "gunluk": lambda: daily_limit.can_upload(konsey_yukle.gunluk_dosya()),
