@@ -27,7 +27,7 @@ import sys
 import wave
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 W, H = 1080, 1920
 FPS = 30
@@ -176,42 +176,128 @@ def _radial_mask(size, power=2.2):
     return Image.fromarray((np.clip(1 - d, 0, 1) ** power * 255).astype(np.uint8), "L")
 
 
-def _draw_avatar(t, amp, blink, nod):
-    """640x640 RGBA (2x cizim, kucultulur)."""
-    S2 = 1280
-    im = Image.new("RGBA", (S2, S2), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
+EYE = (110, 238, 255)
+EMO = {
+    "neutral":   dict(lid=0.10, slant=0.0,   happy=0.0,  scale=1.00, tilt=0.0,  smile=0.15,  cheeks=0.0),
+    "serious":   dict(lid=0.34, slant=0.45,  happy=0.0,  scale=1.00, tilt=-2.0, smile=-0.05, cheeks=0.0),
+    "curious":   dict(lid=0.04, slant=-0.15, happy=0.0,  scale=1.12, tilt=6.0,  smile=0.10,  cheeks=0.0),
+    "happy":     dict(lid=0.05, slant=0.0,   happy=0.48, scale=1.00, tilt=3.0,  smile=0.90,  cheeks=1.0),
+    "surprised": dict(lid=0.0,  slant=0.0,   happy=0.0,  scale=1.22, tilt=0.0,  smile=0.0,   cheeks=0.0),
+    "sad":       dict(lid=0.30, slant=-0.55, happy=0.0,  scale=0.96, tilt=-4.0, smile=-0.60, cheeks=0.0),
+}
+
+
+def _auto_emotion(s, i):
+    low = s.lower()
+    if i == 0:
+        return "serious"
+    if s.rstrip().endswith("?"):
+        return "curious"
+    if low.startswith("follow"):
+        return "happy"
+    if re.search(r"swiped|worst|away|fail|lost|zero|nobody", low):
+        return "sad"
+    if re.search(r"\d|percent|hundred|thousand|million", low):
+        return "surprised"
+    return "neutral"
+
+
+def _draw_avatar(t, amp, blink, ep, age, bob):
+    """800x800 RGBA: cam kafali, neon kenarli, duygu ifadeli soyut yuz (2x cizim)."""
+    S2 = 1600
     c = S2 // 2
-    R = int(400 * (1 + 0.035 * amp))
-    # govde: icten disa koyulasan eşmerkezli daireler
-    steps = 26
-    for i in range(steps):
-        f = i / (steps - 1)
-        r = int(R * (1 - f * 0.98))
-        col = (int(70 + 120 * f), int(34 + 70 * f), int(140 + 115 * f))
-        cx, cy = c - int(60 * f), c - int(70 * f) + nod
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col + (255,))
-    # donen halka yaylari
-    ang = t * 55 * (1 + 0.9 * amp)
-    rr = R + 78
-    for k in range(3):
-        a0 = ang + k * 120
-        d.arc([c - rr, c - rr + nod, c + rr, c + rr + nod], a0, a0 + 52, fill=ACCENT + (200,), width=12)
-    # gozler
-    eye_w, eye_h = 78, int(112 * max(blink, 0.08))
-    ex = 150
-    ey = c - 40 + nod
-    for sx in (-1, 1):
-        x0 = c + sx * ex
-        d.rounded_rectangle([x0 - eye_w // 2, ey - eye_h // 2, x0 + eye_w // 2, ey + eye_h // 2],
-                            radius=eye_w // 2, fill=(236, 246, 255, 255))
-    # agiz: sese gore acilir
-    mw = 230
-    mh = int(16 + 120 * min(amp * 1.1, 1.0))
-    my = c + 190 + nod
-    d.rounded_rectangle([c - mw // 2, my - mh // 2, c + mw // 2, my + mh // 2],
-                        radius=min(mh // 2, 60), fill=(246, 238, 255, 255))
-    return im.resize((640, 640), Image.LANCZOS)
+    cy = c + int(bob)
+    hw, hh, rad = 1160, 980, 380
+    box = [c - hw // 2, cy - hh // 2, c + hw // 2, cy + hh // 2]
+
+    # --- cam kafa
+    glass = Image.new("RGBA", (S2, S2), (0, 0, 0, 0))
+    g = ImageDraw.Draw(glass)
+    g.rounded_rectangle(box, radius=rad, fill=(13, 7, 26, 255))
+    for i in range(8):
+        f = i / 7
+        g.rounded_rectangle([box[0] + 30 + int(40 * f), box[1] + 30 + int(60 * f), box[2] - 30 - int(40 * f),
+                             box[1] + hh // 2 + int(60 * f)], radius=rad - 40,
+                            fill=(40 + int(14 * f), 22 + int(8 * f), 84 + int(20 * f), int(22 - 14 * f)))
+    g.polygon([(box[0] + 120, box[1] + 40), (box[0] + 330, box[1] + 40), (box[0] + 40, box[1] + 420), (box[0] + 40, box[1] + 230)],
+              fill=(255, 255, 255, 22))
+    off = int(t * 50) % 14
+    for y in range(box[1], box[3], 14):
+        g.line([(box[0], y + off), (box[2], y + off)], fill=(0, 0, 0, 38), width=3)
+    if ep["cheeks"] > 0.02:
+        for sx in (-1, 1):
+            g.ellipse([c + sx * 400 - 95, cy + 110, c + sx * 400 + 95, cy + 200], fill=(255, 90, 160, int(80 * ep["cheeks"])))
+    mask = Image.new("L", (S2, S2), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(box, radius=rad, fill=255)
+    glass.putalpha(ImageChops.multiply(glass.getchannel("A"), mask))
+
+    # --- neon katman (kenar, goz, agiz, amblem, uydular) - bulaniklastirilip isik verir
+    neon = Image.new("RGBA", (S2, S2), (0, 0, 0, 0))
+    n = ImageDraw.Draw(neon)
+    n.rounded_rectangle(box, radius=rad, outline=ACCENT + (255,), width=14)
+    ins = 26
+    n.rounded_rectangle([box[0] + ins, box[1] + ins, box[2] - ins, box[3] - ins], radius=rad - ins,
+                        outline=(120, 220, 255, 150), width=4)
+    n.text((c, cy - 372), "A", font=_font(150), fill=ACCENT + (255,), anchor="mm")
+
+    gx = int(20 * math.sin(t * 0.9))
+    gy = int(9 * math.cos(t * 1.3))
+    sc = ep["scale"]
+    ew, eh0 = int(210 * sc), int(300 * sc)
+    eh = max(int(eh0 * max(blink, 0.08)), 14)
+    for side in (-1, 1):
+        ex, ey = c + side * 250 + gx, cy - 40 + gy
+        pad = 60
+        loc = Image.new("L", (ew + 2 * pad, eh + 2 * pad), 0)
+        ld = ImageDraw.Draw(loc)
+        ld.rounded_rectangle([pad, pad, pad + ew, pad + eh], radius=min(ew // 2, eh // 2, 105), fill=255)
+        lid = ep["lid"] * eh
+        sl = ep["slant"] * eh * 0.5 * side * -1          # ic taraf (merkeze yakin) daha asagi = kizgin/ciddi
+        y_l = pad + lid + (sl if side == -1 else -sl)
+        y_r = pad + lid + (-sl if side == -1 else sl)
+        if lid > 1 or abs(sl) > 1:
+            ld.polygon([(0, 0), (loc.width, 0), (loc.width, y_r), (0, y_l)], fill=0)
+        if ep["happy"] > 0.02:
+            ry = ep["happy"] * 1.25 * eh
+            ld.ellipse([pad + ew / 2 - ew * 0.75, pad + eh - ry, pad + ew / 2 + ew * 0.75, pad + eh + ry], fill=0)
+        col = Image.new("RGBA", loc.size, EYE + (255,))
+        cd = ImageDraw.Draw(col)
+        cd.ellipse([pad + ew * 0.16, pad + eh * 0.10, pad + ew * 0.16 + 38, pad + eh * 0.10 + 52], fill=(255, 255, 255, 235))
+        col.putalpha(loc)
+        neon.alpha_composite(col, dest=(int(ex - ew / 2 - pad), int(ey - eh / 2 - pad)))
+
+    # agiz: yay uzerinde ses cubuklari (ses sessizse duz cizgi)
+    nb, mwid = 11, 400
+    for i in range(nb):
+        u = (i / (nb - 1)) * 2 - 1
+        bx = c + int(u * mwid / 2)
+        by = cy + 290 + int(ep["smile"] * 70 * (u * u - 0.5) * -1)
+        wob = 0.5 + 0.5 * math.sin(t * 15 + i * 1.9)
+        hgt = 12 + int(150 * min(amp * 1.15, 1.0) * (0.35 + 0.65 * wob))
+        n.rounded_rectangle([bx - 12, by - hgt // 2, bx + 12, by + hgt // 2], radius=12, fill=(246, 240, 255, 255))
+
+    # uydu dugumleri
+    for k in range(5):
+        ang = t * (0.55 + 0.12 * k) + k * 1.3
+        nx, ny = c + int(740 * math.cos(ang)), cy + int(560 * math.sin(ang))
+        n.ellipse([nx - 14, ny - 14, nx + 14, ny + 14], fill=ACCENT + (230,))
+
+    small = neon.resize((S2 // 4, S2 // 4), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
+    glow = small.resize((S2, S2), Image.BILINEAR)
+    gain = 0.9 + 0.7 * amp
+    glow.putalpha(glow.getchannel("A").point(lambda v: min(255, int(v * gain))))
+    out = glass.copy()
+    out.alpha_composite(glow)
+    out.alpha_composite(neon)
+
+    out = out.resize((800, 800), Image.BOX)                # 2x -> 1x (hizli kutu filtresi), SONRA dondur
+    ang = ep["tilt"] + 2.2 * math.sin(t * 1.1) + 1.5 * amp
+    out = out.rotate(ang, resample=Image.BILINEAR, center=(400, 400 + int(bob * 0.5)))
+    if age < 0.14:                                         # gecis "glitch": renk kanali kaymasi
+        r, gch, b, a = out.split()
+        sh = int(9 * (1 - age / 0.14))
+        out = Image.merge("RGBA", (ImageChops.offset(r, sh, 0), gch, ImageChops.offset(b, -sh, 0), a))
+    return out
 
 
 def _wrap(words, font, maxw):
@@ -313,10 +399,121 @@ def _draw_card(card, local_t, p):
 
 
 # ---------------------------------------------------------------- ana
-def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, sfx=True, progress=None):
+class _State:
+    """Bir isci surecin kare uretimi icin gereken, sadece duz veriden kurulan durum."""
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.tl = ctx["tl"]
+        self.env = ctx["env"]
+        self.dur = ctx["dur"]
+        self.tag = ctx["tag"]
+        self.layouts = [_CaptionLayout(s) for s, _, _ in self.tl]
+        self.wtimes = [_word_times(l.words, t0, d) for l, (s, t0, d) in zip(self.layouts, self.tl)]
+        self.cards = {int(k): v for k, v in ctx["cards"].items()}
+        self.card_t0 = {i: self.tl[i][1] for i in self.cards if i < len(self.tl)}
+        self.card_t1 = {i: self.tl[i][1] + self.tl[i][2] for i in self.cards if i < len(self.tl)}
+        self.emos = ctx["emos"]
+        self.bg = _make_bg()
+        self.halo_mask = _radial_mask(1000).point(lambda v: int(v * 0.55))
+        self.halo_cache = {}
+        self.parts = [tuple(p) for p in ctx["parts"]]
+        self.sprites = {s: _radial_mask(s * 4, 1.6) for s in (6, 10, 16)}
+        self.tag_font = _font(40)
+
+
+def _scaled(col, f):
+    f = min(max(f, 0.0), 1.0)
+    return tuple(int(c * f) for c in col)
+
+
+def _render_one(st, fi):
+    t = fi / FPS
+    amp = float(st.env[min(fi, len(st.env) - 1)])
+    frame = st.bg.copy()
+
+    for (px, py, sp, sz, ph) in st.parts:
+        y = (py - sp * t) % H
+        a = 0.30 + 0.35 * amp + 0.15 * math.sin(t * 1.5 + ph)
+        frame.paste(_scaled(ACCENT, a), (int(px - sz * 2), int(y - sz * 2)), st.sprites[sz])
+
+    tl = st.tl
+    si = 0
+    for i, (_, t0, d_) in enumerate(tl):
+        if t0 <= t < t0 + d_ or (i == len(tl) - 1 and t >= t0):
+            si = i
+            break
+    s_t0 = tl[si][1]
+    card_i, card_p, card_local = None, 0.0, 0.0
+    for i in st.card_t0:
+        p_in = _ease_out((t - st.card_t0[i]) / 0.35)
+        p_out = 1.0 - _ease_out((t - st.card_t1[i]) / 0.35)
+        p = min(p_in, p_out) if t >= st.card_t0[i] else 0.0
+        if p > card_p:
+            card_i, card_p, card_local = i, p, t - st.card_t0[i]
+
+    blink_phase = t % 3.4
+    blink = 1.0 - (math.sin(math.pi * blink_phase / 0.16) if blink_phase < 0.16 else 0.0)
+    nod = int(-14 * math.exp(-9 * (t - s_t0)) * math.sin(14 * (t - s_t0))) if t - s_t0 < 0.6 else 0
+    cur = EMO.get(st.emos[si], EMO["neutral"])
+    prev = EMO.get(st.emos[si - 1], cur) if si > 0 else cur
+    kk = _ease_out((t - s_t0) / 0.25)
+    ep = {key: prev[key] + (cur[key] - prev[key]) * kk for key in cur}
+    bob = 16 * math.sin(t * 1.6) + nod * 2
+    av = _draw_avatar(t, amp, blink, ep, t - s_t0, bob)
+    sc = 1.0 - 0.36 * card_p
+    cy = 650 - int(270 * card_p)
+    avs = av.resize((int(800 * sc), int(800 * sc)), Image.BILINEAR)
+    hs = int(1250 * sc)
+    hm = st.halo_cache.get(hs)
+    if hm is None:
+        hm = st.halo_mask.resize((hs, hs))
+        st.halo_cache[hs] = hm
+    frame.paste(_scaled(ACCENT, 0.45 + 0.55 * amp), (W // 2 - hs // 2, cy - hs // 2), hm)
+    frame.paste(avs, (W // 2 - avs.width // 2, cy - avs.height // 2), avs)
+
+    if card_i is not None and card_p > 0.02:
+        lay = _draw_card(st.cards[card_i], card_local, card_p)
+        frame.paste(lay, (0, 700 + int((1 - card_p) * 50)), lay)
+
+    lay_c = st.layouts[si]
+    d = ImageDraw.Draw(frame)
+    wt = st.wtimes[si]
+    active = max([k for k, tw in enumerate(wt) if t >= tw] or [0])
+    for k, (xw, yw, w) in enumerate(lay_c.pos):
+        if k > active:                       # henuz soylenmeyen kelimeler soluk: kanca 0. karede tam okunur
+            d.text((xw, yw), w, font=lay_c.font, fill=(120, 108, 150), stroke_width=7, stroke_fill=(18, 8, 34))
+            continue
+        col = HILITE if k == active else WHITE
+        d.text((xw, yw), w, font=lay_c.font, fill=col, stroke_width=7, stroke_fill=(18, 8, 34))
+
+    d.ellipse([60, 92, 78, 110], fill=ACCENT)
+    d.text((96, 80), st.tag, font=st.tag_font, fill=WHITE, stroke_width=3, stroke_fill=(18, 8, 34))
+    d.rectangle([60, 140, 60 + int((W - 120) * min(t / st.dur, 1)), 146], fill=ACCENT)
+    return frame.tobytes()
+
+
+def _render_range(ctx, a, b, out_path):
+    """[a, b) karelerini sessiz mp4 olarak yazar (tek surec)."""
+    st = _State(ctx)
+    cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
+           "-i", "-", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
+           "-g", str(FPS), out_path]
+    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    try:
+        for fi in range(a, b):
+            ff.stdin.write(_render_one(st, fi))
+    finally:
+        try:
+            ff.stdin.close()
+        except Exception:
+            pass
+        ff.wait()
+    if ff.returncode != 0:
+        raise RuntimeError("ffmpeg kodlama hatasi")
+
+
+def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, sfx=True, progress=None, workers=None):
     spec = spec or {}
-    cards_spec = {int(k): v for k, v in (spec.get("cards") or {}).items()}
-    tag = spec.get("tag", "AURA  -  AN AI")
     work = work_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "_video_work")
     os.makedirs(work, exist_ok=True)
 
@@ -327,116 +524,68 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
     env100 = _envelope(x, 100)
     sents = _sentences(script_text)
     tl = _timeline(sents, dur, env100)
-    layouts = [_CaptionLayout(s) for s, _, _ in tl]
-    wtimes = [_word_times(l.words, t0, d) for l, (s, t0, d) in zip(layouts, tl)]
+    spec_emos = {int(k): v for k, v in (spec.get("emotions") or {}).items()}
+    emos = [spec_emos.get(i) or _auto_emotion(s, i) for i, (s, _, _) in enumerate(tl)]
+    cards_spec = {int(k): v for k, v in (spec.get("cards") or {}).items()}
 
-    # ses efektleri
     events = [(0.02, "pop")]
     for i, (_, t0, _) in enumerate(tl):
         if i in cards_spec:
             events.append((max(t0 - 0.05, 0), "whoosh"))
-    final_audio = x
-    if sfx:
-        final_audio = x + _sfx_track(len(x), events)
+    final_audio = x + _sfx_track(len(x), events) if sfx else x
     wav_path = os.path.join(work, "_v2_mix.wav")
     _write_wav(wav_path, final_audio)
 
-    bg = _make_bg()
-    halo_mask = _radial_mask(1000)
     rng = np.random.default_rng(11)
-    parts = [(rng.uniform(0, W), rng.uniform(0, H), rng.uniform(25, 70), int(rng.choice([6, 10, 16])), rng.uniform(0, 6.28))
-             for _ in range(26)]
-    sprites = {s: _radial_mask(s * 4, 1.6) for s in (6, 10, 16)}
+    parts = [[float(rng.uniform(0, W)), float(rng.uniform(0, H)), float(rng.uniform(25, 70)),
+              int(rng.choice([6, 10, 16])), float(rng.uniform(0, 6.28))] for _ in range(26)]
+    ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
+           "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
+           "emos": emos, "parts": parts}
 
-    cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
-           "-i", "-", "-i", wav_path, "-map", "0:v", "-map", "1:a",
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", "-shortest", out_path]
-    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    workers = workers or min(os.cpu_count() or 1, 6)
+    if workers <= 1 or n_frames < 120:
+        seg = os.path.join(work, "_v2_seg0.mp4")
+        _render_range(ctx, 0, n_frames, seg)
+        segs = [seg]
+        if progress:
+            progress(1.0)
+    else:
+        ctx_path = os.path.join(work, "_v2_ctx.json")
+        with open(ctx_path, "w", encoding="utf-8") as f:
+            json.dump(ctx, f)
+        per = int(math.ceil(n_frames / workers))
+        procs, segs = [], []
+        for w in range(workers):
+            a, b = w * per, min((w + 1) * per, n_frames)
+            if a >= b:
+                break
+            seg = os.path.join(work, f"_v2_seg{w}.mp4")
+            segs.append(seg)
+            procs.append(subprocess.Popen([sys.executable, os.path.abspath(__file__), "--worker", ctx_path, str(a), str(b), seg]))
+        for i, pr in enumerate(procs):
+            pr.wait()
+            if pr.returncode != 0:
+                for q in procs:
+                    q.kill()
+                raise RuntimeError("video isci sureci basarisiz")
+            if progress:
+                progress((i + 1) / len(procs))
 
-    tag_font = _font(40)
-    card_t0 = {i: tl[i][1] for i in cards_spec if i < len(tl)}
-    card_t1 = {i: tl[i][1] + tl[i][2] for i in cards_spec if i < len(tl)}
-    try:
-        for fi in range(n_frames):
-            t = fi / FPS
-            amp = float(env_f[min(fi, len(env_f) - 1)])
-            frame = bg.copy()
-
-            # parcaciklar
-            for (px, py, sp, sz, ph) in parts:
-                y = (py - sp * t) % H
-                a = 0.25 + 0.35 * amp + 0.15 * math.sin(t * 1.5 + ph)
-                m = sprites[sz].point(lambda v, a=a: int(v * min(max(a, 0), 1)))
-                frame.paste(ACCENT, (int(px - sz * 2), int(y - sz * 2)), m)
-
-            # cumle / kart durumu
-            si = 0
-            for i, (_, t0, d_) in enumerate(tl):
-                if t0 <= t < t0 + d_ or (i == len(tl) - 1 and t >= t0):
-                    si = i
-                    break
-            s_t0 = tl[si][1]
-            card_i, card_p, card_local = None, 0.0, 0.0
-            for i in card_t0:
-                p_in = _ease_out((t - card_t0[i]) / 0.35)
-                p_out = 1.0 - _ease_out((t - card_t1[i]) / 0.35)
-                p = min(p_in, p_out) if t >= card_t0[i] else 0.0
-                if p > card_p:
-                    card_i, card_p, card_local = i, p, t - card_t0[i]
-
-            # avatar
-            blink_phase = (t % 3.4)
-            blink = 1.0 - (math.sin(math.pi * blink_phase / 0.16) if blink_phase < 0.16 else 0.0)
-            nod = int(-14 * math.exp(-9 * (t - s_t0)) * math.sin(14 * (t - s_t0))) if t - s_t0 < 0.6 else 0
-            av = _draw_avatar(t, amp, blink, nod)
-            sc = 1.0 - 0.5 * card_p
-            cy = 700 - int(330 * card_p)
-            avs = av.resize((int(640 * sc), int(640 * sc)), Image.LANCZOS)
-            # hale
-            hs = int(1000 * sc)
-            hm = halo_mask.resize((hs, hs)).point(lambda v: int(v * (0.22 + 0.5 * amp)))
-            frame.paste(ACCENT, (W // 2 - hs // 2, cy - hs // 2), hm)
-            frame.paste(avs, (W // 2 - avs.width // 2, cy - avs.height // 2), avs)
-
-            # kart
-            if card_i is not None and card_p > 0.02:
-                lay = _draw_card(cards_spec[card_i], card_local, card_p)
-                frame.paste(lay, (0, 700 + int((1 - card_p) * 50)), lay)
-
-            # altyazi
-            lay_c = layouts[si]
-            d = ImageDraw.Draw(frame)
-            wt = wtimes[si]
-            active = max([k for k, tw in enumerate(wt) if t >= tw] or [0])
-            for k, (xw, yw, w) in enumerate(lay_c.pos):
-                if k > active:                  # henuz soylenmeyen kelimeler soluk: kanca 0. karede tam okunur
-                    d.text((xw, yw), w, font=lay_c.font, fill=(120, 108, 150), stroke_width=7, stroke_fill=(18, 8, 34))
-                    continue
-                if k == active:
-                    age = t - wt[k]
-                    f = lay_c.font  # (pop boyutu kelimeleri birbirine bindirdi: sadece renk vurgusu)
-                    col = HILITE
-                else:
-                    f, col = lay_c.font, WHITE
-                d.text((xw, yw), w, font=f, fill=col, stroke_width=7, stroke_fill=(18, 8, 34))
-
-            # ust etiket (AI aciklamasi her karede)
-            d.ellipse([60, 92, 78, 110], fill=ACCENT)
-            d.text((96, 80), tag, font=tag_font, fill=WHITE, stroke_width=3, stroke_fill=(18, 8, 34))
-            d.rectangle([60, 140, 60 + int((W - 120) * min(t / dur, 1)), 146], fill=ACCENT)
-
-            ff.stdin.write(frame.tobytes())
-            if progress and fi % 30 == 0:
-                progress(fi / n_frames)
-    finally:
+    lst = os.path.join(work, "_v2_list.txt")
+    with open(lst, "w", encoding="utf-8") as f:
+        for s in segs:
+            f.write("file '" + os.path.abspath(s).replace("\\", "/") + "'\n")
+    p = subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-i", wav_path,
+                        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+                        "-ac", "2", "-shortest", out_path], capture_output=True, text=True)
+    if p.returncode != 0:
+        raise RuntimeError("ffmpeg birlestirme hatasi: " + p.stderr[-800:])
+    for s in segs:
         try:
-            ff.stdin.close()
-        except Exception:
+            os.remove(s)
+        except OSError:
             pass
-        ff.wait()
-    if ff.returncode != 0:
-        raise RuntimeError("ffmpeg kodlama hatasi")
     return out_path
 
 
@@ -472,7 +621,11 @@ DEMO_SPEC = {
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if args and args[0] == "--demo":
+    if args and args[0] == "--worker":
+        with open(args[1], encoding="utf-8") as f:
+            _ctx = json.load(f)
+        _render_range(_ctx, int(args[2]), int(args[3]), args[4])
+    elif args and args[0] == "--demo":
         out = args[1]
         wav = out + ".demo.wav"
         _synth_demo_audio(wav, sents_n=len(_sentences(DEMO_SCRIPT)))
