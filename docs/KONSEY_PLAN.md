@@ -60,6 +60,16 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - YENI SIRA (uygulaniyor): 23 Eki konu 84 (robotlar robot uretse; robot_18000 olgusu), 24 Eki konu 83, 25 Eki konu 27 (WEF; 25 ile ayni rakamlari art arda kullanmamak icin ertelendi).
 - Acik soru: dagitim (abone 26, %94 yeni izleyici). Secenek: ayni videolari TikTok/Reels'e de koymak (calisan kanal disi dagitim, organik).
 
+## Yayin kaydi (video | yayin 02:30 TR | link | sabit yorum)
+- 18 Eki | 79 buzun 1/4'u (afet) | https://youtu.be/R0NutGxhpy4 | "what would YOU do?"
+- 19 Eki | 29 deniz 20 cm (afet) | https://youtu.be/JfW2Xp9oxR8 | "what would YOU do?"
+- 20 Eki | 82 insan yuzlu robot (robot) | https://youtu.be/TFpREc7fybw | "what would YOU do?"
+- 21 Eki | 25 YZ ve ofis isleri (gelecek) | https://youtu.be/A6Px0zAwp7E | "guilty habit?"
+- 22 Eki | 74 YZ'yi kim yonlendirir (robot/YZ) | https://youtu.be/ghhL_K4Z2MQ | "what would YOU do?"
+- 23 Eki | 84 robotlar robot uretse (robot) | https://youtu.be/Pp3NqM2P9II | "what would YOU do?"
+- 24 Eki | 83 Could Your Friend Be A Robot? (robot) | https://youtu.be/pD_euLit6Lw | "what would YOU do?"
+- Siradaki: 25 Eki konu 27 (WEF, 24 Eki'de hazirla). Kapi: editor hakemi + tamir modu devrede (konsey_gun).
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
