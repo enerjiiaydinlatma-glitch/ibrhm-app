@@ -17,6 +17,13 @@ class PaketTest(unittest.TestCase):
         self.assertNotIn("#Shorts", p["baslik"])
         self.assertEqual(p["uyari"], [])
 
+    def test_tek_tarafli_rakamli_kanca_dengeli_olguyla_tamamlanir(self):
+        p = sp.paket({"video_id": "V3", "baslik": "Will AI Take Office Jobs First?", "kanca": "Employers expect 92 million jobs displaced.",
+                      "konu": "Will AI change office jobs first?"})
+        self.assertIn("170 million new jobs", p["aciklama"])
+        self.assertIn("78 million", p["aciklama"])
+        self.assertEqual(p["uyari"], [])
+
     def test_bilinmeyen_konu_varsayilan_etiket_ve_kanca_yoksa_baslik(self):
         p = sp.paket({"video_id": "V2", "baslik": "Some Title", "konu": "not in the pool"})
         self.assertIn("#whatif", p["aciklama"])

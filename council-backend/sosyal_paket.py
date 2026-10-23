@@ -11,6 +11,7 @@ Kurallar: kanca cumlesi videodakiyle AYNI (yeni iddia yok), rakam yalniz videoda
 import argparse
 import json
 import os
+import re
 import sys
 
 import claim_lint
@@ -43,6 +44,12 @@ def paket(satir):
     kanca = (satir.get("kanca") or "").strip()
     baslik = (satir.get("baslik") or "").replace("#Shorts", "").strip()
     govde = kanca or baslik
+    # Tek basina okununca TEK TARAFLI kalabilecek rakamli kanca ('92 million jobs displaced' yalniz): konunun dengeli kaynakli olgusunu ekle
+    if re.search(r"million|billion|%", govde):
+        for o in rakam_bankasi.olgular(satir.get("konu", "")):
+            if any(rakam_bankasi._sayi_var(n, govde) for n in o["sayilar"]) and len(o["olgu"]) > len(govde):
+                govde = f"{govde} {o['olgu']}"
+                break
     etiket = ETIKET.get(kategori_bul(satir), VARSAYILAN)
     aciklama = f"{govde} Team Alpha or Team Beta? {' '.join(etiket)} #SignCouncil"
     uyari = [f"{k[0]} ({', '.join(k[1])})" for k in claim_lint.lint(aciklama) if k[0] in claim_lint.BLOCKING]
