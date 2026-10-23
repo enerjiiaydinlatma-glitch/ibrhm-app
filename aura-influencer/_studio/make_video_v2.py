@@ -202,7 +202,7 @@ def _auto_emotion(s, i):
     return "neutral"
 
 
-def _draw_avatar(t, amp, blink, ep, age, bob):
+def _draw_face_visor(t, amp, blink, ep, age, bob):
     """800x800 RGBA: cam kafali, neon kenarli, duygu ifadeli soyut yuz (2x cizim)."""
     S2 = 1600
     c = S2 // 2
@@ -298,6 +298,100 @@ def _draw_avatar(t, amp, blink, ep, age, bob):
         sh = int(9 * (1 - age / 0.14))
         out = Image.merge("RGBA", (ImageChops.offset(r, sh, 0), gch, ImageChops.offset(b, -sh, 0), a))
     return out
+
+
+def _draw_face_led(t, amp, blink, ep, age, bob):
+    """800x800 RGBA: LED nokta matrisli ekran yuzu (mobilde en okunur; secilen yuz, 2026-10-23)."""
+    S2 = 1600
+    c = S2 // 2
+    cy = c + int(bob)
+    base = Image.new("RGBA", (S2, S2), (0, 0, 0, 0))
+    d = ImageDraw.Draw(base)
+    sw, sh = 1280, 1060
+    box = [c - sw // 2, cy - sh // 2, c + sw // 2, cy + sh // 2]
+    d.rounded_rectangle(box, radius=210, fill=(10, 6, 22, 255))
+    d.polygon([(box[0] + 170, box[1] + 36), (box[0] + 410, box[1] + 36), (box[0] + 60, box[1] + 390), (box[0] + 60, box[1] + 210)],
+              fill=(255, 255, 255, 16))
+
+    mask = Image.new("L", (S2, S2), 0)
+    md = ImageDraw.Draw(mask)
+    pink = Image.new("L", (S2, S2), 0)
+    pd = ImageDraw.Draw(pink)
+    gx = int(26 * math.sin(t * 0.9))
+    gy = int(10 * math.cos(t * 1.3))
+    sc = ep["scale"]
+    ew, eh0 = int(200 * sc), int(300 * sc)
+    eh = max(int(eh0 * max(blink, 0.08)), 30)
+    pad = 60
+    for side in (-1, 1):
+        ex, ey = c + side * 270 + gx, cy - 100 + gy
+        loc = Image.new("L", (ew + 2 * pad, eh + 2 * pad), 0)
+        ld = ImageDraw.Draw(loc)
+        if ep["happy"] > 0.3:
+            ld.arc([pad - 30, pad + eh * 0.10, pad + ew + 30, pad + eh * 0.10 + eh * 0.95], 200, 340, fill=255, width=64)
+        else:
+            ld.rounded_rectangle([pad, pad, pad + ew, pad + eh], radius=min(ew // 2, eh // 2, 80), fill=255)
+            lid = ep["lid"] * eh
+            sl = ep["slant"] * eh * 0.5 * side * -1
+            y_l = pad + lid + (sl if side == -1 else -sl)
+            y_r = pad + lid + (-sl if side == -1 else sl)
+            if lid > 1 or abs(sl) > 1:
+                ld.polygon([(0, 0), (loc.width, 0), (loc.width, y_r), (0, y_l)], fill=0)
+        mask.paste(255, (int(ex - ew / 2 - pad), int(ey - eh / 2 - pad)), loc)
+    my = cy + 290
+    sm = ep["smile"]
+    if amp > 0.14:
+        mh = 40 + int(210 * min(amp * 1.15, 1.0))
+        mw = 340 if sm > 0.5 else 300
+        md.rounded_rectangle([c - mw // 2, my - mh // 2, c + mw // 2, my + mh // 2], radius=min(mh // 2, 80), fill=255)
+    elif abs(sm) < 0.25:
+        md.rounded_rectangle([c - 130, my - 26, c + 130, my + 26], radius=26, fill=255)
+    elif sm >= 0.25:
+        md.arc([c - 220, my - 150, c + 220, my + 110], 25, 155, fill=255, width=56)
+    else:
+        md.arc([c - 200, my + 10, c + 200, my + 260], 205, 335, fill=255, width=56)
+    if ep["cheeks"] > 0.3:
+        for sx in (-1, 1):
+            pd.ellipse([c + sx * 440 - 85, cy + 70, c + sx * 440 + 85, cy + 190], fill=255)
+
+    neon = Image.new("RGBA", (S2, S2), (0, 0, 0, 0))
+    nd = ImageDraw.Draw(neon)
+    arr, parr = np.asarray(mask), np.asarray(pink)
+    step = 38
+    for yy in range(cy - 470, cy + 470, step):
+        for xx in range(c - 600, c + 600, step):
+            if arr[yy, xx] > 128:
+                sh_ = 0.92 + 0.08 * math.sin(t * 9 + xx * 0.011 + yy * 0.017)
+                col = tuple(int(v * sh_) for v in (EYE if yy < cy + 150 else (205, 250, 255)))
+                nd.ellipse([xx - 14, yy - 14, xx + 14, yy + 14], fill=col + (255,))
+            elif parr[yy, xx] > 128:
+                nd.ellipse([xx - 13, yy - 13, xx + 13, yy + 13], fill=(255, 110, 170, 235))
+            else:
+                d.ellipse([xx - 6, yy - 6, xx + 6, yy + 6], fill=(58, 36, 104, 255))
+    nd.rounded_rectangle(box, radius=210, outline=ACCENT + (255,), width=16)
+    nd.rounded_rectangle([box[0] + 26, box[1] + 26, box[2] - 26, box[3] - 26], radius=184, outline=(120, 220, 255, 120), width=4)
+
+    small = neon.resize((S2 // 4, S2 // 4), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
+    glow = small.resize((S2, S2), Image.BILINEAR)
+    gain = 1.15 + 0.6 * amp
+    glow.putalpha(glow.getchannel("A").point(lambda v: min(255, int(v * gain))))
+    out = base.copy()
+    out.alpha_composite(glow)
+    out.alpha_composite(neon)
+    out = out.resize((800, 800), Image.BOX)
+    ang = ep["tilt"] * 0.6 + 1.6 * math.sin(t * 1.1) + 1.0 * amp
+    out = out.rotate(ang, resample=Image.BILINEAR, center=(400, 400 + int(bob * 0.5)))
+    if age < 0.14:
+        r, gch, b, a = out.split()
+        shf = int(9 * (1 - age / 0.14))
+        out = Image.merge("RGBA", (ImageChops.offset(r, shf, 0), gch, ImageChops.offset(b, -shf, 0), a))
+    return out
+
+
+def _draw_avatar(t, amp, blink, ep, age, bob, style="led"):
+    if style == "visor":
+        return _draw_face_visor(t, amp, blink, ep, age, bob)
+    return _draw_face_led(t, amp, blink, ep, age, bob)
 
 
 def _wrap(words, font, maxw):
@@ -413,6 +507,7 @@ class _State:
         self.card_t0 = {i: self.tl[i][1] for i in self.cards if i < len(self.tl)}
         self.card_t1 = {i: self.tl[i][1] + self.tl[i][2] for i in self.cards if i < len(self.tl)}
         self.emos = ctx["emos"]
+        self.face = ctx.get("face", "led")
         self.bg = _make_bg()
         self.halo_mask = _radial_mask(1000).point(lambda v: int(v * 0.55))
         self.halo_cache = {}
@@ -459,7 +554,7 @@ def _render_one(st, fi):
     kk = _ease_out((t - s_t0) / 0.25)
     ep = {key: prev[key] + (cur[key] - prev[key]) * kk for key in cur}
     bob = 16 * math.sin(t * 1.6) + nod * 2
-    av = _draw_avatar(t, amp, blink, ep, t - s_t0, bob)
+    av = _draw_avatar(t, amp, blink, ep, t - s_t0, bob, st.face)
     sc = 1.0 - 0.36 * card_p
     cy = 650 - int(270 * card_p)
     avs = av.resize((int(800 * sc), int(800 * sc)), Image.BILINEAR)
@@ -541,7 +636,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
               int(rng.choice([6, 10, 16])), float(rng.uniform(0, 6.28))] for _ in range(26)]
     ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
-           "emos": emos, "parts": parts}
+           "emos": emos, "parts": parts, "face": spec.get("face", "led")}
 
     workers = workers or min(os.cpu_count() or 1, 6)
     if workers <= 1 or n_frames < 120:
