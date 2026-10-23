@@ -297,6 +297,8 @@ def draft_add(d):
            "tags": str(d.get("tags", "")), "format": d.get("format") if d.get("format") in FORMATS else "other",
            "rationale": str(d.get("rationale", ""))[:300], "preflight": d.get("preflight"),
            "status": "taslak", "video": None, "srt": None, "link": None, "created": time.strftime("%Y-%m-%d %H:%M")}
+    if isinstance(d.get("video_spec"), dict):      # Aura Live gorunum ayari (kartlar/duygular); yoksa klasik video
+        row["video_spec"] = d["video_spec"]
     rows.append(row)
     _js(DRAFT_FILE, rows[-60:])
     return row

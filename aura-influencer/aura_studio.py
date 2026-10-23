@@ -1085,7 +1085,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div><button class="qa" style="width:auto" onclick="gmActions(this)">&#129504; Aksiyon Plani Uret</button> <span class="sub">Gercek verilerden deney / taslak / etiket onerileri. "Uygula" = deney baslat, taslak olustur, etiketi degistir.</span></div>
 <div id="gm_actions"></div>
 <h2>&#128221; 2) Taslaklar</h2>
-<div><button class="qa" style="width:auto" id="gm_cand_btn" onclick="gmCandidates(this)">&#10024; 3 Aday Taslak Uret</button> <button class="qa" style="width:auto" id="gm_agenda_btn" onclick="gmAgenda(this)">&#128240; Gundemden Aday Uret (gercek haber)</button> <span class="sub">Taslak = henuz yayinlanmamis senaryo. Render et, izle, sonra onaylayip yayinla. Gundem adayi Google Search ile gercek, guncel bir AI haberi bulup yazar - kaynak linkleri taslagin "Neden" kismindadir, yayinlamadan once MUTLAKA dogrula.</span></div>
+<div><button class="qa" style="width:auto" id="gm_cand_btn" onclick="gmCandidates(this)">&#10024; 3 Aday Taslak Uret</button> <button class="qa" style="width:auto" id="gm_agenda_btn" onclick="gmAgenda(this)">&#128240; Gundemden Aday Uret (gercek haber)</button> <button class="qa" style="width:auto" id="gm_pkg_btn" onclick="gmPackages(this)">&#128230; Hazir Paketleri Yukle</button> <span class="sub">Taslak = henuz yayinlanmamis senaryo. Render et, izle, sonra onaylayip yayinla. Gundem adayi Google Search ile gercek, guncel bir AI haberi bulup yazar - kaynak linkleri taslagin "Neden" kismindadir, yayinlamadan once MUTLAKA dogrula.</span></div>
 <div id="gm_drafts"></div>
 <h2>&#129514; 3) Deneyler</h2>
 <div id="gm_exps" class="sub"></div>
@@ -1641,6 +1641,17 @@ async function gmAgenda(btn){
   }
   catch(e) { alert('Hata: ' + e); }
   finally { btn.disabled = false; btn.textContent = String.fromCodePoint(128240) + ' Gundemden Aday Uret (gercek haber)'; }
+}
+async function gmPackages(btn){
+  btn.disabled = true;
+  try {
+    const j = await gmPost('/api/growth/load_packages', {});
+    if(!j.ok) alert(j.error || 'Basarisiz');
+    else alert('Eklenen taslak: ' + (j.added.length ? j.added.join(', ') : 'yok') + (j.skipped.length ? ' | Zaten var: ' + j.skipped.join(', ') : ''));
+    gmLoad();
+  }
+  catch(e) { alert('Hata: ' + e); }
+  finally { btn.disabled = false; }
 }
 async function gmRender(btn){
   btn.disabled = true; btn.textContent = 'Render ediliyor (1-3 dk)...';
@@ -3161,6 +3172,72 @@ def _growth_agenda_candidate(topic=None, series=None):
     return {"ok": True, "draft": draft, "sources": sources}
 
 
+def _video_spec_for(slug, spec=None):
+    """Aura Live gorunum ayari: istekle gelen spec, yoksa _studio/video_specs/<slug>.json, yoksa {} (klasik video)."""
+    if isinstance(spec, dict) and spec:
+        return spec
+    try:
+        p = os.path.join(STUDIO_DIR, "video_specs", slug + ".json")
+        if os.path.exists(p):
+            return json.load(open(p, encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _render_video(wav, vp, text, slug, spec=None):
+    """Videoyu uretir. spec.style == 'live' ise yeni LED yuzlu goruntu (make_video_v2), hata olursa klasik goruntuye duser
+    ve nedenini doner. NOT: spec.cards/emotions cumle INDEKSIYLE eslesir; script otomatik bolunurse indeksler kayabilir."""
+    spec = _video_spec_for(slug, spec)
+    sys.path.insert(0, STUDIO_DIR)
+    note = ""
+    if spec.get("style") == "live":
+        try:
+            from make_video_v2 import make_video_v2
+            make_video_v2(wav, vp, text, spec)
+            return ""
+        except Exception as e:
+            note = f"Canli goruntu uretilemedi ({type(e).__name__}: {str(e)[:150]}); klasik goruntu kullanildi."
+    from make_video import make_video as _classic
+    _classic(wav, vp, text)
+    return note
+
+
+def _growth_load_packages():
+    """_studio/live_packages/*.json dosyalarini taslak olarak ekler (ayni baslikli taslak varsa atlar). YAYINLAMAZ."""
+    import growth
+    import glob
+    added, skipped = [], []
+    existing = [d["title"].strip().lower() for d in growth.drafts_list()]
+    for fp in sorted(glob.glob(os.path.join(STUDIO_DIR, "live_packages", "*.json"))):
+        try:
+            pkg = json.load(open(fp, encoding="utf-8"))
+        except Exception as e:
+            skipped.append(os.path.basename(fp) + " (okunamadi)")
+            continue
+        title = str(pkg.get("title", "")).strip()
+        if not title:
+            continue
+        if title.lower() in existing:
+            skipped.append(title)
+            continue
+        titles = [v["title"] for v in _safe_channel_titles()] + [d["title"] for d in growth.drafts_list()]
+        pf = growth.preflight(title, str(pkg.get("en_script", "")), str(pkg.get("tr_script", "")),
+                              str(pkg.get("description", "")), titles, None)
+        growth.draft_add({**pkg, "preflight": pf})
+        existing.append(title.lower())
+        added.append(title)
+    return {"ok": True, "added": added, "skipped": skipped}
+
+
+def _safe_channel_titles():
+    try:
+        import insights
+        return insights.channel_stats()["videos"]
+    except Exception:
+        return []
+
+
 def _growth_render_draft(did):
     import growth
     import httpx
@@ -3176,14 +3253,12 @@ def _growth_render_draft(did):
         os.makedirs(VIDEO_WORK_DIR, exist_ok=True)
         wav = os.path.join(VIDEO_WORK_DIR, f"{slug}_raw.wav")
         open(wav, "wb").write(r.content)
-        from make_video import make_video as _mv
         vp = os.path.join(OUTPUT_DIR, f"aura_{slug}.mp4")
-        _mv(wav, vp, d["en_script"])
+        warn = _render_video(wav, vp, d["en_script"], slug, d.get("video_spec"))
         srt = None
-        warn = ""
         tr_fixed, tr_note = _ensure_tr(d["en_script"], d.get("tr_script", ""))
         if tr_note:
-            warn = tr_note
+            warn = (warn + " " + tr_note).strip()
         growth.draft_update(did, tr_script=tr_fixed)
         d["tr_script"] = tr_fixed
         if d.get("tr_script"):
@@ -3980,9 +4055,10 @@ class Handler(BaseHTTPRequestHandler):
                 open(wav_path, "wb").write(r.content)
 
                 sys.path.insert(0, STUDIO_DIR)
-                from make_video import make_video as _make_video
                 video_path = os.path.join(OUTPUT_DIR, f"aura_{slug}.mp4")
-                _make_video(wav_path, video_path, en_text)
+                vnote = _render_video(wav_path, video_path, en_text, slug, body.get("video_spec"))
+                if vnote:
+                    warnings.append(vnote)
                 result["video"] = os.path.basename(video_path)
 
                 srt_path = None
@@ -4155,6 +4231,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_growth_candidates())
                 elif u.path == "/api/growth/agenda_candidate":
                     self._json(_growth_agenda_candidate(body.get("topic"), body.get("series")))
+                elif u.path == "/api/growth/load_packages":
+                    self._json(_growth_load_packages())
                 elif u.path == "/api/growth/report":
                     self._json(_growth_report())
                 elif u.path == "/api/longform/render":
