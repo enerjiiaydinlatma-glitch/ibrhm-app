@@ -70,6 +70,12 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - 24 Eki | 83 Could Your Friend Be A Robot? (robot) | https://youtu.be/pD_euLit6Lw | "what would YOU do?"
 - Siradaki: 25 Eki konu 27 (WEF, 24 Eki'de hazirla). Kapi: editor hakemi + tamir modu devrede (konsey_gun).
 
+## Gozlem 24 Eki 2026 (konsey_kontrol.py) - yon, kanit degil
+- Yeni nis (goruntuleme | yas): 79 buz 5 | 160 sa; 29 deniz 2 | 136 sa; 82 yuzlu robot 17 | 112 sa; 25 YZ is 8 | 88 sa; 74 YZ yonlendirme 10 | 64 sa; **84 robotlar robot uretse 34 | 40 sa (0,85/sa); 83 "Could Your Friend Be A Robot?" 36 | 16 sa (2,24/sa)**. Eski gundelik: 15, 16, 15, 33, 0, 26 (yas 160-265 sa).
+- 84 ve 83 tabani (8-21/48 sa) KIRDI; 50+ esigine yaklasiyor (83, 16 saatte 36). Yorum 0 (neredeyse hepsi), begeni 0-2.
+- Hipotez: basliginda "robot" gecen robot-sutunu + kapi guclendirme sonrasi tutarli senaryo. 82 (basliginda 'robot' yok) 17, 74 (YZ) 10. n kucuk; erken hiz (taze videolar onde yuklu) yaniltici olabilir: 24-48 saat sonra tekrar bak.
+- Karar: robot sutunu devam; sonraki konular basliginda 'robot' gecen ve kisisel-secim soran (44 robot patron, 42 robot yasalari, 76 seri uretim). 27 (WEF is) 25'in ardindan ertelendi.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
