@@ -622,7 +622,7 @@ def uret(topic, llm, parse, skor_yolu=None, gecmis_ilk=(), deneme=5, kanca=None)
         title = baslik_duzelt(title)
         beats = kapanisa_skor_ekle(beats, skor_yolu)
         sorunlar = kontrol(beats, title, hookthumb, gecmis_ilk, kanca, konu=topic)
-        if not sorunlar and evren_mi(topic):
+        if not sorunlar and (evren_mi(topic) or _gelecek_mi(topic)):
             off = konu_hakemi(topic, beats, llm)
             if off:
                 sorunlar = [("SATIR_KONU_DISI", f"Satir(lar) {', '.join(map(str, off))} konunun konusundan sapiyor (editor hakemi). Konuya geri don: her satir '{topic}' konusunu "

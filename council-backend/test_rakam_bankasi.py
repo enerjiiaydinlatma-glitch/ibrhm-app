@@ -320,3 +320,23 @@ class HakemVeYeniKurallarTest(unittest.TestCase):
         r = kf.uret(self.T84, llm, basit, deneme=3)
         self.assertTrue(r["ok"])
         self.assertEqual((cagri["yaz"], cagri["hakem"]), (2, 2))       # ilk deneme hakemden dondu, ikinci gecti
+
+
+class GelecekHakemTest(unittest.TestCase):
+    def test_hakem_gelecek_konularinda_da_calisir(self):
+        cagri = {"hakem": 0}
+        iyi = ("aura | JOBS | Would you let AI pick your job? | x\nalpha | DATA | A program matches your skills to open jobs. That's one for me. | x\n"
+               "beta | HOLD ON | Hold on. Who checks the program's pick? | x\ndelta | SWITCH | Actually... Beta, you're correct. A person should read the final list. | x\n"
+               "gamma | HABIT | Check the list twice. I do this too, honestly. I skim job ads. | x\naura | PICK A TEAM | Team Alpha or Team Beta? What is your guilty job-ad habit? | x\n"
+               "TITLE: Would You Let AI Pick Your Job?\nHOOKTHUMB: AI PICKS YOUR JOB").replace("\\\n", "\n")
+
+        def llm(prompt):
+            if "strict editor" in prompt:
+                cagri["hakem"] += 1
+            return iyi
+
+        def basit(raw):
+            beats = [tuple(x.strip() for x in l.split(" | ")) for l in raw.splitlines() if " | " in l]
+            return beats, next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("TITLE:")), next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("HOOKTHUMB:"))
+        kf.uret("Would you let AI pick your next job?", llm, basit, deneme=1)
+        self.assertEqual(cagri["hakem"], 1)
