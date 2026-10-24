@@ -68,7 +68,9 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - 22 Eki | 74 YZ'yi kim yonlendirir (robot/YZ) | https://youtu.be/ghhL_K4Z2MQ | "what would YOU do?"
 - 23 Eki | 84 robotlar robot uretse (robot) | https://youtu.be/Pp3NqM2P9II | "what would YOU do?"
 - 24 Eki | 83 Could Your Friend Be A Robot? (robot) | https://youtu.be/pD_euLit6Lw | "what would YOU do?"
-- Siradaki: 25 Eki konu 27 (WEF, 24 Eki'de hazirla). Kapi: editor hakemi + tamir modu devrede (konsey_gun).
+- 25 Eki | 44 Would You Work for a Robot Boss? (robot) | https://youtu.be/KhhZ52juSVw | "what would YOU do?"
+- Siradaki: 26 Eki konu 76 veya 42 (robot sutunu; basliginda 'robot' gecsin) - 25 Eki'de hazirla. Konu 27 (WEF is) ertelendi (hakem gelecek konularinda da calisiyor).
+- ESKI SATIR: 25 Eki konu 27 (WEF, 24 Eki'de hazirla). Kapi: editor hakemi + tamir modu devrede (konsey_gun).
 
 ## Gozlem 24 Eki 2026 (konsey_kontrol.py) - yon, kanit degil
 - Yeni nis (goruntuleme | yas): 79 buz 5 | 160 sa; 29 deniz 2 | 136 sa; 82 yuzlu robot 17 | 112 sa; 25 YZ is 8 | 88 sa; 74 YZ yonlendirme 10 | 64 sa; **84 robotlar robot uretse 34 | 40 sa (0,85/sa); 83 "Could Your Friend Be A Robot?" 36 | 16 sa (2,24/sa)**. Eski gundelik: 15, 16, 15, 33, 0, 26 (yas 160-265 sa).
