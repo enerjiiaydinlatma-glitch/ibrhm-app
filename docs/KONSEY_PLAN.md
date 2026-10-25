@@ -87,6 +87,12 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Yorum: %94 yeni izleyici 'Alpha/Beta'yi bilmiyor olabilir; kapanista dogrudan yonerge ("Comment your pick.") deneyi.
 - DENEY: sonraki 3 videonun kapanisina "Comment your pick." ekle; yorum sayisini karsilastir. Diger: insan-robot kimlik konulari (83>82) ve 'robot' baslikta.
 
+## Gozlem 25 Eki 2026 - Studio icerik tablosu (27 Eyl-24 Eki, 28 gun) - yon, kanit degil
+- Toplam 611 goruntuleme, 0,6 saat, +1 abone. 'Kucuk resim gosterimi' toplam 1.375 ama Shorts akisi goruntulemeleri kucuk resimden gelmez (223 goruntulemeli haber videosunun gosterimi 12): GOSTERIM METRIGI SHORTS ICIN ANLAMLI DEGIL; kullanma.
+- ESKI AI-HABER (uzun: 0:36-1:47): 223 (tek aykiri deger = kanalin toplamin %36,5'i), 38, 18, 10, 8, 8, 6, 6, 4, 3, 3, 3, 3, 3, 2, 1... -> medyan ~3. Konsey (0:31-0:36): 38, 38, 33, 26, 17, 16, 15, 15, 15, 13, 11 (+ 5, 2, 2) -> medyan ~15. Yani Konsey, eski haber hattinin ~5 kati medyan; 'haber kazanir' sonucu TEK aykiri degerden cikmisti (duzeltme). HABER yonu sahibin karariyla YOK.
+- Tek abone (%100) 1:17'lik aciklayici bir videodan ("Open weights is not open source"), hicbir Konsey videosundan degil.
+- Gerekli: onceki donem (27 Agu-23 Eyl) icerik tablosu (tarih araligi DEGISTIRILMELI) + 83/84/44 icin izlendi/kaydirildi.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
