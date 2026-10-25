@@ -99,6 +99,10 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - AMA 'izlemeye devam / kaydirildi' (son 28 gun): 83 %11,6 / %88,4; 84 %7,9 / %92,1; 44 %28,6 / %71,4. Ort. izleme %: 83 24,2; 84 49,5. YANI ILK SANIYELERDE %71-92 KAYDIRIYOR. 44 (hook: 'Would you take orders from a robot?') en iyi tutma.
 - Karar: ANA KPI = 'izlemeye devam %' (hedef >= %40), goruntuleme degil. Haber yonu yok (sahip karari). Retention deneyi: <=25 sn, ilk 1,5 sn'de guclu gorsel + ses vurusu, 'sen'li somut kanca, hizli kesme.
 
+## RETENTION DENEYI uygulandi (25 Eki 2026) - 3 video, sonra olc
+Degisiklikler (yalniz robot/insan/fizik/son/uzay/sehir konularinda; afet ve gundelik eski kurallar): (1) Kisa: toplam <= 56 kelime, satir <= 12, kapanis <= 18 (~25 sn). (2) Kanca 'you/your' iceren somut SORU (ya da kaynakli rakam); soyut 'What if' kancasi reddedilir. (3) Ilk kare: en dramatik yakin plan gorsel istemi; siyahtan acilis (fade-in) KALDIRILDI (soguk acilis); t=0'da kisa ses vurusu (thump + whoosh). (4) Konusma %8 hizli, bastaki sessizlik kirpilir. Dosyalar: konsey_format.py, konsey_video_arac.py, make_topic_short.py.
+Olcut: Studio Etkilesim -> 'izlemeye devam %' (hedef >= %40; temel: 83 %11,6, 84 %7,9, 44 %28,6) + ort. izleme suresi. 3 video sonunda karsilastir.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.

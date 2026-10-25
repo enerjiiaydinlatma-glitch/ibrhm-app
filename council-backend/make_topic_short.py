@@ -501,6 +501,9 @@ _MOTION_POST = ("eq=brightness='0.010*sin(t*3.7)':saturation=1.03,"
                 "noise=alls=5:allf=t,vignette=PI/4.6[v]")
 
 
+from konsey_video_arac import KONSEY_HIZ, _hizlandir, _son_mix_komutu  # noqa: E402  (ffmpeg yardimcilari ayri modulde: test edilebilir)
+
+
 def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None):
     os.makedirs(OUT_DIR, exist_ok=True)
     if hazir_senaryo:
@@ -537,6 +540,8 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
         ap = os.path.join(OUT_DIR, f"{i:02d}.mp3")
         with open(ap, "wb") as f:
             f.write(synthesize(line, who))
+        if hazir_senaryo:
+            _hizlandir(ap)
         dur = _dur(ap)
         _beat_segment(fp, ap, dur + 0.18, os.path.join(OUT_DIR, f"{i:02d}.mp4"),
                       motion_prompt=("" if script_override else img_prompt))
@@ -577,21 +582,8 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
     # ornekleme-hizi/kanal-duzenindeki girdileri sessizce yanlis birlestirip
     # ciktida beklenmedik bir format (or. 96kHz) + duyulabilir titreme/donma
     # uretiyordu (kullanici bildirdi). Her asamada 44100Hz stereo'ya kilitle.
-    subprocess.run(
-        ["ffmpeg", "-y", "-i", joined,
-         "-f", "lavfi", "-i", f"sine=frequency=98:duration={total}",
-         "-f", "lavfi", "-i", f"sine=frequency=147:duration={total}",
-         "-filter_complex",
-         f"[0:v]fade=t=in:st=0:d=0.4,fade=t=out:st={total-0.5}:d=0.5[v];"
-         f"[0:a]aformat=sample_rates=44100:channel_layouts=stereo[va];"
-         f"[1:a][2:a]amix=inputs=2:weights=1 0.5,"
-         f"aformat=sample_rates=44100:channel_layouts=stereo[t];"
-         f"[t]volume=0.10,afade=t=in:st=0:d=0.8,afade=t=out:st={total-1}:d=1[bed];"
-         f"[va][bed]amix=inputs=2:duration=first:weights=1 1,loudnorm=I=-14:TP=-1.5:LRA=11[a]",
-         "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-         "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
-         "-movflags", "+faststart", final],
-        check=True, capture_output=True)
+    subprocess.run(_son_mix_komutu(joined, final, total, vurus=bool(hazir_senaryo), fade_in=(0 if hazir_senaryo else 0.4)),
+                   check=True, capture_output=True)
     print(f"\nShort hazir: {final}  (~{total:.0f}s)")
 
     script_text = " ".join(b[2] for b in beats if len(b) > 2 and b[2])

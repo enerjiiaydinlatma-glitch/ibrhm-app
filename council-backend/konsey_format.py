@@ -36,6 +36,11 @@ BASLIK_MAX = 40
 TOPLAM_KELIME_MAX = 80
 SATIR_KELIME_MAX = 16      # 2-5. satirlar
 KAPANIS_KELIME_MAX = 22    # skor cumlesi haric
+# RETENTION DENEYI (25 Eki 2026): izleyicilerin %71-92'si ilk saniyelerde kaydiriyor -> evren konularinda (afet haric) KISA video (~25 sn) ve 'sen'li somut kanca.
+RETENTION_KATEGORILER = {"robot", "insan", "fizik", "son", "uzay", "sehir"}
+EVREN_TOPLAM_MAX = 56
+EVREN_SATIR_MAX = 12
+EVREN_KAPANIS_MAX = 18
 ENGELLEYICI = set(claim_lint.BLOCKING) | {"RAKAM"}
 SOYUT = re.compile(r"\b(access|trade[sd]?|values?|benefits?|systems?|models?|mechanisms?|consumers?|expenses?|optimi[sz]\w*|"
                    r"leverage[sd]?|framework|incentives?|efficien\w+|structure[sd]?)\b", re.I)
@@ -110,11 +115,11 @@ EVREN_KATEGORILERI = {"afet", "sehir", "robot", "uzay", "insan", "son", "fizik"}
 ZAMAN_SIMDI = re.compile(r"\b(now|today|tonight|breaking|happening|happens)\b", re.I)
 KUCUK_OLCEK = re.compile(r"\b(benche?s?|chairs?|towels?|driveways?|pants|umbrellas?|sandals?|socks?|toys?)\b", re.I)
 
-ORNEK_EVREN = """aura | RIVER STREETS | Your street, but it's a river? | a flooded city street at dusk, water reflecting neon signs
-alpha | WATER MATH | Rain needs somewhere to go. Drains fill first, then streets. That's one for me. | storm drains overflowing at the curb
-beta | HOLD ON | Hold on. Where do the cars sleep tonight? | rows of parked cars with water at the door handles
-delta | SIDE SWITCH | Actually... Beta, you're correct. Parked cars are the first thing people lose. | a car roof barely above the water
-gamma | MY PICK | Pack light, move early. I'd grab my photos and one warm coat. | a backpack by a front door
+ORNEK_EVREN = """aura | RIVER STREETS | Would you drive through a river street? | a flooded city street at dusk, water reflecting neon signs, close-up
+alpha | WATER MATH | Rain needs somewhere to go. That's one for me. | storm drains overflowing at the curb
+beta | HOLD ON | Hold on. Where do the parked cars go? | rows of parked cars with water at the door handles
+delta | SIDE SWITCH | Actually... Beta, you're correct. Cars are lost first. | a car roof barely above the water
+gamma | MY PICK | Move early. I'd grab my photos and one coat. | a backpack by a front door
 aura | PICK A TEAM | Team Alpha or Team Beta? Which room would you save first? | a dark apartment with one lit window
 TITLE: Could Streets Become Rivers?
 HOOKTHUMB: STREETS BECOME RIVERS"""
@@ -150,6 +155,15 @@ def _gelecek_mi(topic):
 DAVRANIS_IDDIA = re.compile(r"\b(?:makes?|made|causes?|forces?)\s+(?:people|everyone|users|customers|kids|children|neighbors|workers|drivers)\b", re.I)
 
 
+def retention_mi(topic):
+    i = rakam_bankasi.konu_id(topic)
+    k = konsey_konular.konu_bul(i) if i is not None else None
+    return bool(k and k["kategori"] in RETENTION_KATEGORILER)
+
+
+SEN = re.compile(r"\b(you|your|you're)\b", re.I)
+
+
 def evren_mi(topic):
     i = rakam_bankasi.konu_id(topic)
     k = konsey_konular.konu_bul(i) if i is not None else None
@@ -172,11 +186,17 @@ def _evren_prompt():
          "lines 2-6 must each reuse a word from the topic, the hook or the title, and Alpha and the closing line MUST. Beta's line must be a question ending with '?'; the closing must end with a question mark. "
          "Never write a cause-and-effect claim about people ('makes people ...', 'causes users to ...').\n"),
         (ORNEK, ORNEK_EVREN),
+        ("Lines 2-5: 14 words or FEWER. Last line: 20 words or fewer. TOTAL under 75 words.",
+         "Lines 2-5: 12 words or FEWER. Last line: 18 words or fewer. TOTAL under 56 words (the video must run about 25 seconds - every word must earn its place)."),
+        ("robots or AI cliches.", "robots or AI cliches. The IMAGE of line 1 is the first frame the viewer sees: make it the single most dramatic, high-contrast close-up of the scene."),
     ]
     for a, b in degisim:
         assert a in t, a
         t = t.replace(a, b)
     for desen, yeni in [
+        (r"^1 AURA opens.*$", "1 AURA opens with the HOOK: 4-8 words, a direct QUESTION to the viewer that uses 'you' or 'your' about ONE concrete scene "
+                              "(for example 'Would you take orders from a robot?'), or a sourced number. It MUST contain '?' (or a digit). Never start with "
+                              "'The claim', 'Today', 'Hello', 'Did you know', and avoid abstract 'What if...' openings. Aura secretly favors Alpha."),
         (r"^3 BETA .*$", "3 BETA starts with 'Hold on.' and asks the most unsettling follow-up question about the scenario. Beta never denies the scenario and never offers a solution."),
         (r"^5 GAMMA .*$", "5 GAMMA gives one short practical point, then states a personal choice starting with the exact words \"I'd\" or \"I would\" (what Gamma would grab, do or choose)."),
         (r"^6 AURA closes.*$", "6 AURA closes: exactly one sentence 'Team Alpha or Team Beta?' then asks the viewer ONE personal-choice question starting with Which, Where or What would you (for example 'Which city would you save?'). Do not write any score; the system adds it."),
@@ -298,13 +318,15 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
         s.append(("SIRA", f"Konusmaci sirasi {SIRA} olmali, {sira} geldi."))
     L = [b[2] for b in beats]
     toplam = sum(len(_kelimeler(x)) for x in L)
-    if toplam > TOPLAM_KELIME_MAX:
-        s.append(("UZUN", f"Toplam {toplam} kelime (en fazla {TOPLAM_KELIME_MAX}); ~25 sn hedefi."))
+    ret = retention_mi(konu)
+    t_max, s_max, k_max = (EVREN_TOPLAM_MAX, EVREN_SATIR_MAX, EVREN_KAPANIS_MAX) if ret else (TOPLAM_KELIME_MAX, SATIR_KELIME_MAX, KAPANIS_KELIME_MAX)
+    if toplam > t_max:
+        s.append(("UZUN", f"Toplam {toplam} kelime (en fazla {t_max}); ~25 sn hedefi."))
     for i, x in enumerate(L, 1):
         if i == 6:
-            n, limit = len(_kelimeler(re.sub(r"^Score:[^.]*\.\s*", "", x))), KAPANIS_KELIME_MAX
+            n, limit = len(_kelimeler(re.sub(r"^Score:[^.]*\.\s*", "", x))), k_max
         else:
-            n, limit = len(_kelimeler(x)), SATIR_KELIME_MAX
+            n, limit = len(_kelimeler(x)), s_max
         if i != 1 and n > limit:
             s.append(("SATIR_UZUN", f"{i}. satir {n} kelime (en fazla {limit})."))
     # kanca + baslik + kapanis: hook_gate (ayni kapi)
@@ -343,6 +365,10 @@ def kontrol(beats, title, hookthumb, gecmis_ilk=(), kanca=None, konu=None):
             s.append(("BETA_SORU", "Beta'nin satiri bir SORU olmali ('?' yok)."))
         if not L[5].strip().endswith("?"):
             s.append(("KAPANIS_SORU", "Kapanis bir soruyla ('?') bitmeli."))
+    if ret and "?" not in L[0] and not re.search(r"\d", L[0]):
+        s.append(("KANCA_SEN", "Retention: kanca bir SORU ('?') ya da kaynakli bir rakam olmali."))
+    elif ret and "?" in L[0] and not SEN.search(L[0]) and not re.search(r"\d", L[0]):
+        s.append(("KANCA_SEN", "Retention: kanca izleyiciye dogrudan seslenmeli ('you'/'your'), ornek 'Would you take orders from a robot?'."))
     if evren and not konuya_bagli(L[0], konu):
         s.append(("KONU_DISI", f"Ilk satir konunun konusundan sapiyor; konunun kelimelerinden biri gecmeli: {', '.join(sorted(konu_anahtarlari(konu)))}."))
     if evren and MEDIKAL.search(" ".join(L) + " " + (title or "")) and not MEDIKAL.search(konu or ""):
@@ -443,6 +469,8 @@ def kanca_gecerli(h, konu=None):
         s.append(("ADAY_SIMDI", "varsayim 'simdi oluyor' gibi okunuyor (now/today/tonight)."))
     if MEDIKAL.search(h or "") and TIBBI_IDDIA.search(h or ""):
         s.append(("ADAY_TIBBI", "tibbi konuda dogruluk/guvenlik iddiasi."))
+    if retention_mi(konu) and not re.search(r"\d", h or "") and not ("?" in (h or "") and SEN.search(h or "")):
+        s.append(("ADAY_KANCA_SEN", "retention: 'you/your' iceren somut soru (ya da kaynakli rakam) olmali."))
     if evren_mi(konu) and not konuya_bagli(h, konu):
         s.append(("ADAY_KONU_DISI", "kanca konunun konusundan sapiyor (konunun anahtar kelimelerinden biri gecmeli)."))
     if evren_mi(konu) and MEDIKAL.search(h or "") and not MEDIKAL.search(konu or ""):
@@ -455,6 +483,9 @@ def kanca_sec(topic, llm):
     -> {"adaylar": [(metin, gecerli_mi)], "secilen": str|None}. Aday yoksa/LLM hata verirse secilen=None (senaryo yine yazilir)."""
     try:
         raw = llm(KANCA_PROMPT.format(topic=topic) + rakam_bankasi.prompt_bolumu(topic)
+                  + ("\nRETENTION RULE: every hook must be a direct QUESTION to the viewer that uses 'you' or 'your' about ONE concrete scene "
+                     "(4-8 words, for example 'Would you take orders from a robot?') - or a sourced number. No abstract 'What if...' hooks."
+                     if retention_mi(topic) else "")
                   + ("\nAt least ONE of the 5 hooks must be a plain declarative sentence (not a question) built from a VERIFIED FACT: "
                      "surprising, with its number and condition (for example 'The sea already rose roughly 20 centimeters.')."
                      if rakam_bankasi.olgular(topic) else ""))

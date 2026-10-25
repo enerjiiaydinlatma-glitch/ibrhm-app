@@ -266,10 +266,10 @@ class HakemVeYeniKurallarTest(unittest.TestCase):
     T84 = "What if robots built every new robot?"
 
     def beats(self, **kw):
-        satir = {"aura": "What if robots only build new robots?", "alpha": "A robot line runs day and night without a break. That's one for me.",
-                 "beta": "Hold on. Who switches the factory off if it won't stop?", "delta": "Actually... Beta, you're correct. Someone must keep a hand on the off switch.",
-                 "gamma": "Robots still need parts. I'd keep one human inspecting each build.",
-                 "aura2": "Team Alpha or Team Beta? Which would you trust with the off switch, a human or a robot?"}
+        satir = {"aura": "Would you trust a robot's off switch?", "alpha": "A robot line runs nonstop. That's one for me.",
+                 "beta": "Hold on. Who switches the factory off?", "delta": "Actually... Beta, you're correct. Someone needs a hand on the switch.",
+                 "gamma": "Robots still need parts. I'd keep one human inspecting.",
+                 "aura2": "Team Alpha or Team Beta? Which would you trust at the switch?"}
         satir.update(kw)
         return [("aura", "X", satir["aura"], ""), ("alpha", "X", satir["alpha"], ""), ("beta", "X", satir["beta"], ""),
                 ("delta", "X", satir["delta"], ""), ("gamma", "X", satir["gamma"], ""), ("aura", "X", satir["aura2"], "")]
@@ -299,9 +299,9 @@ class HakemVeYeniKurallarTest(unittest.TestCase):
 
     def test_uret_hakem_reddedince_yeniden_yazar(self):
         cagri = {"hakem": 0, "yaz": 0}
-        iyi = ("aura | ROBOTS BUILD | What if robots only build new robots? | x\nalpha | ROBOT LINE | A robot line runs day and night without a break. That's one for me. | x\n"
-               "beta | OFF SWITCH | Hold on. Who switches the factory off if it won't stop? | x\ndelta | HAND ON IT | Actually... Beta, you're correct. Someone must keep a hand on the off switch. | x\n"
-               "gamma | ONE HUMAN | Robots still need parts. I'd keep one human inspecting each build. | x\naura | PICK A TEAM | Team Alpha or Team Beta? Which would you trust with the off switch, a human or a robot? | x\n"
+        iyi = ("aura | ROBOTS BUILD | Would you trust a robot's off switch? | x\nalpha | ROBOT LINE | A robot line runs nonstop. That's one for me. | x\n"
+               "beta | OFF SWITCH | Hold on. Who switches the factory off? | x\ndelta | HAND ON IT | Actually... Beta, you're correct. Someone needs a hand on the switch. | x\n"
+               "gamma | ONE HUMAN | Robots still need parts. I'd keep one human inspecting. | x\naura | PICK A TEAM | Team Alpha or Team Beta? Which would you trust at the switch? | x\n"
                "TITLE: What if robots build all new robots?\nHOOKTHUMB: ROBOTS BUILDING NEW ROBOTS")
 
         def llm(prompt):
@@ -340,3 +340,41 @@ class GelecekHakemTest(unittest.TestCase):
             return beats, next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("TITLE:")), next(l.split(": ", 1)[1] for l in raw.splitlines() if l.startswith("HOOKTHUMB:"))
         kf.uret("Would you let AI pick your next job?", llm, basit, deneme=1)
         self.assertEqual(cagri["hakem"], 1)
+
+
+class RetentionKurallariTest(unittest.TestCase):
+    T84 = "What if robots built every new robot?"
+    T79 = "What if a quarter of Earth's ice melted?"
+
+    def kodlar(self, hook, konu=None, **kw):
+        b = HakemVeYeniKurallarTest().beats(aura=hook, **kw)
+        return {c for c, _ in kf.kontrol(b, "What if robots build all new robots?", "ROBOTS BUILDING NEW ROBOTS", konu=konu or self.T84)}
+
+    def test_retention_kategorileri(self):
+        self.assertTrue(kf.retention_mi(self.T84))
+        self.assertFalse(kf.retention_mi(self.T79))              # afet: eski sinirlar
+        self.assertFalse(kf.retention_mi("Is free shipping really free?"))
+        self.assertFalse(kf.retention_mi(None))
+
+    def test_kanca_sen_ve_soru_zorunlu(self):
+        self.assertEqual(self.kodlar("Would you trust a robot's off switch?"), set())
+        self.assertIn("KANCA_SEN", self.kodlar("What if robots only build robots?"))          # soru ama 'you' yok
+        self.assertIn("KANCA_SEN", self.kodlar("Robots build robots now."))                   # soru degil
+        self.assertNotIn("KANCA_SEN", self.kodlar("18,000 humanoid robots shipped in 2025?"))  # rakamli
+
+    def test_kisa_video_siniri(self):
+        uzun = "Hold on. " + " ".join(["robot"] * 12)
+        self.assertIn("SATIR_UZUN", self.kodlar("Would you trust a robot's off switch?", beta=uzun))
+        self.assertTrue({"UZUN", "SATIR_UZUN"} & self.kodlar("Would you trust a robot's off switch?", beta=uzun))
+
+    def test_afet_eski_sinirlar_korunur(self):
+        # afet konusu retention kurallarina tabi degil: 'you' olmayan soru kancasi afet'te KANCA_SEN vermez
+        b = KapiTest().beats("What if a quarter of ice melts?")
+        self.assertNotIn("KANCA_SEN", {c for c, _ in kf.kontrol(b, "A quarter of ice means roughly 15 m", "15 METERS OF OCEAN", konu=self.T79)})
+
+    def test_aday_kanca_sen(self):
+        self.assertIn("ADAY_KANCA_SEN", {c for c, _ in kf.kanca_gecerli("What if robots only build robots?", self.T84)})
+        self.assertNotIn("ADAY_KANCA_SEN", {c for c, _ in kf.kanca_gecerli("Would you take orders from a robot?", self.T84)})
+        self.assertIn("56 words", kf.PROMPT_EVREN)
+        self.assertIn("'you' or 'your'", kf.PROMPT_EVREN)
+        self.assertIn("most dramatic", kf.PROMPT_EVREN)
