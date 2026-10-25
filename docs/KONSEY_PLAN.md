@@ -78,6 +78,12 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Hipotez: basliginda "robot" gecen robot-sutunu + kapi guclendirme sonrasi tutarli senaryo. 82 (basliginda 'robot' yok) 17, 74 (YZ) 10. n kucuk; erken hiz (taze videolar onde yuklu) yaniltici olabilir: 24-48 saat sonra tekrar bak.
 - Karar: robot sutunu devam; sonraki konular basliginda 'robot' gecen ve kisisel-secim soran (44 robot patron, 42 robot yasalari, 76 seri uretim). 27 (WEF is) 25'in ardindan ertelendi.
 
+## Gozlem 25 Eki 2026 (konsey_kontrol.py) - yon, kanit degil
+- 83 "Could Your Friend Be A Robot?" 39 (42 sa; 16 saatte 36 idi), 84 "What if robots build all new robots?" 38 (66 sa; 40 saatte 34 idi): ILK ~1 GUNDE yuklenip DURDULAR (platoya girdi). 44 "Would You Work for a Robot Boss?" 19 (18 sa, 1,07/sa). 82: 17 (138 sa), 74: 12 (90 sa), 25: 11 (114 sa), 79: 5, 29: 2.
+- Siralama: baslikta "robot" gecenler (83 39, 84 38, 44 19+) > diger (17, 12, 11) > afet (5, 2). Tavan ~40 goruntuleme/video; 50+ esigi gecilmedi; tabani (8-21/48 sa) ~2x asti. Yorum 0, begeni 0-2 (12 videoda ~0 yorum).
+- Yorum: %94 yeni izleyici 'Alpha/Beta'yi bilmiyor olabilir; kapanista dogrudan yonerge ("Comment your pick.") deneyi.
+- DENEY: sonraki 3 videonun kapanisina "Comment your pick." ekle; yorum sayisini karsilastir. Diger: insan-robot kimlik konulari (83>82) ve 'robot' baslikta.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
