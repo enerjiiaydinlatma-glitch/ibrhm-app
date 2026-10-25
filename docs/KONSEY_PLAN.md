@@ -93,6 +93,12 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Tek abone (%100) 1:17'lik aciklayici bir videodan ("Open weights is not open source"), hicbir Konsey videosundan degil.
 - Gerekli: onceki donem (27 Agu-23 Eyl) icerik tablosu (tarih araligi DEGISTIRILMELI) + 83/84/44 icin izlendi/kaydirildi.
 
+## ONEMLI BULGU 25 Eki 2026 - tutma (retention) sorunu; onceki donem (27 Agu-23 Eyl) + Studio Etkilesim
+- Onceki donem: 7.454 goruntuleme, 10,2 saat (=> goruntuleme basina ORT. ~4,9 SANIYE), +18 abone; 45 video (hepsi eski AI-haber/'Council Case', cogu 1:27-1:57 uzunlukta, gunde 1-5 video). Medyan 112 goruntuleme/video. Yayin tarihine gore: 24 Agu-14 Eyl videolari 63-1.149; 15 Eyl SONRASI 2-38 (13-14 Eyl 'Council Case' 305/187/140/116, 17-20 Eyl 'Council' 20/16/11/10). Dusus 15 Eyl civarinda, format degisikliginden ONCE/bagimsiz: yeni kanal 'balayi' itmesi sonrasi taban.
+- Yeni formatin (Konsey) izlenme basina suresi daha IYI: 83 ort. 8 sn, 84 17 sn, 44 20 sn (eski donem ~5 sn).
+- AMA 'izlemeye devam / kaydirildi' (son 28 gun): 83 %11,6 / %88,4; 84 %7,9 / %92,1; 44 %28,6 / %71,4. Ort. izleme %: 83 24,2; 84 49,5. YANI ILK SANIYELERDE %71-92 KAYDIRIYOR. 44 (hook: 'Would you take orders from a robot?') en iyi tutma.
+- Karar: ANA KPI = 'izlemeye devam %' (hedef >= %40), goruntuleme degil. Haber yonu yok (sahip karari). Retention deneyi: <=25 sn, ilk 1,5 sn'de guclu gorsel + ses vurusu, 'sen'li somut kanca, hizli kesme.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
