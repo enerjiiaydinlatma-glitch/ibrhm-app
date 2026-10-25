@@ -70,6 +70,9 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - 24 Eki | 83 Could Your Friend Be A Robot? (robot) | https://youtu.be/pD_euLit6Lw | "what would YOU do?"
 - 25 Eki | 44 Would You Work for a Robot Boss? (robot) | https://youtu.be/KhhZ52juSVw | "what would YOU do?"
 - Siradaki: 26 Eki konu 76 veya 42 (robot sutunu; basliginda 'robot' gecsin) - 25 Eki'de hazirla. Konu 27 (WEF is) ertelendi (hakem gelecek konularinda da calisiyor).
+- 26 Eki | 76 What If We Built A Robot Every Minute? (robot; 18.000 olgusu, "Comment your pick." CTA deneyi) | https://youtu.be/m7Zj83F_PsU | "what would YOU do?"
+- KARAR (25 Eki, sahip): HABER/GUNDEM yonu YOK (kanal haber kanali olmayacak). Evergreen robot/insan-robot sutunu devam. Bekleyen veri: 83/84/44 icin Studio Etkilesim: izlendi/kaydirildi + ort. izleme %; onceki donemin (27 Agu-23 Eyl) en cok izlenen 10 videosu.
+- Deney onerileri: 20-25 sn; ilk 2 sn hareketli gorsel (GPU modeli gerekli); kapanista ekranda net A/B; TikTok/Reels dagitimi.
 - ESKI SATIR: 25 Eki konu 27 (WEF, 24 Eki'de hazirla). Kapi: editor hakemi + tamir modu devrede (konsey_gun).
 
 ## Gozlem 24 Eki 2026 (konsey_kontrol.py) - yon, kanit degil
