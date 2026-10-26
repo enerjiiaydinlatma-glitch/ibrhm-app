@@ -72,6 +72,7 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - Siradaki: 26 Eki konu 76 veya 42 (robot sutunu; basliginda 'robot' gecsin) - 25 Eki'de hazirla. Konu 27 (WEF is) ertelendi (hakem gelecek konularinda da calisiyor).
 - 26 Eki | 76 What If We Built A Robot Every Minute? (robot; 18.000 olgusu, "Comment your pick." CTA deneyi) | https://youtu.be/m7Zj83F_PsU | "what would YOU do?"
 - 27 Eki | 53 Are You Human With Metal Parts? (insan; RETENTION DENEYI #1: ~26 sn, 'you' kancasi, soguk acilis + ses vurusu, +%8 hiz; "Comment your pick.") | https://youtu.be/-ZeGbJ-X-D0 | "what would YOU do?"
+- 28 Eki | 67 What Would You Say To Your Clone? (insan; RETENTION DENEYI #2, ~26 sn) | https://youtu.be/xo7w_9I7mrg | "what would YOU do?"
 - Retention deneyi sirasi: 27 Eki (53) -> 28 Eki konu 67 (klonunla karsilasirsan) -> 29 Eki konu 91 (iki yerde ayni anda). 3 video sonra 'izlemeye devam %' karsilastir.
 - KARAR (25 Eki, sahip): HABER/GUNDEM yonu YOK (kanal haber kanali olmayacak). Evergreen robot/insan-robot sutunu devam. Bekleyen veri: 83/84/44 icin Studio Etkilesim: izlendi/kaydirildi + ort. izleme %; onceki donemin (27 Agu-23 Eyl) en cok izlenen 10 videosu.
 - Deney onerileri: 20-25 sn; ilk 2 sn hareketli gorsel (GPU modeli gerekli); kapanista ekranda net A/B; TikTok/Reels dagitimi.
