@@ -244,7 +244,7 @@ def _entities():
     return _ENTITY_RX
 
 
-_SORU_BASI = ("is", "are", "why", "how", "do", "does", "can", "will", "should", "what", "who", "when", "did", "would")
+_SORU_BASI = ("is", "are", "why", "how", "do", "does", "can", "will", "should", "what", "who", "when", "did", "would", "could", "which", "where")
 
 
 def baslik_duzelt(title):

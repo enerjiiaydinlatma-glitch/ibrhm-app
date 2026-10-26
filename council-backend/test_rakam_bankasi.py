@@ -378,3 +378,10 @@ class RetentionKurallariTest(unittest.TestCase):
         self.assertIn("56 words", kf.PROMPT_EVREN)
         self.assertIn("'you' or 'your'", kf.PROMPT_EVREN)
         self.assertIn("most dramatic", kf.PROMPT_EVREN)
+
+
+class BaslikSoruTest(unittest.TestCase):
+    def test_could_which_where_basliga_soru_isareti_eklenir(self):
+        self.assertEqual(kf.baslik_duzelt("Could You Be In Two Places At Once"), "Could You Be In Two Places At Once?")
+        self.assertEqual(kf.baslik_duzelt("Which robot would you trust"), "Which robot would you trust?")
+        self.assertEqual(kf.baslik_duzelt("Robots build robots"), "Robots build robots")
