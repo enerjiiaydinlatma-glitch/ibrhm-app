@@ -75,6 +75,7 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 - 28 Eki | 67 What Would You Say To Your Clone? (insan; RETENTION DENEYI #2, ~26 sn) | https://youtu.be/xo7w_9I7mrg | "what would YOU do?"
 - 29 Eki | 91 Could You Be In Two Places At Once? (fizik; RETENTION DENEYI #3, ~25 sn) | https://youtu.be/Odoht5-XKtE | "what would YOU do?"
 - 30 Eki | 42 Would You Obey Laws Written By Robots? | https://youtu.be/907dzgwirvo | UYARI: yuklenen videoda kanca ESKI ('Would you let a robot arrest you?') - s 1 duzenlemesi uygulanmamis (aciklama ilk satiri onu gosteriyor), baslik yeni. Yeniden uretim onerildi (eskisini Studio'da ozel/zamanlama iptal).
+- 30 Eki (YINELENEN, ZAYIF) | 42 What If Robots Wrote the Laws? | https://youtu.be/X041UizFHKE | kanca 'Would you let a robot fire you?' konu disi; IPTAL edilecek (konsey_zamanla.py ID --iptal). 907dzgwirvo ('robot arrest' kancasi) da iptal. 30 Eki icin 42 yeniden uretilecek (kapi: genel kelime tek basina baglamaz).
 - Retention deneyi sirasi: 27 Eki (53) -> 28 Eki konu 67 (klonunla karsilasirsan) -> 29 Eki konu 91 (iki yerde ayni anda). 3 video sonra 'izlemeye devam %' karsilastir.
 - KARAR (25 Eki, sahip): HABER/GUNDEM yonu YOK (kanal haber kanali olmayacak). Evergreen robot/insan-robot sutunu devam. Bekleyen veri: 83/84/44 icin Studio Etkilesim: izlendi/kaydirildi + ort. izleme %; onceki donemin (27 Agu-23 Eyl) en cok izlenen 10 videosu.
 - Deney onerileri: 20-25 sn; ilk 2 sn hareketli gorsel (GPU modeli gerekli); kapanista ekranda net A/B; TikTok/Reels dagitimi.
