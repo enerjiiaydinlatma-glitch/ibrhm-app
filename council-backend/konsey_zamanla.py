@@ -63,8 +63,9 @@ def iptal(item, update, onay):
             f"  Su an zamanli: {item['status']['publishAt']} -> yayinlanmayacak, OZEL kalacak (video silinmez)\n")
     if not onay(ozet):
         return False, ["Onay verilmedi, degistirilmedi."]
-    update({"id": item["id"], "status": {"privacyStatus": "private", "selfDeclaredMadeForKids": False}})
-    return True, ["Zamanlama iptal edildi (video ozel). Studio'da Gorunurluk'te 'Ozel' goruyor olmalisiniz."]
+    # publishAt'i YOLLAMAMAK zamanlamayi kaldirmadi (gercek API ile dogrulandi, 27 Eki 2026): acikca null gonderilir; sonuc ayrica DOGRULANIR (main).
+    update({"id": item["id"], "status": {"privacyStatus": "private", "publishAt": None, "selfDeclaredMadeForKids": False}})
+    return True, ["Zamanlama iptal istegi gonderildi."]
 
 
 def main(argv=None):
@@ -88,7 +89,12 @@ def main(argv=None):
         ok, msgs = iptal(items[0] if items else None, guncelle, onay)
         if ok:
             son = yt.videos().list(part="status", id=a.video_id).execute().get("items", [{}])[0].get("status", {})
-            msgs.append("Dogrulama: publishAt=" + (son.get("publishAt") or "yok (temiz)") + f", gizlilik={son.get('privacyStatus')}")
+            kalan = son.get("publishAt")
+            msgs.append("Dogrulama: publishAt=" + (kalan or "yok (temiz)") + f", gizlilik={son.get('privacyStatus')}")
+            if kalan:
+                msgs.append("UYARI: ZAMANLAMA KALKMADI, video hala " + kalan + " tarihinde yayinlanacak! Studio -> Icerik -> video -> Gorunurluk -> Ozel -> Kaydet (elle) "
+                            "ya da videoyu silin.")
+                ok = False
     else:
         ok, msgs = zamanla(items[0] if items else None, a.saat, guncelle, onay)
     for m in msgs:

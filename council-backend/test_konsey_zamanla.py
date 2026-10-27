@@ -59,12 +59,13 @@ class IptalTest(unittest.TestCase):
             st["publishAt"] = publish
         return {"id": "V1", "snippet": {"title": "T"}, "status": st}
 
-    def test_iptal_govde_publishat_icermez(self):
+    def test_iptal_govde_publishat_null(self):
         govdeler = []
         ok, _ = kz.iptal(self.item(), govdeler.append, lambda m: True)
         self.assertTrue(ok)
         self.assertEqual(govdeler[0]["status"]["privacyStatus"], "private")
-        self.assertNotIn("publishAt", govdeler[0]["status"])
+        self.assertIn("publishAt", govdeler[0]["status"])        # yalniz yollamamak yetmedi: acikca null
+        self.assertIsNone(govdeler[0]["status"]["publishAt"])
 
     def test_iptal_reddedilen_durumlar(self):
         for it in (None, self.item("public"), self.item("unlisted"), self.item(publish=None)):
