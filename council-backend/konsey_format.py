@@ -124,7 +124,7 @@ aura | PICK A TEAM | Team Alpha or Team Beta? Which room would you save first? |
 TITLE: Could Streets Become Rivers?
 HOOKTHUMB: STREETS BECOME RIVERS"""
 
-_KONU_DURAK = set("what where would could should which there their about other another every will have this that with from your into than then them they were been does did the and for you are not why how who whom when".split())
+_KONU_DURAK = set("what where would could should which there their about other another every will have this that with from your into than then them they were been does did the and for you are not why how who whom when tell tells make take give find think know".split())
 
 
 def konu_anahtarlari(topic):
@@ -136,13 +136,29 @@ def konu_anahtarlari(topic):
     return k
 
 
+# Kanalin her konusunda gecen GENEL kelimeler: 'robot' kanca icinde gecince 'konuya bagli' sayilmasin ('Would you let a robot fire you?' konu 42 'robot yasalari' icin sapmaydi).
+GENEL_KELIME = {"robot", "robots", "human", "humans", "machine", "machines", "people", "world", "life"}
+
+
+def _esles(w, a):
+    """Kelime eslesmesi: esit, ilk 4 harf ayni (build/built), ya da biri digerinin oneki (law/laws)."""
+    if w == a:
+        return True
+    if len(w) >= 4 and len(a) >= 4 and w[:4] == a[:4]:
+        return True
+    return (len(w) >= 3 and a.startswith(w)) or (len(a) >= 3 and w.startswith(a))
+
+
 def konuya_bagli(metin, topic):
-    """Metin konunun bir anahtar kelimesini (onek eslesmesiyle) iceriyor mu? Anahtar yoksa True."""
+    """Metin konunun bir anahtar kelimesini (onek eslesmesiyle) iceriyor mu? Ozgul anahtar varsa GENEL kelimeler (robot, human...) sayilmaz. Anahtar yoksa True."""
     k = konu_anahtarlari(topic)
+    ozgul = {w for w in k if w not in GENEL_KELIME}
+    if ozgul:
+        k = ozgul
     if not k:
         return True
     kel = re.findall(r"[a-z']+", (metin or "").lower())
-    return any(w == a or (len(a) >= 4 and w.startswith(a[:5])) for w in kel for a in k)
+    return any(_esles(w, a) for w in kel for a in k)
 
 
 def _gelecek_mi(topic):

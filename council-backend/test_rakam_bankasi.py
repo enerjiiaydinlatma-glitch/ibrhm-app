@@ -266,7 +266,7 @@ class HakemVeYeniKurallarTest(unittest.TestCase):
     T84 = "What if robots built every new robot?"
 
     def beats(self, **kw):
-        satir = {"aura": "Would you trust a robot's off switch?", "alpha": "A robot line runs nonstop. That's one for me.",
+        satir = {"aura": "Would you trust robots that build robots?", "alpha": "A robot line runs nonstop. That's one for me.",
                  "beta": "Hold on. Who switches the factory off?", "delta": "Actually... Beta, you're correct. Someone needs a hand on the switch.",
                  "gamma": "Robots still need parts. I'd keep one human inspecting.",
                  "aura2": "Team Alpha or Team Beta? Which would you trust at the switch?"}
@@ -299,7 +299,7 @@ class HakemVeYeniKurallarTest(unittest.TestCase):
 
     def test_uret_hakem_reddedince_yeniden_yazar(self):
         cagri = {"hakem": 0, "yaz": 0}
-        iyi = ("aura | ROBOTS BUILD | Would you trust a robot's off switch? | x\nalpha | ROBOT LINE | A robot line runs nonstop. That's one for me. | x\n"
+        iyi = ("aura | ROBOTS BUILD | Would you trust robots that build robots? | x\nalpha | ROBOT LINE | A robot line runs nonstop. That's one for me. | x\n"
                "beta | OFF SWITCH | Hold on. Who switches the factory off? | x\ndelta | HAND ON IT | Actually... Beta, you're correct. Someone needs a hand on the switch. | x\n"
                "gamma | ONE HUMAN | Robots still need parts. I'd keep one human inspecting. | x\naura | PICK A TEAM | Team Alpha or Team Beta? Which would you trust at the switch? | x\n"
                "TITLE: What if robots build all new robots?\nHOOKTHUMB: ROBOTS BUILDING NEW ROBOTS")
@@ -357,15 +357,15 @@ class RetentionKurallariTest(unittest.TestCase):
         self.assertFalse(kf.retention_mi(None))
 
     def test_kanca_sen_ve_soru_zorunlu(self):
-        self.assertEqual(self.kodlar("Would you trust a robot's off switch?"), set())
+        self.assertEqual(self.kodlar("Would you trust robots that build robots?"), set())
         self.assertIn("KANCA_SEN", self.kodlar("What if robots only build robots?"))          # soru ama 'you' yok
         self.assertIn("KANCA_SEN", self.kodlar("Robots build robots now."))                   # soru degil
         self.assertNotIn("KANCA_SEN", self.kodlar("18,000 humanoid robots shipped in 2025?"))  # rakamli
 
     def test_kisa_video_siniri(self):
         uzun = "Hold on. " + " ".join(["robot"] * 12)
-        self.assertIn("SATIR_UZUN", self.kodlar("Would you trust a robot's off switch?", beta=uzun))
-        self.assertTrue({"UZUN", "SATIR_UZUN"} & self.kodlar("Would you trust a robot's off switch?", beta=uzun))
+        self.assertIn("SATIR_UZUN", self.kodlar("Would you trust robots that build robots?", beta=uzun))
+        self.assertTrue({"UZUN", "SATIR_UZUN"} & self.kodlar("Would you trust robots that build robots?", beta=uzun))
 
     def test_afet_eski_sinirlar_korunur(self):
         # afet konusu retention kurallarina tabi degil: 'you' olmayan soru kancasi afet'te KANCA_SEN vermez
@@ -385,3 +385,17 @@ class BaslikSoruTest(unittest.TestCase):
         self.assertEqual(kf.baslik_duzelt("Could You Be In Two Places At Once"), "Could You Be In Two Places At Once?")
         self.assertEqual(kf.baslik_duzelt("Which robot would you trust"), "Which robot would you trust?")
         self.assertEqual(kf.baslik_duzelt("Robots build robots"), "Robots build robots")
+
+
+class GenelKelimeTest(unittest.TestCase):
+    T42 = "What if robots wrote their own laws?"
+
+    def test_genel_kelime_tek_basina_baglamaz(self):
+        self.assertFalse(kf.konuya_bagli("Would you let a robot fire you?", self.T42))
+        self.assertFalse(kf.konuya_bagli("Would you let a robot arrest you?", self.T42))
+        self.assertTrue(kf.konuya_bagli("Would you obey laws written by robots?", self.T42))
+        # yalniz genel kelimelerden olusan konularda eski davranis
+        self.assertTrue(kf.konuya_bagli("Could your friend be a robot?", "What if you could not tell a robot from a human?"))
+        self.assertTrue(kf.konuya_bagli("Are you still human with metal eyes?", "Half human, half machine: would you still be you?"))
+        self.assertTrue(kf.konuya_bagli("What would you say to your clone?", "What would you say if you met your clone?"))
+        self.assertIn("ADAY_KONU_DISI", {c for c, _ in kf.kanca_gecerli("Would you let a robot fire you?", self.T42)})
