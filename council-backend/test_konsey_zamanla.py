@@ -50,3 +50,31 @@ class ZamanlaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IptalTest(unittest.TestCase):
+    def item(self, gizlilik="private", publish="2026-10-29T23:30:00Z"):
+        st = {"privacyStatus": gizlilik}
+        if publish:
+            st["publishAt"] = publish
+        return {"id": "V1", "snippet": {"title": "T"}, "status": st}
+
+    def test_iptal_govde_publishat_icermez(self):
+        govdeler = []
+        ok, _ = kz.iptal(self.item(), govdeler.append, lambda m: True)
+        self.assertTrue(ok)
+        self.assertEqual(govdeler[0]["status"]["privacyStatus"], "private")
+        self.assertNotIn("publishAt", govdeler[0]["status"])
+
+    def test_iptal_reddedilen_durumlar(self):
+        for it in (None, self.item("public"), self.item("unlisted"), self.item(publish=None)):
+            cagri = []
+            ok, msg = kz.iptal(it, cagri.append, lambda m: True)
+            self.assertFalse(ok)
+            self.assertEqual(cagri, [])
+
+    def test_onay_yoksa_degismez(self):
+        cagri = []
+        ok, _ = kz.iptal(self.item(), cagri.append, lambda m: False)
+        self.assertFalse(ok)
+        self.assertEqual(cagri, [])
