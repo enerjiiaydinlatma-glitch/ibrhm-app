@@ -444,7 +444,7 @@ def _draw_card(card, local_t, p):
     """RGBA kart katmani (W x 620), p = gorunurluk 0..1."""
     lay = Image.new("RGBA", (W, 620), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
-    reveal = _ease_out(local_t / 0.5)   # sayac hizli biter: Studio otomatik kucuk resmi nihai rakami gostersin
+    reveal = 1.0 if card.get("static") else _ease_out(local_t / 0.5)   # sayac hizli biter (Studio kucuk resmi nihai rakami gostersin); static=true: sayma yok (adim numarasi vb.)
     if card["type"] == "number":
         big = str(card["big"])
         m = re.match(r"^([^\d]*)([\d,\.]+)(.*)$", big)
