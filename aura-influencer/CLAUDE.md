@@ -1241,3 +1241,10 @@ Paket `_studio/live_packages/util_001.json` — **"Before You Send That Angry Em
 YouTube: **#3 One Vote (2 gün 20 sa): 10 izlenme, ort. izlenme %61,2 (↑), 0 yorum/beğeni, 8/10**; #2 30; #1 20; Waymo 9; Excavators 59 (1 beğeni). Kanal 28 gün (1–28 Eki): 1.185 izlenme (−%8), 0,9 saat (−%15), abone 2; son 48 saat toplam 10. En iyi 28 gün: Safety Leader 174, Maia 163 (%87,4), AI Is Not Your Toy 142 (%198). Yorum: 0 (üç bölümde de).
 TikTok (7 gün, 27 Eki): 903 izlenme (+%89), profil görüntüleme 21 (+15), beğeni 8, yorum 1, paylaşım 0; FYP %93,5. #3 165 izlenme/3 beğeni/0 yorum; #2 135/1/1 ("A"). **Takipçi 3 (1'den), takip ediliyor 14 (4'ten)** → karşılıklı takip olasılığı, organik büyüme sayılmaz.
 Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %19-43) AMA erişimi artırmadı (10); TikTok hafif iyileşme (165/3 beğeni); hedef (≥3 yorum) tutmadı (toplam 1). "Before You Send That Angry Email" (prompt deneyi) bu verilerde YOK — YouTube'da yayınlanmamış görünüyor (son Short One Vote). Karar: prompt deneyi yayınlanıp ölçülecek; erişim sorunu retention'dan bağımsız.
+
+## 2026-10-29 - Uzanti raporu analizi (ikinci el veri)
+- Veri, operatorun tarayicisindaki ayri bir Claude uzantisi ajaninin ozet raporu; dogrudan dogrulanmadi.
+- YouTube Shorts: 57 video, medyan ~21 izlenme, ortalama ~43; ilk 5 video toplamin ~%37'si. 100+ alan 6 video hep eski (gunluk oncesi). Son 28 gun 1.185 izlenme (-%8), abone 2.
+- Gunluk serisi ort. izlenme yuzdesi: #1 %33.4, #2 %46.1, #3 %61.2 (izlenme 20/30/10) -> elde tutma artiyor, erisim artmiyor.
+- TikTok son 8 video: ort. ~144 izlenme, begeni orani ~%1.1; takipci 3, takip edilen 14. Dis yorum ~1 ("A").
+- Cikarim: sorun icerik kalitesi degil dagitim/ilk tepki. Sonraki deney: util_001 "copy this prompt" (basari: TT>=300, YT>=50, kaydet/yorum sinyali). Henuz yayinlanmadi.
