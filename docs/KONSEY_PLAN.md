@@ -109,6 +109,12 @@ Komut: `python konsey_gun.py --konu N --saat "2026-10-DD 02:30"` (ses sunucusunu
 Degisiklikler (yalniz robot/insan/fizik/son/uzay/sehir konularinda; afet ve gundelik eski kurallar): (1) Kisa: toplam <= 56 kelime, satir <= 12, kapanis <= 18 (~25 sn). (2) Kanca 'you/your' iceren somut SORU (ya da kaynakli rakam); soyut 'What if' kancasi reddedilir. (3) Ilk kare: en dramatik yakin plan gorsel istemi; siyahtan acilis (fade-in) KALDIRILDI (soguk acilis); t=0'da kisa ses vurusu (thump + whoosh). (4) Konusma %8 hizli, bastaki sessizlik kirpilir. Dosyalar: konsey_format.py, konsey_video_arac.py, make_topic_short.py.
 Olcut: Studio Etkilesim -> 'izlemeye devam %' (hedef >= %40; temel: 83 %11,6, 84 %7,9, 44 %28,6) + ort. izleme suresi. 3 video sonunda karsilastir.
 
+## KRITIK 29 Eki 2026 - dagitim cokusu (Studio ile DOGRULANDI)
+- Studio = API: son 28 gun 583 goruntuleme (onceki 28 gune gore %85 az), 0,5 saat (%92 az), abone 26 (+0), son 48 saat: 2 goruntuleme. Yeni videolar: 76 -> 3, 53 -> 0, 67 -> 1, 91 -> 0 (12 sa). Dusus 44'ten (20) sonra basladi; retention degisikliklerinden ONCE (76 eski formattaydi, o da 3). => Kanal duzeyinde dagitim neredeyse sifir; icerik deneyi sinyal ALAMIYOR.
+- 'robot basliklar iyi / robot sutunu onde' sonucu buyuk olasilikla GURULTUYDU (iptal).
+- Hipotezler (kanitsiz): (a) dusuk tutma (%71-92 kaydirma) -> kanal bastirma, (b) sablonlu/seri uretilmis yapay zeka icerik sinyali (YouTube 'inauthentic content' politikasi 2025-2026; ikincil kaynaklara gore kanal duzeyinde degerlendirme olabilir, DOGRULANMADI), (c) baska hesap/politika sorunu (kontrol: Studio bildirimleri, Kanal durumu, e-posta).
+- KARAR (oneri): YouTube'a yeni video yuklemeyi 7 gun DURDUR; Studio bildirim/Kanal durumu kontrolu; TikTok/Reels hesabi acilirsa mevcut en iyi videolarla (83, 84, 44, 53, 67, 91) yaratici test (izlendi/kaydirildi geri bildirimi oradan).
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
