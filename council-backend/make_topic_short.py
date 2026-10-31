@@ -504,7 +504,7 @@ _MOTION_POST = ("eq=brightness='0.010*sin(t*3.7)':saturation=1.03,"
 from konsey_video_arac import KONSEY_HIZ, _hizlandir, _son_mix_komutu  # noqa: E402  (ffmpeg yardimcilari ayri modulde: test edilebilir)
 
 
-def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None):
+def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None, kapanis=None):
     os.makedirs(OUT_DIR, exist_ok=True)
     if hazir_senaryo:
         # KONSEY formati: senaryo konsey_format kapisindan gecti; kareler yine benzetme gorselleriyle cizilir
@@ -549,11 +549,11 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
         print(f"  beat {i} ({who}, {dur:.1f}s): {line[:60]}")
 
     cf = os.path.join(OUT_DIR, "99_frame.png")
-    _text_card(_close_card_lines("Team Alpha or Team Beta?" if hazir_senaryo else ""), cf, big=False)
+    _text_card(kapanis["kart"] if kapanis else _close_card_lines("Team Alpha or Team Beta?" if hazir_senaryo else ""), cf, big=False)
     try:  # 26 Eylul 2026: kapanis artik SESLI (konsey + veri: abone donusumu 7,6 -> 2,7/1000)
         oa = os.path.join(OUT_DIR, "99.mp3")
         with open(oa, "wb") as f:
-            f.write(synthesize(_outro_line(konsey=bool(hazir_senaryo)), "aura"))
+            f.write(synthesize(kapanis["outro"] if kapanis else _outro_line(konsey=bool(hazir_senaryo)), "aura"))
         od = _dur(oa)
         _segment(cf, oa, od + 0.4, os.path.join(OUT_DIR, "99.mp4"))
         total += od + 0.4
@@ -693,6 +693,22 @@ def konsey_video(topic, r):
     meta["sabit_yorum"] = ("Team Alpha or Team Beta? Vote below. And what would YOU do?" if konsey_format.evren_mi(topic)
                            else "Team Alpha or Team Beta? Vote below. And what's YOUR guilty habit?")
     meta["konu"] = topic
+    with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    return meta
+
+
+def acik_video(r, anahtar):
+    """ACIK format (soru -> kaynakli cevap, tek anlatici) videosunu uretir (yukleme YOK). meta (.json dahil) dondurur."""
+    import acik_format
+    kapanis = {"kart": ["Sourced answer", "SIGN COUNCIL", "Follow for more answers"],
+               "outro": "That's the sourced answer. Follow for the next question."}
+    meta = build(acik_format.ACIK_KONULAR[anahtar]["konu"], "", title_override=r["title"], desc_override=acik_format.aciklama(r, anahtar),
+                 tags=["Sign Council", "explained", "sea level", "robots", "science"][:5],
+                 hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]), kapanis=kapanis)
+    meta["sabit_yorum"] = "What do you think? Tell us below."
+    meta["konu"] = acik_format.ACIK_KONULAR[anahtar]["konu"]
+    meta["format"] = "acik"
     with open(meta["file"].replace(".mp4", ".json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
     return meta
