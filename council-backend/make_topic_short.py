@@ -407,7 +407,7 @@ def _smart_tags_safe(topic, script=""):
             return _topic_tags(topic + " AI OpenAI", ["AI", "shorts", "SignCouncil", "AI news"])
 
 
-def _draw_beat_overlay(d, screen, who):
+def _draw_beat_overlay(d, screen, who, altyazi=""):
     """scrim + SIGN COUNCIL bug + konusan + altyazi - hem still'e hem seffaf
     metin katmanina ayni sekilde cizilir."""
     d.rectangle((0, int(H * 0.66), W, H), fill=(5, 7, 13, 200))
@@ -425,9 +425,15 @@ def _draw_beat_overlay(d, screen, who):
     for ln in lines:
         _center(d, W // 2, y, ln, f, INK)
         y += int(f.size * 1.25)
+    if altyazi:        # ACIK format: konusulan cumle yazili (sessiz izleyen icin); ekran yazisinin altinda, kucuk
+        fa = _font("segoeuib.ttf", 40)
+        y += 14
+        for ln in satirlara_bol(altyazi, lambda t: d.textlength(t, font=fa), W - 260, max_satir=5):
+            _center(d, W // 2, y, ln, fa, (214, 222, 232, 255))
+            y += int(fa.size * 1.3)
 
 
-def _analogy_frame(image_prompt, screen, who, out_path):
+def _analogy_frame(image_prompt, screen, who, out_path, altyazi=""):
     """Aura'nin viral_strategist.py taktigi #7: soyut kahraman sekli yerine
     o repligin FIZIKSEL ANALOJISINI goruntuleyen sinematik goruntu - zaten
     onayli ajanlarla (Gemini/Pollinations, media_agents.py). Basarisiz
@@ -442,12 +448,12 @@ def _analogy_frame(image_prompt, screen, who, out_path):
     txt = out_path.replace(".png", "_txt.png")
     try:
         from media_agents import generate_image
-        generate_image(image_prompt, base, width=1080, height=1920)
+        tekrar_dene(lambda: generate_image(image_prompt, base, width=1080, height=1920))
         bg = Image.open(base).convert("RGB").resize((W, H), Image.LANCZOS)
         bg.save(base)  # WxH'e normalize et (i2v tutarli girdi)
 
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        _draw_beat_overlay(ImageDraw.Draw(layer, "RGBA"), screen, who)
+        _draw_beat_overlay(ImageDraw.Draw(layer, "RGBA"), screen, who, altyazi)
         layer.save(txt)
 
         Image.alpha_composite(bg.convert("RGBA"), layer).convert("RGB").save(out_path)
@@ -501,10 +507,10 @@ _MOTION_POST = ("eq=brightness='0.010*sin(t*3.7)':saturation=1.03,"
                 "noise=alls=5:allf=t,vignette=PI/4.6[v]")
 
 
-from konsey_video_arac import KONSEY_HIZ, _hizlandir, _son_mix_komutu  # noqa: E402  (ffmpeg yardimcilari ayri modulde: test edilebilir)
+from konsey_video_arac import KONSEY_HIZ, _hizlandir, _son_mix_komutu, satirlara_bol, tekrar_dene  # noqa: E402  (ffmpeg yardimcilari ayri modulde: test edilebilir)
 
 
-def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None, kapanis=None):
+def build(topic, angle="", title_override="", desc_override="", tags=None, script_override=None, hazir_senaryo=None, kapanis=None, altyazi=False):
     os.makedirs(OUT_DIR, exist_ok=True)
     if hazir_senaryo:
         # KONSEY formati: senaryo konsey_format kapisindan gecti; kareler yine benzetme gorselleriyle cizilir
@@ -536,7 +542,7 @@ def build(topic, angle="", title_override="", desc_override="", tags=None, scrip
             from receipt_frame import render as _receipt_render
             _receipt_render(img_prompt, who, fp)
         else:
-            _analogy_frame(img_prompt, screen, who, fp)
+            _analogy_frame(img_prompt, screen, who, fp, line if altyazi else "")
         ap = os.path.join(OUT_DIR, f"{i:02d}.mp3")
         with open(ap, "wb") as f:
             f.write(synthesize(line, who))
@@ -705,7 +711,7 @@ def acik_video(r, anahtar):
                "outro": "That's the sourced answer. Follow for the next question."}
     meta = build(acik_format.ACIK_KONULAR[anahtar]["konu"], "", title_override=r["title"], desc_override=acik_format.aciklama(r, anahtar),
                  tags=["Sign Council", "explained", "sea level", "robots", "science"][:5],
-                 hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]), kapanis=kapanis)
+                 hazir_senaryo=(r["beats"], r["title"], r["hookthumb"]), kapanis=kapanis, altyazi=True)
     meta["sabit_yorum"] = "What do you think? Tell us below."
     meta["konu"] = acik_format.ACIK_KONULAR[anahtar]["konu"]
     meta["format"] = "acik"

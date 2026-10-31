@@ -1,6 +1,7 @@
 """Konsey video ffmpeg yardimcilari (retention deneyi, 25 Eki 2026): konusma hizlandirma + bastaki sessizligi kirpma + acilis ses vurusu. Agir bagimliligi yok."""
 import os
 import subprocess
+import time
 
 KONSEY_HIZ = 1.08          # retention deneyi (25 Eki 2026): konusma %8 hizli, bastaki sessizlik kirpilir
 
@@ -48,3 +49,36 @@ def _son_mix_komutu(joined, final, total, vurus=False, fade_in=0.4):
           + fx + miks)
     return (["ffmpeg", "-y"] + girdiler + ["-filter_complex", fc, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", final])
+
+
+def tekrar_dene(fn, deneme=3, bekle=(6, 20), uyku=time.sleep, yaz=print):
+    """fn()'i basarisiz olursa bekleyerek yeniden dener (gecici 503/zaman asimi: 31 Eki 2026 'Gemini 503 + Pollinations 503' son kareyi dusurdu).
+    Son denemede de hata verirse son istisnayi firlatir. -> fn() sonucu"""
+    son = None
+    for n in range(1, deneme + 1):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001 - saglayici hatalari cesitli
+            son = e
+            if n < deneme:
+                sn = bekle[min(n - 1, len(bekle) - 1)]
+                yaz(f"    [gorsel denemesi {n}/{deneme} basarisiz ({type(e).__name__}); {sn} sn sonra yeniden]")
+                uyku(sn)
+    raise son
+
+
+def satirlara_bol(metin, olc, max_w, max_satir=5):
+    """Kelime sarma: olc(satir)->piksel genisligi. En fazla max_satir satir; sigmazsa son satira ... eklenmeden kalanlar bitisik birakilir."""
+    satirlar, mevcut = [], ""
+    for k in (metin or "").split():
+        aday = (mevcut + " " + k).strip()
+        if olc(aday) <= max_w or not mevcut:
+            mevcut = aday
+        else:
+            satirlar.append(mevcut)
+            mevcut = k
+    if mevcut:
+        satirlar.append(mevcut)
+    if len(satirlar) > max_satir:
+        satirlar = satirlar[:max_satir - 1] + [" ".join(satirlar[max_satir - 1:])]
+    return satirlar

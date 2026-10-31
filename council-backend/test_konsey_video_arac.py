@@ -59,3 +59,32 @@ class GercekFfmpegTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class YardimciTest(unittest.TestCase):
+    def test_tekrar_dene_basarili_ve_basarisiz(self):
+        sayac, bekler = {"n": 0}, []
+
+        def fn():
+            sayac["n"] += 1
+            if sayac["n"] < 3:
+                raise RuntimeError("503")
+            return "tamam"
+        self.assertEqual(kva.tekrar_dene(fn, deneme=3, bekle=(1, 2), uyku=bekler.append, yaz=lambda m: None), "tamam")
+        self.assertEqual(bekler, [1, 2])
+
+        def hep():
+            raise ValueError("kalici")
+        bekler.clear()
+        with self.assertRaises(ValueError):
+            kva.tekrar_dene(hep, deneme=2, bekle=(1,), uyku=bekler.append, yaz=lambda m: None)
+        self.assertEqual(bekler, [1])
+
+    def test_satirlara_bol(self):
+        olc = lambda t: len(t) * 10  # noqa: E731
+        self.assertEqual(kva.satirlara_bol("aaa bbb ccc ddd", olc, 80), ["aaa bbb", "ccc ddd"])
+        self.assertEqual(kva.satirlara_bol("", olc, 80), [])
+        self.assertEqual(kva.satirlara_bol("uzunkelimeuzunkelime x", olc, 50), ["uzunkelimeuzunkelime", "x"])   # sigmayan kelime tek satirda kalir
+        cok = kva.satirlara_bol("a b c d e f g h", olc, 10, max_satir=3)
+        self.assertEqual(len(cok), 3)
+        self.assertEqual(cok[-1].split()[-1], "h")                                                       # metin kaybolmaz

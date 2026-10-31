@@ -18,6 +18,7 @@ TOPLAM_MIN, TOPLAM_MAX, SATIR_MAX, KANCA_MAX, BASLIK_MAX = 55, 105, 26, 10, 70
 # anahtar -> baslik (arama ifadesi), olgularin bulundugu havuz konusu, olgu kimlikleri icin kisa kaynak adi
 ACIK_KONULAR = {
     "deniz": {"baslik": "How Much Would Sea Level Rise If All the Ice Melted?", "konu": "What if all the ice on Earth melted?",
+              "yasak": ["glacier", "glaciers"], "not": "Say 'all the ice on land' (mostly Antarctica and Greenland); NEVER say 'glaciers': the mountain glaciers alone hold far less ice, so the 60 meters figure would be wrong.",
               "kaynak_kisa": {"buz_toplam": "NASA", "gronland": "Scientific American", "deniz_1880": "NASA"}},
     "robot": {"baslik": "How Many Humanoid Robots Shipped in 2025?", "konu": "What if robots were built like cars, one a minute?",
               "kaynak_kisa": {"robot_18000": "IDC"}},
@@ -45,7 +46,8 @@ PROMPT = (
     "- Do NOT name any company, product or person; naming the SOURCE institution from the facts is fine.\n"
     "- Never attribute intent or wrongdoing; no crime language. No medical advice. Never present a prediction as certain.\n"
     "- The linter matches word FRAGMENTS, so avoid: right, bright, origin, original, trigger, believe, belief, enforce, quiet, apply/applies, flying, flies, alien, lie, rig.\n"
-    "- Use only the numbers given above (plus small counts like 'three').\n\n"
+    "- Use only the numbers given above (plus small counts like 'three'). Never use 'suddenly', 'every' or 'always' as a claim.\n"
+    "{not}\n\n"
     "After the 5 lines add:\n"
     "TITLE: {baslik}\n"
     "HOOKTHUMB: <2-4 ALL CAPS words for the opening card>"
@@ -58,7 +60,8 @@ def olgu_metni(anahtar):
 
 
 def prompt_uret(anahtar):
-    return PROMPT.format(baslik=ACIK_KONULAR[anahtar]["baslik"], olgular=olgu_metni(anahtar))
+    k = ACIK_KONULAR[anahtar]
+    return PROMPT.format(baslik=k["baslik"], olgular=olgu_metni(anahtar), **{"not": ("- " + k["not"]) if k.get("not") else ""})
 
 
 def _kelime(s):
@@ -121,6 +124,11 @@ def kontrol_acik(beats, title, hookthumb, anahtar):
         s.append(("GERCEK_ISIM", f"Gercek sirket/urun adi yasak: {', '.join(isim)}."))
     if konsey_format.DAVRANIS_IDDIA.search(metin):
         s.append(("DAVRANIS_IDDIA", "Kaynaksiz davranis/neden-sonuc iddiasi yasak."))
+    yasak = [w for w in k.get("yasak", []) if re.search(rf"\b{re.escape(w)}\b", tum, re.I)]
+    if yasak:
+        s.append(("YASAK_KELIME", f"Bu konuda kullanilamaz: {', '.join(yasak)} ({k.get('not', '')})"))
+    if re.search(r"\bsuddenly\b", tum, re.I):
+        s.append(("YASAK_KELIME", "'suddenly' zaman iddiasi: kullanma."))
     if konsey_format.ISTATISTIK.search(tum):
         s.append(("ISTATISTIK", "Kaynaksiz oran/istatistik kalibi ('half of', '1 in 3' ...) yasak."))
     return s

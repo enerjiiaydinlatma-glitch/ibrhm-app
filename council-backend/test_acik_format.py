@@ -168,3 +168,18 @@ class GunTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class YasakKelimeTest(unittest.TestCase):
+    def test_deniz_glacier_ve_suddenly_yasak(self):
+        L = list(IYI)
+        L[0] = "What happens if every glacier on Earth suddenly melts?"
+        k = kodlar(L)
+        self.assertIn("YASAK_KELIME", k)
+        L[0] = "What happens if all the ice on Earth melts?"
+        self.assertNotIn("YASAK_KELIME", kodlar(L))
+
+    def test_prompt_notu(self):
+        self.assertIn("NEVER say 'glaciers'", af.prompt_uret("deniz"))
+        self.assertNotIn("glaciers", af.prompt_uret("robot"))
+        self.assertIn("55-105 words", af.prompt_uret("robot"))
