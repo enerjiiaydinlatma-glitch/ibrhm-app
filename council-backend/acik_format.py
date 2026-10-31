@@ -93,7 +93,8 @@ def kontrol_acik(beats, title, hookthumb, anahtar):
         s.append(("KAPANIS_SORU", "Kapanis izleyiciye bir soruyla ('?') bitmeli."))
     if not title or len(title) > BASLIK_MAX:
         s.append(("BASLIK", f"Baslik 1-{BASLIK_MAX} karakter olmali."))
-    tum = metin + " " + (title or "") + " " + (hookthumb or "")
+    ekran = " ".join(b[1] for b in beats)          # ekrandaki yazilar da sozlu satirlar kadar denetlenir (sayi/iddia)
+    tum = metin + " " + (title or "") + " " + (hookthumb or "") + " " + ekran
     # rakam bankasi
     kaynaksiz = rakam_bankasi.yasakli_rakamlar(tum, konu)
     if kaynaksiz:
@@ -146,7 +147,7 @@ def uret(anahtar, llm, parse, deneme=5):
 
 
 def duzenle(r, komut):
-    """('s', n, metin) | ('b', metin) | ('k', metin) -> (yeni_r | None, sorunlar). Gecmezse r DEGISMEZ."""
+    """('s', n, metin) | ('e', n, EKRAN) | ('b', metin) | ('k', metin) -> (yeni_r | None, sorunlar). Gecmezse r DEGISMEZ."""
     beats, title, kart = list(r["beats"]), r["title"], r["hookthumb"]
     if komut[0] == "s":
         n = int(komut[1])
@@ -154,6 +155,12 @@ def duzenle(r, komut):
             return None, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
         who, screen, _eski, img = beats[n - 1]
         beats[n - 1] = (who, screen, komut[2].strip(), img)
+    elif komut[0] == "e":
+        n = int(komut[1])
+        if not 1 <= n <= len(beats):
+            return None, [("SATIR_NO", f"1-{len(beats)} arasi olmali.")]
+        who, _eski, line, img = beats[n - 1]
+        beats[n - 1] = (who, " ".join(komut[2].split()).upper(), line, img)
     elif komut[0] == "b":
         title = komut[1].strip()
     elif komut[0] == "k":

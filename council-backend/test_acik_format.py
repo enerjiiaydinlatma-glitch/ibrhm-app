@@ -110,6 +110,18 @@ class UretDuzenleTest(unittest.TestCase):
         self.assertEqual(af.duzenle(r, ("k", "new card"))[0]["hookthumb"], "NEW CARD")
 
 
+class EkranTest(unittest.TestCase):
+    def test_ekran_yazisi_denetlenir_ve_duzenlenir(self):
+        r = af.uret("deniz", lambda p: ham(), parse)
+        yeni, s = af.duzenle(r, ("e", 3, "low cities at risk"))
+        self.assertEqual(s, [])
+        self.assertEqual(yeni["beats"][2][1], "LOW CITIES AT RISK")
+        y2, s2 = af.duzenle(r, ("e", 3, "99 METERS UNDER"))               # ekranda kaynaksiz rakam
+        self.assertIsNone(y2)
+        self.assertIn("RAKAM_KAYNAK", {c for c, _ in s2})
+        self.assertIsNone(af.duzenle(r, ("e", 9, "x"))[0])
+
+
 class GunTest(unittest.TestCase):
     def ortam(self, cevaplar, script=None, sunucu=True):
         o = type("O", (), {})()
@@ -139,6 +151,11 @@ class GunTest(unittest.TestCase):
         o2, d2 = self.ortam(["evet"], sunucu=False)
         self.assertEqual(ag.calistir(self.A("deniz"), d2), 2)
         self.assertEqual(o2.render, [])
+
+    def test_ekran_komutu_gun_icinde(self):
+        o, d = self.ortam(["e 3 LOW CITIES AT RISK", "evet"])
+        self.assertEqual(ag.calistir(self.A("deniz"), d), 0)
+        self.assertEqual(o.render[0][0]["beats"][2][1], "LOW CITIES AT RISK")
 
     def test_tamir_modu_gecersizde_evet_reddedilir(self):
         kotu = ham(["The sea will rise a lot."] + IYI[1:])

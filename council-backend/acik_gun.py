@@ -5,11 +5,12 @@ Kullanim:
   python acik_gun.py --konu robot     # How Many Humanoid Robots Shipped in 2025?
   python acik_gun.py --konu sel       # How Deep Must Flood Water Be To Move a Car?
 
-Karar: Senaryo iyi mi?  evet = uret | s N yeni cumle | b Yeni Baslik | k YENI KART | hayir = iptal.
+Karar: Senaryo iyi mi?  evet = uret | s N yeni cumle | e N EKRAN YAZISI | b Yeni Baslik | k YENI KART | hayir = iptal.
 Kapidan gecmeyen senaryoda 'tamir modu': satirlari duzelt; kapidan gecene kadar 'evet' kabul edilmez.
 Ses sunucusu hazir degilse video URETMEZ. Video hazir olunca oynaticida acilir; hicbir yere YUKLENMEZ.
 """
 import argparse
+import re
 import sys
 
 import acik_format as af
@@ -39,7 +40,7 @@ def calistir(a, d):
             for kod, msg in r["sorunlar"]:
                 yaz(f"  - {kod}: {msg}")
             yaz("\n[tamir modu] s N yeni cumle | b Baslik | k KART ile duzelt; kapidan gecene kadar 'evet' KABUL EDILMEZ. hayir = iptal.")
-        ham = gir("\nSenaryo iyi mi?  evet = uret | s N yeni cumle | b Yeni Baslik | k YENI KART | hayir = iptal > ")
+        ham = gir("\nSenaryo iyi mi?  evet = uret | s N yeni cumle | e N EKRAN YAZISI | b Yeni Baslik | k YENI KART | hayir = iptal > ")
         cevap = ham.strip().lower()
         if cevap in ("evet", "e", "yes", "y"):
             if gecersiz:
@@ -47,6 +48,9 @@ def calistir(a, d):
                 continue
             break
         komut = konsey_format.duzenleme_coz(ham)
+        m = re.match(r"^\s*e\s+([1-5])\s+(.+\S)\s*$", ham, re.I | re.S)
+        if m:
+            komut = ("e", int(m.group(1)), m.group(2))
         if not komut:
             yaz("Iptal edildi. Hicbir sey uretilmedi.")
             return 0
