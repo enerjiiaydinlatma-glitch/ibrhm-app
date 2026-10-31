@@ -1256,3 +1256,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 
 ### 2026-10-31 — Build in public #4 paketi hazir (YAYINLANMADI): "My Most Helpful Video Got 3 Views"
 `live_packages/bip_004.json`: prompt deneyinin sonucu, oz-ironi; A (ogretici) / B (komik) oylamasi. Rakamlar operator ekran goruntuleri (30 Eki, ~24 sa): YT 3 izlenme/%19,8, TT 131/1 begeni/1 yorum (kendi sabit yorumumuz). "Nobody wants homework" = TAHMIN (videoda "My guess"). Yayindan once guncel rakamla duzelt (kart: bars YouTube/TikTok, spec cards 2). Preflight tam, test 36/36. Olcut: yorum (A/B oyu) >=3, ort. izlenme %, takipci.
+- 2026-10-31 TikTok (Studio, 7 gun 23-29 Eki): 780 izlenme (+%9,7), profil goruntuleme 25 (+17), begeni 8, yorum 1, takipci 5, takip edilen 1, toplam begeni 105; prompt videosu ~2 gunde 132/2 begeni/1 yorum (kendi). Profil goruntuleme artisi n kucuk, nedeni (bio degisikligi?) dogrulanmadi. bip_004 TikTok karti 132'ye guncellendi; YouTube 3 hala dunku.
