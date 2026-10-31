@@ -66,3 +66,10 @@ HASAR VE EKSİK TESLİMAT
 
 Sayfanın içinde Shopify asistanından kalan bozuk kod parçaları var. Yalnızca "YASAL BİLDİRİM VE UYARI METNİ"
 ve altındaki "MESAFELİ SATIŞ SÖZLEŞMESİ" metni kalacak şekilde temizlenmeli; e-posta ve posta kodu aynı şekilde güncellenmeli.
+
+## Tema metinleri (Online Mağaza → Temalar → Özelleştir; canlı tema: "Dawn - SEO ve Görünüm Düzenlemesi (taslak)")
+
+1. Üst duyuru bandı: "...+ 500 TL üzeri Ücretsiz Kargo!" → "...+ 1.000 TL üzeri Ücretsiz Kargo!"
+2. Ana sayfa güven rozeti: "2-3 İş Gününde Kargoya Teslim" → "2 İş Gününde Kargoya Teslim"
+3. Ana sayfa "Hızlı Kargo" kutusu: "2-3 iş gününde kargoya teslim" → "2 iş gününde kargoya teslim"
+4. Ana sayfa SSS (kargo satırı): "Türkiye içi siparişler 2-3 iş günü içinde kargoya verilir. ... Kargo ücreti 500 TL üzeri siparişlerde ücretsizdir." → "2 iş günü içinde" ve "1.000 TL üzeri"
