@@ -39,10 +39,11 @@ PROMPT = (
     "STRUCTURE:\n"
     "1 HOOK: the question put directly to the viewer, ending with '?' (10 words or fewer).\n"
     "2 ANSWER: the key number straight away, with 'according to <source>'. State any condition it depends on (for example 'if ALL the ice melted').\n"
-    "3 SCALE: what that number means in everyday terms, with NO new numbers.\n"
+    "3 SCALE: only restate the size of that number in everyday terms (a comparison), with NO new numbers and NO new claims about who uses it, trends, causes or the future.\n"
     "4 SECOND FACT or surprise, taken only from the facts above.\n"
     "5 CLOSE: one memorable thought, then ONE question inviting the viewer to guess or comment, ending with '?'. Say the source name once more.\n\n"
     "HARD RULES:\n"
+    "- A source name may appear ONLY in a sentence that states one of the facts with its number. Never write 'data from X shows ...' about anything else.\n"
     "- Do NOT name any company, product or person; naming the SOURCE institution from the facts is fine.\n"
     "- Never attribute intent or wrongdoing; no crime language. No medical advice. Never present a prediction as certain.\n"
     "- The linter matches word FRAGMENTS, so avoid: right, bright, origin, original, trigger, believe, belief, enforce, quiet, apply/applies, flying, flies, alien, lie, rig.\n"
@@ -112,6 +113,12 @@ def kontrol_acik(beats, title, hookthumb, anahtar):
         kisalar = {k["kaynak_kisa"].get(o["id"], o["kaynak"]) for o in kul}
         if not any(re.search(re.escape(x), metin, re.I) for x in kisalar):
             s.append(("KAYNAK_ADI", f"Kaynak adi sozlu gecmeli: {', '.join(sorted(kisalar))}."))
+    # kaynak adi YALNIZ rakamli cumlede gecebilir: 'data from IDC shows faster adoption' gibi kaynaga yanlis atif (31 Eki 2026) yakalanir
+    kisa_tum = {x for v in k["kaynak_kisa"].values() for x in [v]}
+    for i, satir in enumerate(L, 1):
+        if any(re.search(re.escape(x), satir, re.I) for x in kisa_tum) and not any(
+                rakam_bankasi._sayi_var(n, satir) for o in rakam_bankasi.olgular(konu) for n in o["sayilar"]):
+            s.append(("KAYNAK_ATIF", f"{i}. satir kaynak adini rakamsiz bir iddiada kullaniyor (kaynaga yanlis atif): kaynak adi yalniz kaynakli rakamla birlikte gecer."))
     # guvenlik: claim_lint engelleyicileri (kaynakli rakam muaf), isim yasagi (kaynak kurumlari serbest), davranis iddiasi
     for ad, hits, why in claim_lint.lint(tum):
         if ad == "RAKAM" and hits and all(rakam_bankasi.rakam_kaynakli(h, konu) for h in hits):
@@ -134,6 +141,24 @@ def kontrol_acik(beats, title, hookthumb, anahtar):
     return s
 
 
+OLGU_HAKEMI = (
+    "You are a strict fact-checking editor. These are the ONLY facts the script may state:\n{olgular}\n\n"
+    "Below are the numbered lines of a short explainer script. For EACH line answer OK if every factual statement in it is one of the facts above "
+    "(or a plain question / neutral framing with NO factual claim); answer CLAIM if it asserts anything NOT in the facts above - for example who uses the thing, "
+    "trends or adoption, causes, what will happen, how big or how fast something is, or any exaggeration ('forever', 'completely', 'drown').\n\n{satirlar}\n\n"
+    "Output EXACTLY one line per script line like '2: OK' or '3: CLAIM', then 'VERDICT: PASS' if no line is CLAIM, otherwise 'VERDICT: FAIL'."
+)
+
+
+def olgu_hakemi(anahtar, beats, llm):
+    """-> CLAIM denen satir numaralari (1 tabanli). Hakem hata verir/bicim bozuksa [] (acik-gecis: ek katman, tek kapi degil)."""
+    try:
+        raw = llm(OLGU_HAKEMI.format(olgular=olgu_metni(anahtar), satirlar="\n".join(f"{i}. {b[2]}" for i, b in enumerate(beats, 1))))
+    except Exception:
+        return []
+    return sorted({int(m.group(1)) for m in re.finditer(r"^\s*([1-5])\s*[:.)\-]\s*CLAIM\b", raw or "", re.M | re.I)})
+
+
 def aciklama(r, anahtar):
     """YouTube aciklamasi: kanca + kaynaklar satiri (rakam kullanildiysa) + etiketler."""
     kaynak = rakam_bankasi.kaynak_satiri(ACIK_KONULAR[anahtar]["konu"], " ".join(b[2] for b in r["beats"]) + " " + r["title"])
@@ -148,6 +173,11 @@ def uret(anahtar, llm, parse, deneme=5):
         beats, title, hookthumb = parse(llm(prompt))
         title = ACIK_KONULAR[anahtar]["baslik"]          # baslik arama ifadesi: modelin degil bizim
         sorunlar = kontrol_acik(beats, title, hookthumb, anahtar)
+        if not sorunlar:
+            claim = olgu_hakemi(anahtar, beats, llm)
+            if claim:
+                sorunlar = [("OLGU_DISI", f"Satir(lar) {', '.join(map(str, claim))} VERIFIED FACTS'te olmayan bir iddia iceriyor (kullanim alani, egilim, neden, gelecek, abartı). "
+                                          "Yalniz olgulari soyle; 3. satir yalniz rakamin olcegini anlatsin.")]
         if not sorunlar:
             return {"ok": True, "anahtar": anahtar, "beats": beats, "title": title, "hookthumb": hookthumb, "sorunlar": [], "deneme": n}
         prompt = temel + "\n\nYour previous attempt was REJECTED for these reasons - fix every one and keep all rules:\n" + "\n".join(f"- {m}" for _, m in sorunlar)

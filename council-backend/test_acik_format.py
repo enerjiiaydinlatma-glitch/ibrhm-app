@@ -183,3 +183,37 @@ class YasakKelimeTest(unittest.TestCase):
         self.assertIn("NEVER say 'glaciers'", af.prompt_uret("deniz"))
         self.assertNotIn("glaciers", af.prompt_uret("robot"))
         self.assertIn("55-105 words", af.prompt_uret("robot"))
+
+
+class KaynakAtifVeHakemTest(unittest.TestCase):
+    ROBOT = ["How many humanoid robots shipped worldwide in 2025?", "About 18,000 humanoid robots shipped worldwide in 2025, according to IDC, by one research firm's estimate.",
+             "That is a small fleet next to the cars one big plant builds in a month.", "Other estimates range from 13,000 to 20,000, so the count is fuzzy.",
+             "Which job would you hand to a robot first?"]
+
+    def test_robot_iyi_gecer_kotu_atif_yakalanir(self):
+        self.assertEqual(kodlar(self.ROBOT, anahtar="robot"), set())
+        L = list(self.ROBOT)
+        L[4] = "As technology advances, data from IDC shows faster adoption, so would you share a workplace with a robot?"
+        self.assertIn("KAYNAK_ATIF", kodlar(L, anahtar="robot"))
+
+    def test_olgu_hakemi_claim_satirlari_ve_acik_gecis(self):
+        b = beats(self.ROBOT)
+        self.assertEqual(af.olgu_hakemi("robot", b, lambda p: "1: OK\n2: OK\n3: CLAIM\n4: OK\n5: CLAIM\nVERDICT: FAIL"), [3, 5])
+        self.assertEqual(af.olgu_hakemi("robot", b, lambda p: "1: OK\n2: OK\n3: OK\n4: OK\n5: OK\nVERDICT: PASS"), [])
+        self.assertEqual(af.olgu_hakemi("robot", b, lambda p: "alakasiz"), [])
+        def patla(p):
+            raise RuntimeError("api")
+        self.assertEqual(af.olgu_hakemi("robot", b, patla), [])
+
+    def test_uret_hakem_reddedince_yeniden_yazar(self):
+        cagri = {"h": 0}
+        iyi = ham(self.ROBOT)
+
+        def llm(p):
+            if "fact-checking editor" in p:
+                cagri["h"] += 1
+                return "1: OK\n2: OK\n3: CLAIM\n4: OK\n5: OK\nVERDICT: FAIL" if cagri["h"] == 1 else "1: OK\n2: OK\n3: OK\n4: OK\n5: OK\nVERDICT: PASS"
+            return iyi
+        r = af.uret("robot", llm, parse)
+        self.assertTrue(r["ok"])
+        self.assertEqual((r["deneme"], cagri["h"]), (2, 2))
