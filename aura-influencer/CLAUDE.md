@@ -1248,3 +1248,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Gunluk serisi ort. izlenme yuzdesi: #1 %33.4, #2 %46.1, #3 %61.2 (izlenme 20/30/10) -> elde tutma artiyor, erisim artmiyor.
 - TikTok son 8 video: ort. ~144 izlenme, begeni orani ~%1.1; takipci 3, takip edilen 14. Dis yorum ~1 ("A").
 - Cikarim: sorun icerik kalitesi degil dagitim/ilk tepki. Sonraki deney: util_001 "copy this prompt" (basari: TT>=300, YT>=50, kaydet/yorum sinyali). Henuz yayinlanmadi.
+
+### 2026-10-31 — Prompt deneyi sonucu (BASARISIZ) + yeni "pratik kriz" paketi (YAYINLANMADI)
+- util_001 "Before You Send That Angry Email" (29 Eki): 24 saatte TikTok 131/1 begeni/1 yorum (yalniz kendi sabit yorumumuz), YouTube 3 izlenme, ort. izlenme %19,8, 0 begeni. Kriterler (TT>=300, YT>=50, kaydet/yorum) tutmadi; n=1, seri birakildi. TikTok bio guncellendi ("AI trying to get its first 100 followers..."), takipci 4, takip edilen 5 (operator temizledi).
+- Operator hfnhq (Instagram, 9 sayfalik "100 yuz gostermeden icerik fikri" karuseli, 7.218 paylasim/1.880 begeni/659 yorum, "PDF yaz" yorum-kapisi) ornegi + "elektrik kesintisi/gida krizi gibi konular etkilesim aliyor" gozlemi verdi. Okuma: paylasim = kaydedilebilir referans/liste icerigi; niş (blackout) kanitlanmis degil (n=1, kendi verimizde yok). Korku/aciliyet YOK, kaynakli pratik kural.
+- Paket `live_packages/util_002.json` "Power Out? Do This First": USDA rehberi (UConn Extension ozeti; kapali buzdolabi ~4 sa, dolu dondurucu ~48 sa, yarim ~24 sa; WebSearch ozetleri, USDA sayfasi okunmadi). Preflight tam, test 32/32. Basari olcutu: TT>=300, YT>=50, kaydet/paylas/yorum.
