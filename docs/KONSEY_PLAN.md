@@ -115,6 +115,11 @@ Olcut: Studio Etkilesim -> 'izlemeye devam %' (hedef >= %40; temel: 83 %11,6, 84
 - Hipotezler (kanitsiz): (a) dusuk tutma (%71-92 kaydirma) -> kanal bastirma, (b) sablonlu/seri uretilmis yapay zeka icerik sinyali (YouTube 'inauthentic content' politikasi 2025-2026; ikincil kaynaklara gore kanal duzeyinde degerlendirme olabilir, DOGRULANMADI), (c) baska hesap/politika sorunu (kontrol: Studio bildirimleri, Kanal durumu, e-posta).
 - KARAR (oneri): YouTube'a yeni video yuklemeyi 7 gun DURDUR; Studio bildirim/Kanal durumu kontrolu; TikTok/Reels hesabi acilirsa mevcut en iyi videolarla (83, 84, 44, 53, 67, 91) yaratici test (izlendi/kaydirildi geri bildirimi oradan).
 
+## KURTARMA PLANI (31 Eki 2026, sahip onayli): TikTok YOK; YouTube kanali kurtarilacak
+- Onaylanan: (1) 7 gun YouTube'a yeni video YUKLEME yok (31 Eki - 6 Kas); (2) eski (Konsey oncesi) herkese acik hat videolari Ozel'e (kanal_temizle.py: once onizleme, sonra --uygula; silmez, --geri-al var); (3) ACIKLAYICI format pilotu (acik_format.py / acik_gun.py): soru -> kaynakli cevap, tek anlatici (aura), ~45 sn, arama dostu baslik, rakam bankasi olgulari. Pilot konular: deniz (60 m, NASA), robot (18.000, IDC tahmini), sel (15/30/60 cm, NWS).
+- Studio kontrolu: bildirim/uyari/telif/politika YOK; ozellikler etkin => dagitim kisitlamasi algoritmik (resmi isaret yok). Takili yukleme: 'Can NVIDIA FoundationPose really track objects 5.5x faster?' (Beklemede) - silinebilir.
+- Hafta 2 (7 Kas+): pilotlari 2 gunde bir yukle; olcut: ARAMA trafigi, izlemeye devam %, abone. Hafta 3: coz/cogalt/vazgec.
+
 ## Gunde 2'ye gecis sarti (hafta sonu okumasinda uc maddenin UCU de)
 1. Ust uste 3 video ilk senaryoda ya da tek duzeltmeyle cikti.
 2. En az bir video kanal medyaninin ustunde.
