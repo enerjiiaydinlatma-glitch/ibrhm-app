@@ -1556,7 +1556,7 @@ function draftHtml(d){
   if(d.status === 'render edildi') btns += '<a class="qa" style="width:auto;text-decoration:none;display:inline-block" href="/download/' + encodeURIComponent(d.video) + '" download>&#11015; Izle/Indir</a> <button class="qa" style="width:auto;background:#238636" data-id="' + d.id + '" onclick="gmPublish(this)">&#128640; YouTube&#39;da Yayinla (onayli)</button> ';
   if(d.link) btns += '<a href="' + d.link + '" target="_blank" style="color:#58a6ff">' + d.link + '</a> ';
   btns += '<button class="qa" style="width:auto" data-id="' + d.id + '" onclick="gmDraftDel(this)">Sil</button>';
-  return '<div style="border:1px solid #30363d;border-radius:8px;padding:10px;margin:8px 0"><b>' + esc(d.title) + '</b> <span class="sub">[' + esc(d.format) + '] &middot; ' + st + ' &middot; ' + d.created + '</span><div class="sub">' + esc(d.rationale || '') + '</div><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0">' + esc(d.en_script) + '</pre>' + preHtml(d.preflight) + '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + btns + '</div></div>';
+  return '<div style="border:1px solid #30363d;border-radius:8px;padding:10px;margin:8px 0"><b>' + esc(d.title) + '</b> <span class="sub">[' + esc(d.format) + '] &middot; ' + st + ' &middot; ' + d.created + '</span><div class="sub">' + esc(d.rationale || '') + '</div><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0">' + esc(d.en_script) + '</pre><div style="background:#10301a;border:1px solid #238636;border-radius:6px;padding:6px 8px;margin:4px 0;font-size:12px"><b>&#127481;&#127479; Turkce anlami (video ne diyor):</b><br>' + esc(d.tr_script || '(Turkce metin yok!)') + '</div>' + preHtml(d.preflight) + '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + btns + '</div></div>';
 }
 async function gmLoad(){
   try {
@@ -1654,6 +1654,9 @@ async function gmPackages(btn){
   finally { btn.disabled = false; }
 }
 async function gmRender(btn){
+  const d0 = GM.drafts.find(x => x.id === btn.dataset.id);
+  const NL0 = String.fromCharCode(10);
+  if(d0 && !confirm('Bu video SU DEMEK ISTIYOR (Turkce anlami):' + NL0 + NL0 + (d0.tr_script || '(Turkce metin yok)') + NL0 + NL0 + 'Anlami onayliyor musun? Evet = render basla.')) return;
   btn.disabled = true; btn.textContent = 'Render ediliyor (1-3 dk)...';
   const j = await gmPost('/api/growth/render_draft', {id: btn.dataset.id});
   if(!j.ok) alert(j.error); else if(j.warning) alert(j.warning);
@@ -1663,7 +1666,7 @@ async function gmPublish(btn){
   const d = GM.drafts.find(x => x.id === btn.dataset.id);
   if(!d) return;
   const NL = String.fromCharCode(10);
-  if(!confirm('YouTube icinde HERKESE ACIK yayinlanacak:' + NL + NL + d.title + NL + NL + d.description.slice(0, 200) + NL + NL + 'Onayliyor musun?')) return;
+  if(!confirm('YouTube icinde HERKESE ACIK yayinlanacak:' + NL + NL + d.title + NL + NL + 'Turkce anlami: ' + (d.tr_script || '') + NL + NL + d.description.slice(0, 200) + NL + NL + 'Onayliyor musun?')) return;
   btn.disabled = true; btn.textContent = 'Yayinlaniyor...';
   const j = await gmPost('/api/growth/publish_draft', {id: d.id, confirm: true});
   alert(j.ok ? ('Yayinlandi: ' + j.link) : ('Yayinlanamadi: ' + j.error));
@@ -1673,7 +1676,7 @@ async function gmRenderPublish(btn){
   const d = GM.drafts.find(x => x.id === btn.dataset.id);
   if(!d) return;
   const NL = String.fromCharCode(10);
-  if(!confirm('Render edilip YouTube icinde HERKESE ACIK yayinlanacak (etiketler otomatik):' + NL + NL + d.title + NL + NL + d.description.slice(0, 200) + NL + NL + 'Onayliyor musun?')) return;
+  if(!confirm('Render edilip YouTube icinde HERKESE ACIK yayinlanacak (etiketler otomatik):' + NL + NL + d.title + NL + NL + 'Turkce anlami: ' + (d.tr_script || '') + NL + NL + d.description.slice(0, 200) + NL + NL + 'Onayliyor musun?')) return;
   btn.disabled = true; btn.textContent = 'Render + yayin (2-4 dk)...';
   const j = await gmPost('/api/growth/render_publish_draft', {id: d.id, confirm: true});
   alert(j.ok ? ('Yayinlandi: ' + j.link) : ('Olmadi: ' + j.error));
