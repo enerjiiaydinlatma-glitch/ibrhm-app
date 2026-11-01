@@ -22,8 +22,8 @@
   "cards": {
    "2": {
     "type": "number",
-    "big": "9,600-8,200 BC",
-    "label": "UNESCO dating of the structures"
+    "big": "9,600 BC",
+    "label": "earliest UNESCO date (to 8,200 BC)"
    },
    "4": {
     "type": "number",
