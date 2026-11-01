@@ -34,3 +34,6 @@ _studio/learned_history.json
 _studio/script_log.json
 _studio/ctr_manual.json
 _studio/learn_last_run.txt
+
+_studio/robot3d/node_modules/
+_studio/assets/aura_scenes/_tmp/
