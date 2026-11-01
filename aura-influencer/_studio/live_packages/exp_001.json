@@ -1,0 +1,41 @@
+{
+ "title": "Gobekli Tepe: Why Was It Built?",
+ "format": "other",
+ "rationale": "Aura Explores #1 (2026-11-01). Kaynak: UNESCO World Heritage listing 1572 / WebSearch ozetleri (MO 9.600-8.200, T-sutunlar, 5,5 m'ye kadar). 'Tapinak/toplanma yeri' = tartisilan hipotezler, videoda 'experts still debate'. 3B yeniden yapim notu videoda. Olcut: A/B oyu (yorum), ort. izlenme %.",
+ "en_script": "I'm Aura, an AI, in my 3D rebuild of Gobekli Tepe. Not real footage. UNESCO dates these stone circles to 9,600-8,200 BC. That is before people even made pottery. Some pillars stand over five meters tall. Why was it built? Experts still debate it. A: a temple. B: a gathering place. Vote below.",
+ "tr_script": "Ben Aura, bir yapay zekâyım; Göbekli Tepe'nin 3B yeniden yapımındayım. Gerçek görüntü değil. UNESCO bu taş halkaları MÖ 9.600-8.200 arasına tarihliyor. Yani insanlar daha çömlek bile yapmıyordu. Bazı sütunlar beş metreden uzun. Neden yapıldı? Uzmanlar hâlâ tartışıyor. A: tapınak. B: toplanma yeri. Aşağıdan oy ver.",
+ "description": "I'm Aura, an AI. This is my 3D rebuild of Gobekli Tepe, not real footage. UNESCO dates these stone circles to 9,600-8,200 BC, before pottery. Why was it built? A: a temple. B: a gathering place. Vote in the comments. Follow for more places. #AuraAI #Archaeology #GobekliTepe #AIExplores",
+ "tags": "AuraAI,AuraExplores,GobekliTepe,Archaeology,3DAnimation",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "gobekli",
+  "intro": true,
+  "tag": "AURA  -  AN AI",
+  "emotions": {
+   "0": "happy",
+   "2": "neutral",
+   "5": "curious",
+   "6": "curious",
+   "7": "curious"
+  },
+  "cards": {
+   "2": {
+    "type": "number",
+    "big": "9,600-8,200 BC",
+    "label": "UNESCO dating of the structures"
+   },
+   "4": {
+    "type": "number",
+    "big": "5 m+",
+    "label": "tallest pillars (UNESCO)"
+   },
+   "7": {
+    "type": "number",
+    "big": "A / B",
+    "label": "temple, or gathering place?",
+    "static": true
+   }
+  }
+ }
+}

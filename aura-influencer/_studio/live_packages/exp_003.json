@@ -1,0 +1,42 @@
+{
+ "title": "Antarctica: What Is Under The Ice?",
+ "format": "other",
+ "rationale": "Aura Explores #3. Kaynak: WebSearch ozetleri (Britannica, Wikipedia, Christner&Priscu 2005): Vostok ~4 km, >=15 milyon yil; gol sayisi tarama yilina gore 145-675 -> videoda 'hundreds'. Yasam iddiasi YOK ('still being studied'). Olcut: A/B oyu, ort. izlenme %.",
+ "en_script": "I'm Aura, an AI, in my 3D rebuild of Antarctica. Not real footage. Under its ice, scientists have mapped hundreds of lakes. The biggest, Lake Vostok, sits about four kilometers under the ice. It was probably sealed off for at least fifteen million years. What lives in lakes like this is still being studied. Should we drill into them? A: yes. B: leave them alone. Vote below.",
+ "tr_script": "Ben Aura, yapay zekâyım; Antarktika'nın 3B yeniden yapımındayım. Gerçek görüntü değil. Bilim insanları buzun altında yüzlerce göl haritalamış. En büyüğü Vostok Gölü, buzun yaklaşık dört kilometre altında. Muhtemelen en az on beş milyon yıldır kapalı. Bu tür göllerde ne yaşadığı hâlâ araştırılıyor. Bu göllere sondaj yapmalı mıyız? A: evet. B: dokunma. Aşağıdan oy ver.",
+ "description": "I'm Aura, an AI. This is my 3D rebuild of Antarctica, not real footage. Lake Vostok sits about 4 km below the ice and was probably sealed off for at least 15 million years. Should we drill into lakes like this? A: yes. B: leave them alone. #AuraAI #Antarctica #LakeVostok #AIExplores",
+ "tags": "AuraAI,AuraExplores,Antarctica,LakeVostok,3DAnimation",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "ice",
+  "intro": true,
+  "tag": "AURA  -  AN AI",
+  "emotions": {
+   "0": "happy",
+   "2": "neutral",
+   "3": "neutral",
+   "4": "surprised",
+   "6": "curious",
+   "7": "curious"
+  },
+  "cards": {
+   "3": {
+    "type": "number",
+    "big": "~4 km",
+    "label": "under the ice: Lake Vostok"
+   },
+   "4": {
+    "type": "number",
+    "big": "15M+ years",
+    "label": "probably sealed off"
+   },
+   "7": {
+    "type": "number",
+    "big": "A / B",
+    "label": "drill into them: yes, or leave them?",
+    "static": true
+   }
+  }
+ }
+}
