@@ -396,6 +396,30 @@ const SETS = {
     const pts = points(260, [14, 6, 22, -6], 0.04, 0xc8f4ff, 81, 0.7); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
     rimL.color.set(0x6eeeff); rimR.color.set(0xa8e6ff); keyLight.color.set(0xd8f2ff);
   },
+  cern() {
+    scene.background = new THREE.Color(0x05080e); scene.fog = new THREE.Fog(0x0a121c, 6, 46);
+    const g = setObj, r = rng(404);
+    g.add(addFloor(0x4a525c, 0.96));
+    const wallTex = cvTex(256, 256, (c, w, h) => { c.fillStyle = '#3a4048'; c.fillRect(0, 0, w, h); for (let i = 0; i < 1800; i++) { const v = 70 + r() * 60 | 0; c.fillStyle = `rgba(${v},${v + 4},${v + 10},0.22)`; c.fillRect(r() * w, r() * h, 2 + r() * 7, 1 + r() * 3); } });
+    wallTex.repeat.set(6, 3);
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 70, 40, 1, true), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, metalness: 0.05, side: THREE.BackSide, emissive: 0x4a5a70, emissiveIntensity: 1.0 })); tube.rotation.x = M.PI / 2; tube.position.set(0, 1.5, -26); g.add(tube);
+    const blue = new THREE.MeshStandardMaterial({ color: 0x1f4fb0, roughness: 0.35, metalness: 0.6 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.3, metalness: 0.85 });
+    for (let k = 0; k < 8; k++) {
+      const z = -4 - k * 5.4;
+      const mag = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 4.6, 28), blue); mag.rotation.x = M.PI / 2; mag.position.set(-2.1, 0.78, z); mag.castShadow = true; g.add(mag);
+      for (const dz of [-2.4, 2.4]) { const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.18, 28), steel); ring.rotation.x = M.PI / 2; ring.position.set(-2.1, 0.78, z + dz); g.add(ring); }
+      for (const dz of [-1.6, 1.6]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.4), steel); leg.position.set(-2.1, 0.25, z + dz); g.add(leg); }
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.16), gmat(0xdff2ff, 2.0)); lamp.position.set(0, 4.7, z - 2.4); g.add(lamp);
+    }
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 66), new THREE.MeshStandardMaterial({ color: 0x6a7480, roughness: 0.5, metalness: 0.7 })); tray.position.set(2.6, 3.1, -30); g.add(tray);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 66), gmat(0xffb030, 1.8)); stripe.position.set(2.1, 0.03, -30); g.add(stripe);
+    const warn = []; for (let i = 0; i < 5; i++) { const w2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), gmat(0xff3a3a, 2.4)); w2.position.set(3.0, 2.6, -8 - i * 9); g.add(w2); warn.push(w2); }
+    setUpd.push(t => warn.forEach((w2, i) => { w2.visible = ((t / T_LOOP * 2 + i * 0.4) % 1) < 0.5; }));
+    const end = new THREE.Mesh(new THREE.CircleGeometry(3.2, 40), addMat(0x9ad0ff, 0.22, { fog: false })); end.position.set(0, 1.6, -58); g.add(end);
+    const pts = points(140, [6, 4, 20, -8], 0.03, 0xcfe8ff, 91, 0.5); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
+    rimL.color.set(0x6ea8ff); rimR.color.set(0xa8e6ff); keyLight.color.set(0xeaf4ff);
+  },
 };
 
 function init3d(w, h) {
