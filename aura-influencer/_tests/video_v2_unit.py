@@ -60,6 +60,39 @@ v2.make_video_v2(wavr, outr, "I got a body. Which look do you like?", {"face": "
 prr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", outr], capture_output=True, text=True)
 ck("robot render: 1080x1920", prr.stdout.strip() == "1080x1920", prr.stdout)
 
+
+# 2d) 3B sahne (scene3d): plan mantigi, homografi, yuz izgara yerlestirme; klipler hazirsa uctan uca render
+import scene3d
+tl_t = [("a", 0.0, 3.0), ("b", 3.0, 3.0), ("c", 6.0, 3.0), ("d", 9.0, 3.0), ("e", 12.0, 3.0), ("f", 15.0, 3.0)]
+nf_t = 18 * 30
+pl = scene3d.build_plan(nf_t, tl_t, {3: {"type": "number"}}, ["happy", "neutral", "sad", "neutral", "neutral", "neutral"], {"intro": True})
+ck("plan: her kare icin bir (klip, no)", len(pl) == nf_t and all(c in scene3d.CLIP_N and 0 <= k < scene3d.CLIP_N[c] for c, k in pl))
+ck("plan: intro ile basliyor", pl[0] == ("intro", 0) and pl[137][0] == "intro")
+ck("plan: kart onunde to_C, kartta idle_C/point_C, sonra to_M", pl[9 * 30 - 5][0] == "to_C" and pl[9 * 30 + 20][0] in ("idle_C", "point_C") and any(c == "to_M" for c, _ in pl[12 * 30 - 25:12 * 30]))
+ck("plan: jest (sad -> shrug_M)", any(c == "shrug_M" for c, _ in pl))
+pl2 = scene3d.build_plan(nf_t, tl_t, {1: {"type": "number"}}, ["neutral"] * 6, {"intro": True})
+ck("plan: kart erken ise intro atlanir", pl2[0][0] != "intro")
+co = scene3d._homography([(0, 0), (100, 0), (100, 80), (0, 80)], [(10, 10), (60, 10), (60, 50), (10, 50)])
+x0, y0 = 100, 80
+den = co[6] * x0 + co[7] * y0 + 1
+ck("homografi: kose eslesmesi", abs((co[0] * x0 + co[1] * y0 + co[2]) / den - 60) < 1e-6 and abs((co[3] * x0 + co[4] * y0 + co[5]) / den - 50) < 1e-6)
+from PIL import Image as _I
+N_ = 5
+tex_ = _I.new("RGBA", (scene3d.TW, scene3d.TH), (255, 255, 255, 255))
+pts_ = [[200 + i * 20, 300 + j * 18] for j in range(N_ + 1) for i in range(N_ + 1)]
+fr_ = np.zeros((600, 600, 3), np.uint8)
+mk_ = np.full((600, 600), 255, np.uint8)
+out_ = scene3d.draw_face(fr_, mk_, pts_, [1.0] * ((N_ + 1) ** 2), tex_, N_)
+ck("yuz izgarasi: vizor bolgesine isik basilir", out_[300:390, 200:300].mean() > 100 and out_[0:100, 0:100].max() == 0, out_[300:390, 200:300].mean())
+if scene3d.set_complete("studio"):
+    outs = os.path.join(work, "s3d.mp4"); wavs = os.path.join(work, "s3d.wav")
+    v2._synth_demo_audio(wavs, sents_n=3, dur=8.0)
+    v2.make_video_v2(wavs, outs, "I walk in. Here is a number. Then I shrug.", {"face": "scene3d", "set": "studio", "cards": {"1": {"type": "number", "big": "7", "label": "x", "static": True}}}, work_dir=work, workers=2)
+    prs = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", outs], capture_output=True, text=True)
+    ck("scene3d render: 1080x1920", prs.stdout.strip() == "1080x1920", prs.stdout)
+else:
+    ck("scene3d klipleri yok -> uctan uca atlandi (robot'a dusme)", True)
+
 # 3) coklu islemci yolu (en az 120 kare gerekir): 5 sn
 wav2 = os.path.join(work, "b.wav"); out2 = os.path.join(work, "o2.mp4")
 v2._synth_demo_audio(wav2, sents_n=2, dur=5.0)

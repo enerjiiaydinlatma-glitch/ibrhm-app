@@ -27,6 +27,7 @@ import sys
 import wave
 
 import numpy as np
+import scene3d
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 W, H = 1080, 1920
@@ -125,15 +126,22 @@ def _timeline(sents, dur, env100):
 
 
 def _sfx_track(n_samples, events):
-    """events: [(t, 'pop'|'whoosh')] -> hafif efekt kanali (mono float)."""
+    """events: [(t, 'pop'|'whoosh'|'thud'[, kazanc])] -> hafif efekt kanali (mono float)."""
     out = np.zeros(n_samples, dtype=np.float32)
     rng = np.random.default_rng(7)
-    for t, kind in events:
+    for ev in events:
+        t, kind = ev[0], ev[1]
+        gain = ev[2] if len(ev) > 2 else 1.0
         i0 = int(t * SR)
         if kind == "pop":
             n = int(0.12 * SR)
             tt = np.arange(n) / SR
             s = np.sin(2 * np.pi * 520 * tt) * np.exp(-tt * 38) * 0.10
+        elif kind == "thud":                                     # ayak sesi: alcak vurus + kisa tik
+            n = int(0.22 * SR)
+            tt = np.arange(n) / SR
+            s = (np.sin(2 * np.pi * (95 - 40 * tt) * tt) * np.exp(-tt * 22) * 0.9
+                 + rng.standard_normal(n).astype(np.float32) * np.exp(-tt * 140) * 0.25)
         else:
             n = int(0.38 * SR)
             tt = np.arange(n) / SR
@@ -142,10 +150,50 @@ def _sfx_track(n_samples, events):
             noise = np.convolve(noise, k, mode="same")
             env = np.sin(np.pi * np.clip(tt / 0.38, 0, 1)) ** 2
             s = noise * env * 0.22
+        s = s * gain
         i1 = min(i0 + len(s), n_samples)
         if i1 > i0:
             out[i0:i1] += s[: i1 - i0]
     return out
+
+
+def _music_track(n_samples, seed=3, level=0.035):
+    """Kendi uretimimiz ambient muzik yatagi (telifsiz): yavas pad (a-minor) + seyrek pluck notalari."""
+    rng = np.random.default_rng(seed)
+    t = np.arange(n_samples) / SR
+    out = np.zeros(n_samples, dtype=np.float32)
+    for f, a in ((110.0, 1.0), (164.81, 0.7), (220.0, 0.6), (261.63, 0.45), (329.63, 0.4)):
+        for det in (-0.6, 0.0, 0.7):
+            out += (a * 0.2 * np.sin(2 * np.pi * (f + det) * t + rng.uniform(0, 6.28))).astype(np.float32)
+    out *= (0.75 + 0.25 * np.sin(2 * np.pi * 0.11 * t)).astype(np.float32)
+    scale = [220.0, 261.63, 293.66, 329.63, 392.0, 440.0, 523.25]
+    step = 0.5
+    for k in range(int(n_samples / SR / step)):
+        if rng.random() < 0.55:
+            f = float(rng.choice(scale)) * (2.0 if rng.random() < 0.3 else 1.0)
+            i0 = int(k * step * SR)
+            nn = int(0.6 * SR)
+            tt = np.arange(nn) / SR
+            p = (np.sin(2 * np.pi * f * tt) + 0.3 * np.sin(2 * np.pi * 2 * f * tt)) * np.exp(-tt * 6.0) * 0.12
+            i1 = min(i0 + nn, n_samples)
+            if i1 > i0:
+                out[i0:i1] += p[: i1 - i0].astype(np.float32)
+    fade = np.minimum(1.0, np.minimum(t / 0.8, (n_samples / SR - t) / 0.8)).astype(np.float32)
+    return out * fade * level
+
+
+def _walk_step_times():
+    """scene3d intro: ayak temas anlari (JS walkState ile ayni model: v = 1.78 (1-(t/3)^3), faz = 2pi*v/1.24)."""
+    vmax, tw = 1.78, 3.0
+    ts, ph, t, dt, nxt = [], 0.0, 0.0, 1 / 480.0, np.pi
+    while t < tw:
+        v = vmax * (1 - (t / tw) ** 3)
+        ph += 2 * np.pi * v / 1.24 * dt
+        t += dt
+        if ph >= nxt:
+            ts.append(t)
+            nxt += np.pi
+    return ts
 
 
 def _write_wav(path, x):
@@ -744,7 +792,13 @@ class _State:
         self.card_t1 = {i: self.tl[i][1] + self.tl[i][2] for i in self.cards if i < len(self.tl)}
         self.emos = ctx["emos"]
         self.face = ctx.get("face", "led")
-        self.bg = _make_bg_stage() if self.face in ("bot", "robot") else _make_bg()
+        if self.face == "scene3d":
+            self.bg = None
+            sp = ctx.get("spec3d") or {}
+            self.s3_clips = scene3d.Clips(sp.get("set", "studio"))
+            self.s3_plan = scene3d.build_plan(ctx["nf"], self.tl, self.cards, self.emos, sp)
+        else:
+            self.bg = _make_bg_stage() if self.face in ("bot", "robot") else _make_bg()
         self.halo_mask = _radial_mask(1000).point(lambda v: int(v * 0.55))
         self.halo_cache = {}
         self.parts = [tuple(p) for p in ctx["parts"]]
@@ -761,12 +815,13 @@ def _scaled(col, f):
 def _render_one(st, fi):
     t = fi / FPS
     amp = float(st.env[min(fi, len(st.env) - 1)])
-    frame = st.bg.copy()
+    frame = st.bg.copy() if st.bg is not None else None
 
-    for (px, py, sp, sz, ph) in st.parts:
-        y = (py - sp * t) % H
-        a = 0.30 + 0.35 * amp + 0.15 * math.sin(t * 1.5 + ph)
-        frame.paste(_scaled(ACCENT, a), (int(px - sz * 2), int(y - sz * 2)), st.sprites[sz])
+    if frame is not None:
+        for (px, py, sp, sz, ph) in st.parts:
+            y = (py - sp * t) % H
+            a = 0.30 + 0.35 * amp + 0.15 * math.sin(t * 1.5 + ph)
+            frame.paste(_scaled(ACCENT, a), (int(px - sz * 2), int(y - sz * 2)), st.sprites[sz])
 
     tl = st.tl
     si = 0
@@ -791,7 +846,14 @@ def _render_one(st, fi):
     kk = _ease_out((t - s_t0) / 0.25)
     ep = {key: prev[key] + (cur[key] - prev[key]) * kk for key in cur}
     bob = 16 * math.sin(t * 1.6) + nod * 2
-    if st.face == "robot":
+    if st.face == "scene3d":
+        clip, cidx = st.s3_plan[fi]
+        rgb, vmask, meta = st.s3_clips.frame(clip, cidx)
+        base = rgb.copy()
+        ftex = _draw_face_led(t, amp, blink, ep, t - s_t0, 0, plate=False).crop((70, 125, 730, 675)).resize((scene3d.TW, scene3d.TH), Image.BOX)
+        base = scene3d.draw_face(base, vmask, meta["grid"][cidx], meta["vis"][cidx], ftex, scene3d.FACE["N"])
+        frame = Image.fromarray(scene3d.shade(base), "RGB")
+    elif st.face == "robot":
         eq = _draw_eq(t, amp)
         frame.paste(eq, (0, 190), eq)
         pose_name = st.poses.get(si) or ("p1" if st.emos[si] in ("happy", "surprised") else "p0")
@@ -839,6 +901,11 @@ def _render_one(st, fi):
         frame.paste(avs, (W // 2 - avs.width // 2, cy - avs.height // 2), avs)
 
     if card_i is not None and card_p > 0.02:
+        if st.face == "scene3d":                      # 3B sahne uzerinde okunurluk: koyu cam panel
+            back = Image.new("RGBA", (W, 650), (0, 0, 0, 0))
+            ImageDraw.Draw(back).rounded_rectangle([46, 6, W - 46, 640], radius=46, fill=(6, 4, 16, int(150 * card_p)),
+                                                   outline=ACCENT + (int(120 * card_p),), width=3)
+            frame.paste(back, (0, 692), back)
         lay = _draw_card(st.cards[card_i], card_local, card_p)
         frame.paste(lay, (0, 700 + int((1 - card_p) * 50)), lay)
 
@@ -895,11 +962,23 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
     emos = [spec_emos.get(i) or _auto_emotion(s, i) for i, (s, _, _) in enumerate(tl)]
     cards_spec = {int(k): v for k, v in (spec.get("cards") or {}).items()}
 
+    face = spec.get("face", "led")
+    set3d = spec.get("set", "studio")
+    if face == "scene3d" and not scene3d.set_complete(set3d):
+        print(f"[!] 3B sahne '{set3d}' eksik (assets/aura_scenes); 'robot' sprite yuzune dusuluyor", file=sys.stderr)
+        face = "robot"
+    n_cards_t = {i: tl[i][1] for i in cards_spec if i < len(tl)}
     events = [(0.02, "pop")]
     for i, (_, t0, _) in enumerate(tl):
         if i in cards_spec:
             events.append((max(t0 - 0.05, 0), "whoosh"))
+    plan3 = scene3d.build_plan(n_frames, tl, {i: 1 for i in cards_spec}, emos, spec) if face == "scene3d" else None
+    if plan3 and plan3[0][0] == "intro":                       # sahneye yuruyus: ayak sesleri (robota yaklastikca guclenir)
+        for k, ts_ in enumerate(_walk_step_times()):
+            events.append((ts_, "thud", 0.35 + 0.65 * min(ts_ / 3.0, 1.0)))
     final_audio = x + _sfx_track(len(x), events) if sfx else x
+    if sfx and face == "scene3d" and spec.get("music", True):
+        final_audio = final_audio + _music_track(len(x))
     wav_path = os.path.join(work, "_v2_mix.wav")
     _write_wav(wav_path, final_audio)
 
@@ -908,7 +987,8 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
               int(rng.choice([6, 10, 16])), float(rng.uniform(0, 6.28))] for _ in range(26)]
     ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
-           "emos": emos, "parts": parts, "face": spec.get("face", "led"),
+           "emos": emos, "parts": parts, "face": face, "nf": n_frames,
+           "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True)},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
 
     workers = workers or min(os.cpu_count() or 1, 6)
