@@ -1,2 +1,0 @@
-file '/home/user/ibrhm-app/aura-influencer/_vt_work/_v2_seg0.mp4'
-file '/home/user/ibrhm-app/aura-influencer/_vt_work/_v2_seg1.mp4'
