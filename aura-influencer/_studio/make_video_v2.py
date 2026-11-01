@@ -394,6 +394,166 @@ def _draw_avatar(t, amp, blink, ep, age, bob, style="led"):
     return _draw_face_led(t, amp, blink, ep, age, bob)
 
 
+# ---------------------------------------------------------------- Aura Bot: govdeli karakter + kendi sahnemiz (face="bot")
+# Havada suzulen robot: metal kafa (icinde LED ekran yuz), ince boyun, "A" gogus amblemi, kenetsiz suzulen eller,
+# altta isik yayici + zemin halkalari. Arka planda kendi stüdyomuz: spot isiklar, zemin izgarasi, ses esitleyici duvari.
+FW, FH = 900, 1000
+STEEL_TOP = (84, 74, 124)
+STEEL_BOT = (22, 16, 42)
+_BOT_CACHE = {}
+
+
+def _grad_fill(size, top, bot):
+    arr = np.linspace(0, 1, size[1], dtype=np.float32)[:, None, None]
+    t = np.array(top, np.float32)[None, None, :]
+    b = np.array(bot, np.float32)[None, None, :]
+    img = np.repeat(t + (b - t) * arr, size[0], axis=1)
+    return Image.fromarray(img.astype(np.uint8), "RGB")
+
+
+def _torso_hw(y, y0=548, y1=905, w=262, r=70):
+    t = y - y0
+    span = y1 - y0
+    if t < 0 or t > span:
+        return 0.0
+    u = t / span
+    hw = 90 + (w - 90) * (1 - u ** 1.9) ** 0.55
+    if t < r:
+        hw -= r - math.sqrt(max(r * r - (r - t) ** 2, 0))
+    return max(hw, 0.0)
+
+
+def _bot_static():
+    """Sabit parcalar (kafa kabugu, boyun, govde, dikisler): bir kez 2x cizilir, kucultulup onbellege alinir."""
+    if "s" in _BOT_CACHE:
+        return _BOT_CACHE["s"]
+    S = 2
+    big = (FW * S, FH * S)
+    im = Image.new("RGBA", big, (0, 0, 0, 0))
+    grad = _grad_fill(big, STEEL_TOP, STEEL_BOT).convert("RGBA")
+
+    def sc(pts):
+        return [(int(x * S), int(y * S)) for x, y in pts]
+
+    # govde
+    outline = [(450 - _torso_hw(y), y) for y in range(548, 906, 3)] + [(450 + _torso_hw(y), y) for y in range(905, 547, -3)]
+    m = Image.new("L", big, 0)
+    ImageDraw.Draw(m).polygon(sc(outline), fill=255)
+    im.paste(grad, (0, 0), m)
+    d = ImageDraw.Draw(im)
+    d.line(sc(outline + [outline[0]]), fill=ACCENT + (255,), width=5 * S, joint="curve")
+    seam = (150, 120, 235, 120)
+    d.line(sc([(450, 590), (450, 645)]), fill=seam, width=4 * S)
+    d.line(sc([(450, 785), (450, 880)]), fill=seam, width=4 * S)
+    for sg in (-1, 1):
+        d.line(sc([(450 + sg * 175, 610), (450 + sg * 118, 870)]), fill=seam, width=4 * S)
+    hw = _torso_hw(640)
+    d.line(sc([(450 - hw + 20, 640), (450 + hw - 20, 640)]), fill=(150, 120, 235, 90), width=3 * S)
+    # boyun
+    d.rounded_rectangle([int(390 * S), int(500 * S), int(510 * S), int(566 * S)], radius=18 * S, fill=(30, 24, 56, 255),
+                        outline=(120, 95, 200, 255), width=3 * S)
+    for yy in (518, 534, 550):
+        d.line(sc([(398, yy), (502, yy)]), fill=(90, 70, 150, 200), width=2 * S)
+    # kulaklar
+    for sg in (-1, 1):
+        cx = 450 + sg * 262
+        d.rounded_rectangle([int((cx - 30) * S), int(235 * S), int((cx + 30) * S), int(365 * S)], radius=28 * S,
+                            fill=(40, 32, 72, 255), outline=(110, 220, 255, 255), width=4 * S)
+    # kafa kabugu
+    hm = Image.new("L", big, 0)
+    ImageDraw.Draw(hm).rounded_rectangle([int(200 * S), int(80 * S), int(700 * S), int(520 * S)], radius=135 * S, fill=255)
+    im.paste(grad, (0, 0), hm)
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([int(200 * S), int(80 * S), int(700 * S), int(520 * S)], radius=135 * S, outline=ACCENT + (255,), width=6 * S)
+    d.rounded_rectangle([int(222 * S), int(102 * S), int(678 * S), int(498 * S)], radius=115 * S, fill=(12, 8, 26, 255))
+    shine = Image.new("RGBA", big, (0, 0, 0, 0))
+    ImageDraw.Draw(shine).polygon(sc([(290, 92), (470, 92), (232, 250), (214, 200)]), fill=(255, 255, 255, 34))
+    im.alpha_composite(shine)
+    d = ImageDraw.Draw(im)
+    # anten
+    d.line(sc([(450, 82), (450, 44)]), fill=(150, 130, 210, 255), width=9 * S)
+    out = im.resize((FW, FH), Image.LANCZOS)
+    _BOT_CACHE["s"] = out
+    return out
+
+
+def _draw_bot(t, amp, blink, ep, age, bob):
+    base = _bot_static().copy()
+    bd = ImageDraw.Draw(base)
+    neon = Image.new("RGBA", (FW, FH), (0, 0, 0, 0))
+    nd = ImageDraw.Draw(neon)
+    pulse = 0.55 + 0.45 * amp
+    # zemin halkalari + isik huzmesi + yayici
+    for rx, ry, a in ((330, 40, 80), (240, 28, 120), (150, 18, 170)):
+        nd.ellipse([450 - rx, 968 - ry, 450 + rx, 968 + ry], outline=ACCENT + (int(a * pulse),), width=5)
+    nd.polygon([(380, 910), (520, 910), (650, 962), (250, 962)], fill=ACCENT + (int(42 * pulse),))
+    nd.ellipse([360, 890, 540, 926], fill=(205, 170, 255, int(150 + 100 * amp)))
+    # gogus amblemi
+    nd.ellipse([388, 653, 512, 777], outline=(110, 238, 255, int(190 + 60 * amp)), width=6)
+    ef = _font(86)
+    nd.text((450 - ef.getlength("A") / 2, 668), "A", font=ef, fill=(246, 244, 252, int(200 + 55 * amp)))
+    # anten topu
+    ar = 13 + int(6 * amp)
+    nd.ellipse([450 - ar, 40 - ar, 450 + ar, 40 + ar], fill=HILITE + (int(170 + 85 * amp),))
+    # suzulen eller + enerji bagi
+    raise_ = 30 * amp + 70 * ep["happy"]
+    for sg in (-1, 1):
+        hx = 450 + sg * 345 + 10 * math.sin(t * 1.3 + sg)
+        hy = 700 + 16 * math.sin(t * 1.7 + sg * 1.4) - raise_
+        nd.line([(450 + sg * 246, 612), (hx, hy)], fill=(110, 238, 255, 150), width=4)
+        bd.ellipse([hx - 56, hy - 56, hx + 56, hy + 56], fill=(46, 38, 82, 255))
+        bd.ellipse([hx - sg * 40 - 22, hy + 26 - 22, hx - sg * 40 + 22, hy + 26 + 22], fill=(46, 38, 82, 255))
+        nd.ellipse([hx - 56, hy - 56, hx + 56, hy + 56], outline=ACCENT + (255,), width=5)
+        nd.ellipse([hx - sg * 40 - 22, hy + 26 - 22, hx - sg * 40 + 22, hy + 26 + 22], outline=ACCENT + (255,), width=4)
+    small = neon.resize((FW // 4, FH // 4), Image.BILINEAR).filter(ImageFilter.GaussianBlur(4))
+    glow = small.resize((FW, FH), Image.BILINEAR)
+    gain = 1.1 + 0.8 * amp
+    glow.putalpha(glow.getchannel("A").point(lambda v: min(255, int(v * gain))))
+    base.alpha_composite(glow)
+    base.alpha_composite(neon)
+    face = _draw_face_led(t, amp, blink, ep, age, bob * 0.4).resize((500, 500), Image.BILINEAR)
+    base.alpha_composite(face, (200, 50))
+    return base
+
+
+def _draw_eq(t, amp):
+    """Arka plandaki ses esitleyici duvari (sesle birlikte dalgalanir, cok silik)."""
+    lay = Image.new("RGBA", (W, 900), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    n, bw = 21, 34
+    gap = (W - n * bw) / (n + 1)
+    for i in range(n):
+        ph = abs(math.sin(t * 2.6 + i * 0.9)) * 0.6 + abs(math.sin(t * 1.3 + i * 0.37)) * 0.4
+        h = 40 + (150 + 520 * amp) * ph
+        x = gap + i * (bw + gap)
+        d.rounded_rectangle([x, 450 - h / 2, x + bw, 450 + h / 2], radius=14, fill=ACCENT + (46,))
+    return lay
+
+
+def _make_bg_stage():
+    """Kendi sahnemiz: koyu stüdyo, iki spot isik, ufuk parlamasi, perspektifli zemin izgarasi."""
+    img = _make_bg().convert("RGBA")
+    horizon = 1190
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    d.rectangle([0, horizon, W, H], fill=(8, 5, 18, 235))                      # zemin
+    for k in range(-12, 13):                                                    # perspektif dikeyleri
+        d.line([(W / 2 + k * 40, horizon), (W / 2 + k * 190, H)], fill=ACCENT + (58,), width=2)
+    for j in range(1, 10):                                                      # yataylar
+        y = horizon + (j / 9.0) ** 1.7 * (H - horizon)
+        d.line([(0, y), (W, y)], fill=ACCENT + (46,), width=2)
+    for y, a in ((horizon, 130), (horizon - 6, 70), (horizon + 6, 70)):         # ufuk cizgisi
+        d.line([(0, y), (W, y)], fill=(170, 130, 255, a), width=3)
+    spots = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(spots)
+    sd.polygon([(-40, -20), (160, -20), (640, horizon), (300, horizon)], fill=(190, 160, 255, 26))
+    sd.polygon([(W - 160, -20), (W + 40, -20), (W - 300, horizon), (W - 640, horizon)], fill=(190, 160, 255, 26))
+    spots = spots.filter(ImageFilter.GaussianBlur(26))
+    img.alpha_composite(spots)
+    img.alpha_composite(lay)
+    return img.convert("RGB")
+
+
 def _wrap(words, font, maxw):
     lines, cur = [], []
     for w in words:
@@ -508,7 +668,7 @@ class _State:
         self.card_t1 = {i: self.tl[i][1] + self.tl[i][2] for i in self.cards if i < len(self.tl)}
         self.emos = ctx["emos"]
         self.face = ctx.get("face", "led")
-        self.bg = _make_bg()
+        self.bg = _make_bg_stage() if self.face == "bot" else _make_bg()
         self.halo_mask = _radial_mask(1000).point(lambda v: int(v * 0.55))
         self.halo_cache = {}
         self.parts = [tuple(p) for p in ctx["parts"]]
@@ -554,17 +714,32 @@ def _render_one(st, fi):
     kk = _ease_out((t - s_t0) / 0.25)
     ep = {key: prev[key] + (cur[key] - prev[key]) * kk for key in cur}
     bob = 16 * math.sin(t * 1.6) + nod * 2
-    av = _draw_avatar(t, amp, blink, ep, t - s_t0, bob, st.face)
-    sc = 1.0 - 0.36 * card_p
-    cy = 650 - int(270 * card_p)
-    avs = av.resize((int(800 * sc), int(800 * sc)), Image.BILINEAR)
-    hs = int(1250 * sc)
-    hm = st.halo_cache.get(hs)
-    if hm is None:
-        hm = st.halo_mask.resize((hs, hs))
-        st.halo_cache[hs] = hm
-    frame.paste(_scaled(ACCENT, 0.45 + 0.55 * amp), (W // 2 - hs // 2, cy - hs // 2), hm)
-    frame.paste(avs, (W // 2 - avs.width // 2, cy - avs.height // 2), avs)
+    if st.face == "bot":
+        eq = _draw_eq(t, amp)
+        frame.paste(eq, (0, 190), eq)
+        sc = 1.0 - 0.44 * card_p
+        bw, bh = int(FW * sc), int(FH * sc)
+        top = int(215 - 55 * card_p + bob * 0.8 * sc)
+        bs = _draw_bot(t, amp, blink, ep, t - s_t0, bob).resize((bw, bh), Image.BILINEAR)
+        hs = int(1250 * sc)
+        hm = st.halo_cache.get(hs)
+        if hm is None:
+            hm = st.halo_mask.resize((hs, hs))
+            st.halo_cache[hs] = hm
+        frame.paste(_scaled(ACCENT, 0.35 + 0.45 * amp), (W // 2 - hs // 2, top + int(bh * 0.36) - hs // 2), hm)
+        frame.paste(bs, (W // 2 - bw // 2, top), bs)
+    else:
+        av = _draw_avatar(t, amp, blink, ep, t - s_t0, bob, st.face)
+        sc = 1.0 - 0.36 * card_p
+        cy = 650 - int(270 * card_p)
+        avs = av.resize((int(800 * sc), int(800 * sc)), Image.BILINEAR)
+        hs = int(1250 * sc)
+        hm = st.halo_cache.get(hs)
+        if hm is None:
+            hm = st.halo_mask.resize((hs, hs))
+            st.halo_cache[hs] = hm
+        frame.paste(_scaled(ACCENT, 0.45 + 0.55 * amp), (W // 2 - hs // 2, cy - hs // 2), hm)
+        frame.paste(avs, (W // 2 - avs.width // 2, cy - avs.height // 2), avs)
 
     if card_i is not None and card_p > 0.02:
         lay = _draw_card(st.cards[card_i], card_local, card_p)
@@ -724,7 +899,10 @@ if __name__ == "__main__":
         out = args[1]
         wav = out + ".demo.wav"
         _synth_demo_audio(wav, sents_n=len(_sentences(DEMO_SCRIPT)))
-        make_video_v2(wav, out, DEMO_SCRIPT, DEMO_SPEC, sfx=True)
+        spec = dict(DEMO_SPEC)
+        if "--face" in args:
+            spec["face"] = args[args.index("--face") + 1]
+        make_video_v2(wav, out, DEMO_SCRIPT, spec, sfx=True)
         os.remove(wav)
         print("OK ->", out)
     else:

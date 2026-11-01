@@ -36,6 +36,17 @@ ck("v2 render: 1080x1920", pr.stdout.strip() == "1080x1920", pr.stdout)
 ck("v2 render: sure ~4 sn", 3.8 <= dur <= 4.3, dur)
 ck("v2 render: ses akisi var", "audio" in subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", out], capture_output=True, text=True).stdout)
 
+
+# 2b) govdeli karakter (face="bot"): sabit parca onbellegi, boyut, kare uretimi
+bs = v2._draw_bot(1.0, 0.5, 1.0, dict(v2.EMO["happy"]), 0.5, 4.0)
+ck("bot: 900x1000 RGBA", bs.size == (v2.FW, v2.FH) and bs.mode == "RGBA", bs.size)
+ck("bot: kafa/govde dolu (alfa>0 piksel var)", bs.getchannel("A").getbbox() is not None)
+wavb = os.path.join(work, "bot.wav"); outb = os.path.join(work, "bot.mp4")
+v2._synth_demo_audio(wavb, sents_n=2, dur=3.0)
+v2.make_video_v2(wavb, outb, "I got a body. Which look do you like?", {"face": "bot", "cards": {"1": {"type": "number", "big": "A", "label": "x", "static": True}}}, work_dir=work, workers=1)
+prb = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", outb], capture_output=True, text=True)
+ck("bot render: 1080x1920", prb.stdout.strip() == "1080x1920", prb.stdout)
+
 # 3) coklu islemci yolu (en az 120 kare gerekir): 5 sn
 wav2 = os.path.join(work, "b.wav"); out2 = os.path.join(work, "o2.mp4")
 v2._synth_demo_audio(wav2, sents_n=2, dur=5.0)
