@@ -99,7 +99,7 @@ class _Pipe:
         fmt = "gray" if gray else "rgb24"
         self.size = w * h * (1 if gray else 3)
         self.gray = gray
-        cmd = ["ffmpeg", "-v", "error", "-ss", f"{start / 30.0:.4f}", "-i", path, "-f", "rawvideo", "-pix_fmt", fmt, "-"]
+        cmd = ["ffmpeg", "-v", "error", "-ss", f"{max(start - 0.5, 0) / 30.0:.4f}", "-i", path, "-f", "rawvideo", "-pix_fmt", fmt, "-"]
         self.p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=self.size * 2)
 
     def read(self):
