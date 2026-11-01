@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.join(os.getcwd(), "_studio"))
 res = []
 def ck(n, ok, d=""): res.append((n, bool(ok), str(d)[:200]))
 import growth
+import numpy as np
 import make_video_v2 as v2
 
 # 1) hazir paketler: gecerli, preflight temiz, kart indeksleri cumle sayisinda
@@ -46,6 +47,18 @@ v2._synth_demo_audio(wavb, sents_n=2, dur=3.0)
 v2.make_video_v2(wavb, outb, "I got a body. Which look do you like?", {"face": "bot", "cards": {"1": {"type": "number", "big": "A", "label": "x", "static": True}}}, work_dir=work, workers=1)
 prb = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", outb], capture_output=True, text=True)
 ck("bot render: 1080x1920", prb.stdout.strip() == "1080x1920", prb.stdout)
+
+
+# 2c) 3B insansi robot (face="robot"): sprite varliklari, vizor yuz haritasi, kare uretimi
+rb = v2._draw_robot(1.0, 0.5, 1.0, dict(v2.EMO["happy"]), 0.5, 0, (1.0, 0.0, 0.0))
+ck("robot: sprite 1080x1190 RGBA", rb.size == (1080, 1190) and rb.mode == "RGBA", rb.size)
+ck("robot: vizor haritasi bos degil", v2._ROBOT["p0"]["mask"].sum() > 5000, v2._ROBOT["p0"]["mask"].sum())
+ck("robot: yuz vizore basildi (govde+yuz farkli)", np.asarray(rb.convert("RGB")).astype(int).sum() != np.asarray(v2._ROBOT["p0"]["base"].convert("RGB")).astype(int).sum())
+wavr = os.path.join(work, "robot.wav"); outr = os.path.join(work, "robot.mp4")
+v2._synth_demo_audio(wavr, sents_n=2, dur=3.0)
+v2.make_video_v2(wavr, outr, "I got a body. Which look do you like?", {"face": "robot", "poses": {"0": "p1"}, "cards": {"1": {"type": "number", "big": "A", "label": "x", "static": True}}}, work_dir=work, workers=1)
+prr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", outr], capture_output=True, text=True)
+ck("robot render: 1080x1920", prr.stdout.strip() == "1080x1920", prr.stdout)
 
 # 3) coklu islemci yolu (en az 120 kare gerekir): 5 sn
 wav2 = os.path.join(work, "b.wav"); out2 = os.path.join(work, "o2.mp4")

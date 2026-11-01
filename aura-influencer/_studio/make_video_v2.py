@@ -300,7 +300,7 @@ def _draw_face_visor(t, amp, blink, ep, age, bob):
     return out
 
 
-def _draw_face_led(t, amp, blink, ep, age, bob):
+def _draw_face_led(t, amp, blink, ep, age, bob, plate=True):
     """800x800 RGBA: LED nokta matrisli ekran yuzu (mobilde en okunur; secilen yuz, 2026-10-23)."""
     S2 = 1600
     c = S2 // 2
@@ -309,9 +309,10 @@ def _draw_face_led(t, amp, blink, ep, age, bob):
     d = ImageDraw.Draw(base)
     sw, sh = 1280, 1060
     box = [c - sw // 2, cy - sh // 2, c + sw // 2, cy + sh // 2]
-    d.rounded_rectangle(box, radius=210, fill=(10, 6, 22, 255))
-    d.polygon([(box[0] + 170, box[1] + 36), (box[0] + 410, box[1] + 36), (box[0] + 60, box[1] + 390), (box[0] + 60, box[1] + 210)],
-              fill=(255, 255, 255, 16))
+    if plate:
+        d.rounded_rectangle(box, radius=210, fill=(10, 6, 22, 255))
+        d.polygon([(box[0] + 170, box[1] + 36), (box[0] + 410, box[1] + 36), (box[0] + 60, box[1] + 390), (box[0] + 60, box[1] + 210)],
+                  fill=(255, 255, 255, 16))
 
     mask = Image.new("L", (S2, S2), 0)
     md = ImageDraw.Draw(mask)
@@ -368,8 +369,9 @@ def _draw_face_led(t, amp, blink, ep, age, bob):
                 nd.ellipse([xx - 13, yy - 13, xx + 13, yy + 13], fill=(255, 110, 170, 235))
             else:
                 d.ellipse([xx - 6, yy - 6, xx + 6, yy + 6], fill=(58, 36, 104, 255))
-    nd.rounded_rectangle(box, radius=210, outline=ACCENT + (255,), width=16)
-    nd.rounded_rectangle([box[0] + 26, box[1] + 26, box[2] - 26, box[3] - 26], radius=184, outline=(120, 220, 255, 120), width=4)
+    if plate:
+        nd.rounded_rectangle(box, radius=210, outline=ACCENT + (255,), width=16)
+        nd.rounded_rectangle([box[0] + 26, box[1] + 26, box[2] - 26, box[3] - 26], radius=184, outline=(120, 220, 255, 120), width=4)
 
     small = neon.resize((S2 // 4, S2 // 4), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
     glow = small.resize((S2, S2), Image.BILINEAR)
@@ -514,6 +516,80 @@ def _draw_bot(t, amp, blink, ep, age, bob):
     face = _draw_face_led(t, amp, blink, ep, age, bob * 0.4).resize((500, 500), Image.BILINEAR)
     base.alpha_composite(face, (200, 50))
     return base
+
+
+
+# ---------------------------------------------------------------- Aura Robot: 3B render edilmis insansi robot (face="robot")
+# Robot onceden three.js ile PBR malzeme/golge/yansimayla render edildi (_studio/robot3d, _studio/assets/aura_robot).
+# Burada sadece PIL ile: poz sprite'lari (p0 sakin, p1 el kaldirir, p2 avuc acik) + vizor UV haritasina sesle konusan LED yuz basilir.
+ROBOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "aura_robot")
+RU0, RU1, RV0, RV1 = 0.15, 0.85, 0.24, 0.82      # vizor UV'sinde yuzun kapladigi bolge
+RTW, RTH = 330, 275                              # yuz dokusu boyutu
+_ROBOT = {}
+
+
+def _robot_assets():
+    if _ROBOT:
+        return _ROBOT
+    for k in ("p0", "p1", "p2"):
+        base = Image.open(os.path.join(ROBOT_DIR, f"c_{k}.png")).convert("RGBA")
+        uv = np.asarray(Image.open(os.path.join(ROBOT_DIR, f"c_{k}_uv.png")).convert("RGBA")).astype(np.float32)
+        m = np.clip((uv[..., 2] - 128.0) / 127.0, 0, 1) * (uv[..., 3] >= 250)
+        ys, xs = np.nonzero(m > 0.04)
+        x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+        sub = uv[y0:y1, x0:x1]
+        fx = (sub[..., 0] / 255.0 - RU0) / (RU1 - RU0)
+        fy = 1.0 - (sub[..., 1] / 255.0 - RV0) / (RV1 - RV0)
+        valid = (fx >= 0) & (fx <= 1) & (fy >= 0) & (fy <= 1)
+        _ROBOT[k] = {
+            "base": base, "bbox": (int(x0), int(y0), int(x1), int(y1)), "mask": m[y0:y1, x0:x1] * valid,
+            "ix": np.clip(fx * (RTW - 1), 0, RTW - 1).astype(np.int32), "iy": np.clip(fy * (RTH - 1), 0, RTH - 1).astype(np.int32),
+            "vmask": m[y0:y1, x0:x1],
+        }
+    h = _ROBOT["p0"]["base"].size[1]
+    fade = np.ones((h, 1), np.float32)               # alt kisimda govde sahneye eriyip kaybolur (altyazilar okunsun)
+    a0, a1 = int(h * 0.80), int(h * 0.97)
+    fade[a0:a1, 0] = np.linspace(1, 0, a1 - a0)
+    fade[a1:, 0] = 0
+    _ROBOT["fade"] = fade
+    return _ROBOT
+
+
+def _draw_robot(t, amp, blink, ep, age, bob, w_pose):
+    """w_pose: (w0, w1, w2) agirliklari (toplam 1). Donus: RGBA sprite (1080x1190)."""
+    ra = _robot_assets()
+    img = ra["p0"]["base"]
+    ws = [max(float(x), 0.0) for x in w_pose]
+    tot = sum(ws) or 1.0
+    ws = [x / tot for x in ws]
+    names = ("p0", "p1", "p2")
+    base = Image.blend(img, ra["p1"]["base"], ws[1]) if ws[1] > 0.001 and ws[2] < 0.001 else None
+    if base is None:
+        base = img
+        acc = ws[0]
+        for nm, wv in zip(names[1:], ws[1:]):
+            if wv > 0.001:
+                acc += wv
+                base = Image.blend(base, ra[nm]["base"], wv / acc)
+    dom = names[int(np.argmax(ws))]
+    pz = ra[dom]
+    face = _draw_face_led(t, amp, blink, ep, age, 0, plate=False)
+    face = face.crop((70, 125, 730, 675)).resize((RTW, RTH), Image.BOX)
+    tex = np.asarray(face).astype(np.float32)
+    em = tex[pz["iy"], pz["ix"]]
+    a = em[..., 3:4] / 255.0
+    rgb = em[..., :3] * a * pz["mask"][..., None]
+    x0, y0, x1, y1 = pz["bbox"]
+    reg = np.asarray(base.crop((x0, y0, x1, y1))).astype(np.float32)
+    glow_img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").filter(ImageFilter.GaussianBlur(7))
+    glow = np.asarray(glow_img).astype(np.float32) * pz["vmask"][..., None]
+    reg[..., :3] = np.clip(reg[..., :3] + rgb * 1.15 + glow * 0.75, 0, 255)
+    out = base.copy()
+    out.paste(Image.fromarray(reg.astype(np.uint8), "RGBA"), (x0, y0))
+    al = np.asarray(out.getchannel("A")).astype(np.float32) * ra["fade"]
+    out.putalpha(Image.fromarray(al.astype(np.uint8), "L"))
+    return out
+
 
 
 def _draw_eq(t, amp):
@@ -668,12 +744,13 @@ class _State:
         self.card_t1 = {i: self.tl[i][1] + self.tl[i][2] for i in self.cards if i < len(self.tl)}
         self.emos = ctx["emos"]
         self.face = ctx.get("face", "led")
-        self.bg = _make_bg_stage() if self.face == "bot" else _make_bg()
+        self.bg = _make_bg_stage() if self.face in ("bot", "robot") else _make_bg()
         self.halo_mask = _radial_mask(1000).point(lambda v: int(v * 0.55))
         self.halo_cache = {}
         self.parts = [tuple(p) for p in ctx["parts"]]
         self.sprites = {s: _radial_mask(s * 4, 1.6) for s in (6, 10, 16)}
         self.tag_font = _font(40)
+        self.poses = {int(k): v for k, v in (ctx.get("poses") or {}).items()}
 
 
 def _scaled(col, f):
@@ -714,7 +791,27 @@ def _render_one(st, fi):
     kk = _ease_out((t - s_t0) / 0.25)
     ep = {key: prev[key] + (cur[key] - prev[key]) * kk for key in cur}
     bob = 16 * math.sin(t * 1.6) + nod * 2
-    if st.face == "bot":
+    if st.face == "robot":
+        eq = _draw_eq(t, amp)
+        frame.paste(eq, (0, 190), eq)
+        pose_name = st.poses.get(si) or ("p1" if st.emos[si] in ("happy", "surprised") else "p0")
+        in_s = _ease_out((t - s_t0) / 0.35) * (1.0 - _ease_out((t - (s_t0 + tl[si][2] - 0.3)) / 0.3)) if t >= s_t0 else 0.0
+        g = 0.0 if pose_name == "p0" else in_s
+        w = (1.0 - g, g if pose_name == "p1" else 0.0, g if pose_name == "p2" else 0.0)
+        w = (w[0] + w[1] * card_p, w[1] * (1.0 - card_p), w[2])
+        spr = _draw_robot(t, amp, blink, ep, t - s_t0, bob, w)
+        sc = 1.0 - 0.42 * card_p
+        rw, rh = int(spr.width * sc), int(spr.height * sc)
+        top = int(100 - 40 * card_p + bob * 0.5 * sc)
+        rs = spr.resize((rw, rh), Image.BILINEAR)
+        hs = int(1400 * sc)
+        hm = st.halo_cache.get(hs)
+        if hm is None:
+            hm = st.halo_mask.resize((hs, hs))
+            st.halo_cache[hs] = hm
+        frame.paste(_scaled(ACCENT, 0.30 + 0.40 * amp), (W // 2 - hs // 2, top + int(rh * 0.30) - hs // 2), hm)
+        frame.paste(rs, (W // 2 - rw // 2, top), rs)
+    elif st.face == "bot":
         eq = _draw_eq(t, amp)
         frame.paste(eq, (0, 190), eq)
         sc = 1.0 - 0.44 * card_p
@@ -811,7 +908,8 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
               int(rng.choice([6, 10, 16])), float(rng.uniform(0, 6.28))] for _ in range(26)]
     ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
-           "emos": emos, "parts": parts, "face": spec.get("face", "led")}
+           "emos": emos, "parts": parts, "face": spec.get("face", "led"),
+           "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
 
     workers = workers or min(os.cpu_count() or 1, 6)
     if workers <= 1 or n_frames < 120:
