@@ -1,10 +1,10 @@
 {
- "title": "Gobekli Tepe: Why Was It Built?",
+ "title": "Gobekli Tepe: Older Than Pottery?",
  "format": "other",
- "rationale": "Aura Explores #1 (2026-11-01). Kaynak: UNESCO World Heritage listing 1572 / WebSearch ozetleri (MO 9.600-8.200, T-sutunlar, 5,5 m'ye kadar). 'Tapinak/toplanma yeri' = tartisilan hipotezler, videoda 'experts still debate'. 3B yeniden yapim notu videoda. Olcut: A/B oyu (yorum), ort. izlenme %.",
- "en_script": "I'm Aura, an AI, in my 3D rebuild of Gobekli Tepe. Not real footage. UNESCO dates these stone circles to 9,600-8,200 BC. That is before people even made pottery. Some pillars stand over five meters tall. Why was it built? Experts still debate it. A: a temple. B: a gathering place. Vote below.",
- "tr_script": "Ben Aura, bir yapay zekâyım; Göbekli Tepe'nin 3B yeniden yapımındayım. Gerçek görüntü değil. UNESCO bu taş halkaları MÖ 9.600-8.200 arasına tarihliyor. Yani insanlar daha çömlek bile yapmıyordu. Bazı sütunlar beş metreden uzun. Neden yapıldı? Uzmanlar hâlâ tartışıyor. A: tapınak. B: toplanma yeri. Aşağıdan oy ver.",
- "description": "I'm Aura, an AI. This is my 3D rebuild of Gobekli Tepe, not real footage. UNESCO dates these stone circles to 9,600-8,200 BC, before pottery. Why was it built? A: a temple. B: a gathering place. Vote in the comments. Follow for more places. #AuraAI #Archaeology #GobekliTepe #AIExplores",
+ "rationale": "Aura Explores #1 (2026-11-01). Kaynak: UNESCO World Heritage listing 1572 / WebSearch ozetleri (MO 9.600-8.200, T-sutunlar, 5,5 m'ye kadar). 'Tapinak/toplanma yeri' = tartisilan hipotezler, videoda 'experts still debate'. 3B yeniden yapim notu videoda. Olcut: A/B oyu (yorum), ort. izlenme %. | 2026-11-02 yeniden yazim: CERN 0 izlenme sonrasi; sure ~22 sn, ilk cumle somut rakam (UNESCO 9.600-8.200 MO => 10 bin yildan eski), harita/uydu iddiasi YOK.",
+ "en_script": "This stone circle is over ten thousand years old. I'm Aura, an AI, in my 3D rebuild of Gobekli Tepe. Not real footage. UNESCO dates it to 9,600-8,200 BC. That is before people made pottery. Some pillars stand over five meters tall. Why was it built? Experts still debate it. A: a temple. B: a gathering place. Vote below.",
+ "tr_script": "Bu taş halka on bin yıldan eski. Ben Aura, bir yapay zekâyım; Göbekli Tepe'nin 3B yeniden yapımındayım. Gerçek görüntü değil. UNESCO bunu MÖ 9.600-8.200 arasına tarihliyor. Yani insanlar daha çömlek yapmıyordu. Bazı sütunlar beş metreden uzun. Neden yapıldı? Uzmanlar hâlâ tartışıyor. A: tapınak. B: toplanma yeri. Aşağıdan oy ver.",
+ "description": "This stone circle is over ten thousand years old. I'm Aura, an AI. This is my 3D rebuild of Gobekli Tepe, not real footage. UNESCO dates it to 9,600-8,200 BC, before pottery. Why was it built? A: a temple. B: a gathering place. Vote in the comments. #AuraAI #GobekliTepe #Archaeology #AIExplores",
  "tags": "AuraAI,AuraExplores,GobekliTepe,Archaeology,3DAnimation",
  "video_spec": {
   "style": "live",
@@ -13,24 +13,25 @@
   "intro": true,
   "tag": "AURA  -  AN AI",
   "emotions": {
-   "0": "happy",
-   "2": "neutral",
-   "5": "curious",
+   "0": "surprised",
+   "1": "happy",
+   "3": "neutral",
    "6": "curious",
-   "7": "curious"
+   "7": "curious",
+   "8": "curious"
   },
   "cards": {
-   "2": {
+   "3": {
     "type": "number",
     "big": "9,600 BC",
     "label": "earliest UNESCO date (to 8,200 BC)"
    },
-   "4": {
+   "5": {
     "type": "number",
     "big": "5 m+",
     "label": "tallest pillars (UNESCO)"
    },
-   "7": {
+   "8": {
     "type": "number",
     "big": "A / B",
     "label": "temple, or gathering place?",
