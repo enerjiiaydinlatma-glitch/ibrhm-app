@@ -28,6 +28,9 @@ import wave
 
 import numpy as np
 import scene3d
+
+# Windows'ta (ozellikle pythonw/arka plan panel) alt surecler ayri konsol penceresi acmasin
+_NOWIN = {"creationflags": 0x08000000} if os.name == "nt" else {}
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 W, H = 1080, 1920
@@ -76,7 +79,7 @@ def _sentences(text):
 # ---------------------------------------------------------------- ses
 def _load_audio(path):
     p = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
-                       capture_output=True)
+                       capture_output=True, **_NOWIN)
     if p.returncode != 0:
         raise RuntimeError("ffmpeg ses okuma hatasi: " + p.stderr.decode(errors="replace")[-500:])
     return np.frombuffer(p.stdout, dtype=np.int16).astype(np.float32) / 32768.0
@@ -932,7 +935,7 @@ def _render_range(ctx, a, b, out_path):
     cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
            "-i", "-", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
            "-g", str(FPS), out_path]
-    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE, **_NOWIN)
     try:
         for fi in range(a, b):
             ff.stdin.write(_render_one(st, fi))
@@ -1010,7 +1013,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
                 break
             seg = os.path.join(work, f"_v2_seg{w}.mp4")
             segs.append(seg)
-            procs.append(subprocess.Popen([sys.executable, os.path.abspath(__file__), "--worker", ctx_path, str(a), str(b), seg]))
+            procs.append(subprocess.Popen([sys.executable, os.path.abspath(__file__), "--worker", ctx_path, str(a), str(b), seg], **_NOWIN))
         for i, pr in enumerate(procs):
             pr.wait()
             if pr.returncode != 0:
@@ -1026,7 +1029,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
             f.write("file '" + os.path.abspath(s).replace("\\", "/") + "'\n")
     p = subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-i", wav_path,
                         "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
-                        "-ac", "2", "-shortest", out_path], capture_output=True, text=True)
+                        "-ac", "2", "-shortest", out_path], capture_output=True, text=True, **_NOWIN)
     if p.returncode != 0:
         raise RuntimeError("ffmpeg birlestirme hatasi: " + p.stderr[-800:])
     for s in segs:

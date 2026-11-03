@@ -100,7 +100,8 @@ class _Pipe:
         self.size = w * h * (1 if gray else 3)
         self.gray = gray
         cmd = ["ffmpeg", "-v", "error", "-ss", f"{max(start - 0.5, 0) / 30.0:.4f}", "-i", path, "-f", "rawvideo", "-pix_fmt", fmt, "-"]
-        self.p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=self.size * 2)
+        self.p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=self.size * 2,
+                                  **({"creationflags": 0x08000000} if os.name == "nt" else {}))
 
     def read(self):
         buf = self.p.stdout.read(self.size)
