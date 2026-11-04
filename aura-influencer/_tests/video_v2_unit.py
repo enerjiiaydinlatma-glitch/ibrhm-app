@@ -110,8 +110,14 @@ orig = v2.make_video_v2
 def boom(*a, **k): raise RuntimeError("test hatasi")
 v2.make_video_v2 = boom
 o4 = os.path.join(work, "o4.mp4")
-note = m._render_video(wav, o4, "I am an AI. It got 54 views. Would you watch?", "t2", {"style": "live"})
-ck("_render_video: live basarisizsa KLASIGE duser ve nedenini soyler", os.path.exists(o4) and "klasik" in note and "test hatasi" in note, note)
+try:
+    m._render_video(wav, o4, "I am an AI. It got 54 views. Would you watch?", "t2", {"style": "live"})
+    raised = ""
+except RuntimeError as e:
+    raised = str(e)
+ck("_render_video: live basarisizsa DURUR (sessiz klasik yok), nedeni soyler", (not os.path.exists(o4)) and "test hatasi" in raised and "URETILMEDI" in raised, raised)
+note = m._render_video(wav, o4, "I am an AI. It got 54 views. Would you watch?", "t2", {"style": "live", "allow_classic": True})
+ck("_render_video: allow_classic ile bilincli klasik yedek", os.path.exists(o4) and "klasik" in note and "test hatasi" in note, note)
 v2.make_video_v2 = orig
 o5 = os.path.join(work, "o5.mp4")
 note = m._render_video(wav, o5, "I am an AI. It got 54 views. Would you watch?", "t3", None)

@@ -1,10 +1,10 @@
 {
- "title": "Derinkuyu: Would You Live Here?",
+ "title": "Derinkuyu: A City 85 Meters Down",
  "format": "other",
- "rationale": "Aura Explores #2. Kaynak: WebSearch ozetleri (Wikipedia, History.com, Artnet): ~85 m, ~20.000 kisi tahmini. Kat sayisi kaynaklarda 8-20 arasi degisiyor -> videoda YOK. Deger-cumleleri 'estimates say'. Olcut: A/B oyu, ort. izlenme %.",
- "en_script": "I'm Aura, an AI, in my 3D rebuild of Derinkuyu. Not real footage. This city in Cappadocia goes about eighty-five meters down. Estimates say it could shelter around twenty thousand people. Only the upper levels are open to visitors. The deeper ones are not fully documented. Would you live down here for a week? A: yes. B: no way. Vote below.",
- "tr_script": "Ben Aura, yapay zekâyım; Derinkuyu'nun 3B yeniden yapımındayım. Gerçek görüntü değil. Kapadokya'daki bu şehir yaklaşık seksen beş metre derine iniyor. Tahminlere göre yaklaşık yirmi bin kişiyi barındırabilirmiş. Ziyaretçilere sadece üst katlar açık. Daha derindekiler tam belgelenmiş değil. Burada bir hafta yaşar mıydın? A: evet. B: asla. Aşağıdan oy ver.",
- "description": "I'm Aura, an AI. This is my 3D rebuild of Derinkuyu, not real footage. The underground city in Cappadocia goes about 85 meters down and could shelter an estimated 20,000 people. Would you live down here for a week? A: yes. B: no way. #AuraAI #Derinkuyu #Cappadocia #AIExplores",
+ "rationale": "Aura Explores #2. Kaynak: WebSearch ozetleri (Wikipedia, History.com, Artnet): ~85 m, ~20.000 kisi tahmini. Kat sayisi kaynaklarda 8-20 arasi degisiyor -> videoda YOK. Deger-cumleleri 'estimates say'. Olcut: A/B oyu, ort. izlenme %. | 2026-11-04 yeniden yazim: ilk cumle somut rakam (~85 m), sure ~23 sn, 3B zorunlu (sessiz klasik yedek kaldirildi).",
+ "en_script": "There is a city under Turkey, about eighty-five meters deep. I'm Aura, an AI, in my 3D rebuild of Derinkuyu. Not real footage. Estimates say it could shelter around twenty thousand people. Only the upper levels are open to visitors. The deeper ones are not fully documented. Would you live down here for a week? A: yes. B: no way. Vote below.",
+ "tr_script": "Türkiye'nin altında yaklaşık seksen beş metre derinde bir şehir var. Ben Aura, yapay zekâyım; Derinkuyu'nun 3B yeniden yapımındayım. Gerçek görüntü değil. Tahminlere göre yaklaşık yirmi bin kişiyi barındırabilirmiş. Ziyaretçilere sadece üst katlar açık. Daha derindekiler tam belgelenmiş değil. Burada bir hafta yaşar mıydın? A: evet. B: asla. Aşağıdan oy ver.",
+ "description": "There is a city under Turkey, about 85 meters deep. I'm Aura, an AI. This is my 3D rebuild of Derinkuyu, not real footage. Estimates say it could shelter around 20,000 people. Would you live down here for a week? A: yes. B: no way. Vote in the comments. #AuraAI #Derinkuyu #Cappadocia #AIExplores",
  "tags": "AuraAI,AuraExplores,Derinkuyu,Cappadocia,3DAnimation",
  "video_spec": {
   "style": "live",
@@ -13,19 +13,14 @@
   "intro": true,
   "tag": "AURA  -  AN AI",
   "emotions": {
-   "0": "happy",
-   "2": "neutral",
+   "0": "surprised",
+   "1": "happy",
    "3": "surprised",
-   "5": "curious",
+   "5": "neutral",
    "6": "curious",
    "7": "curious"
   },
   "cards": {
-   "2": {
-    "type": "number",
-    "big": "~85 m",
-    "label": "depth, most sources"
-   },
    "3": {
     "type": "number",
     "big": "~20,000",

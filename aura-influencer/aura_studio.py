@@ -3200,7 +3200,12 @@ def _render_video(wav, vp, text, slug, spec=None):
             make_video_v2(wav, vp, text, spec)
             return ""
         except Exception as e:
-            note = f"Canli goruntu uretilemedi ({type(e).__name__}: {str(e)[:150]}); klasik goruntu kullanildi."
+            # 2026-11-04: sessiz klasik yedek KALDIRILDI (3B yerine dalga formu yanlislikla yayina gitmisti).
+            # Bilincli yedek icin spec'e "allow_classic": true konur.
+            if not spec.get("allow_classic"):
+                raise RuntimeError(f"3B/canli goruntu uretilemedi ({type(e).__name__}: {str(e)[:200]}). "
+                                   "Klasik video URETILMEDI (yanlislikla yayinlanmasin). Hata devam ederse Claude'a bu mesaji ilet.") from e
+            note = f"Canli goruntu uretilemedi ({type(e).__name__}: {str(e)[:150]}); klasik goruntu kullanildi (allow_classic)."
     from make_video import make_video as _classic
     _classic(wav, vp, text)
     return note
