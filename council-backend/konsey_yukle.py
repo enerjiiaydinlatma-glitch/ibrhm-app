@@ -115,7 +115,7 @@ def kayit_yaz(meta, video_id, yol=KAYIT_YOL, simdi=None, yayin_utc=None):
     kk = konsey_konular.konu_bul(kid) if kid is not None else None
     metin = f"{meta.get('script', '')} {meta.get('title', '')}"
     satir = {"video_id": video_id, "ts": (simdi or datetime.datetime.now()).isoformat(timespec="seconds"),
-             "format": "konsey", "konu": konu, "baslik": meta.get("title", ""), "kanca": hook,
+             "format": meta.get("format", "konsey"), "konu": konu, "baslik": meta.get("title", ""), "kanca": hook,
              "kanca_tipi": haftalik_rapor.kanca_tipi(hook), "cift": "alpha-beta", "gizlilik": "scheduled" if yayin_utc else "private", "yayin_utc": yayin_utc or "",
              # analiz icin (17 Ekim 2026): hangi sutun/konu, basliktaki rakam, kaynakli olgu kullanildi mi
              "konu_id": kid, "kategori": (kk or {}).get("kategori", ""),

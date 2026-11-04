@@ -144,3 +144,13 @@ class KayitAlanlariTest(unittest.TestCase):
         self.assertTrue(satir["kaynakli_rakam"])
         satir2 = ky.kayit_yaz({"konu": "Not in the pool", "title": "No digits here", "script": "Plain."}, "V2", yol)
         self.assertEqual((satir2["konu_id"], satir2["kategori"], satir2["baslikta_rakam"], satir2["kaynakli_rakam"]), (None, "", False, False))
+
+
+class FormatAlaniTest(unittest.TestCase):
+    def test_acik_format_kayda_acik_yazilir(self):
+        yol = os.path.join(tempfile.mkdtemp(), "k.jsonl")
+        meta = {"konu": "What if all the ice on Earth melted?", "title": "How Much Would Sea Level Rise If All the Ice Melted?",
+                "script": "What happens if all the ice on land melts?", "format": "acik"}
+        self.assertEqual(ky.kayit_yaz(meta, "V", yol)["format"], "acik")
+        meta.pop("format")
+        self.assertEqual(ky.kayit_yaz(meta, "V2", yol)["format"], "konsey")
