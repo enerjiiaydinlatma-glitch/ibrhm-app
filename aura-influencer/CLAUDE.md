@@ -1328,3 +1328,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Kanal 28 gun (7 Eki-3 Kas): 740 goruntuleme (-%61), 0,5 saat (-%70), abone 2; son 48 saat 30 goruntuleme (28 Gobekli, 2 OpenAI "Always-On"). CERN videosu hala 0 goruntuleme/0 begeni.
 - Karsilastirma (gun-1, n kucuk): Gobekli 28 (klasik, 21 sn, somut kanca) vs CERN 0 (3B, 32 sn, soru kancasi). Ayri degiskenler birden degisti (konu, sure, kanca, gorsel) -> neden bilinmiyor; "3B kotu / klasik iyi" CIKARILAMAZ. Onceki gun-1 tabani: Waymo 9, Two Subscribers 23, Last Ten 30, ekskavator 60.
 - Dunya turu testi (6 bolumun >=3'u YT>=100 ve ort.%>=50): 0/2 (Gobekli 28, CERN 0). Hicbiri 3B+somut-kanca kombinasyonunu birlikte denemedi.
+
+### 2026-11-04 aksam — exp_002 "Derinkuyu: A City 85 Meters Down" 3B ILE YAYINLANDI (YouTube + TikTok)
+- 3B render calisti (sessiz klasik yedek kaldirildi, hata cikmadi): robot tam boy intro, "~20,000" karti, LED yuz, kendi mağara seti; sure ~24 sn. Zayif: arka plan soyut turuncu daireler/kayalar (tunel dokusu zayif), A/B karti ve sesin sayi okunusu ekran goruntulerinde dogrulanmadi.
+- YouTube: panel kaydi YAYINDA 2026-11-04 18:33, link https://youtu.be/tRpiJThQBr4 (ekran goruntusunden okundu; I/l karismis olabilir, dogrulanmadi). TikTok: 4 Kas 18:45, 00:24, Herkes, ilk ekran 0 izlenme. Gobekli TikTok ayni anda 152/6/0 (degismedi), CERN 167/4/0.
+- Bu, "3B robot + somut kanca (~85 m) + kisa sure (~24 sn)" kombinasyonunun ILK gercek testi (Gobekli klasikti, CERN 3B ama soru kancali ve 32 sn'ydi). Olcut: YT>=100 ve ort.%>=50; A/B oyu. 24 saat sonra olcum.
