@@ -1344,3 +1344,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Render (3B, studio seti, mor cubuk grafikli sahne) izlendi: robot tam boy, "0 CERN" karti, yakin planlar, ~26 sn; "28"/"11"/"A / B" kartlari ve sayilarin sesli okunusu dogrulanmadi. Panel kaydi: YAYINDA 2026-11-05 18:28, link https://youtu.be/YCAxu_Nb3iA (ekran goruntusunden; I/l karismis olabilir). TikTok: operator yukleyecek (saat bildirilecek).
 - Antarktika (exp_003 "A Lake 4 km Under Antarctic Ice") panelde "render edildi" (11-04 18:56'dan beri), YAYINLANMADI; izlenip izlenmedigi bilinmiyor. Gunluk tek yukleme kurali: yarin.
 - Olcut: YT ort. izlenme % (hedef >=%50, onceki diary tabani %53-61), izlenme >=100, A/B oyu (yorum), takipci. 24 saat sonra olcum.
+- 2026-11-05: bip_005 TikTok yuklendi (operator ekran goruntusu): 5 Kas 18:36, 00:26, Herkes, ilk sayim 0 izlenme. Olcum yarin ~18:35 (hatirlatma kurulu).
