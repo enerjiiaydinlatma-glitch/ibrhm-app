@@ -11,7 +11,7 @@ KARGO VE TESLİMAT POLİTİKASI
 TESLİMAT SEÇENEKLERİ
 
 1. STANDART KARGO
-- Ücret: 99 TL
+- Ücret: 149 TL
 - Kapsam: Türkiye geneli
 
 2. ÜCRETSİZ KARGO
