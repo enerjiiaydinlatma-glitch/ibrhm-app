@@ -788,6 +788,7 @@ class _State:
         self.env = ctx["env"]
         self.dur = ctx["dur"]
         self.tag = ctx["tag"]
+        self.series = ctx.get("series") or ""
         self.layouts = [_CaptionLayout(s) for s, _, _ in self.tl]
         self.wtimes = [_word_times(l.words, t0, d) for l, (s, t0, d) in zip(self.layouts, self.tl)]
         self.cards = {int(k): v for k, v in ctx["cards"].items()}
@@ -799,6 +800,7 @@ class _State:
             self.bg = None
             sp = ctx.get("spec3d") or {}
             self.s3_clips = scene3d.Clips(sp.get("set", "studio"))
+            self.s3_multi = {}
             self.s3_plan = scene3d.build_plan(ctx["nf"], self.tl, self.cards, self.emos, sp)
         else:
             self.bg = _make_bg_stage() if self.face in ("bot", "robot") else _make_bg()
@@ -807,6 +809,7 @@ class _State:
         self.parts = [tuple(p) for p in ctx["parts"]]
         self.sprites = {s: _radial_mask(s * 4, 1.6) for s in (6, 10, 16)}
         self.tag_font = _font(40)
+        self.series_font = _font(34)
         self.poses = {int(k): v for k, v in (ctx.get("poses") or {}).items()}
 
 
@@ -851,7 +854,13 @@ def _render_one(st, fi):
     bob = 16 * math.sin(t * 1.6) + nod * 2
     if st.face == "scene3d":
         clip, cidx = st.s3_plan[fi]
-        rgb, vmask, meta = st.s3_clips.frame(clip, cidx)
+        cl = st.s3_clips
+        if ":" in clip:                                # baska setten plan (cok-planli kurgu)
+            sname, clip = clip.split(":", 1)
+            cl = st.s3_multi.get(sname)
+            if cl is None:
+                cl = st.s3_multi[sname] = scene3d.Clips(sname)
+        rgb, vmask, meta = cl.frame(clip, cidx)
         base = rgb.copy()
         ftex = _draw_face_led(t, amp, blink, ep, t - s_t0, 0, plate=False).crop((70, 125, 730, 675)).resize((scene3d.TW, scene3d.TH), Image.BOX)
         base = scene3d.draw_face(base, vmask, meta["grid"][cidx], meta["vis"][cidx], ftex, scene3d.FACE["N"])
@@ -926,6 +935,9 @@ def _render_one(st, fi):
     d.ellipse([60, 92, 78, 110], fill=ACCENT)
     d.text((96, 80), st.tag, font=st.tag_font, fill=WHITE, stroke_width=3, stroke_fill=(18, 8, 34))
     d.rectangle([60, 140, 60 + int((W - 120) * min(t / st.dur, 1)), 146], fill=ACCENT)
+    if st.series:                                       # seri bandi (ust sag): "AURA WORLD TOUR  -  STOP 4"
+        sw = d.textlength(st.series, font=st.series_font)
+        d.text((W - 60 - sw, 160), st.series, font=st.series_font, fill=HILITE, stroke_width=3, stroke_fill=(18, 8, 34))
     return frame.tobytes()
 
 
@@ -991,7 +1003,9 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
     ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
            "emos": emos, "parts": parts, "face": face, "nf": n_frames,
-           "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True)},
+           "series": str(spec.get("series") or "")[:48],
+           "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True),
+                      "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cutaway_sets": spec.get("cutaway_sets") or []},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
 
     workers = workers or min(os.cpu_count() or 1, 6)

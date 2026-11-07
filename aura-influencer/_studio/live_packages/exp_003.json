@@ -33,6 +33,8 @@
     "label": "drill into them: yes, or leave them?",
     "static": true
    }
-  }
+  },
+  "autocut": true,
+  "series": "AURA WORLD TOUR  -  STOP 4"
  }
 }

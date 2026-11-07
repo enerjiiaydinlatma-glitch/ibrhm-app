@@ -129,6 +129,24 @@ ck("paket yukleme: ilk cagrida taslak eklenir, video_spec korunur", r1["ok"] and
 ck("paket yukleme: ikinci cagri mukerrer eklemez", r2["added"] == [] and len(r2["skipped"]) == len(pk), r2)
 ck("paket yukleme: taslaklar YAYINLANMAMIS", all(d["status"] == "taslak" for d in dr), [d["status"] for d in dr])
 
+# 4b) cok-planli kurgu (autocut / cutaway) + seri bandi
+import scene3d
+tl_t = [("s%d." % i, i * 2.0, 2.0) for i in range(8)]
+sp_t = {"set": "studio", "intro": False, "autocut": True, "cutaway_sets": ["cern"], "auto_gestures": False, "point": False}
+pl = scene3d.build_plan(480, tl_t, {5: 1}, ["neutral"] * 8, sp_t)
+names = sorted(set(c for c, _ in pl))
+ck("autocut: planlar C ve M arasinda degisir", "idle_C" in names and "idle_M" in names, names)
+ck("autocut: cutaway set klibi plana girer", any(n.startswith("cern:") for n in names), names)
+ck("autocut: kart penceresi bozulmaz (cumle 5 -> to_C/idle_C/to_M)", any(pl[f][0] in ("to_C", "idle_C") for f in range(int(5 * 2.0 * 30), int(6 * 2.0 * 30))), "")
+ck("autocut: kapaliysa klasik plan", set(c for c, _ in scene3d.build_plan(480, tl_t, {5: 1}, ["neutral"] * 8, dict(sp_t, autocut=False))) <= {"idle_M", "idle_C", "to_C", "to_M", "point_C", "nod_M", "shrug_M", "intro"}, "")
+txt8 = " ".join(["This is sentence number %d." % i for i in range(8)])
+wav8 = os.path.join(work, "c8.wav")
+m_v2 = __import__("make_video_v2")
+m_v2._synth_demo_audio(wav8, sents_n=8)
+out8 = os.path.join(work, "c8.mp4")
+m_v2.make_video_v2(wav8, out8, txt8, {"style": "live", "face": "scene3d", "set": "studio", "intro": False, "autocut": True, "cutaway_sets": ["cern"], "series": "AURA WORLD TOUR  -  STOP 4", "cards": {"3": {"type": "number", "big": "5", "label": "test"}}}, sfx=False)
+ck("autocut+seri bandi: render tamam", os.path.exists(out8) and os.path.getsize(out8) > 50000, os.path.getsize(out8) if os.path.exists(out8) else 0)
+
 # 5) GERCEK HTTP yonlendirme
 from http.server import ThreadingHTTPServer
 srv = ThreadingHTTPServer(("127.0.0.1", 0), m.Handler)

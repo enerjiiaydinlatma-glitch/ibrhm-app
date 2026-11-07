@@ -77,13 +77,39 @@ def build_plan(nf, tl, cards, emos, spec):
         if a + CLIP_N[g] <= nf and all(plan[f] == "idle_M" for f in range(a, a + CLIP_N[g])):
             for k in range(CLIP_N[g]):
                 plan[a + k] = g
+    # cok-planli kurgu (2026-11): cumle basina plan/set degisimi. shots: {cumle_idx: "C" | "M" | "<set>" | "<set>:C"}
+    shots = {int(k): v for k, v in (spec.get("shots") or {}).items()}
+    if spec.get("autocut"):
+        cw = [x for x in (spec.get("cutaway_sets") or []) if set_complete(x)]
+        for i in range(1, len(tl)):
+            if i in shots or i in cards:
+                continue
+            pick = "C" if i % 2 == 1 else "M"
+            if cw and i % 3 == 2:
+                pick = cw[(i // 3) % len(cw)]
+            shots[i] = pick
+    for i, (_, t0, d) in enumerate(tl):
+        sh = shots.get(i)
+        if not sh:
+            continue
+        a, b = int(t0 * fps), min(int((t0 + d) * fps), nf)
+        sname, _, kind = (sh.partition(":") if sh not in ("C", "M") else ("", "", sh))
+        if sname and not set_complete(sname):
+            continue
+        kind = kind or "M"
+        clip = ("idle_C" if kind == "C" else "idle_M")
+        target = (sname + ":" + clip) if sname else clip
+        for f in range(a, b):
+            if plan[f] == "idle_M":
+                plan[f] = target
     # klip ici kare numaralari
     out, run_clip, run_start = [], None, 0
     for f, c in enumerate(plan):
         if c != run_clip:
             run_clip, run_start = c, f
         k = f - run_start
-        out.append((c, k % CLIP_N[c] if c in LOOPS else min(k, CLIP_N[c] - 1)))
+        base = c.split(":")[-1]
+        out.append((c, k % CLIP_N[base] if base in LOOPS else min(k, CLIP_N[base] - 1)))
     return out
 
 
