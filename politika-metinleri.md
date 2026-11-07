@@ -20,7 +20,7 @@ TESLİMAT SEÇENEKLERİ
 
 3. MAĞAZADAN TESLİM ALMA
 - Ücretsiz
-- Adres: Şht. İsmail Güler Sk. No:30, Çorlu/Tekirdağ
+- Adres: Reşadiye Mah. Şht. İsmail Güler Sk. No:30-34/C, Çorlu/Tekirdağ
 - Çalışma Saatleri: Pazartesi - Cuma 08:30 - 18:00, Cumartesi 08:30 - 13:00
 
 KARGO SÜRECİ
