@@ -1376,3 +1376,7 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Yeni 3B set `abyss` (aura3d.html SETS; karanlik su alti, parlayan canlilar, kayalar, kar partikulleri), klipler `aura_scenes/abyss/` (8 klip, bulutta ~17 dk; arka plan sureci 2 kez dustu -> `setsid nohup` ile ayri surec). Paket `live_packages/exp_005.json`: autocut + cutaway "ice" + bant "AURA WORLD TOUR - STOP 5", preflight temiz, ~23,8 sn tahmin (gercek ~28-30 sn bekleniyor).
 - Kaynaklar (WebSearch ozetleri): ~10.935 m (RMG/Wikipedia, 2021 olcum), ~1.086 bar/15.750 psi = ~1.070x (UCL), Walsh+Piccard 23 Ocak 1960, inen kisi <30 (Ocean Conservancy; Wikipedia 27 @ 2022). Vescovo yili dogrulanamadi -> videoda yok.
 - Antarktika TikTok Gonderiler/paylasim verisi, bip_005 YT toplami hala eksik.
+
+### 2026-11-09 aksam — Durak 5 "Challenger Deep: 11 km Down" (exp_005) YOUTUBE'DA YAYINDA (panel kaydi)
+- Panel: YAYINDA 2026-11-09 18:34, link https://youtu.be/3gt8zGeCruo (ekran goruntusunden; I/l karismis olabilir). Render izlenimi/ekran goruntusu operatorden GELMEDI (gorsel kalite, sure, ses okunusu dogrulanmadi). Sessiz klasik yedek kaldirildigi icin video 3B olmali (hata verseydi uretilmezdi). TikTok bekleniyor (saat bildirilecek).
+- Ayni metin operator onayli (Turkce anlam). Olcut: YT>=100 ve ort.%>=50, TT paylasim sayisi, A/B oyu. Antarktika (303 YT, %30,9) ile karsilastirilacak: ikinci 'gizemli yer + 3B + cok-planli kurgu + paylasim CTA' veri noktasi.
