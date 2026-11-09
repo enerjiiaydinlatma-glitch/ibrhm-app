@@ -129,3 +129,13 @@ Bir sutun belirgin one cikarsa o sutundan ikinci video eklenebilir (acik karar n
 ## Bekleyen
 - `python nis_tarama.py --nis gizem` ve `--nis bilimkurgu_kuantum` (kota ~800 birim/nis; yuklemeler kotayi yer, ertesi gun dene) -> diger nislerle karsilastirma.
 - Panel anahtari yenileme. Rakam bankasi genisletme (konu/kaynak onerisi).
+
+## 9 Kasim 2026 - KANAL UYUTULDU (karar: Ibrahim)
+
+Veri (Studio, 8 Kas): son 28 gun 283 goruntuleme (%73 az), 0,3 saat, abone +0; son 48 saat 0 goruntuleme; son 4 video 0-20 goruntuleme.
+29 Ekim'den beri dagitim sifirda; 7 gunluk yukleme duraklamasi ve kalite calismalari (kapilar, rakam bankasi, hakemler) goruntuleme yaratmadi.
+
+Karar: uretim DURDURULDU. Kanal SILINMEZ, oldugu gibi kalir (herhangi bir maliyeti yok). Zamanlayicilar (SignCouncilDaily/Evening) KAPALI kalir.
+Kapatma zamanini Ibrahim belirler ve Claude'a soyler; o zamana kadar kanalda hicbir sey yapilmaz.
+Acik pilotlar (robot, sel, deniz) ve kanal_temizle --uygula YAPILMADI; gerekirse sonra.
+Ana enerji Aura uygulamasina. Onerilen yeniden bakis: Subat 2027 (Studio'ya bir kez bak).
