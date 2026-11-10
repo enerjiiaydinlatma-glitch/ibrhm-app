@@ -1390,3 +1390,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-10 aksam — Durak 6 "Nazca Lines: Why Were They Drawn?" (exp_006) YOUTUBE'DA YAYINDA (panel kaydi)
 - Panel mesaji: "Yayinlandi: https://youtu.be/HWoRU6ARHwI" (ekran goruntusunden; I/l karismis olabilir). Render 10 Kas 18:15 (kart "render edildi"), kisa sure sonra yayinlandi. Operator render izlenimini/kareleri BILDIRMEDI (sahne, sure, ses okunusu dogrulanmadi). TikTok bekleniyor.
 - Olcut: YT>=100 ve ort.%>=50 (Challenger Deep ilk tam basari), paylasim, A/B oyu. 24 saat sonra olcum.
+- 2026-11-10: Nazca (exp_006) TikTok'a yuklendi (operator beyani; saat ve etkilesim durumu bildirilmedi). Olcum yarin ~18:19 (hatirlatma kurulu).
