@@ -450,6 +450,32 @@ const SETS = {
     setUpd.push(t => { const b = snow.userData.base, a = snow.geometry.attributes.position; for (let i = 0; i < a.count; i++) { a.array[i * 3 + 1] = wrap(b[i * 3 + 1] - 7 * (1 + (i % 3)) * (t / T_LOOP), 7); a.array[i * 3] = b[i * 3] + 0.1 * M.sin(2 * M.PI * (t / T_LOOP) + i); } a.needsUpdate = true; });
     rimL.color.set(0x3affd8); rimR.color.set(0x58a0ff); keyLight.color.set(0xb8dcff);
   },
+  nazca() {
+    scene.background = new THREE.Color(0x1a1226); scene.fog = new THREE.Fog(0x7a4a4a, 18, 80);
+    const g = setObj, r = rng(606);
+    g.add(addFloor(0x9a7a56, 0.95));
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(180, 48, 32), new THREE.MeshBasicMaterial({ map: cvTex(8, 512, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1b1440'); gr.addColorStop(0.5, '#5a3a68'); gr.addColorStop(0.76, '#e0785a'); gr.addColorStop(0.9, '#ffc98a'); gr.addColorStop(1, '#a8764a'); c.fillStyle = gr; c.fillRect(0, 0, w, h); }), side: THREE.BackSide, fog: false, depthWrite: false }));
+    g.add(sky);
+    const sun = new THREE.Mesh(new THREE.CircleGeometry(8, 48), gmat(0xffe0b0, 1.8, { fog: false })); sun.position.set(30, 22, -125); g.add(sun);
+    const sunH = new THREE.Mesh(new THREE.CircleGeometry(30, 48), addMat(0xff9a5a, 0.18, { fog: false })); sunH.position.set(30, 22, -124); g.add(sunH);
+    const sandTex = cvTex(256, 256, (c, w, h) => { c.fillStyle = '#8a6c4c'; c.fillRect(0, 0, w, h); for (let i = 0; i < 2600; i++) { const v = 100 + r() * 70 | 0; c.fillStyle = `rgba(${v + 20},${v},${v - 30},0.22)`; c.fillRect(r() * w, r() * h, 2 + r() * 6, 1 + r() * 2); } });
+    sandTex.repeat.set(10, 10);
+    const sand = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshStandardMaterial({ map: sandTex, roughness: 1, metalness: 0, transparent: true, opacity: 0.8 })); sand.rotation.x = -M.PI / 2; sand.position.y = 0.006; g.add(sand);
+    const lineM = gmat(0xf6e8c4, 1.6);
+    function seg(x1, z1, x2, z2, w) { const dx = x2 - x1, dz = z2 - z1, L = M.hypot(dx, dz); const m = new THREE.Mesh(new THREE.BoxGeometry(w || 0.16, 0.012, L), lineM); m.position.set((x1 + x2) / 2, 0.016, (z1 + z2) / 2); m.rotation.y = M.atan2(dx, dz); g.add(m); }
+    for (let i = 0; i < 12; i++) { const a = (r() - 0.5) * 0.5; const x0 = (r() - 0.5) * 30, z0 = -1 - r() * 6; seg(x0, z0, x0 + M.sin(a) * 60, z0 - 60, 0.16); }
+    for (let i = 0; i < 4; i++) { const x0 = -14 + i * 9; seg(x0, -4, x0 + 8, -70, 0.2); }
+    let pz = -4, px = 5, ang = 0;
+    for (let i = 0; i < 70; i++) { const rad = 0.3 + i * 0.07; const a2 = i * 0.32; const nx = 5 + M.cos(a2) * rad * 1.4, nz = -9 + M.sin(a2) * rad * 1.4; if (i) seg(px, pz, nx, nz, 0.13); px = nx; pz = nz; }
+    const bird = [[-8, -3], [-6, -6], [-4, -9], [-3, -15], [-1, -22], [2, -27], [6, -23], [8, -15], [7, -8], [4, -4], [0, -2], [-4, -1.5], [-8, -3]];
+    for (let i = 0; i < bird.length - 1; i++) seg(bird[i][0], bird[i][1], bird[i + 1][0], bird[i + 1][1], 0.2);
+    seg(-1, -22, -3, -33, 0.2); seg(-3, -33, 1, -39, 0.2);
+    const rockM = new THREE.MeshStandardMaterial({ color: 0x5a4636, roughness: 1, metalness: 0 });
+    for (let k = 0; k < 24; k++) { const sz = 0.5 + r() * 1.6; const b = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), rockM); const side = r() > 0.5 ? 1 : -1; b.position.set(side * (10 + r() * 26), sz * 0.4, -10 - r() * 50); b.rotation.set(r(), r(), r()); b.scale.y = 0.6; g.add(b); }
+    for (let k = 0; k < 7; k++) { const h2 = 6 + r() * 9; const m = new THREE.Mesh(new THREE.ConeGeometry(8 + r() * 8, h2, 7), new THREE.MeshStandardMaterial({ color: 0x6a4e46, roughness: 1 })); m.position.set(-60 + k * 20 + r() * 6, h2 / 2 - 0.3, -78 - r() * 12); g.add(m); }
+    const pts = points(200, [30, 4, 30, -10], 0.05, 0xffd9a8, 121, 0.45); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
+    rimL.color.set(0xff9a6a); rimR.color.set(0xffd09a); keyLight.color.set(0xffd9b0);
+  },
 };
 
 function init3d(w, h) {
