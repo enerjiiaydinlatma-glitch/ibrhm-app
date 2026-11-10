@@ -1386,3 +1386,7 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - **TikTok (aura.talk.ai, 2-8 Kas, 7 gun):** 719 izlenme (-%1,6), profil goruntuleme 32 (-%30,4), begeni 14, yorum 0, **paylasim 0**; Sizin Icin %97,2, arama %0,9; arama sorgulari (n=5): "underground city of derinkuyu" %40, "AI Creator", "gobekli tepe", "derinkuyu city" %20'ser. Antarktika/Challenger Deep TikTok Gonderiler satirlari ve paylasim sayisi (Send-this CTA etkisi) bu turda verilmedi.
 - Aura World Tour testi (6 bolumun >=3'u YT>=100 ve ort.%>=50): **1/6** (Challenger Deep ✓; Antarktika 304 ama %30,9 ✗). Okuma (hipotez, n=2): "gizemli/dev yer + 3B + cok-planli kurgu + somut rakam + paylasim CTA" YouTube erisimini kirdi (303, 155; once 0-28); tutma Challenger Deep'te %64 (Antarktika %31) -> sureler 33 vs ?; Challenger Deep gorsel/ses/sure izlenmedi. Abone donusumu hala 0.
 - 2026-11-10: exp_006 "Nazca Lines: Why Were They Drawn?" (Durak 6) METIN OPERATOR ONAYLI (onay), nazca seti klipleri uretiliyor, YAYINLANMADI.
+
+### 2026-11-10 aksam — Durak 6 "Nazca Lines: Why Were They Drawn?" (exp_006) YOUTUBE'DA YAYINDA (panel kaydi)
+- Panel mesaji: "Yayinlandi: https://youtu.be/HWoRU6ARHwI" (ekran goruntusunden; I/l karismis olabilir). Render 10 Kas 18:15 (kart "render edildi"), kisa sure sonra yayinlandi. Operator render izlenimini/kareleri BILDIRMEDI (sahne, sure, ses okunusu dogrulanmadi). TikTok bekleniyor.
+- Olcut: YT>=100 ve ort.%>=50 (Challenger Deep ilk tam basari), paylasim, A/B oyu. 24 saat sonra olcum.
