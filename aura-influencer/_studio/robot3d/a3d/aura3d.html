@@ -476,6 +476,34 @@ const SETS = {
     const pts = points(200, [30, 4, 30, -10], 0.05, 0xffd9a8, 121, 0.45); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
     rimL.color.set(0xff9a6a); rimR.color.set(0xffd09a); keyLight.color.set(0xffd9b0);
   },
+  gears() {
+    scene.background = new THREE.Color(0x0a0604); scene.fog = new THREE.Fog(0x120a06, 8, 40);
+    const g = setObj, r = rng(707);
+    g.add(addFloor(0x3a2a1c, 0.9));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(70, 24), new THREE.MeshBasicMaterial({ map: cvTex(8, 256, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0a0604'); gr.addColorStop(0.55, '#2a1608'); gr.addColorStop(0.85, '#4a2a10'); gr.addColorStop(1, '#0a0604'); c.fillStyle = gr; c.fillRect(0, 0, w, h); }), fog: false })); wall.position.set(0, 8, -22); g.add(wall);
+    const bronze = new THREE.MeshStandardMaterial({ color: 0xb87a38, roughness: 0.38, metalness: 0.92 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.5, metalness: 0.8 });
+    const gearsList = [];
+    function gear(x, y, z, rad, N, m, dir) {
+      const gp = new THREE.Group();
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.28, 48, 1, true), bronze); disc.rotation.x = M.PI / 2; gp.add(disc);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.1, 8, 64), bronze); gp.add(rim);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.18, rad * 0.18, 0.5, 24), dark); hub.rotation.x = M.PI / 2; gp.add(hub);
+      for (let k = 0; k < 4; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(rad * 1.7, 0.16, 0.16), dark); sp.rotation.z = k * M.PI / 4; gp.add(sp); }
+      for (let k = 0; k < N; k++) { const a = k / N * M.PI * 2; const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.32, 0.3), bronze); tooth.position.set(M.cos(a) * (rad + 0.12), M.sin(a) * (rad + 0.12), 0); tooth.rotation.z = a; gp.add(tooth); }
+      gp.position.set(x, y, z); g.add(gp); gearsList.push([gp, 2 * M.PI / N * m * dir]);
+    }
+    gear(-3.0, 2.7, -9.5, 2.0, 26, 2, 1);
+    gear(0.4, 1.9, -9.5, 1.46, 19, 2 * 19 / 26, -1);
+    gear(3.2, 3.8, -11, 1.7, 22, 2, 1);
+    gear(-5.6, 0.9, -11, 1.1, 14, 3, -1);
+    gear(5.6, 1.2, -10.5, 1.2, 15, 2, -1);
+    setUpd.push(t => gearsList.forEach(([gp, per]) => { gp.rotation.z = per * (t / T_LOOP); }));
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), gmat(0xffb060, 2.8)); lamp.position.set(-1, 5.2, -8); g.add(lamp);
+    const lampH = new THREE.Mesh(new THREE.CircleGeometry(2.2, 28), addMat(0xff9a40, 0.18)); lampH.position.set(-1, 5.2, -8.1); g.add(lampH);
+    const pts = points(220, [16, 7, 14, -6], 0.04, 0xffd9a0, 131, 0.5); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
+    rimL.color.set(0xffa860); rimR.color.set(0xffd9a0); keyLight.color.set(0xffe0b8);
+  },
 };
 
 function init3d(w, h) {
