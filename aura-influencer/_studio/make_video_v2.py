@@ -810,6 +810,7 @@ class _State:
         self.sprites = {s: _radial_mask(s * 4, 1.6) for s in (6, 10, 16)}
         self.tag_font = _font(40)
         self.series_font = _font(34)
+        self.hook = ctx.get("hook") or None
         self.poses = {int(k): v for k, v in (ctx.get("poses") or {}).items()}
 
 
@@ -935,6 +936,26 @@ def _render_one(st, fi):
     d.ellipse([60, 92, 78, 110], fill=ACCENT)
     d.text((96, 80), st.tag, font=st.tag_font, fill=WHITE, stroke_width=3, stroke_fill=(18, 8, 34))
     d.rectangle([60, 140, 60 + int((W - 120) * min(t / st.dur, 1)), 146], fill=ACCENT)
+    if st.hook and t < float(st.hook.get("secs", 2.0)) + 0.35:   # ilk ~2 sn buyuk kanca yazisi (robot girisini bozmaz)
+        hk = st.hook
+        secs = float(hk.get("secs", 2.0))
+        a = min(t / 0.18, 1.0) * (1.0 - max(0.0, (t - secs) / 0.35))
+        big = str(hk.get("big", ""))[:22]
+        lab = str(hk.get("label", ""))[:44]
+        size = 190
+        while size > 70 and ImageDraw.Draw(Image.new("RGB", (4, 4))).textlength(big, font=_font(size)) > W - 140:
+            size -= 8
+        fb = _font(size)
+        layer = Image.new("RGBA", (W, 440), (0, 0, 0, 0))
+        ld = ImageDraw.Draw(layer)
+        bw = ld.textlength(big, font=fb)
+        ld.rounded_rectangle([60, 10, W - 60, 420], radius=44, fill=(8, 5, 20, int(150 * a)), outline=ACCENT + (int(130 * a),), width=3)
+        ld.text(((W - bw) / 2, 60), big, font=fb, fill=(255, 255, 255, int(255 * a)), stroke_width=8, stroke_fill=(18, 8, 34, int(255 * a)))
+        if lab:
+            fl = _font(56)
+            lw = ld.textlength(lab, font=fl)
+            ld.text(((W - lw) / 2, 60 + size + 40), lab, font=fl, fill=HILITE + (int(255 * a),), stroke_width=4, stroke_fill=(18, 8, 34, int(255 * a)))
+        frame.paste(layer, (0, 190), layer)
     if st.series:                                       # seri bandi (ust sag): "AURA WORLD TOUR  -  STOP 4"
         sw = d.textlength(st.series, font=st.series_font)
         d.text((W - 60 - sw, 160), st.series, font=st.series_font, fill=HILITE, stroke_width=3, stroke_fill=(18, 8, 34))
@@ -1003,7 +1024,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
     ctx = {"tl": [[s, float(a), float(b)] for s, a, b in tl], "env": [float(v) for v in env_f], "dur": float(dur),
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
            "emos": emos, "parts": parts, "face": face, "nf": n_frames,
-           "series": str(spec.get("series") or "")[:48],
+           "series": str(spec.get("series") or "")[:48], "hook": spec.get("hook") or None,
            "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True),
                       "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cutaway_sets": spec.get("cutaway_sets") or []},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}

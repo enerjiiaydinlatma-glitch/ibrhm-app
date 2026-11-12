@@ -147,6 +147,16 @@ out8 = os.path.join(work, "c8.mp4")
 m_v2.make_video_v2(wav8, out8, txt8, {"style": "live", "face": "scene3d", "set": "studio", "intro": False, "autocut": True, "cutaway_sets": ["cern"], "series": "AURA WORLD TOUR  -  STOP 4", "cards": {"3": {"type": "number", "big": "5", "label": "test"}}}, sfx=False)
 ck("autocut+seri bandi: render tamam", os.path.exists(out8) and os.path.getsize(out8) > 50000, os.path.getsize(out8) if os.path.exists(out8) else 0)
 
+# 4c) hook kaplamasi (ilk ~2 sn buyuk yazi): ilk karelerde gorunur, sonra kaybolur
+import subprocess as _sp
+out9 = os.path.join(work, "hook.mp4")
+m_v2.make_video_v2(wav8, out9, txt8, {"style": "live", "face": "scene3d", "set": "studio", "intro": True, "hook": {"big": "UNDER 6 YEARS", "label": "test", "secs": 1.5}}, sfx=False)
+def _fr(path, ts):
+    r = _sp.run(["ffmpeg", "-v", "error", "-ss", str(ts), "-i", path, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-vf", "crop=900:300:90:230,scale=90:30", "-"], capture_output=True)
+    return list(r.stdout)
+a1, a2 = _fr(out9, 0.8), _fr(out9, 3.0)
+ck("hook kaplamasi: ilk saniyede gorunur, sonra kaybolur", len(a1) == 2700 and len(a2) == 2700 and sum(abs(x - y) for x, y in zip(a1, a2)) > 20000, (sum(abs(x - y) for x, y in zip(a1, a2)) if len(a1) == len(a2) else -1))
+
 # 5) GERCEK HTTP yonlendirme
 from http.server import ThreadingHTTPServer
 srv = ThreadingHTTPServer(("127.0.0.1", 0), m.Handler)

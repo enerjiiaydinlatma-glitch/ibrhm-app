@@ -504,6 +504,27 @@ const SETS = {
     const pts = points(220, [16, 7, 14, -6], 0.04, 0xffd9a0, 131, 0.5); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
     rimL.color.set(0xffa860); rimR.color.set(0xffd9a0); keyLight.color.set(0xffe0b8);
   },
+  hagia() {
+    scene.background = new THREE.Color(0x0a0604); scene.fog = new THREE.Fog(0x1a0f08, 10, 52);
+    const g = setObj, r = rng(808);
+    g.add(addFloor(0x6a5238, 0.9));
+    const marble = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: 0.45, metalness: 0.15 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xc89a3a, roughness: 0.35, metalness: 0.85 });
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+      const z = -3 - k * 4.4, x = s * (4.2 + k * 0.5);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 6.4, 24), marble); col.position.set(x, 3.2, z); col.castShadow = true; g.add(col);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.5, 0.5, 24), gold); cap.position.set(x, 6.6, z); g.add(cap);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.3, 24), gold); base.position.set(x, 0.15, z); g.add(base);
+    }
+    const wallM = new THREE.MeshStandardMaterial({ map: cvTex(256, 256, (c, w, h) => { c.fillStyle = '#5a3e1e'; c.fillRect(0, 0, w, h); for (let i = 0; i < 1400; i++) { c.fillStyle = `rgba(${210 + r() * 45 | 0},${160 + r() * 60 | 0},${40 + r() * 50 | 0},${0.06 + r() * 0.16})`; c.fillRect(r() * w, r() * h, 4 + r() * 6, 4 + r() * 6); } }), roughness: 0.6, metalness: 0.3, emissive: 0x3a2408, emissiveIntensity: 0.8 });
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(40, 16), wallM); back.position.set(0, 7, -22); g.add(back);
+    const niche = new THREE.Mesh(new THREE.CircleGeometry(4.2, 40), addMat(0xffd070, 0.32, { fog: false })); niche.position.set(0, 4.6, -21.8); g.add(niche);
+    const apse = new THREE.Mesh(new THREE.TorusGeometry(4.4, 0.22, 10, 40, M.PI), gold); apse.position.set(0, 4.6, -21.7); g.add(apse);
+    const lamps = []; for (let i = 0; i < 7; i++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), gmat(0xffb050, 2.8)); l.position.set((i - 3) * 1.9, 4.6 + (i % 2) * 0.6, -9 - (i % 3) * 2); g.add(l); lamps.push(l); }
+    setUpd.push(t => lamps.forEach((l, i) => { l.scale.setScalar(1 + 0.18 * M.sin(2 * M.PI * t / T_LOOP * 2 + i)); }));
+    const pts = points(240, [16, 9, 20, -8], 0.045, 0xffe0a8, 141, 0.5); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
+    rimL.color.set(0xffb070); rimR.color.set(0xffe0a8); keyLight.color.set(0xffe4bc);
+  },
 };
 
 function init3d(w, h) {

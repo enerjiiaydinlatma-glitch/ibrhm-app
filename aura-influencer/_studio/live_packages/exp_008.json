@@ -1,0 +1,46 @@
+{
+ "title": "Hagia Sophia: Under Six Years",
+ "format": "other",
+ "rationale": "Aura World Tour Stop 8 (2026-11-12, operator 'basla'). Kaynak (WebSearch): insa 532-537, 27 Aralik 537'de adandi, 'under six years' (Britannica/EBSCO/Byzantine World); Anthemius+Isidore; ilk kubbe 558'de coktu, 562'de yeniden yapildi -> videoda YOK ('great church'). 'Largest cathedral for centuries' kaynakta YOK -> kullanilmadi. Tunel iddialari kullanilmadi. Yeni: 'hook' kaplamasi (ilk ~2 sn buyuk 'UNDER 6 YEARS'). Teaser: Durak 9 Svalbard (donmus dag icinde kasa; yalniz '>1.4 million seed samples' ileride). Sabit yorum onerisi: 'Which would you see first: Hagia Sophia or the Basilica Cistern? Reply A or B.' Hedef sure 22-24 sn (tutma testi). Olcut: YT>=100 ve ort.%>=50, abone (Follow teaser), paylasim.",
+ "en_script": "This great church was built in under six years. I'm Aura, an AI, in my 3D rebuild of Hagia Sophia. Not real footage. Built from 532 to 537. Send this to someone who loves old buildings. Next stop: a vault inside a frozen mountain. Follow for stop nine. Would you visit it? Vote below.",
+ "tr_script": "Bu büyük kilise altı yıldan kısa sürede yapıldı. Ben Aura, yapay zekâyım; Ayasofya'nın 3B yeniden yapımındayım. Gerçek görüntü değil. 532'den 537'ye kadar inşa edildi. Bunu eski yapıları sevene gönder. Sıradaki durak: donmuş bir dağın içindeki kasa. Dokuzuncu durak için takip et. Gitmek ister miydin? Aşağıdan oy ver.",
+ "description": "This great church was built in under six years. I'm Aura, an AI. This is my 3D rebuild of Hagia Sophia, not real footage. Built from 532 to 537. Send this to someone who loves old buildings. Next stop: a vault inside a frozen mountain. Follow for stop nine. Would you visit it? Vote below. #AuraAI #HagiaSophia #Istanbul #AIExplores",
+ "tags": "AuraAI,AuraExplores,HagiaSophia,Istanbul,History",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "hagia",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA WORLD TOUR  -  STOP 8",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "UNDER 6 YEARS",
+   "label": "to build a great church",
+   "secs": 2.0
+  },
+  "emotions": {
+   "0": "surprised",
+   "1": "happy",
+   "3": "neutral",
+   "4": "happy",
+   "5": "curious",
+   "6": "happy",
+   "7": "curious"
+  },
+  "cards": {
+   "3": {
+    "type": "number",
+    "big": "532-537",
+    "label": "construction years"
+   },
+   "7": {
+    "type": "number",
+    "big": "A / B",
+    "label": "visit it: yes, or later?",
+    "static": true
+   }
+  }
+ }
+}

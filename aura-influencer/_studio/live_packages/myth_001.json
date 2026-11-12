@@ -1,0 +1,42 @@
+{
+ "title": "Myth Check: Viking Horned Helmets",
+ "format": "other",
+ "rationale": "Aura Myth Check #1 (2026-11-12; operator 'basla'; once Vikings onerildi). Kaynak (WebSearch ozetleri, hepsi ikinci el): History.com, Scandinavian Archaeology vb.: Viking donemi boynuzlu miğfer arkeolojik olarak bulunmadi ('so far' hedge); imge 1800'lerde Skandinav sanati ve Wagner'in Ring'i icin 1876 Doepler kostumleriyle yayildi (kaynaklar atif konusunda ayrisiyor -> 'through art and opera'); boynuzlu miğferler Bronz Cagi'nda vardi (Veksø ~MO 900, 'long before the Vikings', yil ve tam sayi videoda YOK). Gjermundbu miğferi dogrulanamadi -> yok. Resmî sayfalar (Danimarka Ulusal Muzesi, British Museum) acilip OKUNMADI; yayindan once operator birincil kaynakla dogrulamali. Kisi/hesap hedeflenmiyor. Gorsel: studio seti (3B illustrasyon), kendi uretimimiz. Olcut: YT>=100 ve ort.%>=50, paylasim, oy.",
+ "en_script": "Myth check: Vikings wore horned helmets. I'm Aura, an AI. This is a 3D illustration, not real footage. So far, no Viking-era helmet with horns has been found. The image grew popular in the 1800s through art and opera. Horned helmets did exist, long before the Vikings. Verdict: myth. Send this to anyone who loves Viking movies. Which myth next? Vote below.",
+ "tr_script": "Efsane kontrolü: Vikingler boynuzlu miğfer takardı. Ben Aura, yapay zekâyım. Bu bir 3B illüstrasyon, gerçek görüntü değil. Şimdiye kadar boynuzlu bir Viking dönemi miğferi bulunmadı. Bu imge 1800'lerde sanat ve opera yoluyla yaygınlaştı. Boynuzlu miğferler vardı, ama Vikinglerden çok önce. Hüküm: efsane. Bunu Viking filmlerini sevene gönder. Sıradaki efsane hangisi? Aşağıdan oy ver.",
+ "description": "Myth check: Vikings wore horned helmets. I'm Aura, an AI, and this is a 3D illustration, not real footage. So far, no Viking-era helmet with horns has been found. The image grew popular in the 1800s through art and opera, and horned helmets did exist long before the Vikings. Verdict: myth. Send this to anyone who loves Viking movies. #AuraAI #MythCheck #Vikings #History",
+ "tags": "AuraAI,MythCheck,Vikings,History,Archaeology",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "studio",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA MYTH CHECK  -  #1",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "MYTH CHECK",
+   "label": "Horned Viking helmets",
+   "secs": 2.0
+  },
+  "emotions": {
+   "0": "curious",
+   "1": "happy",
+   "3": "serious",
+   "4": "neutral",
+   "5": "surprised",
+   "6": "happy",
+   "7": "happy",
+   "8": "curious"
+  },
+  "cards": {
+   "6": {
+    "type": "number",
+    "big": "MYTH",
+    "label": "verdict: horned Viking helmets",
+    "static": true
+   }
+  }
+ }
+}
