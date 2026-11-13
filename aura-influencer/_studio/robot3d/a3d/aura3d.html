@@ -525,6 +525,26 @@ const SETS = {
     const pts = points(240, [16, 9, 20, -8], 0.045, 0xffe0a8, 141, 0.5); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
     rimL.color.set(0xffb070); rimR.color.set(0xffe0a8); keyLight.color.set(0xffe4bc);
   },
+  vault() {
+    scene.background = new THREE.Color(0x03080f); scene.fog = new THREE.Fog(0x0a1822, 6, 44);
+    const g = setObj, r = rng(909);
+    g.add(addFloor(0x2a3640, 0.92));
+    const wallTex = cvTex(256, 256, (c, w, h) => { c.fillStyle = '#3a4650'; c.fillRect(0, 0, w, h); for (let i = 0; i < 1600; i++) { const v = 70 + r() * 70 | 0; c.fillStyle = `rgba(${v},${v + 8},${v + 16},0.22)`; c.fillRect(r() * w, r() * h, 2 + r() * 7, 1 + r() * 3); } for (let i = 0; i < 260; i++) { c.fillStyle = 'rgba(230,246,255,0.35)'; c.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 2); } });
+    wallTex.repeat.set(6, 3);
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 70, 40, 1, true), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, metalness: 0.05, side: THREE.BackSide, emissive: 0x3a4a5c, emissiveIntensity: 0.9 })); tube.rotation.x = M.PI / 2; tube.position.set(0, 1.6, -26); g.add(tube);
+    const metal = new THREE.MeshStandardMaterial({ color: 0x8a96a2, roughness: 0.4, metalness: 0.8 });
+    const cols = [0xff6a4a, 0xffd04a, 0x4ad08a, 0x4a9aff, 0xe8e8f0];
+    for (const s of [-1, 1]) for (let k = 0; k < 9; k++) {
+      const z = -3 - k * 4.6, x = s * 2.7;
+      const rack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 4.0), metal); rack.position.set(x, 1.7, z); g.add(rack);
+      for (let lv = 0; lv < 4; lv++) for (let b = 0; b < 4; b++) { const box = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.7), new THREE.MeshStandardMaterial({ color: cols[(lv + b + k) % 5], roughness: 0.6, metalness: 0.1 })); box.position.set(x - s * 0.36, 0.4 + lv * 0.78, z - 1.4 + b * 0.92); g.add(box); }
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.16), gmat(0xdff2ff, 2.0)); lamp.position.set(0, 5.0, z); g.add(lamp);
+    }
+    const end = new THREE.Mesh(new THREE.CircleGeometry(3.2, 40), addMat(0x9ad0ff, 0.22, { fog: false })); end.position.set(0, 1.8, -58); g.add(end);
+    const pts = points(260, [6, 4, 22, -8], 0.035, 0xe8f6ff, 151, 0.7); g.add(pts);
+    setUpd.push(t => { const b = pts.userData.base, a = pts.geometry.attributes.position; for (let i = 0; i < a.count; i++) { a.array[i * 3 + 1] = wrap(b[i * 3 + 1] - 4 * (1 + (i % 3)) * (t / T_LOOP), 4); a.array[i * 3] = b[i * 3] + 0.08 * M.sin(2 * M.PI * (t / T_LOOP) + i); } a.needsUpdate = true; });
+    rimL.color.set(0x8ad0ff); rimR.color.set(0xc8e6ff); keyLight.color.set(0xeaf4ff);
+  },
 };
 
 function init3d(w, h) {
