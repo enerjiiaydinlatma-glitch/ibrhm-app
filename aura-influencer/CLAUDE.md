@@ -1432,3 +1432,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-13 aksam — Durak 9 "Svalbard Seed Vault: 1.4M+ Seeds" (exp_009) YOUTUBE'DA YAYINDA (panel kaydi) — yine render izlenmeden
 - Panel: YAYINDA 2026-11-13 17:35, link https://youtu.be/x1Y4Lf1B96g (ekran goruntusunden; I/l karismis olabilir). Render/sure/hook gorunumu/ses okunusu operatorden GELMEDI (ayasofya'da oldugu gibi). Metin operator onayli. Teaser: "Next stop is a surprise. Follow for stop ten." Sabit yorum onerisi: "Which seed would you save first: wheat, rice, or potato? Reply A, B, or C." TikTok bekleniyor. Myth check (myth_001) hala taslak.
 - Olcut: YT>=100 ve ort.%>=50; hook "1.4M+" + ~22 sn hedef; abone (2). 24 saat sonra olcum.
+- 2026-11-13: Svalbard (exp_009) TikTok'a yuklendi (operator beyani; saat, sure, etkilesim durumu ve render izlenimi bildirilmedi). Olcum 14 Kas ~18:01 TSI (hatirlatma kurulu).
