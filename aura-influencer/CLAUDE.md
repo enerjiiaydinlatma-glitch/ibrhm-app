@@ -1452,3 +1452,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-14 — Myth Check #1 "Viking Horned Helmets" (myth_001) YOUTUBE'DA YAYINDA (panel kaydi) — yine render izlenmeden
 - Panel: kart YAYINDA, link https://youtu.be/vfmJtOFcseE (ekran goruntusunden; I/l/O karismis olabilir). Yayin saati bildirilmedi (14 Kas). Render izlenimi/sure/hook ("MYTH CHECK") gorunumu operatorden GELMEDI. Metin operator onayli. TikTok bekleniyor. Sabit yorum onerisi: "Which myth should I check next? Reply with one."
 - Olcut: YT>=100 ve ort.%>=50; myth check formatinin ilk veri noktasi (World Tour disinda). 24 saat sonra olcum.
+- 2026-11-14: Vikings myth check (myth_001) TikTok'a yuklendi (operator beyani; saat, sure, etkilesim durumu bildirilmedi). TikTok takipci 9->56 sorusu (karsilikli takip mi?) hala cevapsiz. Olcum 15 Kas ~17:27 TSI.
