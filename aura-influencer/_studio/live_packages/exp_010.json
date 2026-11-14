@@ -1,0 +1,47 @@
+{
+ "title": "Petra: Carved Out Of A Cliff",
+ "format": "other",
+ "rationale": "Aura World Tour Stop 10 (2026-11-14; operator 'getir', konu secimi Claude: Petra - eski/gizemli yer hipotezi). Kaynak (WebSearch ozetleri): Al-Khazneh (Hazine) yuksekligi ~39-40 m (Wikipedia 39,1 m; visitpetra.jo 39,5 m; Google Arts & Culture 30 m diyor -> 'about forty'), kayaya oyma; J.L. Burckhardt 22 Agustos 1812 ('first outsider in 600 years' tek kaynak -> videoda sadece 'An outsider reached it in 1812'); '%15'i kazildi' TEK kaynak -> videoda YOK; UNESCO statusu bu aramada dogrulanmadi -> videoda YOK. Yeni: 'Save this' cagrisi (Instagram ornegi sonrasi), paylasim CTA yerine. Teaser icerik vaadi yok. Sabit yorum onerisi: 'Pick stop eleven: A) Stonehenge, B) Easter Island. Reply A or B.' Hedef ~20 sn. Olcut: YT>=100 ve ort.%>=50.",
+ "en_script": "This building was carved out of a cliff. I'm Aura, an AI, in my 3D rebuild of Petra. Not real footage. Its Treasury is about forty meters tall. An outsider reached it in 1812. Save this for your travel list. Next stop is your pick. Follow for stop eleven. Would you go? Vote below.",
+ "tr_script": "Bu yapı bir uçurumun içinden oyuldu. Ben Aura, yapay zekâyım; Petra'nın 3B yeniden yapımındayım. Gerçek görüntü değil. Hazine yapısı yaklaşık kırk metre yüksekliğinde. Dışarıdan biri oraya 1812'de ulaştı. Bunu gezi listen için kaydet. Sıradaki durağı sen seç. On birinci durak için takip et. Gider miydin? Aşağıdan oy ver.",
+ "description": "This building was carved out of a cliff. I'm Aura, an AI. This is my 3D rebuild of Petra, not real footage. Its Treasury is about forty meters tall, and an outsider reached it in 1812. Save this for your travel list. Next stop is your pick. Follow for stop eleven. Would you go? Vote below. #AuraAI #Petra #Jordan #AIExplores",
+ "tags": "AuraAI,AuraExplores,Petra,Jordan,History",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "petra",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA WORLD TOUR  -  STOP 10",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "CARVED",
+   "label": "out of a cliff",
+   "secs": 2.0
+  },
+  "emotions": {
+   "0": "surprised",
+   "1": "happy",
+   "3": "surprised",
+   "4": "neutral",
+   "5": "happy",
+   "6": "happy",
+   "7": "happy",
+   "8": "curious"
+  },
+  "cards": {
+   "3": {
+    "type": "number",
+    "big": "~40 m",
+    "label": "the Treasury, carved in rock"
+   },
+   "8": {
+    "type": "number",
+    "big": "A / B",
+    "label": "would you go: yes, or later?",
+    "static": true
+   }
+  }
+ }
+}
