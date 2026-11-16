@@ -1474,3 +1474,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-16 aksam — Durak 11 "Easter Island: How Did They Move?" (exp_011) YOUTUBE'DA YAYINDA (panel karti, operator yapistirdi)
 - Panel: YAYINDA 2026-11-16 18:28, link https://youtu.be/3gEvXtEfRiQ (operatorun yapistirdigi metinden). Nazca kalibi (hook kaplamasi yok, A/B, "still debate", "Send this to someone curious"). Petra'nin 24 saati dolmadan (~22 sa) yayinlandi -> iki videonun ilk-gun olcumu kismen ust uste. Render izlenimi/sure bildirilmedi. TikTok: operator yukluyor.
 - Olcut: YT>=100 ve ort.%>=50; Nazca kalibi tekrar ediyor mu (n=2). 24 saat sonra olcum.
+- 2026-11-16: Easter Island (exp_011) TikTok'a yuklendi (operator beyani; saat ve sure bildirilmedi). Olcum 17 Kas 18:35 TSI.
