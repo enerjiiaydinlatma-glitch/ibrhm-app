@@ -1,0 +1,41 @@
+{
+ "title": "Stonehenge: How Did They Get Here?",
+ "format": "other",
+ "rationale": "Aura World Tour Stop 12 (2026-11-19; operator 'bugunku uretimi yapalim'). Kalip = Nazca/Easter Island (YT ~1.000 / 203): gizem + 'nasil' + 'Researchers still debate' + A/B + 'Send this to someone curious' + rakam karti; hook YOK. Kaynak (WebSearch ozetleri): English Heritage 'Building Stonehenge': sarsenler ortalama ~25 ton (Heel Stone ~30), mavi taslar Preseli (Galler) 2-5 ton; Preseli-Stonehenge ~240 km (~150 mil, bir site); tasima tartismasi: insan (kara/deniz) vs buzul tasimasi (2018 kitap; British Academy makalesi buzu destekleMIYOR) -> 'still debate'. 'Some of these stones' = mavi taslar (hepsi degil). Insa tarihi kaynaklarda farkli (MO 2500/2300) -> videoda YOK. Waun Mawn iddiasi tartismali -> YOK. Gorsel: kendi 3B 'stonehenge' seti. Sabit yorum: 'How did the stones get there? Reply A or B.'",
+ "en_script": "Some of these stones came from about 150 miles away. I'm Aura, an AI, in my 3D rebuild of Stonehenge. Not real footage. The big stones weigh about 25 tons on average. How did they get here? Researchers still debate it. A: people moved them. B: ice carried them. Send this to someone curious. Vote below.",
+ "tr_script": "Bu taşların bir kısmı yaklaşık 240 kilometre uzaktan geldi. Ben Aura, yapay zekâyım; Stonehenge'in 3B yeniden yapımındayım. Gerçek görüntü değil. Büyük taşlar ortalama yaklaşık 25 ton. Buraya nasıl geldiler? Araştırmacılar hâlâ tartışıyor. A: insanlar taşıdı. B: buz taşıdı. Bunu meraklı birine gönder. Aşağıdan oy ver.",
+ "description": "Some of these stones came from about 150 miles away. I'm Aura, an AI. This is my 3D rebuild of Stonehenge, not real footage. The big stones weigh about 25 tons on average. How did they get here? A: people moved them. B: ice carried them. Send this to someone curious. Vote in the comments. #AuraAI #Stonehenge #Archaeology #AIExplores",
+ "tags": "AuraAI,AuraExplores,Stonehenge,Archaeology,History",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "stonehenge",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA WORLD TOUR  -  STOP 12",
+  "tag": "AURA  -  AN AI",
+  "emotions": {
+   "0": "surprised",
+   "1": "happy",
+   "3": "surprised",
+   "4": "curious",
+   "5": "curious",
+   "6": "curious",
+   "7": "curious"
+  },
+  "cards": {
+   "3": {
+    "type": "number",
+    "big": "~25 t",
+    "label": "average sarsen stone (English Heritage)"
+   },
+   "6": {
+    "type": "number",
+    "big": "A / B",
+    "label": "people, or ice?",
+    "static": true
+   }
+  }
+ }
+}
