@@ -1498,3 +1498,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 
 ### 2026-11-20 aksam — Durak 13 "Great Pyramid: How Did It Go Up?" (exp_013) YOUTUBE'DA YAYINDA
 - Panel: YAYINDA 2026-11-20 18:12, link https://youtu.be/LTAULkwvKE8 (ekran goruntusunden; I/l karismis olabilir). Preflight 17/18: "Easter Island ile %62 benzer konu" uyarisi = ayni kalip ("How did they...") kelime cakismasi, farkli yer. Hook kaplamasi "2.3M". Render izlenimi/sure bildirilmedi. Stonehenge 24 saat ekran goruntusu GELMEDI. "AI Safety Rules Debated in EU" taslagi hala panelde (taslak). TikTok bekleniyor.
+- 2026-11-20: Great Pyramid (exp_013) TikTok'a yuklendi (operator beyani; saat/sure bildirilmedi). Olcum 21 Kas 18:15 TSI.
