@@ -1495,3 +1495,6 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - **Okuma:** Nazca kalibi YT'de: Nazca ~1.000, Easter Island 203, Stonehenge 40 (20 sa; tutma %60,5 iyi). Kalip TUTMAYI tutarli veriyor (Stonehenge %60,5), ERISIMI degil (ilk test grubuna bagli). TikTok tum videolarda 140-170 bandinda, paylasim hep 0. Ana darbogazlar: %90 kaydirma (ilk saniye) ve sifir donusum (abone 2, paylasim 0).
 - TikTok "Ilham" revactaki konular (Hunger Games, GTA VI, Ronaldo, Bond) bizim nisimizle alakasiz -> kullanilmadi.
 - 2026-11-20: exp_013 "Great Pyramid: How Did It Go Up?" (Durak 13) METIN OPERATOR ONAYLI ("onay"); pyramid klipleri uretiliyor; YAYINLANMADI. Operator olcum hatirlatmasini 17:00-17:30 TSI istedi.
+
+### 2026-11-20 aksam — Durak 13 "Great Pyramid: How Did It Go Up?" (exp_013) YOUTUBE'DA YAYINDA
+- Panel: YAYINDA 2026-11-20 18:12, link https://youtu.be/LTAULkwvKE8 (ekran goruntusunden; I/l karismis olabilir). Preflight 17/18: "Easter Island ile %62 benzer konu" uyarisi = ayni kalip ("How did they...") kelime cakismasi, farkli yer. Hook kaplamasi "2.3M". Render izlenimi/sure bildirilmedi. Stonehenge 24 saat ekran goruntusu GELMEDI. "AI Safety Rules Debated in EU" taslagi hala panelde (taslak). TikTok bekleniyor.
