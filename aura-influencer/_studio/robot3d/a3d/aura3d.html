@@ -634,6 +634,28 @@ const SETS = {
     const pts = points(180, [28, 5, 26, -8], 0.045, 0xffe0b8, 181, 0.45); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
     rimL.color.set(0xff9a6a); rimR.color.set(0xffd09a); keyLight.color.set(0xffe0c0);
   },
+  pyramid() {
+    scene.background = new THREE.Color(0x1a1024); scene.fog = new THREE.Fog(0x8a5a48, 22, 110);
+    const g = setObj, r = rng(1313);
+    g.add(addFloor(0xb88a5a, 0.95));
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 48, 32), new THREE.MeshBasicMaterial({ map: cvTex(8, 512, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1a1436'); gr.addColorStop(0.5, '#5a3a5c'); gr.addColorStop(0.78, '#e88a5a'); gr.addColorStop(0.9, '#ffd59a'); gr.addColorStop(1, '#a87a4a'); c.fillStyle = gr; c.fillRect(0, 0, w, h); }), side: THREE.BackSide, fog: false, depthWrite: false }));
+    g.add(sky);
+    const sun = new THREE.Mesh(new THREE.CircleGeometry(8, 48), gmat(0xffe0b0, 1.8, { fog: false })); sun.position.set(38, 22, -140); g.add(sun);
+    const sunH = new THREE.Mesh(new THREE.CircleGeometry(30, 48), addMat(0xff9a5a, 0.18, { fog: false })); sunH.position.set(38, 22, -139); g.add(sunH);
+    const sandTex = cvTex(256, 256, (c, w, h) => { c.fillStyle = '#b08458'; c.fillRect(0, 0, w, h); for (let i = 0; i < 2600; i++) { const v = 130 + r() * 70 | 0; c.fillStyle = `rgba(${v + 20},${v},${v - 40},0.22)`; c.fillRect(r() * w, r() * h, 2 + r() * 6, 1 + r() * 2); } });
+    sandTex.repeat.set(12, 12);
+    const sand = new THREE.Mesh(new THREE.PlaneGeometry(200, 160), new THREE.MeshStandardMaterial({ map: sandTex, roughness: 1, metalness: 0, transparent: true, opacity: 0.85 })); sand.rotation.x = -M.PI / 2; sand.position.set(0, 0.006, -30); g.add(sand);
+    const blockTex = cvTex(256, 256, (c, w, h) => { c.fillStyle = '#c89a68'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(90,60,30,0.55)'; c.lineWidth = 2; for (let y = 0; y < h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); for (let x = (y / 16 % 2) * 16; x < w; x += 32) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 16); c.stroke(); } } for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(80,50,24,${0.04 + r() * 0.08})`; c.fillRect(r() * w, r() * h, 2 + r() * 5, 1 + r() * 3); } });
+    blockTex.repeat.set(3, 3);
+    const bM = new THREE.MeshStandardMaterial({ map: blockTex, roughness: 0.95, metalness: 0, emissive: 0x3a2412, emissiveIntensity: 0.45 });
+    function pyr(x, z, s) { const m = new THREE.Mesh(new THREE.ConeGeometry(s, s * 0.95, 4, 1), bM); m.rotation.y = M.PI / 4; m.position.set(x, s * 0.475, z); m.castShadow = true; g.add(m); }
+    pyr(2, -60, 9); pyr(-16, -74, 7); pyr(18, -82, 5);
+    const stoneM = new THREE.MeshStandardMaterial({ color: 0xc89a68, roughness: 0.95 });
+    for (let k = 0; k < 9; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.8), stoneM); b.position.set((r() > 0.5 ? 1 : -1) * (2.6 + r() * 4), 0.35, -4 - r() * 10); b.rotation.y = r(); b.castShadow = true; g.add(b); }
+    const sled = new THREE.Group(); const sb = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.85, 0.95), stoneM); sb.position.y = 0.6; sled.add(sb); for (const sd of [-0.45, 0.45]) { const runner = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 1.9), new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.8 })); runner.position.set(sd, 0.12, 0); sled.add(runner); } sled.position.set(3.4, 0, -7); sled.rotation.y = -0.4; g.add(sled);
+    const pts = points(220, [30, 6, 30, -10], 0.05, 0xffd9a8, 191, 0.45); g.add(pts); setUpd.push(t => driftPoints(pts, t, 1));
+    rimL.color.set(0xff9a6a); rimR.color.set(0xffd09a); keyLight.color.set(0xffdcb8);
+  },
 };
 
 function init3d(w, h) {
