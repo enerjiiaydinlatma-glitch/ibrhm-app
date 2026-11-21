@@ -1540,3 +1540,7 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - `make_video_v2.py`: (1) `hook.persist: true` → kanca rakamı 2 sn sonra üstte küçük kalıcı bant olur ("30 m  HIDDEN VOID"; `hook.pill` etiket); (2) `spec.chapters` {cümle indeksi: "STOP 1 - ..."} → altyazının üstünde durak etiketi + oda geçişinde kısa beyaz flaş; kart görünürken etiket gizlenir. Varsayılan davranış değişmedi.
 - Paket `live_packages/tour_001.json` "Inside the Great Pyramid: 3 Stops" (pyramid seti, ~26,9 sn, preflight 16/16): Büyük Galeri (~47 m, NOVA), Kral Odası (kırmızı granit, Britannica), Big Void (Nature 2017 muon, en az 30 m, amacı bilinmiyor; arXiv 1711.01576, PBS NOVA, NatGeo). Kullanılmadı: galeri yüksekliği (kaynaklar 7,9-8,8 m), 2023 koridoru.
 - Sentetik sesle önizleme yapıldı (kareler kontrol edildi). Sırada: elektrik serisi ("Aura Explains") ve karusel, operatör onayıyla.
+
+### 2026-11-21 (devam 5) — Operatör kararı: elektrik içerikleri Aura'da YOK
+- "Aura Explains: How Electricity Works" önerisi Aura kanalından ÇIKARILDI. Elektrik/enerji konuları (kablo renkleri, priz-santral yolu, kaçak akım rölesi vb.) operatörün AYRI enerji-elektrik sayfası için; bu projede uygulanmaz.
+- Aura'da kalan uyarlamalar: (1) kalıcı kanca bandı + çok duraklı "Aura Tour" (tour_001, onay bekliyor), (2) numaralı karusel/liste (World Tour gizemleri veya ücretsiz keşif siteleri), onay bekliyor.
