@@ -205,3 +205,29 @@ Yazılar: "Cam kapılı gardırop" · "İç şerit LED" · "Gün ışığı değ
 - 58-59'da yatak, kişisel eşyalar, ilaç/kozmetik ürünleri görünüyor → kırp veya paylaşma.
 - 44-46 senin ofisin (masada "NİLPA PANO" yazısı, laptop, kasa): kırp; kasa ve kameranın göründüğü alanı gösterme.
 - Çıplak sıva ve açık tesisat kareleri (47-51) sorunsuz.
+
+---
+
+# EK 4 – Beşinci set (foto 60-72): Mutfak tezgâh altı LED, giyinme odası, okul/sınıf panel armatür
+
+## Gruplar
+- **61, 62, 69 (mutfak):** Üst dolap altı şerit LED + mermer desenli tezgâh/arka cephe; ışığın tezgâhta yansıması çok güzel. **Bu setin en güçlü kareleri (61 en iyisi).**
+- **66-68 (giyinme odası):** Dolap içi şerit LED + ışıklı ayna + kavisli tavan kovuk LED. Temiz, profesyonel görünüm.
+- **60, 63, 64, 65 (tavan profil kanalları):** Önceki setlerle aynı iş türü; "kurulum aşaması" karuseline.
+- **70-72 (okul/anaokulu içi):** Koridor ve sınıfta kare panel armatürler; 72 daha önce attığın sundurma karesinin aynısı (33 ile tekrar, birini kullan).
+
+## İçerikler
+**Reels 6 – "Mutfağa ışık katmak" (10-12 sn):** 62 → 61 → 69. Yazı: "Tezgâh altı LED" · "Mermer + sıcak ışık" · "Çorlu / 0507 449 79 26".
+**Karusel 5 – "Giyinme odası aydınlatması":** 66 → 67 → 68. Metin:
+> Cam kapılı dolap içi LED, ışıklı ayna ve kovuk tavan LED bir arada. Ölçüye özel uygulama.
+> #giyinmeodası #dolaplediş #mutfakaydınlatma #tezgahaltıled #çorlu #enerjiaydinlatma
+**Mutfak tek gönderi (61):** "Üst dolap altı LED: tezgâhta çalışmak da, görünüm de bir üst seviye."
+**Sınıf/panel (71):** "Kare LED panel armatürlerle eşit ve gözü yormayan aydınlatma." (Mekân adı/okul adı yazma.)
+
+## Dikkat
+- **66-68:** Aynada telefon tutan kişi görünüyor ve yatak odası içi; kırp (67/68 daha temiz), müşteri izni al.
+- **70 (koridor):** Uzakta bir işçi ve açık kablo demeti görünüyor → paylaşma veya kırp.
+- **71-72:** Eğitim binası; mekân/konum yazma, kamu işiyse kurum izni.
+- **Mutfak (61, 62, 69):** Zemin ve tezgâhta inşaat atığı/ambalaj var; 61 çok yakın kadraj olduğu için sorun değil, 69'u kırp.
+- Mutfak ve giyinme odası kareleri müşteri evi; paylaşmadan önce izin.
+- Aynı kare (örn. 72 = 33, 63 ≈ 42) tekrar edebilir; kullanmadan önce klasörde eşleştir.
