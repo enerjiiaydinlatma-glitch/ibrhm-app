@@ -1499,3 +1499,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-20 aksam — Durak 13 "Great Pyramid: How Did It Go Up?" (exp_013) YOUTUBE'DA YAYINDA
 - Panel: YAYINDA 2026-11-20 18:12, link https://youtu.be/LTAULkwvKE8 (ekran goruntusunden; I/l karismis olabilir). Preflight 17/18: "Easter Island ile %62 benzer konu" uyarisi = ayni kalip ("How did they...") kelime cakismasi, farkli yer. Hook kaplamasi "2.3M". Render izlenimi/sure bildirilmedi. Stonehenge 24 saat ekran goruntusu GELMEDI. "AI Safety Rules Debated in EU" taslagi hala panelde (taslak). TikTok bekleniyor.
 - 2026-11-20: Great Pyramid (exp_013) TikTok'a yuklendi (operator beyani; saat/sure bildirilmedi). Olcum 21 Kas 18:15 TSI.
+
+### 2026-11-21 — Great Pyramid ~19 saat + Stonehenge ~2 gun (operator ekran goruntuleri, dogru kanal)
+- **YouTube (AURA Ai):** Great Pyramid (ilk 18 sa 36 dk) **5 goruntuleme**, ort.% "%0" (gecikme olasi), 9/10. Stonehenge 42 (son 48 saatte 46), Easter Island 203, Petra 25, "What Happens To AI Without Electricity" 9. Kanal 28 gun 2,3 B, 1,5 saat, **abone 2**.
+- **TikTok (13-19 Kas):** 1,1K izlenme (+%40,3), profil goruntuleme 61 (+%22), begeni 22 (+%175), yorum yok, **paylasim 0**; Sizin Icin %91,5, arama %1. **Arama sorgulari hep bizim konular:** "viking blowhorns ai", "lake vostok footage", "moai statue in easter island", "lake vostok", "Drawing peru things not flags".
+- **Okuma:** Nazca kalibi YT erisimi: Nazca ~1.000, Easter Island 203, Stonehenge 42, Great Pyramid 5 (19 sa) -> tutma iyi (Stonehenge %60,5) ama erisim YT'nin ilk test grubuna bagli, kalip erisimi garantilemiyor. TikTok'ta arama trafigi kucuk ama tamamen konu adlarindan geliyor -> aciklamanin ilk kelimeleri konu adi + aranan ifade olmali (oneri). Paylasim hala 0.
