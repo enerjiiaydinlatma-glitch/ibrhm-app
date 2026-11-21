@@ -1,0 +1,58 @@
+{
+ "title": "Inside the Great Pyramid: 3 Stops",
+ "format": "other",
+ "rationale": "Aura Tour #1 (2026-11-21). Uyarlanan stratejiler: Joe Hattab birinci sahis oda oda gezi (3,2B paylasim) -> 'Come inside with me' + STOP 1/2/3 etiketleri + oda gecis flasi; masa.uc kalici rakam bandi -> hook.persist; Nazca kalibi (A/B + debate + Not real footage). Kaynaklar (WebSearch ozetleri): Big Void Nature 2017 Morishima vd., muon, en az 30 m, Buyuk Galeri ustunde, amaci bilinmiyor, Spence: insaattan kalma olabilir (arXiv 1711.01576, PBS NOVA, NatGeo); Buyuk Galeri ~47 m (NOVA 154 ft); Kral Odasi kirmizi granit (Britannica). Dogrulanmamis/kullanilmayan: galeri yuksekligi (kaynaklar 7,9-8,8 m), 2023 koridor.",
+ "en_script": "Come inside the Great Pyramid with me. I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: the Grand Gallery, nearly forty-seven meters long. Stop two: the King's Chamber, all red granite. Stop three: a hidden void above the gallery. Scans found it in 2017, at least thirty meters long. Its purpose? Still debated. Building trick, or hidden room? Send this to someone curious. Vote below.",
+ "tr_script": "Benimle Büyük Piramit'in içine gel. Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: Büyük Galeri, yaklaşık kırk yedi metre uzunluğunda. İkinci durak: tamamen kırmızı granit Kral Odası. Üçüncü durak: galerinin üstünde gizli bir boşluk. Taramalar onu 2017'de buldu, en az otuz metre uzunluğunda. Amacı ne? Hâlâ tartışılıyor. İnşaat tekniği mi, gizli oda mı? Bunu meraklı birine gönder. Aşağıdan oy ver.",
+ "description": "Come inside the Great Pyramid with me: the Grand Gallery, the King's Chamber, and a void at least 30 meters long, found by cosmic-ray (muon) scans in 2017. Its purpose is still debated. I'm Aura, an AI; this is my 3D rebuild, not real footage. Building trick, or hidden room? Vote in the comments. #AuraAI #GreatPyramid #Egypt #AIExplores",
+ "tags": "AuraAI,AuraTour,GreatPyramid,Egypt,Archaeology",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "pyramid",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA TOUR  -  GIZA",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "30 m",
+   "label": "hidden void, purpose unknown",
+   "pill": "HIDDEN VOID",
+   "secs": 2.0,
+   "persist": true
+  },
+  "chapters": {
+   "2": "STOP 1  -  GRAND GALLERY",
+   "3": "STOP 2  -  KING'S CHAMBER",
+   "4": "STOP 3  -  THE BIG VOID"
+  },
+  "emotions": {
+   "0": "happy",
+   "1": "neutral",
+   "2": "curious",
+   "3": "curious",
+   "4": "surprised",
+   "5": "surprised",
+   "6": "curious",
+   "7": "curious",
+   "8": "curious",
+   "9": "happy",
+   "10": "happy"
+  },
+  "cards": {
+   "5": {
+    "type": "number",
+    "big": "30 m",
+    "label": "at least, found 2017",
+    "static": true
+   },
+   "8": {
+    "type": "number",
+    "big": "A / B",
+    "label": "building trick, or hidden room?",
+    "static": true
+   }
+  }
+ }
+}

@@ -811,6 +811,8 @@ class _State:
         self.tag_font = _font(40)
         self.series_font = _font(34)
         self.hook = ctx.get("hook") or None
+        self.chapters = {int(k): str(v)[:40] for k, v in (ctx.get("chapters") or {}).items()}
+        self.pill_font = _font(44)
         self.poses = {int(k): v for k, v in (ctx.get("poses") or {}).items()}
 
 
@@ -956,10 +958,42 @@ def _render_one(st, fi):
             lw = ld.textlength(lab, font=fl)
             ld.text(((W - lw) / 2, 60 + size + 40), lab, font=fl, fill=HILITE + (int(255 * a),), stroke_width=4, stroke_fill=(18, 8, 34, int(255 * a)))
         frame.paste(layer, (0, 190), layer)
+    if st.hook and st.hook.get("persist") and t >= float(st.hook.get("secs", 2.0)):
+        # kanca rakami videonun SONUNA kadar kucuk bant olarak kalir (8 MILYARDA 1 ornegi)
+        hk = st.hook
+        a = min((t - float(hk.get("secs", 2.0))) / 0.3, 1.0)
+        txt = (str(hk.get("big", ""))[:22] + "   " + str(hk.get("pill") or hk.get("label", ""))[:30]).strip()
+        _pill(frame, txt, 214, st.pill_font, a, ACCENT)
+    if st.chapters:                                     # oda/bolum etiketi: "ROOM 2 - GRAND GALLERY"
+        ci = max([k for k in st.chapters if k <= si] or [-1])
+        if ci >= 0 and ci < len(st.tl) and si not in st.cards:   # kart varken etiketi gizle (ust uste binmesin)
+            c0 = st.tl[ci][1]
+            a = min((t - c0) / 0.2, 1.0)
+            fl = max(0.0, 1.0 - (t - c0) / 0.14) if ci == si and t >= c0 else 0.0
+            if fl > 0:                                  # oda gecisi: kisa beyaz flas
+                ov = Image.new("RGB", (W, H), (255, 255, 255))
+                frame.paste(Image.blend(frame, ov, 0.55 * fl))
+            _pill(frame, st.chapters[ci], 1130, st.pill_font, a, HILITE)   # altyazinin hemen ustu: yakin planda yuzu ortmez
     if st.series:                                       # seri bandi (ust sag): "AURA WORLD TOUR  -  STOP 4"
         sw = d.textlength(st.series, font=st.series_font)
         d.text((W - 60 - sw, 160), st.series, font=st.series_font, fill=HILITE, stroke_width=3, stroke_fill=(18, 8, 34))
     return frame.tobytes()
+
+
+def _pill(frame, txt, y, font, a, edge):
+    """Ortalanmis yari saydam etiket bandi (kalici kanca / oda etiketi)."""
+    if not txt or a <= 0:
+        return
+    tmp = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    while tmp.textlength(txt, font=font) > W - 200 and font.size > 26:
+        font = _font(font.size - 4)
+    tw = tmp.textlength(txt, font=font)
+    h = font.size + 34
+    layer = Image.new("RGBA", (int(tw) + 80, h), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([0, 0, layer.width - 1, h - 1], radius=h // 2, fill=(8, 5, 20, int(175 * a)), outline=tuple(edge) + (int(200 * a),), width=3)
+    ld.text((40, 14), txt, font=font, fill=(255, 255, 255, int(255 * a)), stroke_width=3, stroke_fill=(18, 8, 34, int(255 * a)))
+    frame.paste(layer, ((W - layer.width) // 2, y), layer)
 
 
 def _render_range(ctx, a, b, out_path):
@@ -1025,6 +1059,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
            "emos": emos, "parts": parts, "face": face, "nf": n_frames,
            "series": str(spec.get("series") or "")[:48], "hook": spec.get("hook") or None,
+           "chapters": {str(k): v for k, v in (spec.get("chapters") or {}).items()},
            "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True),
                       "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cutaway_sets": spec.get("cutaway_sets") or []},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
