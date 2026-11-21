@@ -175,3 +175,33 @@ Ekran yazıları: "Önce kanal" · "Sonra eğri" · "Sonra ışık" · "Sonuç"
 - 38 ve 42 gibi karelerde duvarda açık kablo/tesisat ve moloz görünüyor; tek gönderide kırp ya da karuselde ortalara koy, kapağa koyma.
 - Kareler çoğunlukla dikey: Reels/hikâye/karusel için doğrudan uygun, 4:5 kırpma yeterli.
 - "25 yıllık tecrübe" ifadesi sitede de kullanılıyor; metinde kullanabilirsin, rakam eklemeden.
+
+---
+
+# EK 3 – Dördüncü set (foto 44-59): Dolap içi LED, makyaj masası, kovuk LED, tavan kanalları
+
+## Gruplar
+- **44-46 (ofis, kovuk LED):** Tavan çevresinde gizli RGB LED; yeşil → turkuaz → mavi/beyaz geçişi. Reels için çok uygun (renk değişimi).
+- **47-51 (tavan profil kanalları, sıva aşaması):** Zigzag ve dikdörtgen çizgiler. Karusel 3'e eklenebilir.
+- **52-55, 57 (cam kapılı gardırop, altın çerçeve):** İç şerit LED + üst spot. **En güçlü set.**
+- **56 (makyaj masası, ampullü ayna):** Hollywood tarzı. Tek gönderi / hikâye.
+- **58-59 (dikey vitrinli gardırop, altın çıtalı):** Dar vitrin LED'li.
+
+## İçerikler
+**Reels 4 – "Dolap içi LED" (15 sn):** 52 → 53 → 54 → 57 → 56 → 58.
+Yazılar: "Cam kapılı gardırop" · "İç şerit LED" · "Gün ışığı değil, sıcak ışık" · "Makyaj köşesi" · "Çorlu / 0507 449 79 26"
+
+**Reels 5 – "Renk değiştiren tavan" (10 sn):** 44 → 45 → 46. Yazı: "Gizli RGB LED – tek kumandayla".
+
+**Karusel 4:** 52, 53, 55, 58, 59 – "Dolabınızı aydınlatın". Metin:
+> Cam kapılı ve vitrinli dolaplarda iç şerit LED hem düzen hem şıklık sağlar. Ölçüye göre uygulama yapıyoruz.
+> #gardıropaydınlatma #dolaplediş #ledşerit #giyinmeodası #çorlu #enerjiaydinlatma
+
+**Tek gönderi (56):** "Makyaj masasında ışık ayna kadar önemli. Ampullü ayna uygulaması." 
+
+## ÖNEMLİ – paylaşmadan önce
+- **Müşteri evleri:** Bu kareler özel yaşam alanı; müşteriden **yazılı/mesajla izin** al. Bebek kıyafetleri ve kutularda isim yazısı ("Arya" gibi) görünüyor → 52-55, 57'de **ismi bulandır veya kırp**.
+- **52, 53, 55, 57 aynada telefon tutan kişi yansıyor** → o kareleri kullanma ya da kırp; 54 ve 53 en temizleri.
+- 58-59'da yatak, kişisel eşyalar, ilaç/kozmetik ürünleri görünüyor → kırp veya paylaşma.
+- 44-46 senin ofisin (masada "NİLPA PANO" yazısı, laptop, kasa): kırp; kasa ve kameranın göründüğü alanı gösterme.
+- Çıplak sıva ve açık tesisat kareleri (47-51) sorunsuz.
