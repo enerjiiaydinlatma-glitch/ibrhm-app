@@ -1544,3 +1544,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-21 (devam 5) — Operatör kararı: elektrik içerikleri Aura'da YOK
 - "Aura Explains: How Electricity Works" önerisi Aura kanalından ÇIKARILDI. Elektrik/enerji konuları (kablo renkleri, priz-santral yolu, kaçak akım rölesi vb.) operatörün AYRI enerji-elektrik sayfası için; bu projede uygulanmaz.
 - Aura'da kalan uyarlamalar: (1) kalıcı kanca bandı + çok duraklı "Aura Tour" (tour_001, onay bekliyor), (2) numaralı karusel/liste (World Tour gizemleri veya ücretsiz keşif siteleri), onay bekliyor.
+- 2026-11-21: tour_001 "Inside the Great Pyramid: 3 Stops" metni operatör tarafından ONAYLANDI (render/yayın operatörde, PC + Voice Mesh).
