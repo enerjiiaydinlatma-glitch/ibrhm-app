@@ -142,3 +142,36 @@ Kapak yazısı: **"Ahşap kiriş + LED = karakter"**
 ## Paylaşma önerisi
 - 17-22 karelerinde: koli, boya tenekesi ("Dikkat sağlığa zararlıdır" etiketi), işçi görünüyor. Reels'te sorun yok; tek tek gönderide 19-20'deki çalışan kişiyi kırp.
 - Mekân/tabela ismi ve konum etiketi yok, müşteri izni olmadan koyma.
+
+---
+
+# EK 2 – Üçüncü set (foto 30-43): "Tavanın içinden" – kurulum aşaması
+
+Bu set iki parçadan oluşuyor:
+- **34-40, 42-43:** Alçıpan tavanda LED profil kanalları, boya/sıva öncesi. Kıvrımlı (S, oval, yay), iç içe kare ve paralel çizgi tasarımları. Bu kareler **işin zanaatını** gösteriyor; müşterinin göremediği kısım.
+- **30-33, 41:** Kırmızı kiremitli tek katlı bina (okul/anaokulu benzeri), gece dış cephe ve sundurma altında armatürler, bahçede oyun alanı.
+
+## Önerilen içerikler
+
+**Karusel 3 – "Tavan aydınlatmasının görünmeyen yüzü" (6-8 kare)**
+Sıra: 34 → 35 → 36 → 40 → 38 → 39 → 42 (+ bitmiş tavan karesi: 06 veya 09)
+Kapak: **"Işık yanmadan önce tavan böyle görünür"**
+Açıklama:
+> Güzel görünen bir tavanın arkasında doğru planlama var. Profil kanalları alçıpan aşamasında yerleşir, sonra ışık takılır.
+> Eğrisel (S, oval, yay) tasarımlar için esnek profil kullanıyoruz.
+> Evinizin/ofisinizin tavanını planlamadan önce bize yazın: 0507 449 79 26
+> #lineerled #ledprofil #esnekprofil #alçıpantavan #asmatavan #tavantasarımı #çorlu #tekirdağ #enerjiaydinlatma
+
+**Reels 3 – "Kıvrımlı LED tavan nasıl yapılır" (12-15 sn)**
+34 (kare) → 35 (oval) → 36 (S) → 40 (çift S) → bitmiş hal (06 veya 09) → logo/telefon kartı.
+Ekran yazıları: "Önce kanal" · "Sonra eğri" · "Sonra ışık" · "Sonuç"
+
+**Dış cephe (30-33, 41)**
+- Bahçedeki çocuk oyun alanı ve eğitim binası göründüğü için: **mekân adı, konum, "okul" ibaresi koyma**; kamu projesiyse kurum izni/şartname gizliliğine dikkat et. Sadece "Çorlu'da bir proje, dış mekân aydınlatması" de.
+- 33 (sundurma altında tavan armatürleri): "Giriş ve sundurma aydınlatması" olarak tek kare uygun.
+- Fiyat/miktar veya "X armatür" gibi rakam yazma.
+
+## Paylaşma notları
+- 38 ve 42 gibi karelerde duvarda açık kablo/tesisat ve moloz görünüyor; tek gönderide kırp ya da karuselde ortalara koy, kapağa koyma.
+- Kareler çoğunlukla dikey: Reels/hikâye/karusel için doğrudan uygun, 4:5 kırpma yeterli.
+- "25 yıllık tecrübe" ifadesi sitede de kullanılıyor; metinde kullanabilirsin, rakam eklemeden.
