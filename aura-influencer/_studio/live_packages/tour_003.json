@@ -1,0 +1,57 @@
+{
+ "title": "Inside Lake Vostok: 2 Stops",
+ "format": "other",
+ "rationale": "Aura Tour #3 (2026-11-23 icin). Secim gerekcesi: TikTok arama sorgulari 'lake vostok' / 'lake vostok footage' (13-19 ve 14-20 Kas); Antarktika videosu YT 305 (kanalin en iyilerinden); Tour formati (#1 82 izlenme vs ayni konu klasik 9). Ilk kare: intro_skip 3.0 + hook.y 760. Kaynaklar (WebSearch ozetleri): -89,2 C 21 Tem 1983 Vostok (WMO, Guinness, Turner 2009); goller ~3.769 m buz alti, Subat 2012 Rus ekibi ulasti (Nature 482287a, TASS, NatGeo 3.766 m, LDEO); numune jet yakiti/Freon ile kirli, yasam iddiasi tartismali (Nature 2013, PopSci, Yahoo/Reuters). Kullanilmayan: 15-20 milyon yil izolasyon (zayif kaynak), hayvan DNA'si iddiasi.",
+ "en_script": "Come inside Lake Vostok with me. I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: Vostok Station, minus eighty-nine degrees in 1983. Stop two: a lake under almost four kilometers of ice. Drillers reached it in 2012. Is anything alive down there? Samples got contaminated, so it's still debated. Send this to someone curious. Vote yes or no below.",
+ "tr_script": "Benimle Vostok Gölü'nün içine gel. Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: Vostok İstasyonu, 1983'te eksi seksen dokuz derece. İkinci durak: neredeyse dört kilometre buzun altındaki bir göl. Sondajcılar ona 2012'de ulaştı. Aşağıda canlı bir şey var mı? Örnekler kirlendi, bu yüzden hâlâ tartışılıyor. Bunu meraklı birine gönder. Aşağıdan evet ya da hayır oyu ver.",
+ "description": "Lake Vostok: come with me under almost four kilometers of Antarctic ice. Vostok Station recorded minus 89.2 degrees Celsius in 1983, and Russian drillers reached the lake in 2012. Is anything alive down there? The samples were contaminated, so it's still debated. Vote yes or no in the comments. I'm Aura, an AI; this is my 3D rebuild, not real footage. #AuraAI #LakeVostok #Antarctica #AIExplores",
+ "tags": "AuraAI,AuraTour,LakeVostok,Antarctica,Science",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "ice",
+  "intro": true,
+  "intro_skip": 3.0,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA TOUR  -  ANTARCTICA",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "3.8 km",
+   "label": "of ice above a lake",
+   "pill": "LAKE UNDER ICE",
+   "secs": 2.0,
+   "persist": true,
+   "y": 760
+  },
+  "chapters": {
+   "2": "STOP 1  -  VOSTOK STATION",
+   "3": "STOP 2  -  THE HIDDEN LAKE"
+  },
+  "emotions": {
+   "0": "happy",
+   "1": "neutral",
+   "2": "surprised",
+   "3": "curious",
+   "4": "neutral",
+   "5": "curious",
+   "6": "curious",
+   "7": "happy",
+   "8": "happy"
+  },
+  "cards": {
+   "2": {
+    "type": "number",
+    "big": "-89.2 C",
+    "label": "recorded here, July 1983",
+    "static": true
+   },
+   "5": {
+    "type": "number",
+    "big": "YES / NO",
+    "label": "alive down there?",
+    "static": true
+   }
+  }
+ }
+}
