@@ -748,9 +748,12 @@ def _draw_card(card, local_t, p):
                 big = pre + s + post
             except ValueError:
                 pass
-        f = _font(250)
+        size = 250
+        while size > 120 and _font(size).getlength(big) > W - 260:   # uzun metin (YES / NO) karttan tasmasin
+            size -= 10
+        f = _font(size)
         tw = f.getlength(big)
-        d.text(((W - tw) / 2, 150), big, font=f, fill=WHITE + (255,), stroke_width=7, stroke_fill=(20, 8, 40, 255))
+        d.text(((W - tw) / 2, 150 + (250 - size) // 2), big, font=f, fill=WHITE + (255,), stroke_width=7, stroke_fill=(20, 8, 40, 255))
         fl = _font(58, bold=False)
         lab = str(card.get("label", ""))
         d.text(((W - fl.getlength(lab)) / 2, 450), lab, font=fl, fill=HILITE + (255,))

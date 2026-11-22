@@ -1,0 +1,54 @@
+{
+ "title": "Inside Derinkuyu: 2 Stops",
+ "format": "other",
+ "rationale": "Aura Tour #2 (2026-11-22). Tour #1 (Great Pyramid 3 durak, ~27 sn): 82 izlenme/%34,3 (ayni konu klasik 9) -> ayni format, 2 durak, daha kisa. Kaynaklar (WebSearch ozetleri): History.com (dar gecitler, buyuk tas kapilar muhtemelen savunma icin; 50'den fazla ek havalandirma bacasi + ana baca; su kuyulari), Wikipedia/Atlas Obscura (kapilar icten kapatilir, disaridan oynatilamaz), 1963'te ev tadilatinda bulundu (IFLScience, History, Snopes; tavuk hikayesi tek kaynakli -> yok), ~85 m (onceki paket). Kullanilmayan: kapi agirligi (500 kg iddiasi zayif), 15.000 baca, kat sayisi (8-18), kapasite 20.000 (onceki videoda vardi). Onceki Derinkuyu videosu 12 izlenme (klasik kalip).",
+ "en_script": "Come inside Derinkuyu with me. I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: round stone doors, likely rolled shut for defense. Stop two: more than fifty air shafts, deep underground. A man found it in 1963 while renovating his house. Would you hide down here for a week? Send this to someone curious. Vote yes or no below.",
+ "tr_script": "Benimle Derinkuyu'nun içine gel. Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: muhtemelen savunma için kapatılan yuvarlak taş kapılar. İkinci durak: yerin derinliklerinde elliden fazla hava bacası. Bir adam onu 1963'te evini tadilat ederken buldu. Burada bir hafta saklanır mıydın? Bunu meraklı birine gönder. Aşağıdan evet ya da hayır oyu ver.",
+ "description": "Come inside Derinkuyu with me: round stone doors, likely rolled shut for defense, and more than fifty air shafts deep underground. A man found it in 1963 while renovating his house. I'm Aura, an AI; this is my 3D rebuild, not real footage. Would you hide down here for a week? Vote yes or no in the comments. #AuraAI #Derinkuyu #Cappadocia #Turkey #AIExplores",
+ "tags": "AuraAI,AuraTour,Derinkuyu,Cappadocia,Turkey",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "derinkuyu",
+  "intro": true,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA TOUR  -  CAPPADOCIA",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "85 m",
+   "label": "a city underground",
+   "pill": "UNDERGROUND CITY",
+   "secs": 2.0,
+   "persist": true
+  },
+  "chapters": {
+   "2": "STOP 1  -  STONE DOORS",
+   "3": "STOP 2  -  AIR SHAFTS"
+  },
+  "emotions": {
+   "0": "happy",
+   "1": "neutral",
+   "2": "curious",
+   "3": "surprised",
+   "4": "surprised",
+   "5": "curious",
+   "6": "happy",
+   "7": "happy"
+  },
+  "cards": {
+   "4": {
+    "type": "number",
+    "big": "1963",
+    "label": "found during a home renovation",
+    "static": true
+   },
+   "5": {
+    "type": "number",
+    "big": "YES / NO",
+    "label": "a week down here?",
+    "static": true
+   }
+  }
+ }
+}

@@ -1555,3 +1555,7 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Bekleniyor: AURA Aİ YouTube Studio (tour_001 + Great Pyramid), TikTok Gönderiler satırı.
 - **DOĞRU KANAL (AURA Aİ) verisi, 22 Kas:** Tour #1 "Inside the Great Pyramid: 3 Stops" ilk 1 gün 1 sa: **82 izlenme, ort. izlenme %34,3**, 3/10, 0 beğeni/yorum. Aynı konudaki dünkü "Great Pyramid: How Did It Go Up?" 9 (2 gün). Stonehenge 47, Easter Island 203, AI Without Electricity 9. Kanal 28 gün 2,3-2,4B izlenme, 1,5 saat, abone 2; son 48 saat 98 (82'si Tour #1).
 - **Okuma (n=1, hipotez):** erişim aynı konuda ~9 kat (82 vs 9) → kalıcı bant/"Come inside" kancası/duraklar ilk test grubunda daha iyi tepki almış olabilir (ya da rastgele). Tutma %34,3 < Nazca %47 / Stonehenge %60,5 → ~27 sn + 3 durak uzun olabilir. Sonraki deney: aynı Tour formatı, 2 durak, ~20-22 sn (Derinkuyu seti hazır). TikTok satırı hâlâ bekleniyor.
+
+### 2026-11-22 — Tour #2 paketi hazır (YAYINLANMADI, Türkçe anlam onayı bekliyor)
+- `live_packages/tour_002.json` "Inside Derinkuyu: 2 Stops" (derinkuyu seti, ~24 sn, preflight 17/17): taş kapılar (History.com: muhtemelen savunma), 50'den fazla hava bacası (History.com), 1963 ev tadilatında bulundu (IFLScience/History/Snopes), kalıcı bant "85 m UNDERGROUND CITY". Kullanılmadı: kapı ağırlığı, 15.000 baca, kat sayısı, tavuk hikâyesi.
+- `make_video_v2.py`: rakam kartında uzun metin (YES / NO) otomatik küçülür (taşma düzeltmesi).
