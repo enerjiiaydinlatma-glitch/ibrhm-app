@@ -1574,3 +1574,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Seçim gerekçesi (veri): TikTok arama sorguları 2 haftadır "lake vostok"/"lake vostok footage"; Antarktika videosu YT 305 (kanalın en iyilerinden); Tour formatı #1 82 vs klasik 9. Set "ice", ilk kare yeni ayarlarla (intro_skip 3.0, hook.y 760), kalıcı bant "3.8 km LAKE UNDER ICE", kartlar "-89.2 C" ve "YES / NO". Preflight 17/17, ~24,6 sn tahmin (gerçek ~27-28).
 - Kaynaklar: -89,2 °C 21 Tem 1983 (WMO, Guinness, Turner 2009); göl ~3.769 m buz altı, Şubat 2012 Rus ekibi (Nature, TASS, NatGeo 3.766 m); örnek jet yakıtı/Freon ile kirli, yaşam tartışmalı (Nature 2013, PopSci). Kullanılmadı: 15-20 milyon yıl izolasyon (zayıf), hayvan DNA'sı.
 - Not: kart görünürken durak etiketi gizlendiği için "STOP 1" bu videoda -89.2 kartının arkasında görünmüyor (bilinçli).
+- 2026-11-22: tour_003 Lake Vostok metni ONAYLANDI. Render/yayın 23 Kas, operatörde.
