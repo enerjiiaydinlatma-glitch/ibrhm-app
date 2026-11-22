@@ -960,7 +960,7 @@ def _render_one(st, fi):
             fl = _font(56)
             lw = ld.textlength(lab, font=fl)
             ld.text(((W - lw) / 2, 60 + size + 40), lab, font=fl, fill=HILITE + (int(255 * a),), stroke_width=4, stroke_fill=(18, 8, 34, int(255 * a)))
-        frame.paste(layer, (0, 190), layer)
+        frame.paste(layer, (0, int(hk.get("y", 190))), layer)
     if st.hook and st.hook.get("persist") and t >= float(st.hook.get("secs", 2.0)):
         # kanca rakami videonun SONUNA kadar kucuk bant olarak kalir (8 MILYARDA 1 ornegi)
         hk = st.hook
@@ -1064,7 +1064,7 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
            "series": str(spec.get("series") or "")[:48], "hook": spec.get("hook") or None,
            "chapters": {str(k): v for k, v in (spec.get("chapters") or {}).items()},
            "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True),
-                      "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cutaway_sets": spec.get("cutaway_sets") or []},
+                      "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cold_open": spec.get("cold_open", 0), "intro_skip": spec.get("intro_skip", 0), "cutaway_sets": spec.get("cutaway_sets") or []},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
 
     workers = workers or min(os.cpu_count() or 1, 6)

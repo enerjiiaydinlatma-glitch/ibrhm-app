@@ -51,8 +51,13 @@ def build_plan(nf, tl, cards, emos, spec):
             wins.append([a, b])
     if want_intro and wins and wins[0][0] - 20 < CLIP_N["intro"]:
         want_intro = False
+    cold = int(float(spec.get("cold_open", 0) or 0) * fps)      # ilk karede yakin plan yuz (kaydirmayi durdurmak icin)
+    skip = int(float(spec.get("intro_skip", 0) or 0) * fps)   # yuruyusun basini atla: video robot zaten yakindayken acilir
+    skip = min(skip, CLIP_N["intro"] - 30)
+    for f in range(min(cold, nf)):
+        plan[f] = "idle_C"
     if want_intro:
-        for f in range(min(CLIP_N["intro"], nf)):
+        for f in range(cold, min(cold + CLIP_N["intro"] - skip, nf)):
             plan[f] = "intro"
     for a, b in wins:
         a0, b0 = max(a - CLIP_N["to_C"], 0), b
@@ -109,6 +114,8 @@ def build_plan(nf, tl, cards, emos, spec):
             run_clip, run_start = c, f
         k = f - run_start
         base = c.split(":")[-1]
+        if c == "intro":
+            k += skip
         out.append((c, k % CLIP_N[base] if base in LOOPS else min(k, CLIP_N[base] - 1)))
     return out
 
