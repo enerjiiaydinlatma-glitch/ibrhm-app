@@ -1559,3 +1559,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 ### 2026-11-22 — Tour #2 paketi hazır (YAYINLANMADI, Türkçe anlam onayı bekliyor)
 - `live_packages/tour_002.json` "Inside Derinkuyu: 2 Stops" (derinkuyu seti, ~24 sn, preflight 17/17): taş kapılar (History.com: muhtemelen savunma), 50'den fazla hava bacası (History.com), 1963 ev tadilatında bulundu (IFLScience/History/Snopes), kalıcı bant "85 m UNDERGROUND CITY". Kullanılmadı: kapı ağırlığı, 15.000 baca, kat sayısı, tavuk hikâyesi.
 - `make_video_v2.py`: rakam kartında uzun metin (YES / NO) otomatik küçülür (taşma düzeltmesi).
+- 22 Kas Shorts listesi (AURA Aİ): **CERN videosu "Gizli" ✅** (konu kapandı). Gerçek süreler: Tour #1 **0:30** (preflight tahmini 26,9 → gerçek ~%12 uzun), Great Pyramid 0:23, Stonehenge 0:22, Easter 0:27 (203), Petra 0:20 (26), Hagia 0:20 (215), Vikings 0:27, Svalbard 0:21. Süre ile izlenme arasında net ilişki yok. Tour #2 tahmini 24,2 → gerçek ~27 sn beklenir.
