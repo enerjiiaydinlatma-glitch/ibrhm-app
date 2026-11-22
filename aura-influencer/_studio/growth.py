@@ -163,7 +163,7 @@ def preflight(title, en_text, tr_text, description, existing_titles, median_view
     add(None if nums else True, "Rakam iceriyorsa dogrulanabilir olmali", (", ".join(nums[:6]) + " -> kaynagi (analitik) dogrula") if nums else "rakam yok")
     add("ai" in (description or "").lower() or "i'm an ai" in en.lower() or "i am an ai" in en.lower(),
         "AI oldugu acik (script ya da aciklama)")
-    core = lambda t: re.sub(r"^\s*hype or real\s*[:\-]\s*", "", t, flags=re.I)  # seri oneki ortak kelime sayilmaz (her bolum "Hype or Real:" ile baslar)
+    core = lambda t: re.sub(r"\b\d+\s+stops?\b", "", re.sub(r"^\s*(hype or real\s*[:\-]|inside)\s*", "", t, flags=re.I), flags=re.I)  # seri oneki ortak kelime sayilmaz (her bolum "Hype or Real:" ile baslar)
     tl = core(title).lower().strip()
     best = max(((difflib.SequenceMatcher(None, tl, core(e).lower()).ratio(), e) for e in existing_titles), default=(0, ""))
     add(best[0] < 0.6, "Mevcut bir videoyla ayni konu degil", f"en benzer: '{best[1]}' ({round(best[0] * 100)}%)" if best[1] else "")
