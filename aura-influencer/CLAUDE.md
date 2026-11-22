@@ -1548,3 +1548,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - 2026-11-21 16:09: tour_001 "Inside the Great Pyramid: 3 Stops" YouTube'da YAYINDA: https://youtu.be/R4mRUUvVaXQ (panel ekran görüntüsünden okundu, I/l karışabilir). PC preflight 16/17: "konu anahtar kelimesi çakışması" (great, pyramid; önceki Great Pyramid videosu ile) — bilinçli, aynı yer farklı açı. TikTok yüklemesi operatörde. 24 saat ölçümü: 22 Kas 16:15 TSİ (send_later).
 - KALICI (operatör, 2026-11-21): her yayın talimatında videonun TAM dosya adını ve tam yolunu ver (aratma). Kural: `_studio/output/aura_<başlık küçük harf, harf/rakam dışı silinmiş, ilk 24 karakter>.mp4` (aura_studio.py slug). Ör. tour_001 → `aura_insidethegreatpyramid3st.mp4`.
 - 2026-11-21: tour_001 TikTok'a da yüklendi (operatör beyanı, saat bildirilmedi; ~16:30 TSİ civarı).
+
+### 2026-11-22 — Tour #1 24 saat ölçümü: veri EKSİK
+- YouTube ekran görüntüsü YANLIŞ KANAL: kanal ID UCL3T6KxNFmM6hlnZwB6uw9A (AURA Aİ = UClYXgzueuL-eMTId2IZ7aNA); 28 gün 2 izlenme, 7 abone → muhtemelen operatörün başka (elektrik?) kanalı. Hariç tutuldu.
+- TikTok Analizler 14-20 Kas (tour_001'i İÇERMİYOR, 21 Kas yüklendi): 1,1K izlenme (+%21), profil görüntüleme 63 (+11), beğeni 33 (+22), yorum --, paylaşım 0; FYP %94, profil %5,1, arama %0,9; arama sorguları: cern %25, moai/lake vostok/Drawing peru/viking blowhorns %12,5.
+- Bekleniyor: AURA Aİ YouTube Studio (tour_001 + Great Pyramid), TikTok Gönderiler satırı.
