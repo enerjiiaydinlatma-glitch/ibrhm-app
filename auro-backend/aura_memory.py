@@ -752,21 +752,26 @@ def forget_memory(
     user_id: int,
     memory_id: int,
 ) -> bool:
+    """Kullanicinin "bunu unut" dedigi hafizayi KALICI olarak siler.
 
+    GUVENLIK TARAMASI BULGUSU (2026-10, Paket 1 / madde B2): bu fonksiyon
+    satiri silmiyor, sadece status='forgotten' isaretliyordu -
+    memory_value (gercek hafiza icerigi) DB'de SONSUZA DEK kaliyordu.
+    Kullaniciya gosterilen "unuttum" cumlesi gercegi yansitmiyordu - KVKK/
+    GDPR silme hakki tam karsilanmiyordu. 'forgotten' status'u hicbir
+    yerde okunmuyordu (bkz. kod taramasi: sadece bu iki fonksiyon yaziyor,
+    hicbir sorgu/filtre onu okumuyor), yani gercek DELETE'e gecmek mevcut
+    hicbir davranisi bozmuyor. Olay kaydi (memory_events) icerigi DEGIL
+    sadece "ne zaman unutuldu" bilgisini tasidigi icin ayrica tutulmaya
+    devam ediyor (memory_id referansi artik var olmayan bir satira
+    isaret eder - memory_events'i hicbir kod memories'e JOIN etmiyor,
+    SQLite'ta FK zorlamasi da kapali, zararsiz).
+    """
     with db_cursor(commit=True) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """
-            UPDATE memories
-            SET status = 'forgotten',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            AND user_id = ?
-            """,
-            (
-                memory_id,
-                user_id,
-            ),
+            "DELETE FROM memories WHERE id = ? AND user_id = ?",
+            (memory_id, user_id),
         )
         changed = cursor.rowcount > 0
 
@@ -781,15 +786,12 @@ def forget_memory(
 
 
 def clear_memories(user_id: int):
+    """Kullanicinin TUM aktif hafizalarini KALICI olarak siler.
+
+    bkz. forget_memory dokstringi - ayni bulgu, ayni duzeltme."""
     with db_cursor(commit=True) as conn:
         conn.execute(
-            """
-            UPDATE memories
-            SET status = 'forgotten',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-            AND status = 'active'
-            """,
+            "DELETE FROM memories WHERE user_id = ? AND status = 'active'",
             (user_id,),
         )
 

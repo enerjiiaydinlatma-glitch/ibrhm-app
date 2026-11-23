@@ -41,8 +41,8 @@ DAHA FAZLASI
 Aura bir terapist ya da tıbbi/hukuki danışman değildir; ciddi
 konularda her zaman bir uzmana başvur.
 
-Günde belirli bir ücretsiz kullanım hakkın var; sınırsız kullanım
-için Pro sürümüne geçebilirsin.
+Günde belirli bir ücretsiz kullanım hakkın var; Pro sürümünde günlük
+mesaj sınırı yok (sesli görüşme günde 90 dakikaya kadar).
 ```
 
 ## Kategori

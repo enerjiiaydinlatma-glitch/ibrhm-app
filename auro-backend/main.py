@@ -16,7 +16,7 @@ import aura_voice
 import base64
 from collections import defaultdict, deque
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, Header, WebSocket
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Header, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -26,6 +26,7 @@ from google import genai
 from google.genai import types
 import database
 from mood_detection import detect_mood, detect_moods
+from crisis_detection import is_crisis_message
 import metrics
 import legal
 import observability
@@ -85,7 +86,7 @@ LIMIT_DAILY_MESSAGES = 30
 # ("30/30 mesaj, yarin sifirlanacak") saf bir sayac/kota diliydi - Aura'nin
 # sesinden degil bir sistem bildiriminden cikmis gibiydi. Simdiki metin
 # Aura'nin KENDI sesiyle konusuyor (KRIZ_MUDAHALE_KURALI zaten bu limiti
-# gercek bir kriz aninda BILEREK atliyor, bkz. _is_crisis_message).
+# gercek bir kriz aninda BILEREK atliyor, bkz. crisis_detection.is_crisis_message).
 # NOT: su an gercek bir satin alma/yukseltme akisi YOK (tier='pro' sadece
 # elle/admin tarafindan atanabiliyor) - o yuzden metin var olmayan bir
 # "yukselt" butonuna atif YAPMIYOR, sadece sicak ve durust kaliyor.
@@ -353,134 +354,14 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
 
 # Ruh hali (hale rengi) tespiti mood_detection.py'ye tasindi (olumsuzlama,
 # coklu duygu, tam-kelime eslesmesi - bkz. docs/MOOD_IYILESTIRME_PLANI.md).
-# Kriz tespiti (_CRISIS_KEYWORDS) asagida, bu degisiklikten ETKILENMEDEN kalir.
 
 
-# KENDI KENDINI INCELEME BULGUSU (gece guvenlik denetimi): aura_brain.py'ye
-# eklenen KRIZ_MUDAHALE_KURALI, gunluk mesaj limitini ZATEN dolduran bir
-# kullaniciya HIC ULASAMAZ - /api/chat, model hic cagrilmadan LIMIT_REACHED_REPLY
-# ("Bugünkü ücretsiz mesaj hakkın doldu") donduruyor. Yani en kritik anda
-# (kriz ifadesi + gunun 31. mesaji) kullaniciya bir odeme duvari gosterilirdi.
-# Kapsamli bir siniflandirici degil - bilerek DAR ve GUCLU ifadelere
-# sinirli (yanlis pozitif = normal bir sohbette limit atlanmasi, kabul
-# edilebilir bir maliyet; yanlis negatif = gercek bir krizin gozden
-# kacmasi, kabul EDILEMEZ bir risk - o yuzden esik dusuk tutuldu).
-# KOD INCELEMESI BULGUSU (2026-08-27, I-varyant taramasindan cikan ayri
-# ama iliskili bulgu): fold_turkish_i sadece ı/İ/I -> i sorununu cozuyor -
-# asagidaki listede ö/ş gibi DIGER Turkce harfleri ASCII'ye cevrilmis
-# (orn. "oldur" yerine gercek "öldür", "yasamak" yerine "yaşamak")
-# kelimeler VARDI, bunlar .lower()'dan BAGIMSIZ bir sorun (ö != o, ş != s
-# - locale degil, gercekten FARKLI karakterler). Somut olarak dogrulandi:
-# "kendimi öldüreceğim" gibi DOGRU yazili gercek bir kriz ifadesi "kendimi
-# oldur" ile ESLESMIYORDU. Asagida hem ASCII hem dogru-Turkce yazili
-# varyantlar (aura_reminders.py'deki DATE/EVENT kelime listeleriyle AYNI
-# desen) yan yana tutuluyor - fold_turkish_i ile birlikte artik hem I
-# hem diger diakritik varyantlar kapsaniyor.
-_CRISIS_KEYWORDS = [
-    "intihar", "kendime zarar",
-    "kendimi oldur", "kendimi öldür",
-    "yasamak istemiyorum", "yaşamak istemiyorum",
-    "olmek istiyorum", "ölmek istiyorum",
-    "yasamaya deger", "yaşamaya değer",
-    "hayatima son",
-    "bitirmek istiyorum",
-    "artik dayanamiyorum",
-    "yasayasim yok",
-    "olsem daha iyi", "ölsem daha iyi",
-]
-
-# COK DILLILIK (2026-08-31, kullanici istegi: "tum dunya Aura etkisi
-# altina girmeli, cok dil mutlaka olmali"): Aura artik kullanicinin
-# YAZDIGI dilde konusuyor (bkz. aura_brain.DIL_UYUMU_ILKESI) - bu,
-# yukaridaki SADECE-Turkce kriz listesinin artik YETERSIZ oldugu
-# anlamina geliyor. Ingilizce (en genis ikinci-dil erisimi) yazan
-# birinin GERCEK bir kriz ifadesi hic yakalanmazdi - "yanlis negatif =
-# kabul EDILEMEZ risk" ilkesi (yukarida) DIL FARKI GOZETMEZ. Ayni
-# dar-ve-guclu-ifade felsefesiyle Ingilizce karsiliklari eklendi.
-# NOT: diger diller (Almanca, Arapca, Ispanyolca vb.) icin de ayni
-# genisletme gerekiyor - bu, gelecekte gercek kullanim goruldukce
-# devam ettirilmesi gereken bir liste, tek seferlik "bitti" degil.
-_CRISIS_KEYWORDS_EN = [
-    "suicide", "suicidal",
-    "hurt myself", "harm myself",
-    "kill myself",
-    "don't want to live", "do not want to live",
-    "want to die",
-    "not worth living",
-    "end my life",
-    "want it to end", "want to end it all",
-    "can't take it anymore", "cannot take it anymore",
-    "no reason to live",
-    "better off dead",
-]
-# DUNYA HEDEFI (2026-09-06, kullanici: "hedef Turkiye degil, evren"):
-# Aura kullanicinin dilinde konusuyor - kriz LIMIT-ATLAMA guvenlik agi da
-# en yaygin dunya dillerini kapsamali. Kriz YANITININ kendisi zaten
-# dil-bagimsiz (KRIZ_MUDAHALE_KURALI sistem promptunda, Gemini her dilde
-# uygular) - bu liste sadece "gunluk mesaj limitini kriz aninda atla"
-# icin. Her dilden EN GUCLU, tek anlamli birkac ifade (EN listesindeki
-# felsefeyle). Bu liste tek seferlik "bitti" degil - gercek kullanim
-# geldikce genisletilmeli.
-_CRISIS_KEYWORDS_INTL = [
-    # Espanol
-    "quiero morir", "no quiero vivir", "suicidio", "suicidarme",
-    "matarme", "hacerme dano", "acabar con mi vida", "no vale la pena vivir",
-    "estaria mejor muerto",
-    # Portugues
-    "quero morrer", "nao quero viver", "suicidio", "me matar",
-    "acabar com a minha vida", "me machucar", "melhor morto",
-    # Francais
-    "je veux mourir", "je ne veux plus vivre", "suicide", "me suicider",
-    "me faire du mal", "en finir avec la vie", "mieux mort",
-    # Deutsch
-    "ich will sterben", "ich will nicht mehr leben", "selbstmord",
-    "mich umbringen", "mir etwas antun", "mein leben beenden",
-    # Italiano
-    "voglio morire", "non voglio vivere", "suicidio", "uccidermi",
-    "farmi del male", "farla finita",
-    # Russkiy (translit + kiril)
-    "hochu umeret", "ne hochu zhit", "pokoncit s soboy",
-    "хочу умереть", "не хочу жить", "покончить с собой", "самоубийство",
-    # Arabic (translit + arap harfleri)
-    "ureed an amoot", "la ureed an aeesh", "intihar",
-    "أريد أن أموت", "لا أريد العيش", "انتحار", "أؤذي نفسي",
-    # Hindi (translit + devanagari)
-    "main marna chahta hoon", "jeena nahi chahta", "aatmahatya",
-    "मैं मरना चाहता हूं", "जीना नहीं चाहता", "आत्महत्या",
-    # Bahasa Indonesia
-    "ingin mati", "tidak ingin hidup", "bunuh diri", "menyakiti diri",
-    # Turkce ek varyantlar (gunluk konusma)
-    "canima kiymak", "kendimi asmak",
-]
-_CRISIS_KEYWORDS = _CRISIS_KEYWORDS + _CRISIS_KEYWORDS_EN + _CRISIS_KEYWORDS_INTL
-
-
-def _is_crisis_message(text: str) -> bool:
-    # KOD INCELEMESI BULGUSU (2026-08-27, gizli-mod kod cumlesinde
-    # bulunan AYNI sinif hatanin bu cok daha kritik yolda da var oldugu
-    # fark edildi): _CRISIS_KEYWORDS ASCII yazilmis (orn. "artik
-    # dayanamiyorum"), ama Python'un .lower()'i Turkce ı/İ/I
-    # varyantlarini ayirt etmiyor - kullanici DOGRU Turkce yazimla
-    # ("artık dayanamıyorum") yazarsa .lower() sonrasi bile ASCII
-    # anahtar kelimeyle EBEDIYEN eslesmezdi. Somut olarak dogrulandi:
-    # "artık dayanamıyorum".lower() ("artık dayanamıyorum") "artik
-    # dayanamiyorum" ICERMIYOR. Bu, tam da yorumdaki "yanlis negatif =
-    # kabul EDILEMEZ risk" ilkesinin ihlaliydi - kriz mesaji dogru
-    # yazildigi icin gozden kaciyordu. fold_turkish_i ile duzeltildi.
-    # GECE DENETIMI BULGUSU (2026-08-31/09-01, 3 bagimsiz kod-inceleme
-    # acisinin AYRI AYRI isaret ettigi 2 acik): (1) yukaridaki fold_
-    # turkish_i tek basina ö/ü/ş/ç/ğ'yi kapsamiyordu - "yaşayasım yok"
-    # gibi dogru yazilmis ama diakritik-fold'lanmamis bir ifade
-    # kacabiliyordu (fold_turkish_diacritics ile kapatildi). (2) Ingilizce
-    # kriz kelimelerindeki kesme isareti ("don't", "can't") DUZ ASCII
-    # tirnakla (U+0027) yazilmisti - ama iOS/Android klavyeleri yazarken
-    # OTOMATIK olarak bunu "akilli" egik tirnaga (U+2019, ') cevirir.
-    # "I can't take it anymore" gercek bir telefonda neredeyse HER ZAMAN
-    # egik tirnakla yazilir ve eski kod bunu hic yakalamiyordu - kesme
-    # isaretini normalize eden bir adim eklendi.
-    normalized = database.fold_turkish_diacritics(database.fold_turkish_i(text)).lower()
-    normalized = normalized.replace("’", "'").replace("‘", "'")
-    return any(kw in normalized for kw in _CRISIS_KEYWORDS)
+# Kriz (intihar/kendine zarar) tespiti crisis_detection.py'ye tasindi
+# (2026-10, Paket 1 / madde A1: aura_voice.py de ayni tespiti sesli
+# gorusme transkriptinde kullanabilsin diye - main.py aura_voice.py'yi
+# import ettigi icin ters yonde import dongusel olurdu). Dolayli ifadeler
+# ("hicbir seyin anlami yok" gibi) de orada eklendi. is_crisis_message
+# adiyla yukarida import edildi (bkz. dosya basi).
 
 
 # GECE DENETIMI BULGUSU (netlestirme, 2026-09-01 - "sesli mesajda dil
@@ -1007,7 +888,9 @@ def chat_greeting(authorization: Optional[str] = Header(None)):
     return {"reply": reply_text}
 
 
-def _process_chat_message(user: dict, message_text: str) -> dict:
+def _process_chat_message(
+    user: dict, message_text: str, background_tasks: Optional[BackgroundTasks] = None,
+) -> dict:
     """
     BULUNDU (kullanici istegi, 2026-08-26 - "Aura beyin, modeller ajan"
     denetiminin devami): sesli gorusme (Gemini Live) coktugunde yerine
@@ -1069,7 +952,7 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
     # atlaniyor - bir kac ekstra ucretsiz Gemini cagrisi, gozden kacan
     # bir krizden cok daha ucuz bir bedel.
     metrics.record("chat_request", ok=True)
-    is_crisis = _is_crisis_message(message_text)
+    is_crisis = is_crisis_message(message_text)
     if is_crisis:
         metrics.record("crisis_detected", ok=True)
     if (
@@ -1108,19 +991,46 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
             (m["text"] for m in reversed(past_messages) if m["role"] == "assistant"),
             None,
         )
-        aura_brain.extract_memory_candidate(
-            user["id"], message_text, user_message_id,
-            previous_assistant_message=previous_assistant_message,
-        )
+        # GUVENLIK/HIZ TARAMASI BULGUSU (2026-10, Paket 1 / madde C12):
+        # bu cagri eskiden SENKRONDU - Aura'nin asil yanitindan ONCE,
+        # ayni istek icinde calisiyordu. extract_memory_candidate kendi
+        # Groq/Gemini cagrisini yapar (bkz. aura_brain.py, ~25sn zaman
+        # asimina kadar surebilir) - kullanici bu sure boyunca HICBIR
+        # cevap gormeden bekliyordu, halbuki bu cagrinin SONUCU asagida
+        # (reply uretilirken) hic KULLANILMIYOR, sadece DB'ye yaziliyor.
+        # FastAPI'nin BackgroundTasks'i ile yanit GONDERILDIKTEN SONRA
+        # calisacak sekilde erteleniyor - kullanici artik bu gecikmeyi
+        # hic hissetmiyor, davranis (hafizanin DB'ye yazilmasi) ayni.
+        # background_tasks verilmediyse (ornek: dogrudan cagrilan testler)
+        # eskisi gibi senkron calisir, hicbir yol kirilmaz.
+        if background_tasks is not None:
+            background_tasks.add_task(
+                aura_brain.extract_memory_candidate,
+                user["id"], message_text, user_message_id,
+                previous_assistant_message=previous_assistant_message,
+            )
+        else:
+            aura_brain.extract_memory_candidate(
+                user["id"], message_text, user_message_id,
+                previous_assistant_message=previous_assistant_message,
+            )
         # Hatirlatma cikarimi (kullanici istegi) - on-eleme gecmezse (buyuk
         # cogunluk) HICBIR API cagrisi yapmaz, bkz. aura_reminders.py.
         # BULUNDU (2026-09-19, tam kapsamli denetim): sonuc eskiden hep
         # atiliyordu - Aura o turde bir hatirlatici gercekten kurulup
         # kurulmadigini hicbir zaman bilmiyordu, "hatirlatirim" derken
         # temelsiz bir soz veriyordu. Artik asagida sistem talimatina
-        # eklenip cevabi gercege dayandiriyor.
+        # eklenip cevabi gercege dayandiriyor. ONEMLI: bu cagri YUKARIDAKI
+        # extract_memory_candidate'in AKSINE background_tasks'e ERTELENEMEZ -
+        # sonucu (reminder_result) asagida AYNI turde sistem talimatina
+        # ekleniyor, ertelenirse Aura o turde hatirlaticinin gercekten
+        # kurulup kurulmadigini yine bilemez hale gelir (tam da 2026-09-19'da
+        # duzeltilen hataya geri donus olur).
         reminder_result = aura_reminders.extract_reminder_candidate(user["id"], message_text)
-    aura_brain.analyze_patterns(user["id"], message_count)
+    if background_tasks is not None:
+        background_tasks.add_task(aura_brain.analyze_patterns, user["id"], message_count)
+    else:
+        aura_brain.analyze_patterns(user["id"], message_count)
     recent_messages = past_messages[-MAX_HISTORY_MESSAGES:]
     contents = [
         types.Content(
@@ -1218,13 +1128,21 @@ def _process_chat_message(user: dict, message_text: str) -> dict:
 
 
 @app.post("/api/chat")
-def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
+def chat(
+    request: ChatRequest,
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
     user = get_current_user(authorization)
-    return _process_chat_message(user, request.message)
+    return _process_chat_message(user, request.message, background_tasks)
 
 
 @app.post("/api/voice/fallback-turn")
-def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[str] = Header(None)):
+def voice_fallback_turn(
+    request: VoiceFallbackRequest,
+    background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(None),
+):
     """
     "Aura beyin, modeller ajan" denetiminin devami (kullanici istegi,
     2026-08-26): gercek zamanli sesli gorusme (Gemini Live, aura_voice.py)
@@ -1260,7 +1178,7 @@ def voice_fallback_turn(request: VoiceFallbackRequest, authorization: Optional[s
     if len(transcript) > 4000:
         transcript = transcript[:4000]
 
-    result = _process_chat_message(user, transcript)
+    result = _process_chat_message(user, transcript, background_tasks)
     result["transcript"] = transcript
     return result
 
@@ -1471,7 +1389,7 @@ def analyze_image(request: AnalyzeRequest, authorization: Optional[str] = Header
     # soru metninde kriz ifadesi olsa bile bunu HIC kontrol etmiyordu -
     # tek istisna Gemini basarisiz olursa jenerik "inceleyemedim" hatasi
     # donmesiydi, /api/chat'teki gibi bir guvenlik yonlendirmesi YOKTU.
-    is_crisis = bool(question) and _is_crisis_message(question)
+    is_crisis = bool(question) and is_crisis_message(question)
     try:
         file_bytes = base64.b64decode(request.image_base64)
         if is_pdf and question:

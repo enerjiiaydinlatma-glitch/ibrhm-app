@@ -1384,7 +1384,16 @@ _DEEP_HINTS = ("adim adim", "planla", "karsilastir", "analiz et", "neden", "nasi
 
 def route_request(message_text: str, turn_count: int = 0) -> dict:
     """Bir kullanici turunu siniflandirir. Ucuz ve dayanikli - LLM cagirmaz."""
-    t = (message_text or "").lower().strip()
+    # GUVENLIK/KALITE TARAMASI BULGUSU (2026-10, Paket 1 / madde C11):
+    # _TOOL_HINTS/_DEEP_HINTS ASCII yazilmis ("kac", "guncel") ama asagidaki
+    # .lower() Turkce diakritikleri (ç/ğ/ı/ö/ş/ü) KATLAMIYOR - crisis_
+    # detection.py'deki AYNI sinif hata (bkz. o dosyadaki aciklama).
+    # "dolar kaç?" DOGRU yazildiginda "kac" ile hic eslesmiyordu, yani
+    # arama araci tetiklenmiyordu - kullanici YANLIS yazarsa ("kac") calisan
+    # bir ozellik DOGRU Turkce yazimda sessizce bozuktu. fold_turkish_i +
+    # fold_turkish_diacritics ile duzeltildi (mood_detection.py/
+    # crisis_detection.py ile ayni desen).
+    t = database.fold_turkish_diacritics(database.fold_turkish_i(message_text or "")).lower().strip()
     n = len(t)
 
     wants_tool = None
@@ -1406,6 +1415,21 @@ def route_request(message_text: str, turn_count: int = 0) -> dict:
 
 _TIER_ATTEMPTS = {"light": 1, "standard": 2, "deep": 2}
 
+# GUVENLIK/HIZ TARAMASI BULGUSU (2026-10, Paket 1 / madde C12): asagidaki
+# zincir (kendi LLM -> Gemini (2 deneme, her biri 12sn) -> Groq (30sn) ->
+# Cerebras (25sn) -> Mistral (30sn) -> OpenRouter (40sn)) icin HICBIR
+# TOPLAM sure sinirima yoktu - en kotu durumda (hepsi sirayla zaman asimina
+# ugrarsa) kullanici 2 dakikaya yakin sessizce beklerdi, bu da /api/chat'in
+# kendisini (Railway/istemci zaman asimi, kullanicinin sabirsizlanmasi)
+# pratikte kirabilirdi. Simdi TUM zincir icin tek bir duvar-saati butcesi
+# var - butce dolduysa KALAN saglayicilar hic denenmeden atlanir ve en son
+# (gercek) hata firlatilir, cagiran (main.py) zaten bunu zarif bir mesaja
+# ceviriyor. Normal/hizli bir yanitta (buyuk cogunluk) bu hic devreye
+# girmez - sadece saglayicilarin GERCEKTEN sirayla coktugu en kotu
+# senaryoda "sessizce 2 dakika bekleme"yi "makul bir surede zarif hata"ya
+# cevirir.
+TOTAL_GENERATION_BUDGET_SECONDS = 45
+
 
 def generate_with_retry(contents, system_instruction, max_attempts=2, route=None):
     # BULUNDU (2026-08-24, production'da bizzat test edilip dogrulandi):
@@ -1421,6 +1445,11 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
     if route:
         max_attempts = _TIER_ATTEMPTS.get(route.get("tier"), max_attempts)
         print(f"ROUTE: tier={route.get('tier')} {route.get('reason', '')} -> attempts={max_attempts}", flush=True)
+
+    budget_start = time.monotonic()
+
+    def _budget_exhausted() -> bool:
+        return time.monotonic() - budget_start >= TOTAL_GENERATION_BUDGET_SECONDS
 
     # SAGLAYICI SIRASI: Aura'nin kendi LLM'i (varsa) -> Gemini -> [Groq,
     # Cerebras, Mistral, OpenRouter zinciri]. AURA_BRAIN_URL bos ise ilk adim
@@ -1458,6 +1487,14 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
         print(f"TEXT FALLBACK: {TEXT_PROVIDER} basarisiz ({type(e).__name__})")
 
     for name, fn in _reasoning_fallback_chain():
+        if _budget_exhausted():
+            print(
+                f"TEXT FALLBACK: toplam {TOTAL_GENERATION_BUDGET_SECONDS}sn butce "
+                f"doldu, '{name}' ve sonrasi denenmeden atlaniyor",
+                flush=True,
+            )
+            metrics.record("text_gen.budget_exhausted", ok=False, detail=name)
+            break
         try:
             text = fn(contents, system_instruction)
             if text:
@@ -1471,8 +1508,8 @@ def generate_with_retry(contents, system_instruction, max_attempts=2, route=None
                            detail=f"{type(e).__name__}: {e}")
             print(f"TEXT FALLBACK '{name}' basarisiz: {type(e).__name__}: {e}", flush=True)
 
-    # Butun zincir coktu - cagiran (main.py) zaten genis yakalayip zarif bir
-    # mesaj donduruyor.
+    # Butun zincir coktu (ya da butce doldu) - cagiran (main.py) zaten genis
+    # yakalayip zarif bir mesaj donduruyor.
     metrics.record("text_gen.total_failure", ok=False,
                    detail=f"{type(primary_error).__name__}: {primary_error}")
     raise primary_error
@@ -1644,6 +1681,27 @@ Ingilizce KALMALI.
 Anlik duygu, gecici durum, selamlasma veya rastgele/gelisiguzel bahsedilen
 tek seferlik olaylari hafizaya ALMA (ornek: "bugun hava cok sicakti",
 "az once yemek yedim", "yorgunum").
+
+COK ONEMLI - HASSAS BILGI KISITLAMASI (Paket 1 / madde B8, 2026-10 guvenlik
+analizi bulgusu): asagidaki turde bilgileri hafizaya YAZMA - kullanici
+"bunu hatirla" diye ACIKCA istese BILE:
+- saglik durumu, hastalik, tani, ilac kullanimi;
+- intihar/kendine zarar dusuncesi ya da herhangi bir kriz ifadesi (bu
+  Aura'nin SOHBET SIRASINDA dogru tepki vermesi icin zaten baska bir
+  mekanizmayla (KRIZ_MUDAHALE_KURALI) ele aliniyor - KALICI bir hafiza
+  kaydina donusmemeli);
+- cinsel yonelim/cinsel hayatla ilgili detaylar;
+- din/mezhep/inanc detaylari;
+- suc, taciz ya da yasadisi bir eylemle ilgili itiraf/detay.
+Bunlar OZEL NITELIKLI kisisel veri sayilabilir (KVKK md. 6) ve kalici,
+yapisal bir hafiza kaydina donusturulmesi (sonraki sohbetlerde geri
+cagirilip kullanilmasi) kullaniciya zarar verebilir. Kullanici boyle bir
+sey paylastiginda Aura o ANKI sohbette elbette duyarli ve destekleyici
+tepki verir (bu kural sadece KALICI HAFIZA KAYDI OLUSTURMAMAYI kapsar,
+sohbetin kendisini ya da Aura'nin o turdeki empatik tepkisini KISITLAMAZ) -
+ama bu konu BASKA BIR KATEGORIYE de UYDURULMAYA CALISILMADAN tamamen
+ATLANIR (NONE donmesi gerekiyorsa sadece bu blok NONE olsun, mesajdaki
+BASKA, hassas OLMAYAN bir bilgi varsa o yine normal sekilde yakalanir).
 
 ISTISNA: Eger kullanicinin cevabi, Aura'nin ozellikle sordugu bir
 "tanisma/kisilik" sorusuna ("bugun seni gulumseten bir sey oldu mu?",

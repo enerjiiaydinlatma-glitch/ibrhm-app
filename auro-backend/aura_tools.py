@@ -16,6 +16,7 @@ Her arac HIZLI ve HATA-GUVENLI: bir arac patlarsa sessizce atlanir
 from __future__ import annotations
 
 import ast
+import math
 import operator
 import re
 from datetime import datetime, timedelta, timezone
@@ -91,9 +92,34 @@ def _tool_time(query: str) -> str:
 
 
 # --- math ---
+
+# GUVENLIK TARAMASI BULGUSU (2026-10, Paket 1 / madde C10): operator.pow
+# SINIRSIZDI - "9**9**9**9" gibi bir mesaj (Python'da ** sagdan sola
+# birlesir, yani 9**(9**(9**9)) gibi astronomik bir sayi hesaplamaya
+# calisir) bu thread'i CPU/bellek acisindan kilitleyebilirdi (route_request
+# bunu bir thread havuzunda calistiriyor, ama havuz da sinirli - tek bir
+# kotu niyetli mesaj birden fazla worker'i uzun sure isgal edebilirdi).
+# Gercek sonucu HESAPLAMADAN ONCE, log2 ile sonucun kac BIT olacagini
+# tahmin edip asiri buyukse reddediyoruz - mesru bir "hesap makinesi"
+# kullanimi (ornek: 2**50, 1.5**20) bu sinirin cok altinda kalir.
+_MAX_POW_RESULT_BITS = 10_000  # ~3000 ondalik basamak, comert ama sinirli
+
+
+def _safe_pow(base, exp):
+    if base in (0, 1, -1) or exp in (0, 1, -1):
+        return operator.pow(base, exp)
+    try:
+        estimated_bits = abs(exp) * math.log2(abs(base))
+    except (ValueError, OverflowError):
+        estimated_bits = float("inf")
+    if estimated_bits > _MAX_POW_RESULT_BITS:
+        raise ValueError("sonuc hesaplanamayacak kadar buyuk")
+    return operator.pow(base, exp)
+
+
 _MATH_OPS = {
     ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-    ast.Div: operator.truediv, ast.Pow: operator.pow, ast.Mod: operator.mod,
+    ast.Div: operator.truediv, ast.Pow: _safe_pow, ast.Mod: operator.mod,
     ast.USub: operator.neg, ast.UAdd: operator.pos, ast.FloorDiv: operator.floordiv,
 }
 
@@ -108,8 +134,11 @@ def _safe_eval(node):
     raise ValueError("izin verilmeyen ifade")
 
 
+_MAX_MATH_QUERY_CHARS = 200  # mesru bir hesap makinesi ifadesi bunun cok altinda
+
+
 def _tool_math(query: str) -> str:
-    q = (query or "").lower()
+    q = (query or "")[:_MAX_MATH_QUERY_CHARS].lower()
     # "yuzde 18" -> "18/100*", basit Turkce -> sembol
     q = q.replace(",", ".")
     q = re.sub(r"yuzde\s*(\d+(?:\.\d+)?)", r"(\1/100)", q)

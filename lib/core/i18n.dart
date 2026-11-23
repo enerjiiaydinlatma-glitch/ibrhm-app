@@ -121,7 +121,9 @@ class I18n {
     },
 
     // --- Sohbet ekrani (kabuk) ---
-    "chat.online": {"tr": "Aura, çevrimiçi", "en": "Aura, online"},
+    // NOT (Paket 1 / madde D13): "chat.online" anahtari kaldirildi - yanlis
+    // beyan eden sabit bir "cevrimici" etiketini tasiyordu, kullanimi da
+    // kaldirildi (bkz. chat_screen.dart).
     "chat.settings": {"tr": "Ayarlar", "en": "Settings"},
     "chat.saveAccount": {"tr": "Hesabını Kaydet", "en": "Save your account"},
     "chat.inputHint": {"tr": "Mesaj yaz...", "en": "Type a message..."},
@@ -250,6 +252,29 @@ class I18n {
     "call.startFailed": {
       "tr": "Görüşme başlatılamadı.",
       "en": "Couldn't start the call.",
+    },
+    // DURUSTLUK/I18N TARAMASI BULGUSU (2026-10, Paket 1 / madde D15):
+    // asagidaki 4 anahtar oncesinde voice_call_notifier.dart'ta sabit
+    // Turkce metinlere HAM istisna metni (": $e") ekleniyordu - Ingilizce
+    // kullanici Turkce bir hata gorurdu, HERKES de teknik/dahili istisna
+    // detayini (ornek: "PlatformException(...)") ekranda gorurdu. Istisna
+    // metni hala debug log'a yaziliyor (_voiceDebugLog/debugPrint), ama
+    // kullaniciya gosterilen artik sade ve cevirili.
+    "call.micPermissionCheckFailed": {
+      "tr": "Mikrofon izni kontrol edilemedi.",
+      "en": "Couldn't check microphone permission.",
+    },
+    "call.audioEngineStartFailed": {
+      "tr": "Ses motoru başlatılamadı.",
+      "en": "Couldn't start the audio engine.",
+    },
+    "call.serverConnectFailed": {
+      "tr": "Sunucuya bağlanılamadı.",
+      "en": "Couldn't connect to the server.",
+    },
+    "call.micStreamStartFailed": {
+      "tr": "Mikrofon akışı başlatılamadı.",
+      "en": "Couldn't start the microphone stream.",
     },
     "call.auraListeningYou": {
       "tr": "Aura görüşmede, seni dinliyor",
@@ -384,9 +409,18 @@ class I18n {
       "en": "Free-form instruction",
     },
     "settings.sectionMemory": {"tr": "Hafızam", "en": "My memory"},
+    // DURUSTLUK TARAMASI BULGUSU (2026-10, Paket 1 / madde D14): "günlük
+    // kullanım sınırın yok" tam dogru degildi - Pro'da mesaj sinirsiz
+    // olsa da sesli goruşme gunde 90 dakika ile sinirli (maliyet
+    // nedeniyle, bkz. auro-backend/aura_voice.py). Metin gercegi
+    // yansitacak sekilde duzeltildi.
     "settings.proNoLimit": {
-      "tr": "Pro hesap - günlük kullanım sınırın yok.",
-      "en": "Pro account — no daily usage limit.",
+      "tr":
+          "Pro hesap - günlük mesaj sınırın yok. Sesli görüşme günde 90 "
+          "dakikaya kadar.",
+      "en":
+          "Pro account — no daily message limit. Voice calls up to 90 "
+          "minutes a day.",
     },
     "settings.usageToday": {
       "tr": "Bugünkü ücretsiz kullanım",
@@ -474,10 +508,12 @@ class I18n {
     "settings.secretPhraseUnsetInfo": {
       "tr":
           "Kendi cümleni belirle. Sohbette bunu tek başına bir mesaj olarak "
-          "gönderirsen, o andan sonraki konuşma normal geçmişte görünmez.",
+          "gönderirsen, o andan sonraki konuşma normal geçmişte görünmez. "
+          "Not: bu bir şifreleme değil, yalnızca bir görünürlük filtresidir.",
       "en":
           "Set your own phrase. Send it on its own as a message in chat and "
-          "everything said after that stays out of your normal history.",
+          "everything said after that stays out of your normal history. "
+          "Note: this is not encryption, only a visibility filter.",
     },
     "settings.secretPhraseHint": {
       "tr": "örn: bugün ay çok parlak",

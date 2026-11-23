@@ -24,7 +24,9 @@ from google import genai
 from google.genai import types
 
 import aura_brain
+import crisis_detection
 import database
+import metrics
 
 VOICE_MODEL = "gemini-3.1-flash-live-preview"
 
@@ -90,6 +92,18 @@ VOICE_PRO_DAILY_LIMIT_SECONDS = 5400
 VOICE_PRO_LIMIT_REACHED_MESSAGE = (
     "Bugünkü sesli görüşme sınırına ulaştın (90 dakika). Yarın sıfırlanacak."
 )
+
+# GUVENLIK BULGUSU (2026-10, Paket 1 / madde A2): yukaridaki gunluk sinir,
+# kullanici goruşme SIRASINDA bir kriz ifadesi soylese bile aninda
+# goruşmeyi kesiyordu - metin sohbetteki "kriz aninda gunluk limiti atla"
+# guvenlik agi (main.py) sesli tarafta YOKTU. Input transkripti zaten her
+# tur sonunda elimizde (bkz. pop_transcripts) - crisis_detection ile
+# taranip bir kriz ifadesi gorulurse bu oturum icin limit SINIRLI bir ek
+# sureyle (asagidaki pay) gevsetiliyor; sinirsiz degil, maliyeti kontrol
+# altinda tutmak icin. Kriz kuralinin kendisi (KRIZ_MUDAHALE_KURALI) zaten
+# HER turda sistem talimatinda - bu sadece "tam o anda sert kesilmesin"
+# guvenlik agi.
+CRISIS_VOICE_GRACE_SECONDS = 1800  # kriz aninda +30 dakikaya kadar ek pay
 
 # aura_brain.build_system_instruction() yazili sohbet icin yazildi ve
 # "sahte bilinc/duygu iddia etme" kurali var - bu kural sesli goruşmede
@@ -189,6 +203,26 @@ _client = genai.Client(
 _active_voice_users: set[int] = set()
 
 
+def _recent_text_was_crisis(user_id: int) -> bool:
+    """Kullanicinin en son (yazili ya da sesli) mesaji bir kriz ifadesi mi?
+
+    Sesli goruşme BAGLANMADAN once (henuz hic ses/transkript yok) gunluk
+    sinir dolu olsa bile, kullanici biraz once yazili sohbette ya da
+    onceki bir sesli oturumda kriz ifadesi kullanmissa baglantiyi
+    reddetmiyoruz - tam da yardima en cok ihtiyaci oldugu an onu
+    "limitin doldu, yarin konusuruz" demekle karsilamak kabul edilemez.
+    """
+    try:
+        recent = database.get_messages(user_id, limit=5)
+    except Exception:
+        return False
+    for m in reversed(recent):
+        if m.get("role") != "user":
+            continue
+        return bool(m.get("text")) and crisis_detection.is_crisis_message(m["text"])
+    return False
+
+
 async def handle_voice_session(websocket: WebSocket) -> None:
     await websocket.accept()
 
@@ -216,8 +250,13 @@ async def handle_voice_session(websocket: WebSocket) -> None:
         VOICE_LIMIT_REACHED_MESSAGE if free_tier else VOICE_PRO_LIMIT_REACHED_MESSAGE
     )
     already_used_seconds = database.get_voice_usage_seconds(user["id"])
+    # bkz. CRISIS_VOICE_GRACE_SECONDS yorumu - baglanmadan once bile, son
+    # mesaji bir kriz ifadesiyse, limit dolu olsa dahi reddetmiyoruz.
+    crisis_flagged_this_session = _recent_text_was_crisis(user["id"])
+    if crisis_flagged_this_session:
+        metrics.record("crisis_detected", ok=True)
 
-    if already_used_seconds >= voice_daily_limit:
+    if already_used_seconds >= voice_daily_limit and not crisis_flagged_this_session:
         await websocket.send_text(json.dumps({
             "type": "limit_reached",
             "message": voice_limit_message,
@@ -427,6 +466,7 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                                 )
 
             async def relay_gemini_to_client():
+                nonlocal crisis_flagged_this_session
                 # ONEMLI: session.receive() SADECE TEK BIR TURU verir - SDK'nin
                 # kendi kodu turn_complete gelince donguyu bilerek kesiyor
                 # (google/genai/live.py: "if turn_complete: yield result; break").
@@ -446,7 +486,16 @@ async def handle_voice_session(websocket: WebSocket) -> None:
                     # onceden kullanilan + bu oturumda gecen sure) tekrar
                     # kontrol edip, asildiysa oturumu duzgunce kapatiyoruz.
                     elapsed_this_session = time.time() - session_start_time
-                    if already_used_seconds + elapsed_this_session >= voice_daily_limit:
+                    limit_hit = already_used_seconds + elapsed_this_session >= voice_daily_limit
+                    # kriz aninda sinirli bir ek pay var (CRISIS_VOICE_GRACE_
+                    # SECONDS) - sinirsiz degil, maliyeti kontrol altinda
+                    # tutmak icin; pay da tukenirse normal kapanis uygulanir.
+                    if limit_hit and crisis_flagged_this_session:
+                        limit_hit = (
+                            already_used_seconds + elapsed_this_session
+                            >= voice_daily_limit + CRISIS_VOICE_GRACE_SECONDS
+                        )
+                    if limit_hit:
                         print(
                             f"VOICE SESSION: gunluk sesli limit oturum "
                             f"SIRASINDA asildi (user={user['id']}, "
@@ -610,6 +659,19 @@ async def handle_voice_session(websocket: WebSocket) -> None:
 
                         if server_content and server_content.turn_complete:
                             user_text, assistant_text = pop_transcripts()
+                            if (
+                                user_text
+                                and not crisis_flagged_this_session
+                                and crisis_detection.is_crisis_message(user_text)
+                            ):
+                                crisis_flagged_this_session = True
+                                metrics.record("crisis_detected", ok=True)
+                                print(
+                                    f"VOICE SESSION: kriz ifadesi tespit edildi "
+                                    f"(user={user['id']}, {turn_number}. tur) - "
+                                    f"gunluk sure siniri bu oturum icin "
+                                    f"{CRISIS_VOICE_GRACE_SECONDS}sn pay ile gevsetildi"
+                                )
                             await websocket.send_text(json.dumps({
                                 "type": "turn_complete",
                                 "user_text": user_text,
