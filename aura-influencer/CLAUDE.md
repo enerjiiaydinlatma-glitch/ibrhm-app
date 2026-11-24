@@ -1579,3 +1579,9 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - **Tour #2 Derinkuyu ~23 sa (AURA Aİ, doğru kanal):** 42 izlenme, **ort. izlenme %50,0**, 4/10, 0 beğeni/yorum. Eski Derinkuyu (klasik) 12. Tour #1 82'de durdu (son 48 sa +4). Okuma (n=2): Tour formatı aynı konuda klasikten iyi (82 vs 9, 42 vs 12); 2 durak + kısa → tutma %34,3 → %50,0 (hipotez: kısa daha iyi tutuyor). Kanal 28 gün 2,4B, 1,5 sa, abone hâlâ 2.
 - 2026-11-23 17:16: tour_003 'Inside Lake Vostok: 2 Stops' YouTube'da YAYINDA: https://youtu.be/ckmwwB6avOM (panel ekranından okundu), PC preflight 18/18. 24 saat ölçümü 24 Kas 17:20 TSİ.
 - 2026-11-23: tour_003 Vostok TikTok'a yüklendi (operatör beyanı, ~17:30 TSİ).
+
+### 2026-11-24 — Tour #3 Vostok 24 saat ölçümü (doğru kanal)
+- YouTube (ilk 1 gün 5 sa): **17 izlenme, ort. izlenme %39,2**, 5/10, 0 beğeni/yorum. Karşılaştırma: Tour #1 Piramit 82/%34,3 (0:30), Tour #2 Derinkuyu 42/%50,0, eski Antarktika 305. Kanal 28 gün 2,4B, 1,5 sa, abone 2 (değişmedi). Derinkuyu son 48 saatte 42, Vostok 17.
+- TikTok (16-22 Kas): 1,3K izlenme (+%30,1), profil 58 (−%10,8), beğeni 36 (+22), yorum --, paylaşım 0; FYP %92,8, arama %3,7 (↑), kişisel profil %3,6; arama sorguları: cern %28,6, **"auraAi" %14,3 (ilk marka araması)**, moai, "before you send chat gpt", viking blowhorns. TikTok Gönderiler satırı HÂLÂ verilmedi.
+- **Okuma (n=3 Tour):** izlenme 82 → 42 → 17 düşüş trendi; tutma %34 → %50 → %39. Aynı format konudan bağımsız tavan ~40-80 izlenme gösteriyor; "ilk test grubu" sınırını aşan bir sıçrama yok. Vostok'ta TikTok aramasında "lake vostok" sorgusu olması YouTube'da karşılık bulmadı. Formatın klasik formata üstünlüğü (aynı konuda) sürüyor ama viral eşiği geçmiyor.
+- Sinyal: "auraAi" araması = markayı arayan ilk kişiler (TikTok).
