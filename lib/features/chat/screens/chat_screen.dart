@@ -296,13 +296,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         SnackBar(content: Text(I18n.t("chat.accountSaved"))),
                       );
                     } on DioException catch (e) {
+                      // DURUSTLUK/I18N TARAMASI BULGUSU (2026-10, Paket 1 /
+                      // madde D15): asagidaki iki sabit "Bir hata oluştu."
+                      // metni Ingilizce kullaniciya da Turkce gosteriliyordu
+                      // - mevcut "chat.genericError" anahtari kullanilmiyordu.
+                      // NOT: sunucunun kendi "detail" metni (asagida) hala
+                      // Turkce donuyor olabilir (backend hata mesajlari henuz
+                      // cevirili degil) - bu ayri, daha genis bir is.
                       final detail = (e.response?.data is Map)
                           ? (e.response?.data["detail"]?.toString() ??
-                                "Bir hata oluştu.")
-                          : "Bir hata oluştu.";
+                                I18n.t("chat.genericError"))
+                          : I18n.t("chat.genericError");
                       setDialogState(() => errorText = detail);
                     } catch (e) {
-                      setDialogState(() => errorText = "Bir hata oluştu.");
+                      setDialogState(
+                        () => errorText = I18n.t("chat.genericError"),
+                      );
                     }
                   },
                   child: Text(I18n.t("chat.save")),
@@ -1051,22 +1060,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ),
+        // GUVENLIK/DURUSTLUK TARAMASI BULGUSU (2026-10, Paket 1 / madde D13):
+        // asagidaki yesil nokta + "Aura, cevrimici" etiketi baglantiya hic
+        // BAKMAKSIZIN SABITTI - gercek bir durum gostergesi degil, yanlis
+        // beyandi (sunucu coksa bile kullanici "cevrimici" goruyordu).
+        // Nokta kaldirildi, etiket basit sekilde uygulama adina indirgendi.
         title: Semantics(
           header: true,
-          label: I18n.t("chat.online"),
+          label: "Aura",
           child: ExcludeSemantics(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF00E676),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
                 Text(
                   "Aura",
                   style: GoogleFonts.poppins(

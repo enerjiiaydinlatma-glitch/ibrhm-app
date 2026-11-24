@@ -1268,8 +1268,19 @@ def set_consent(user_id: int) -> None:
 
 def delete_user_completely(user_id: int) -> None:
     """KVKK/GDPR silme hakki: kullaniciyi VE tum bagli satirlarini kalici
-    olarak siler. Geri alinamaz."""
-    tables = [
+    olarak siler. Geri alinamaz.
+
+    GUVENLIK TARAMASI BULGUSU (2026-10, Paket 1 / madde B1): bu liste
+    friends/stories/location_gifts'i HIC icermiyordu. Bu uc tablo artik
+    hicbir endpoint tarafindan yazilmiyor (bkz. yukaridaki "Sosyal katman
+    BILEREK kaldirildi" notu) ama ozellik kaldirilmadan ONCE olusmus
+    satirlar (arkadas telefonu/e-postasi, konum hediyesi gibi kisisel
+    veri icerebilir) kullanici hesabini silse bile DB'de KALICI olarak
+    duruyordu - KVKK/GDPR silme hakkinin tam karsilanmamasi. Simdi
+    eklendi; friends iki sutunda da (user_id VE friend_user_id) referans
+    tasiyabiliyor, location_gifts de iki sutunda (sender_id VE
+    recipient_id) - her ikisi de taraniyor."""
+    single_column_tables = [
         ("messages", "user_id"),
         ("mood_logs", "user_id"),
         ("reminders", "user_id"),
@@ -1279,13 +1290,29 @@ def delete_user_completely(user_id: int) -> None:
         ("memories", "user_id"),
         ("memory_candidates", "user_id"),
         ("memory_events", "user_id"),
+        ("stories", "user_id"),
+    ]
+    two_column_tables = [
+        ("friends", "user_id", "friend_user_id"),
+        ("location_gifts", "sender_id", "recipient_id"),
     ]
     with db_cursor(commit=True) as conn:
-        for tbl, col in tables:
+        for tbl, col in single_column_tables:
             try:
                 conn.execute(f"DELETE FROM {tbl} WHERE {col} = ?", (user_id,))
-            except db_compat.OperationalError:
-                pass  # tablo yoksa (eski/farkli sema) gec
+            except db_compat.OperationalError as e:
+                # tablo/sutun yoksa (eski/farkli sema) gec - ama BU HATAYI
+                # GOZARDI ETME: eskiden tamamen sessiz "pass" idi, gercek
+                # bir sema sorunu da fark edilmeden gececekti.
+                print(f"delete_user_completely: {tbl}.{col} atlandi ({e})")
+        for tbl, col_a, col_b in two_column_tables:
+            try:
+                conn.execute(
+                    f"DELETE FROM {tbl} WHERE {col_a} = ? OR {col_b} = ?",
+                    (user_id, user_id),
+                )
+            except db_compat.OperationalError as e:
+                print(f"delete_user_completely: {tbl} atlandi ({e})")
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 

@@ -20,8 +20,18 @@ Iceriik Aura'nin GERCEK veri islemesini yansitir:
 - Analiz icin gonderilen foto/PDF: modele iletilir, uzun sure saklanmaz.
 - Ses: goruntulu/sesli gorusme sirasinda modele akitilir, kaydedilmez.
 - Isleyen ucuncu taraflar: Google (Gemini API + Gemini Live), Groq (arka
-  plan hafiza cikarimi + yedek metin uretimi), ElevenLabs / self-host
-  Chatterbox (seslendirme). Barindirma: Railway.
+  plan hafiza cikarimi + yedek metin uretimi), Cerebras/Mistral/OpenRouter
+  (ana saglayicilar erisilemezse yedek metin uretimi, bkz. aura_brain.py),
+  ElevenLabs / self-host Chatterbox (seslendirme). Barindirma: Railway.
+
+Paket 1 / madde D16 (2026-10 guvenlik/durustluk analizi) ile eklenen/
+duzeltilen noktalar: (1) Cerebras/Mistral/OpenRouter yedek saglayicilari
+eksikti, eklendi; (2) "IP 90 gun saklanir" iddiasi kodu yansitmiyordu -
+rate limit/basarisiz giris sayaclari SADECE bellekte (restart'ta sifirlanan)
+tutuluyor, kalici bir kayit YOK - bu metin artik gercegi yansitiyor;
+(3) geri bildirimin (reply_feedback) admin tarafindan okunabildigi
+eklendi; (4) "gizli mod" aciklamasina bunun sifreleme OLMADIGI, sadece
+bir gorunurluk filtresi oldugu eklendi.
 """
 
 _CSS = """
@@ -63,6 +73,9 @@ silebilirsin.</li>
 sinyalleri ve tarih içeren hatırlatmalar.</li>
 <li><b>Kullanım:</b> Günlük mesaj/görüşme sayaçları; uygulama içi
 tercihlerin.</li>
+<li><b>Geri bildirim:</b> Aura'nın bir yanıtına verdiğin 👍/👎 ve varsa
+eklediğin not; bu, uygulama sahibi (işleten) tarafından hizmeti
+iyileştirmek için okunabilir.</li>
 <li><b>Konum (isteğe bağlı):</b> Hava durumuna duyarlı öneriler için
 yaklaşık konumun. İzin vermezsen kullanılmaz.</li>
 <li><b>Fotoğraf/PDF:</b> İncelenmesi için gönderdiğin dosyalar analiz için
@@ -77,18 +90,24 @@ kullanımı önlemek ve hizmeti geliştirmek için.</p>
 <h2>4. Kimlerle paylaşıyoruz</h2>
 <p>Verilerini satmıyoruz. Yapay zekâ yanıtlarını üretmek için hizmet
 sağlayıcı olarak şu taraflarla çalışıyoruz: <b>Google</b> (Gemini),
-<b>Groq</b> (arka plan işlemleri), seslendirme için <b>ElevenLabs</b> veya
-kendi barındırdığımız ses motoru. Barındırma: <b>Railway</b>. Bu sağlayıcılar
+<b>Groq</b> (arka plan işlemleri), ana sağlayıcılar erişilemezse yedek
+olarak <b>Cerebras</b>, <b>Mistral</b> ve/veya <b>OpenRouter</b> üzerinden
+erişilen modeller, seslendirme için <b>ElevenLabs</b> veya kendi
+barındırdığımız ses motoru. Barındırma: <b>Railway</b>. Bu sağlayıcılar
 verini yalnızca hizmeti sunmak için işler.</p>
 <h2>5. Ne kadar saklıyoruz</h2>
 <p>Sohbet geçmişin, hafızan, ruh hâli ve hatırlatma kayıtların; sen silene
 ya da hesabını kapatana kadar saklanır. Hesabını sildiğinde bu veriler
 sistemden derhâl kaldırılır ve düzenli yedeklerden en geç 30 gün içinde
 kalıcı olarak silinir. Analiz için gönderilen fotoğraf/PDF dosyaları işlem
-biter bitmez sunucudan silinir. Güvenlik ve kötüye kullanımı önleme amacıyla
-tutulan teknik kayıtlar (ör. IP adresi, istek sayaçları) en fazla 90 gün
-saklanır. Yürürlükteki mevzuat bir kaydı daha uzun saklamamızı zorunlu
-kılıyorsa, yalnızca o kayıt ilgili yasal süre boyunca saklanır.</p>
+biter bitmez sunucudan silinir. Kötüye kullanımı önlemek için (ör. hızlı art
+arda istek, başarısız giriş denemesi) uygulama IP adresini ve istek
+sayaçlarını yalnızca KISA SÜRELİ olarak bellekte tutar; sunucu yeniden
+başladığında bu sayaçlar sıfırlanır, kalıcı bir kayıt OLUŞTURULMAZ.
+Barındırma sağlayıcımızın (Railway) kendi erişim/güvenlik günlükleri kendi
+saklama süresine tabidir, bu bizim doğrudan kontrolümüzde değildir.
+Yürürlükteki mevzuat bir kaydı daha uzun saklamamızı zorunlu kılıyorsa,
+yalnızca o kayıt ilgili yasal süre boyunca saklanır.</p>
 <h2>6. Haklarını nasıl kullanırsın</h2>
 <p>KVKK md. 11 ve ilgili mevzuat uyarınca verilerine erişme, düzeltme,
 silme ve işlenmesine itiraz etme hakkın var. Uygulama içinden:
@@ -97,7 +116,9 @@ seçenekleriyle bunların çoğunu doğrudan yapabilirsin. Diğer talepler için
 <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>7. Güvenlik</h2>
 <p>Şifreler hash'lenerek saklanır. Bağlantılar şifrelidir (HTTPS). Gizli
-mod'da işaretlediğin sohbetler normal geçmişte görünmez.</p>
+mod'da işaretlediğin sohbetler normal geçmişte GÖRÜNMEZ - ama bu bir
+şifreleme DEĞİLDİR, yalnızca bir görünürlük filtresidir: mesaj metni
+veritabanımızda normal mesajlar gibi düz biçimde saklanır.</p>
 <h2>8. Çocuklar</h2>
 <p>Aura 18 yaş ve üzeri kullanıcılar içindir. 18 yaşından küçüksen
 uygulamayı kullanma.</p>
@@ -125,6 +146,9 @@ Settings &gt; My Memory.</li>
 <li><b>Mood &amp; reminders:</b> Mood signals inferred from messages and
 date‑based reminders parsed from them.</li>
 <li><b>Usage:</b> Daily message/call counters; in‑app preferences.</li>
+<li><b>Feedback:</b> The 👍/👎 you give one of Aura's replies and any note
+you add; this may be read by the app owner (operator) to improve the
+service.</li>
 <li><b>Location (optional):</b> Approximate location for weather‑aware
 suggestions. Not used without permission.</li>
 <li><b>Photos/PDFs:</b> Files you send for review are forwarded to the AI
@@ -139,6 +163,8 @@ prevent abuse, and to improve the service.</p>
 <h2>4. Who we share with</h2>
 <p>We do not sell your data. To generate AI responses we use these
 processors: <b>Google</b> (Gemini), <b>Groq</b> (background tasks),
+<b>Cerebras</b>, <b>Mistral</b> and/or models accessed via
+<b>OpenRouter</b> as fallbacks when the main providers are unavailable,
 <b>ElevenLabs</b> or our self‑hosted voice engine for speech. Hosting:
 <b>Railway</b>. They process your data only to provide the service.</p>
 <h2>5. Retention</h2>
@@ -146,10 +172,14 @@ processors: <b>Google</b> (Gemini), <b>Groq</b> (background tasks),
 delete them or close your account. When you delete your account these data
 are removed from the system immediately and purged from routine backups
 within 30 days at the latest. Photos/PDFs sent for analysis are deleted from
-the server as soon as processing finishes. Technical logs kept for security
-and abuse prevention (e.g. IP address, request counters) are retained for at
-most 90 days. If applicable law requires a record to be kept longer, only
-that record is retained for the relevant statutory period.</p>
+the server as soon as processing finishes. To prevent abuse (e.g. rapid
+repeated requests, failed login attempts) the app keeps IP addresses and
+request counters only SHORT‑TERM, in memory; these counters reset whenever
+the server restarts and no persistent record is created. Our hosting
+provider's (Railway) own access/security logs are subject to their own
+retention period, which is not directly under our control. If applicable
+law requires a record to be kept longer, only that record is retained for
+the relevant statutory period.</p>
 <h2>6. Your rights</h2>
 <p>Under GDPR / Turkish KVKK you can access, rectify, erase and object to
 processing. In‑app: Settings &gt; My Memory (delete memories),
@@ -157,7 +187,9 @@ Settings &gt; Log out, and <b>delete account</b>. Other requests:
 <b>enerjiiaydinlatma@gmail.com</b>.</p>
 <h2>7. Security</h2>
 <p>Passwords are stored hashed. Connections are encrypted (HTTPS). Chats you
-mark as hidden do not appear in normal history.</p>
+mark as hidden do NOT appear in normal history - but this is NOT
+encryption, only a visibility filter: the message text is stored in our
+database in plain form, the same as any other message.</p>
 <h2>8. Children</h2>
 <p>Aura is for users aged 18 and over. Do not use the app if you are under
 18.</p>

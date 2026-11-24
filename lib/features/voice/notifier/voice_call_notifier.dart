@@ -12,6 +12,7 @@ import "package:record/record.dart";
 import "package:wakelock_plus/wakelock_plus.dart";
 import "package:web_socket_channel/web_socket_channel.dart";
 
+import "../../../core/i18n.dart";
 import "../../chat/notifier/chat_notifier.dart";
 import "../models/voice_call_state.dart";
 import "mic_level_notifier.dart";
@@ -430,7 +431,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       _voiceDebugLog("hasPermission() HATASI: $e");
       state = state.copyWith(
         status: VoiceCallStatus.error,
-        errorMessage: "Mikrofon izni kontrol edilemedi: $e",
+        errorMessage: I18n.t("call.micPermissionCheckFailed"),
       );
       return;
     }
@@ -536,7 +537,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       _voiceDebugLog("baslatma HATASI: $e");
       state = state.copyWith(
         status: VoiceCallStatus.error,
-        errorMessage: "Ses motoru başlatılamadı: $e",
+        errorMessage: I18n.t("call.audioEngineStartFailed"),
       );
       return;
     }
@@ -567,7 +568,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       debugPrint("WebSocket baglanti hatasi: $e");
       state = state.copyWith(
         status: VoiceCallStatus.error,
-        errorMessage: "Sunucuya bağlanılamadı: $e",
+        errorMessage: I18n.t("call.serverConnectFailed"),
       );
       return;
     }
@@ -603,7 +604,7 @@ class VoiceCallNotifier extends Notifier<VoiceCallState>
       debugPrint("Mikrofon akis hatasi: $e");
       state = state.copyWith(
         status: VoiceCallStatus.error,
-        errorMessage: "Mikrofon akışı başlatılamadı: $e",
+        errorMessage: I18n.t("call.micStreamStartFailed"),
       );
       return;
     }
