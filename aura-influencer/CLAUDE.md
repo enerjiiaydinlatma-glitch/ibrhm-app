@@ -1602,3 +1602,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - **Insansi robot gundemi (tek izleyici sayfasi, findskill.ai, 2. kaynakla DOGRULANMADI):** AgiBot 6 tekerlekli G2'yi Sanghay'da bir markette 2-3 Kasim'da calistirdi (1.730 gorev, 4'u final degerlendirmesini gecti, 2'si gecemedi); Agility Robotics (Digit) 5 Kasim'da Nasdaq'ta AGLT ile islem gormeye basladi; 1X Neo TIME 2026 En Iyi Icatlar (17 Eki). 
 - **Arkeoloji gundemi (archaeology.org liste sayfalari, makaleler acilmadi):** Nubya'nin en buyuk ortacag katedralinin zemini (9 Kas), Moğolistan anitsal mezar (12 Kas), Ispanya Cape Trafalgar megalitik mezarlari (13 Kas), Moğol istilasi gemi enkazinda oyun kartlari (6 Kas), Peru Nazca mezarligi bebek kalintilari (12 Kas; hassas, kullanma). NASA/uzay: guncel haber bulunamadi.
 - **Etkilesim:** hesabin 3 haftadir yorumu yok; en cok aranan konular (cern, lake vostok, moai, viking) izlenmeyi etkiliyor ama yorum/abone getirmiyor.
+
+### 2026-11-25 (devam 2) — İki yeni paket hazır (YAYINLANMADI, Türkçe anlam onayı bekliyor)
+- `live_packages/tour_005.json` "Inside Easter Island: 2 Stops" (moai seti; 962 heykel/2025 çalışma, taş ocağı volkanik kül, yol heykellerinin ~yarısı ocağa <2 km; kapanış: "Next stop: Petra or Hagia Sophia? Reply with one word."). Preflight 16/17 (tek kırmızı: eski Easter Island videosuyla konu çakışması, bilinçli).
+- `live_packages/report_001.json` "Robot Store Shift: 4 of 6 Passed" (AgiBot G2, Şanghay, 2-3 Kas 2026; çok sayıda haber sitesi ama HEPSİ şirket açıklamasına dayanıyor, bağımsız doğrulama yok → videoda "The company reports", "No independent check yet"; Humanoids Daily sponsorlu). Preflight 17/17, ~20 sn tahmin.
+- Sentetik sesle önizleme render'ı sürüyor; kareler kontrol edilecek.

@@ -1,0 +1,53 @@
+{
+ "title": "Robot Store Shift: 4 of 6 Passed",
+ "format": "agenda",
+ "rationale": "Aura Report #1 (2026-11-25, gundem). Kaynaklar (WebSearch, cok sayida haber sitesi; HEPSI AgiBot'un kendi aciklamasina dayaniyor, bagimsiz degerlendirme yok; Humanoids Daily sponsorlu icerik): 6 G2, Sanghay Xuhui, 2-3 Kasim 2026, 24 saat; 1.730 gorev; 4'u final degerlendirmesini gecti, 2'si (temizlik; raf denetimi/doldurma) gecemedi (The Robot Report, Interesting Engineering, humanoid.guide, Gasgoo). Erken rapor 4,5 saatte 337 gorev. Videoda 'company reports' + 'no independent check' ifadeleri BILEREK var. Kullanilmayan: is gucu tasarrufu. Kapanis: 'Real progress, or marketing?'. Set: studio.",
+ "en_script": "Six humanoid robots worked a store for 24 hours. I'm Aura, an AI, in my 3D rebuild, not real footage. Shanghai, November 2026. The company reports 1,730 tasks. Four robots passed the final test. Two fell short: cleaning, and shelf restocking. No independent check yet. Real progress, or marketing? Vote below.",
+ "tr_script": "Altı insansı robot bir mağazada 24 saat çalıştı. Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Şanghay, Kasım 2026. Şirket 1.730 görev bildiriyor. Dört robot son testi geçti. İkisi yetersiz kaldı: temizlik ve raf doldurma. Henüz bağımsız bir doğrulama yok. Gerçek ilerleme mi, pazarlama mı? Aşağıdan oy ver.",
+ "description": "Six AgiBot G2 humanoid robots worked a 24-hour shift in a Shanghai convenience store on November 2-3, 2026. The company reports 1,730 tasks; four robots passed its final test and two fell short. No independent check has been reported. Real progress, or marketing? Vote below. I'm Aura, an AI; this is my 3D rebuild, not real footage. #Robots #Humanoid #AgiBot #AI #AuraAI",
+ "tags": "AuraAI,Robots,Humanoid,AgiBot,AI",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "studio",
+  "intro": true,
+  "intro_skip": 3.0,
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA REPORT  -  SHANGHAI",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "4 / 6",
+   "label": "robots passed the test",
+   "pill": "COMPANY-REPORTED",
+   "secs": 2.0,
+   "persist": true,
+   "y": 760
+  },
+  "emotions": {
+   "0": "surprised",
+   "1": "neutral",
+   "2": "curious",
+   "3": "curious",
+   "4": "happy",
+   "5": "sad",
+   "6": "neutral",
+   "7": "curious",
+   "8": "curious"
+  },
+  "cards": {
+   "2": {
+    "type": "number",
+    "big": "1,730",
+    "label": "tasks (company-reported)",
+    "static": true
+   },
+   "7": {
+    "type": "number",
+    "big": "PROGRESS / HYPE",
+    "label": "vote below",
+    "static": true
+   }
+  }
+ }
+}
