@@ -1607,3 +1607,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - `live_packages/tour_005.json` "Inside Easter Island: 2 Stops" (moai seti; 962 heykel/2025 çalışma, taş ocağı volkanik kül, yol heykellerinin ~yarısı ocağa <2 km; kapanış: "Next stop: Petra or Hagia Sophia? Reply with one word."). Preflight 16/17 (tek kırmızı: eski Easter Island videosuyla konu çakışması, bilinçli).
 - `live_packages/report_001.json` "Robot Store Shift: 4 of 6 Passed" (AgiBot G2, Şanghay, 2-3 Kas 2026; çok sayıda haber sitesi ama HEPSİ şirket açıklamasına dayanıyor, bağımsız doğrulama yok → videoda "The company reports", "No independent check yet"; Humanoids Daily sponsorlu). Preflight 17/17, ~20 sn tahmin.
 - Sentetik sesle önizleme render'ı sürüyor; kareler kontrol edilecek.
+- 2026-11-25: tour_005 ve report_001 sentetik-ses önizleme kareleri kontrol edildi (kanca bandı, durak etiketleri, kartlar temiz; sorun yok). Operatör onayı bekleniyor.
