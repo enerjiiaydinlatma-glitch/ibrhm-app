@@ -1609,3 +1609,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Sentetik sesle önizleme render'ı sürüyor; kareler kontrol edilecek.
 - 2026-11-25: tour_005 ve report_001 sentetik-ses önizleme kareleri kontrol edildi (kanca bandı, durak etiketleri, kartlar temiz; sorun yok). Operatör onayı bekleniyor.
 - 2026-11-25: report_001 (robot mağaza haberi) ve tour_005 (Easter Island) metinleri ONAYLANDI. Sıra: bugün report_001, yarın tour_005. Render/yayın operatörde.
+- 2026-11-25 18:15: report_001 'Robot Store Shift: 4 of 6 Passed' YouTube'da YAYINDA: https://youtu.be/xMYxHL5g_1g (panel ekranından okundu, I/l karışabilir), preflight 18/18. Easter Island (tour_005) panelde hazır, yarın. 24 saat ölçümü 26 Kas 18:25 TSİ.
