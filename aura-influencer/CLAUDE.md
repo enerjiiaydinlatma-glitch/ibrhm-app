@@ -1608,3 +1608,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - `live_packages/report_001.json` "Robot Store Shift: 4 of 6 Passed" (AgiBot G2, Şanghay, 2-3 Kas 2026; çok sayıda haber sitesi ama HEPSİ şirket açıklamasına dayanıyor, bağımsız doğrulama yok → videoda "The company reports", "No independent check yet"; Humanoids Daily sponsorlu). Preflight 17/17, ~20 sn tahmin.
 - Sentetik sesle önizleme render'ı sürüyor; kareler kontrol edilecek.
 - 2026-11-25: tour_005 ve report_001 sentetik-ses önizleme kareleri kontrol edildi (kanca bandı, durak etiketleri, kartlar temiz; sorun yok). Operatör onayı bekleniyor.
+- 2026-11-25: report_001 (robot mağaza haberi) ve tour_005 (Easter Island) metinleri ONAYLANDI. Sıra: bugün report_001, yarın tour_005. Render/yayın operatörde.
