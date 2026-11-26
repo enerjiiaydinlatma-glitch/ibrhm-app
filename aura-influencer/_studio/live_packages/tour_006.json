@@ -26,7 +26,8 @@
   },
   "chapters": {
    "2": "STOP 1  -  OPEN LEVELS",
-   "3": "STOP 2  -  CLOSED LEVELS"
+   "3": "STOP 2  -  CLOSED LEVELS",
+   "6": ""
   },
   "emotions": {
    "0": "curious",
