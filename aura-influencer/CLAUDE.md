@@ -1624,3 +1624,6 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - **Reddedilen (kural ihlali / yanlış):** "I Sent a Robot Inside Easter Island (Stop #2 Was a Mistake)", "Nobody expected stop #2", "A robot tried to work a retail shift... day 4 went wrong" → uydurma olay/gerçek robot gönderildi izlenimi = sahte iddia + YouTube yanıltıcı meta veri riski; kurgu gerçek diye sunulamaz, "not real footage" kuralı. Başlıkta aranan ifade (Inside X) korunur (TikTok aramasının %8,3'ü Tour başlıklarından).
 - **Doğrulanamayan:** "82-241 ilk gün izlenmesi" (bizde 17-119; 241 yok); "kapaklar tekdüze → tekrar izliyorum hissi" makul ama ölçülmedi.
 - **Uygulama:** başlıklara DOĞRU bir soru eklenebilir (ör. "Inside Derinkuyu: Who Hid Here?") ve kapanış açılışı tekrar eder.
+
+### 2026-11-26 (devam) — Operatörün NİHAİ HEDEFİ (kalıcı)
+- "AURA AI'yi sadece video yükleyen bir kanal olmaktan çıkarıp, insanların yeni bölümünü merakla beklediği bir yapay zekâ karakterine dönüştürmek." Üretim kapasitesi sorusu + Studio Analytics ekranları (Shorts: görüntüleme/izlenme süresi, izlemeyi seçenler vs kaydırıp geçenler, elde tutma + ort. izlenme süresi) istendi. Yanıt: günde 1 Tour (haftada en fazla 1 gündem), karakter/seri planı operatöre sunuldu; karar bekleniyor.
