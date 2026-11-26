@@ -1627,3 +1627,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 
 ### 2026-11-26 (devam) — Operatörün NİHAİ HEDEFİ (kalıcı)
 - "AURA AI'yi sadece video yükleyen bir kanal olmaktan çıkarıp, insanların yeni bölümünü merakla beklediği bir yapay zekâ karakterine dönüştürmek." Üretim kapasitesi sorusu + Studio Analytics ekranları (Shorts: görüntüleme/izlenme süresi, izlemeyi seçenler vs kaydırıp geçenler, elde tutma + ort. izlenme süresi) istendi. Yanıt: günde 1 Tour (haftada en fazla 1 gündem), karakter/seri planı operatöre sunuldu; karar bekleniyor.
+
+### 2026-11-26 23:31 — YouTube mobil ekranı (AURA Aİ, doğru kanal)
+- **Tour #5 Easter Island ilk 6 sa 36 dk: 241 izlenme, 1 beğeni, 0 yorum** (Tour serisinin en hızlısı; eski klasik Easter Island 203 toplam). Robot Store Shift 1 gün 5 sa: 82 (19. saatte 81 → durdu), 0 beğeni. CERN 2 gün 5 sa: 119 (19. saatte 119 → durdu), 1 beğeni. Kanal 28 gün 2,6B, 1,6 sa, abone 2.
+- **DÜZELTME:** önceki değerlendirmede "dış analizdeki 241 bizde yok" demiştim; 241 Easter Island'ın bu ekrandaki sayısı (doğruymuş). Dış analiz aynı ekran görüntüsüne dayanıyormuş.
+- **Okuma (n=5 Tour):** izlenme 82/42/17/119/241; videolar ilk ~19-24 saatte tavan yapıp duruyor (CERN, Robot 19 sa → 2 gün aynı). TikTok'ta arama sorgusu olan konular (cern, moai) YT'de de en yüksek iki video → "aranan konu" hipotezi güçleniyor.
