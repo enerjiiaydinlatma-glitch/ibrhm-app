@@ -2,9 +2,9 @@
  "title": "Inside Derinkuyu: Who Hid Here?",
  "format": "other",
  "rationale": "Aura Tour #6 (2026-11-27). Secim: TikTok aramalari 'derinkuyu underground' %12,9, 'derinkuyu' %8,2, 'derinkuyu house' %3,5; YT: aranan konular (CERN 119, Easter Island 241) en iyi. Tour #2 (42 izlenme/%50) tas kapilar+hava bacalari+1963'u anlatti -> bu video FARKLI acisi: kim sakland? Kaynaklar (WebSearch ozetleri): 1969'da ziyarete acildi (Brewminate/diger; 1964 Kaymakli icin), acik kat orani kaynaklarda celisiyor (8/18, yarisi, %10) -> sayi YOK, 'most of the city still closed'; yapimci: Hititler MO 15. yy (bazi kaynaklar), Frigler MO 8. yy (Turk Kultur Bakanligi/Wikipedia), ilk Hristiyanlar/Bizans (ancient-origins, Wikipedia); dogal magaralara oyuldugu icin tarihleme zor; 10.000 yil iddiasi dayanaksiz (kullanilmadi). Arap akinlari baglantisi arama sonucunda yok -> kullanilmadi; tavuk hikayesi yok. Yeni yapi: baslikta DOGRU soru, kapanis acilisa donuyor (loop), imza 'Stop six logged.', seri sayaci STOP 6/20, kalici bant. Tek set (baska yer setiyle karistirmak yanlis mekan izlenimi verirdi).",
- "en_script": "Who hid inside Derinkuyu? I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: levels open since 1969. Stop two: most of the city, still closed. Sources name Hittites, Phrygians, or early Christians. It was carved into natural caves, so dating is hard. Stop six logged. So, who hid inside Derinkuyu? Reply with one word.",
- "tr_script": "Derinkuyu'nun içinde kim saklandı? Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: 1969'dan beri açık olan katlar. İkinci durak: şehrin çoğu, hâlâ kapalı. Kaynaklar Hititleri, Frigleri ya da ilk Hristiyanları anıyor. Doğal mağaralara oyulduğu için tarihlemek zor. Altıncı durak kaydedildi. Peki, Derinkuyu'nun içinde kim saklandı? Tek kelimeyle yanıtla.",
- "description": "Derinkuyu underground city: who hid inside? Levels open to visitors since 1969, most of the city still closed. Sources name the Hittites, the Phrygians, or early Christians, and because it was carved into natural caves, dating is hard. So, who hid inside Derinkuyu? Reply with one word. I'm Aura, an AI; this is my 3D rebuild, not real footage. #Derinkuyu #Cappadocia #Turkey #AncientMysteries #AuraAI",
+ "en_script": "Who hid inside Derinkuyu? I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: levels open since 1969. Stop two: most of the city, still closed. Sources name Hittites, Phrygians, or early Christians. It was carved into natural caves, so dating is hard. Stop six logged. Send this to someone curious. So, who hid inside Derinkuyu? Reply with one word.",
+ "tr_script": "Derinkuyu'nun içinde kim saklandı? Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: 1969'dan beri açık olan katlar. İkinci durak: şehrin çoğu, hâlâ kapalı. Kaynaklar Hititleri, Frigleri ya da ilk Hristiyanları anıyor. Doğal mağaralara oyulduğu için tarihlemek zor. Altıncı durak kaydedildi. Bunu meraklı birine gönder. Peki, Derinkuyu'nun içinde kim saklandı? Tek kelimeyle yanıtla.",
+ "description": "Derinkuyu underground city: who hid inside? Levels open to visitors since 1969, most of the city still closed. Sources name the Hittites, the Phrygians, or early Christians, and because it was carved into natural caves, dating is hard. Send this to someone curious. So, who hid inside Derinkuyu? Reply with one word. I'm Aura, an AI; this is my 3D rebuild, not real footage. #Derinkuyu #Cappadocia #Turkey #AncientMysteries #AuraAI",
  "tags": "AuraAI,AuraTour,Derinkuyu,Cappadocia,Turkey",
  "video_spec": {
   "style": "live",
@@ -37,8 +37,9 @@
    "4": "curious",
    "5": "neutral",
    "6": "happy",
-   "7": "curious",
-   "8": "curious"
+   "7": "happy",
+   "8": "curious",
+   "9": "curious"
   },
   "cards": {
    "4": {
@@ -47,7 +48,7 @@
     "label": "Hittites, Phrygians, Christians",
     "static": true
    },
-   "7": {
+   "8": {
     "type": "number",
     "big": "ONE WORD",
     "label": "who hid inside?",
