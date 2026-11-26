@@ -1611,3 +1611,9 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - 2026-11-25: report_001 (robot mağaza haberi) ve tour_005 (Easter Island) metinleri ONAYLANDI. Sıra: bugün report_001, yarın tour_005. Render/yayın operatörde.
 - 2026-11-25 18:15: report_001 'Robot Store Shift: 4 of 6 Passed' YouTube'da YAYINDA: https://youtu.be/xMYxHL5g_1g (panel ekranından okundu, I/l karışabilir), preflight 18/18. Easter Island (tour_005) panelde hazır, yarın. 24 saat ölçümü 26 Kas 18:25 TSİ.
 - 2026-11-25: report_001 TikTok'a yüklendi (operatör beyanı, ~18:30 TSİ).
+
+### 2026-11-26 — Report #1 robot haberi ~19 sa + TikTok 18-24 Kas (doğru kanal, operatör ekran görüntüleri)
+- **YouTube:** "Robot Store Shift: 4 of 6 Passed" ilk 19 sa 9 dk: **81 izlenme, ort. izlenme %20,5 (düşük), 0 beğeni/yorum**, 3/10. Son 48 saatte CERN 119, Robot 81. Kanal 28 gün 2,6B, 1,6 sa, abone 2.
+- **TikTok (18-24 Kas):** 1,3K izlenme (+%29,7), profil 67 (+4), beğeni 31 (+14), yorum --, paylaşım 0; **FYP %89, ARAMA %8,3 (↑; 0,8 → 3,7 → 8,3)**, profil %2,6. **Arama sorguları tamamen Tour konularımız: "derinkuyu underground" %12,9, "lake vostok antarctica" %9,4, "derinkuyu" %8,2, "Lake Vostok" %4,7, "derinkuyu house" %3,5** (1963 'ev tadilatı' bilgisi).
+- **Okuma:** (1) Tour videoları aramadan bulunuyor, arama payı 3 haftada 10 kat arttı → açıklamayı aranan ifadeyle başlatma + konu seçimi doğru. (2) Gündem/robot haberi erişim iyi (81) ama tutma zayıf (%20,5 vs Tour %34-50; n=1; hipotez: çok rakam/şirket iddiası, merak boşluğu yok). (3) Yorum/paylaşım 3 haftadır sıfır → etkileşim sorunu çözülmedi.
+- **Karar önerisi:** arama-odaklı konu: Derinkuyu 2. bölüm ("derinkuyu house", "underground") ve Vostok devamı; gündem formatı seyrek (haftada ≤1).
