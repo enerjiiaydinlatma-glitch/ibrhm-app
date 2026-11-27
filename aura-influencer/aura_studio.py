@@ -1605,7 +1605,7 @@ function draftHtml(d){
 
 // ================= URETIM sekmesi (2026-11-27) =================
 // NOT: PAGE normal Python string: JS'te ters egik cizgi YOK.
-let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: []};
+let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: [], days: []};
 function dpSplit(t){
   const out = []; let cur = ''; const s = String(t || '');
   for(let i = 0; i < s.length; i++){
@@ -1633,6 +1633,7 @@ async function dpLoad(){
     DP.drafts = g.drafts || [];
     if(!DP.sel || !dpCur()){ const open = DP.drafts.find(d => d.status !== 'yayinlandi'); DP.sel = (open || DP.drafts[0] || {}).id; }
     try { DP.chat = (await (await fetch('/api/history')).json()).slice(-8); } catch(e) {}
+    try { const dr = await (await fetch('/api/day_status')).json(); DP.days = dr.filter(r => r.youtube && !r.tiktok && !r.tiktok_skip).slice(-8).reverse(); } catch(e) { DP.days = []; }
     document.getElementById('dp_stamp').textContent = 'Taslak: ' + DP.drafts.filter(d => d.status !== 'yayinlandi').length + ' bekliyor - Yayinda: ' + DP.drafts.filter(d => d.status === 'yayinlandi').length;
     dpDraw();
   } catch(e){ document.getElementById('dp_main').innerHTML = '<div class="dp-card">Hata: ' + esc(String(e)) + '</div>'; }
@@ -1647,6 +1648,10 @@ function dpDraw(){
   document.getElementById('dp_list').innerHTML = DP.drafts.length ? DP.drafts.slice(0, 12).map(d =>
     '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>'
   ).join('') : '<div class="dp-card sub">Taslak yok. "Hazir Paketleri Yukle" ya da asagidaki sohbetten paket iste.</div>';
+  if(DP.days && DP.days.length){
+    document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><b style="font-size:13px">TikTok kaydi eksik</b><div class="sub" style="margin:2px 0 6px">Yukledigin videolari isaretle, Bugun sayfasindaki uyari kalksin.</div>' + DP.days.map(r =>
+      '<div class="dp-row" style="justify-content:space-between;margin:4px 0"><span style="font-size:12px">' + esc(String(r.title || '').slice(0, 30)) + '</span><button class="dp-btn" style="padding:3px 9px;font-size:12px" onclick="dpTT(' + r.day + ')">Yuklendi</button></div>').join('') + '</div>';
+  }
   const d = dpCur();
   const box = document.getElementById('dp_main');
   if(!d){ box.innerHTML = dpChatHtml(null); return; }
@@ -1654,7 +1659,7 @@ function dpDraw(){
   const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
   const ok = !!DP.ok[d.id];
   const en = dpSplit(d.en_script), tr = dpSplit(d.tr_script || '');
-  let h = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><div><b style="font-size:17px">' + esc(d.title) + '</b> ' + dpPillOf(d) + '</div>' + (d.preflight ? '<span class="dp-badge">Kural uyumu ' + d.preflight.score + '/' + d.preflight.of + ' - ~' + (d.preflight.est_seconds || '?') + ' sn</span>' : '') + '</div><div class="sub" style="margin:6px 0 0">' + esc(d.rationale || '').slice(0, 220) + '</div></div>';
+  let h = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><div><b style="font-size:17px">' + esc(d.title) + '</b> ' + dpPillOf(d) + (done ? '' : ' <button class="dp-btn" style="padding:2px 9px;font-size:11px" onclick="dpDel(&#39;' + d.id + '&#39;)">Taslagi sil</button>') + '</div>' + (d.preflight ? '<span class="dp-badge">Kural uyumu ' + d.preflight.score + '/' + d.preflight.of + ' - ~' + (d.preflight.est_seconds || '?') + ' sn</span>' : '') + '</div><div class="sub" style="margin:6px 0 0">' + esc(d.rationale || '').slice(0, 220) + '</div></div>';
   // 1 Paket + Turkce anlam
   h += '<div class="dp-card dp-step ' + (ok || rend ? 'done' : 'act') + '"><div class="dp-num">1</div><div class="dp-body"><h3>Metin ve Turkce anlami</h3><div class="dp-sent"><div class="n"></div><div class="sub" style="margin:0">English (videoda)</div><div class="sub" style="margin:0">Turkce anlami</div>' + en.map((x, i) => '<div class="n">' + (i + 1) + '</div><div>' + esc(x) + '</div><div class="tr">' + esc(tr[i] || '') + '</div>').join('') + '</div>' + (en.length !== tr.length ? '<div class="sub" style="color:#f85149">Dikkat: EN ' + en.length + ' / TR ' + tr.length + ' cumle.</div>' : '') + (d.preflight ? '<div style="margin-top:8px">' + preHtml(d.preflight) + '</div>' : '') + '</div></div>';
   // 2 Onay
@@ -1686,6 +1691,12 @@ function dpChatHtml(d){
     msgs.map(m => '<div class="dp-msg ' + (m.role === 'user' ? 'u' : 'a') + '">' + esc(String(m.content || '').slice(0, 1200)) + '</div>').join('') + '</div>' +
     '<textarea id="dp_in" rows="2" placeholder="Orn: Yarin icin hangi yer? / bu metni daha merak uyandirici yap" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
     '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dp_send" onclick="dpSend()">Gonder</button>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dp_ctx"> secili taslagi baglam olarak ekle</label>' : '') + '<span class="sub" id="dp_cmsg" style="margin:0"></span></div></div>';
+}
+async function dpTT(day){ await fetch('/api/day_status', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day: day, field: 'tiktok', value: true})}); dpLoad(); }
+async function dpDel(id){
+  const d = DP.drafts.find(x => x.id === id); if(!d) return;
+  if(!confirm('Bu TASLAK silinecek (yayinlanmis video etkilenmez): ' + d.title)) return;
+  await gmPost('/api/growth/draft_delete', {id: id}); DP.sel = null; dpLoad();
 }
 function dpOk(id, v){ DP.ok[id] = !!v; dpDraw(); }
 async function dpCopy(id, btn){
