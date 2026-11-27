@@ -1866,7 +1866,7 @@ function dpDraw(){
     '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>'
   ).join('') : '<div class="dp-card sub">Taslak yok. "Hazir Paketleri Yukle" ya da asagidaki sohbetten paket iste.</div>';
   if(DP.days && DP.days.length){
-    document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><b style="font-size:13px">TikTok kaydi eksik</b><div class="sub" style="margin:2px 0 6px">Yukledigin videolari isaretle, Bugun sayfasindaki uyari kalksin.</div>' + DP.days.map(r =>
+    document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><div class="dp-row" style="justify-content:space-between"><b style="font-size:13px">TikTok kaydi eksik</b><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpTTAll()">Hepsi yuklendi</button></div><div class="sub" style="margin:2px 0 6px">Yukledigin videolari isaretle, Bugun sayfasindaki uyari kalksin.</div>' + DP.days.map(r =>
       '<div class="dp-row" style="justify-content:space-between;margin:4px 0"><span style="font-size:12px">' + esc(String(r.title || '').slice(0, 30)) + '</span><button class="dp-btn" style="padding:3px 9px;font-size:12px" onclick="dpTT(' + r.day + ')">Yuklendi</button></div>').join('') + '</div>';
   }
   const d = dpCur();
@@ -2019,6 +2019,12 @@ async function dpaReset(){
   if(!confirm('Asistan sohbeti temizlensin mi? (dosya degisiklikleri geri alinmaz)')) return;
   const j = await codeApi('/api/agent/reset', {});
   if(j.ok){ DPA.last = 0; const log = document.getElementById('dpa_log'); if(log) log.textContent = ''; dpaTick(); } else alert(j.error);
+}
+async function dpTTAll(){
+  if(!DP.days.length) return;
+  if(!confirm('Listedeki ' + DP.days.length + ' videonun TikTok yuklemesi yapildi diye isaretle? (Sadece kayit; hicbir sey yuklenmez.)')) return;
+  for(const r of DP.days){ await fetch('/api/day_status', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day: r.day, field: 'tiktok', value: true})}); }
+  dpLoad();
 }
 async function dpTT(day){ await fetch('/api/day_status', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day: day, field: 'tiktok', value: true})}); dpLoad(); }
 async function dpDel(id){
