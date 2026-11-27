@@ -39,6 +39,15 @@ r3 = m._council_run("react", "x")
 ck("trend aramasi basarisizsa UYDURMA YOK: acik hata", not r3["ok"] and "yapilamadi" in r3["error"], r3)
 ag = m._agent_council("ideas", "bir fikir")
 ck("agent araci: tum yanitlari ve notu tek metinde doner", "[Gemini" in ag and "danismandir" in ag, ag[:120])
+m._measure_state = lambda: {"subs": 2, "total_views": 5246, "median_views": 27, "week_views": 622, "rows": [{"title": "Inside CERN: 2 Stops", "views": 118, "avg_pct": 30, "likes": 1, "comments": 0, "tt_views": 117}]}
+r5 = m._council_run("system", "")
+sent = seen["Anthropic"][0][0]["content"]
+ck("sistem modu: soru bos olabilir, ozet otomatik eklenir", r5["ok"] and "SYSTEM BRIEF" in sent and "CONSTRAINTS" in sent, sent[:80])
+ck("sistem ozeti: canli sayilar + gecmis formatlar + operator hedefi", "5246" in sent and "Inside CERN" in sent and "FORMAT HISTORY" in sent and "OPERATOR GOAL" in sent)
+ck("sistem ozeti sir/anahtar icermez", not any(k in sent.lower() for k in ("api_key", "token", "client_secret", "sk-", "access_token")), "")
+ck("sistem modu istemi: zayif yonler + etkilesim mekanikleri + olcum + risk", all(w in seen["Gemini"][1] for w in ("weaknesses", "mechanics", "measure", "risk")))
+m._measure_state = lambda: (_ for _ in ()).throw(RuntimeError("yok"))
+ck("canli veri alinamazsa ozet yine olusur (acik not)", "live numbers unavailable" in m._system_brief())
 from http.server import ThreadingHTTPServer
 srv = ThreadingHTTPServer(("127.0.0.1", 0), m.Handler); port = srv.server_address[1]
 threading.Thread(target=srv.serve_forever, daemon=True).start()

@@ -659,8 +659,33 @@ _COUNCIL_RULES = (
 _COUNCIL_MODES = {
     "ideas": "TASK: propose 3 distinct topic/title/hook ideas for the next Short (a real place or sourced event), each with a one-line reason and the fact that must be verified. Be divergent; avoid repeating topics already covered if listed.",
     "redteam": "TASK: red-team the draft below. Start your answer with exactly one line 'VERDICT: OK' or 'VERDICT: FIX' or 'VERDICT: BLOCK', then bullet points: unsourced or doubtful claims, misleading wording, platform-policy risks (YouTube inauthentic/misleading metadata, TikTok), and a concrete fix per issue.",
+    "system": "TASK: analyze the SYSTEM described below (an openly-AI character channel plus its production/measurement tool). You may use up to 260 words. Give: (1) the 3 biggest weaknesses, citing the evidence in the brief; (2) 3 concrete mechanics/features that would make people come back and interact (comments, shares, follows) while respecting the hard rules; (3) how to measure that each worked (numbers, time window); (4) one risk. Do not invent data that is not in the brief; if the brief lacks something, say what you would need.",
     "react": "TASK: below is a SOURCED list of current trends/news (found with web search). You cannot search the web. Say which 1-2 items fit AURA Ai best and why, which to avoid, and what must be verified before use. Do not add new facts.",
 }
+
+
+def _system_brief():
+    """Konseye verilecek SISTEM ozeti: sabit mimari + tuttugumuz formatlarin sonuclari + guncel canli sayilar (varsa). Sir/anahtar icermez."""
+    live = ""
+    try:
+        d = _measure_state()
+        rows = d["rows"][:8]
+        live = (f"LIVE NUMBERS (YouTube, now): {d['subs']} subscribers, {d['total_views']} total views, channel median {d['median_views']} views/video, last-7-days +{d['week_views']}.\n"
+                + "\n".join(f"- {r['title']}: {r['views']} views, avg view {r['avg_pct']}%, likes {r['likes']}, comments {r['comments']}, TikTok {r['tt_views']}" for r in rows) + "\n")
+    except Exception as e:
+        live = f"(live numbers unavailable: {type(e).__name__})\n"
+    return (
+        "SYSTEM BRIEF (as of 2026-11-27)\n"
+        "WHAT IT IS: AURA Ai, an openly-AI character (3D humanoid robot with LED face, own 3D sets, synthetic voice 'Aura'). Channels: YouTube Shorts 'AURA Ai' + TikTok @aura.ai (English, global). "
+        "A desktop control panel (Python) runs everything: topic/package drafting, fact-check preflight (sentence limits, hook, loop, unsourced numbers), Turkish-meaning approval gate, 3D render with real TTS, YouTube upload with Turkish CC track, "
+        "TikTok caption pack (manual upload), automatic measurement board (24/48h views, avg view %, TikTok API sync), an in-panel coding/analysis assistant, and this council of 5 AIs (advisory).\n"
+        "FORMAT HISTORY (what was tried, ~3 months): AI prompt templates; AI news commentary; 'Hype or Real?' verdicts; speculative futures; build-in-public diary (best retention ~61%); World Tour of real mysterious places (Nazca ~1,000 views best; Antarctica 306; Hagia Sophia 215; Easter Island 204/241); "
+        "'Inside X: 2 Stops' tours (17 to 243 views, avg view 30-50%); company news ('4 of 6 robots passed': 82 views, 20% avg view).\n"
+        "PATTERNS SEEN (small samples, hypotheses): topics people search on TikTok (cern, moai, vostok, derinkuyu) get more views; each video peaks within ~24h then flat (single test-group burst); "
+        "~87-90% swipe away in Shorts; comments, shares and follows are ~0 for 3 months; subscribers stuck at 2; TikTok ~100-160 views per video with 0 shares; TikTok search share rose from 1% to 8%.\n"
+        "CONSTRAINTS (hard): English content, Turkish only as YouTube CC; always labeled AI and 'not real footage'; no invented facts/titles/events; no earnings promises; no real-person likeness; no fake urgency; operator approves and uploads every post (TikTok upload is manual); no follow/unfollow or engagement groups.\n"
+        "OPERATOR GOAL: turn the channel from 'just uploads videos' into an AI character whose next episode people wait for and interact with; wants a system unlike others.\n"
+        + live)
 
 
 def _council_run(mode, question, context=""):
@@ -668,7 +693,10 @@ def _council_run(mode, question, context=""):
     if mode not in _COUNCIL_MODES:
         return {"ok": False, "error": "Gecersiz mod."}
     q = (question or "").strip()
-    if mode != "redteam" and not q:
+    if mode == "system":
+        q = q or "Analyze our system and propose how to make it clearly better and more interactive."
+        context = _system_brief() + (("\n\nOPERATOR QUESTION/CONTEXT:\n" + context) if context else "")
+    if mode not in ("redteam", "system") and not q:
         return {"ok": False, "error": "Soru bos."}
     sources, body = [], q
     if mode == "react":
@@ -680,7 +708,7 @@ def _council_run(mode, question, context=""):
         except Exception as e:
             return {"ok": False, "error": f"Kaynakli trend aramasi yapilamadi: {type(e).__name__}: {str(e)[:160]}"}
     if context:
-        body = (body + "\n\nDRAFT / CONTEXT:\n" + context)[:6000]
+        body = (body + "\n\nDRAFT / CONTEXT:\n" + context)[:9000]
     system = _COUNCIL_RULES + " " + _COUNCIL_MODES[mode]
     msgs = [{"role": "user", "content": body}]
     members = [(n, fn) for n, ok, fn in COUNCIL_MEMBERS if ok()]
@@ -1823,7 +1851,7 @@ function dpChatHtml(d){
     '<div class="dp-chat" id="dpa_log" style="max-height:420px"></div>' +
     '<div id="dpa_img" class="sub" style="display:none;margin:0 0 4px"></div>' +
     '<textarea id="dpa_in" rows="3" placeholder="Orn: yarin icin Petra paketi hazirla / bu ekran goruntusunu analiz et (Ctrl+V ile yapistir) / son 7 gunu yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
-    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
+    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="system">Konsey: SISTEM ANALIZI (sistemimiz)</option><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
     '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gonder</button><label class="dp-btn" style="cursor:pointer">&#128247; Gorsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> secili taslagi baglam ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
 }
 // ---- Studio Asistani (Uretim sekmesi icinde; ayni ajan, ayni konusma) ----
@@ -1885,6 +1913,14 @@ function dpaSavePin(){
   try { localStorage.setItem('aura_code_pin', v); } catch(e) {}
   document.getElementById('dpa_pin').style.display = 'none'; DPA.needpin = false; dpaTick();
 }
+let DPC = null;
+function dpcSynth(){
+  if(!DPC) return;
+  const NL = String.fromCharCode(10);
+  const txt = 'KONSEY (' + DPC.mode + ') 5 yapay zekanin gorusleri asagida. Gorevin: (1) ortak noktalar ve ayrisan noktalar, (2) onerilerin hangisi sert kurallarimiza AYKIRI ya da kanitsiz (isaretle), (3) get_data ile gercek sayilarla uyusmayan iddia var mi, (4) uygulanabilir ilk 3 madde ve nasil olculecek. Sonra note araciyla 3-4 cumlelik ozeti CLAUDE.md gunlugune kaydet.' + NL + NL + DPC.answers.map(a => '[' + a.name + '] ' + (a.text || ('(yanit yok: ' + a.error + ')'))).join(NL + NL);
+  document.getElementById('dpa_in').value = txt;
+  dpaSend();
+}
 async function dpcAsk(){
   const mode = document.getElementById('dpc_mode').value, q = (document.getElementById('dpa_in').value || '').trim(), d = dpCur();
   if(mode === 'redteam' && !d){ alert('Kirmizi takim icin once bir taslak sec.'); return; }
@@ -1894,7 +1930,8 @@ async function dpcAsk(){
   btn.disabled = false;
   if(!j.ok){ out.innerHTML = '<div class="sub" style="color:#f85149">' + esc(j.error || 'hata') + '</div>'; return; }
   const col = {OK: 'y', FIX: 'r', BLOCK: 'r'};
-  out.innerHTML = '<div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + j.answers.map(a => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(a.name) + '</b>' + (a.verdict ? ' <span class="dp-pill ' + (col[a.verdict] || 't') + '">' + a.verdict + '</span>' : '') + '<span class="sub" style="margin-left:6px">' + (a.ms / 1000).toFixed(1) + ' sn</span><div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px">' + (a.error ? '<span style="color:#f85149">yanit yok: ' + esc(a.error) + '</span>' : esc(a.text)) + '</div></div>').join('') + '</div>' +
+  DPC = {mode: mode, q: q, answers: j.answers};
+  out.innerHTML = '<div class="dp-row" style="margin-bottom:8px"><button class="dp-btn pri" onclick="dpcSynth()">Asistan ozetlesin + CLAUDE.md&#39;ye kaydetsin</button><span class="sub" style="margin:0">Cevaplari birlestirip ortak/ayrisan noktalari cikarir, gercek veriyle karsilastirir.</span></div><div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + j.answers.map(a => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(a.name) + '</b>' + (a.verdict ? ' <span class="dp-pill ' + (col[a.verdict] || 't') + '">' + a.verdict + '</span>' : '') + '<span class="sub" style="margin-left:6px">' + (a.ms / 1000).toFixed(1) + ' sn</span><div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px">' + (a.error ? '<span style="color:#f85149">yanit yok: ' + esc(a.error) + '</span>' : esc(a.text)) + '</div></div>').join('') + '</div>' +
     (j.sources && j.sources.length ? '<div class="sub" style="margin-top:6px">Kaynaklar: ' + j.sources.map(x => '<a href="' + esc(x.uri) + '" target="_blank" style="color:#7db4ff">' + esc(x.title || x.uri).slice(0, 40) + '</a>').join(' &middot; ') + '</div>' : '') + '<div class="sub" style="margin-top:6px">' + esc(j.note) + '</div>';
 }
 async function dpaCancel(){ await codeApi('/api/agent/cancel', {}); }
