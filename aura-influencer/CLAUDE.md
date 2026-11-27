@@ -1663,3 +1663,4 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - Backend: `GET /api/daily` (mutlak çıktı klasörü, dosya adları). Mevcut uç noktalar yeniden kullanıldı (growth/state, render_draft, publish_draft, render_publish_draft, tiktok_pack, chat, history); yayın akışı DEĞİŞMEDİ.
 - Testler: `_tests/daily_unit.py` (GERÇEK HTTP + kaynakta ters eğik çizgi yok) run_tests'e bağlandı; Chromium'da sahte veriyle masaüstü+telefon ekran görüntüsü alındı, sayfa/konsol hatası yok. CANLI veriyle (PC, gerçek Voice Mesh) henüz denenmedi.
 - Sırada: (2) Ölçüm panosu (YouTube API'den 24/48 sa izlenme + ort. izlenme %), (3) görünümü tüm sekmelere yaygınlaştır, (4) Konsey katmanı (5 yapay zekâ; danışman, trend yalnız Gemini grounding, kurallar kodda).
+- 2026-11-27 18:46: guncelle.bat Windows'ta CALISTI (fetch+checkout+robocopy, 09cdb6d, 4 dosya kopyalandi, hata yok). Uretim sekmesi PC'de henuz denenmedi.
