@@ -188,6 +188,15 @@ def main():
             check(f"Terminalden uretim (uret.py) birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Terminalden uretim (uret.py) birim testleri", False, (uq.stderr[-400:] + uq.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "temizle_unit.py")):
+        shutil.copy2(os.path.join(ROOT, "_tests", "temizle_unit.py"), os.path.join(work, "_temizle_unit.py"))
+        shutil.copy2(os.path.join(ROOT, "temizle.py"), os.path.join(work, "temizle.py"))
+        tq = subprocess.run([sys.executable, "_temizle_unit.py"], cwd=work, capture_output=True, text=True, timeout=60, env=dict(os.environ, AURA_NO_OPEN="1"))
+        try:
+            jr = json.loads(tq.stdout.strip().splitlines()[-1])
+            check(f"Temizlik araci (temizle.py) birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("Temizlik araci (temizle.py) birim testleri", False, (tq.stderr[-400:] + tq.stdout[-300:]) or repr(ex))
     if os.path.exists(os.path.join(ROOT, "_tests", "series_unit.py")):
         shutil.copy2(os.path.join(ROOT, "_tests", "series_unit.py"), os.path.join(work, "_series_unit.py"))
         su = subprocess.run([sys.executable, "_series_unit.py"], cwd=work, capture_output=True, text=True, timeout=300, env=dict(os.environ, AURA_NO_OPEN="1"))

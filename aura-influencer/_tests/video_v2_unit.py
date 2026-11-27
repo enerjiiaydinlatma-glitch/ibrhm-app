@@ -8,9 +8,10 @@ import numpy as np
 import make_video_v2 as v2
 
 # 1) hazir paketler: gecerli, preflight temiz, kart indeksleri cumle sayisinda
-pk = sorted(glob.glob(os.path.join("_studio", "live_packages", "*.json")))
+pk = sorted(glob.glob(os.path.join("_studio", "live_packages", "*.json")))            # "Hazir Paketleri Yukle" yalniz bunlari yukler (yayinlananlar _arsiv'de)
+pk_all = pk + sorted(glob.glob(os.path.join("_studio", "live_packages", "_arsiv", "*.json")))   # arsivdekiler de gecerli kalmali
 ck("en az bir hazir paket var", len(pk) >= 1, pk)
-for fp in pk:
+for fp in pk_all:
     p = json.load(open(fp, encoding="utf-8"))
     miss = [k for k in ("title", "en_script", "tr_script", "description", "tags", "video_spec") if not p.get(k)]
     ck(f"paket {os.path.basename(fp)}: zorunlu alanlar", not miss, miss)
