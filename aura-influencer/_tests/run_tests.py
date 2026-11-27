@@ -171,6 +171,14 @@ def main():
             check(f"Konsey birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Konsey birim testleri", False, (cq.stderr[-400:] + cq.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "scan_unit.py")):
+        shutil.copy2(os.path.join(ROOT, "_tests", "scan_unit.py"), os.path.join(work, "_scan_unit.py"))
+        sq = subprocess.run([sys.executable, "_scan_unit.py"], cwd=work, capture_output=True, text=True, timeout=200, env=dict(os.environ, AURA_NO_OPEN="1"))
+        try:
+            jr = json.loads(sq.stdout.strip().splitlines()[-1])
+            check(f"Sistem taramasi birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("Sistem taramasi birim testleri", False, (sq.stderr[-400:] + sq.stdout[-300:]) or repr(ex))
     if os.path.exists(os.path.join(ROOT, "_tests", "series_unit.py")):
         shutil.copy2(os.path.join(ROOT, "_tests", "series_unit.py"), os.path.join(work, "_series_unit.py"))
         su = subprocess.run([sys.executable, "_series_unit.py"], cwd=work, capture_output=True, text=True, timeout=300, env=dict(os.environ, AURA_NO_OPEN="1"))

@@ -644,12 +644,33 @@ def _call_xai(messages, system, timeout=45):
     return (r.json()["choices"][0]["message"]["content"] or "").strip()
 
 
+def _mk_oai_compat(url, key_env, model_env, default_model, search=False):
+    """OpenAI-uyumlu sohbet API'si (Perplexity/DeepSeek/Mistral...). Anahtar ortam degiskeninde yoksa uye olmaz."""
+    def ok():
+        return bool((os.getenv(key_env) or "").strip())
+
+    def call(messages, system, timeout=45):
+        msgs = [{"role": "system", "content": system}] + [{"role": m["role"], "content": m["content"]} for m in messages]
+        r = httpx.post(url, headers={"Authorization": "Bearer " + (os.getenv(key_env) or "").strip(), "Content-Type": "application/json"},
+                       json={"model": os.getenv(model_env, default_model), "messages": msgs, "temperature": 0.7}, timeout=timeout)
+        r.raise_for_status()
+        return (r.json()["choices"][0]["message"]["content"] or "").strip()
+    return ok, call
+
+
+_pp_ok, _call_perplexity = _mk_oai_compat("https://api.perplexity.ai/chat/completions", "PERPLEXITY_API_KEY", "COUNCIL_PERPLEXITY_MODEL", "sonar")
+_ds_ok, _call_deepseek = _mk_oai_compat("https://api.deepseek.com/chat/completions", "DEEPSEEK_API_KEY", "COUNCIL_DEEPSEEK_MODEL", "deepseek-chat")
+_ms_ok, _call_mistral = _mk_oai_compat("https://api.mistral.ai/v1/chat/completions", "MISTRAL_API_KEY", "COUNCIL_MISTRAL_MODEL", "mistral-large-latest")
+
+
 # ---------------- KONSEY (2026-11-27): Sign Council'in 5 saglayicisi DANISMAN olarak ----------------
 # Kural: konsey oy kullanmaz/hakem degildir. Sert kurallar (uydurma yok, kaynakli dogrulama, AI aciklik, operator onayi,
 # preflight) KODDA kalir. Trend/haber sorusu yalniz arama yapabilen modele (Gemini grounding) gider; digerleri kaynakli listeye tepki verir.
 COUNCIL_MEMBERS = [("Gemini", lambda: bool(_gemini_client), _call_gemini), ("Anthropic", lambda: bool(ANTHROPIC_API_KEY), _call_anthropic),
                    ("OpenAI", lambda: bool(OPENAI_API_KEY), _call_openai), ("Grok", lambda: bool(XAI_API_KEY), _call_xai),
-                   ("Groq", lambda: bool(GROQ_API_KEY), _call_groq)]
+                   ("Groq", lambda: bool(GROQ_API_KEY), _call_groq),
+                   # opsiyonel ek uyeler: anahtar ortamda varsa otomatik katilir (PERPLEXITY_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY)
+                   ("Perplexity", _pp_ok, _call_perplexity), ("DeepSeek", _ds_ok, _call_deepseek), ("Mistral", _ms_ok, _call_mistral)]
 _COUNCIL_RULES = (
     "CONTEXT: AURA Ai is an openly-AI YouTube Shorts/TikTok character (a 3D humanoid robot) touring real places and sourced facts; English content, "
     "~20-28 s, always labeled 'not real footage'. Channel has ~2 subscribers; recent Shorts get 17-243 views; comments/shares are ~0. "
@@ -660,6 +681,7 @@ _COUNCIL_MODES = {
     "ideas": "TASK: propose 3 distinct topic/title/hook ideas for the next Short (a real place or sourced event), each with a one-line reason and the fact that must be verified. Be divergent; avoid repeating topics already covered if listed.",
     "redteam": "TASK: red-team the draft below. Start your answer with exactly one line 'VERDICT: OK' or 'VERDICT: FIX' or 'VERDICT: BLOCK', then bullet points: unsourced or doubtful claims, misleading wording, platform-policy risks (YouTube inauthentic/misleading metadata, TikTok), and a concrete fix per issue.",
     "system": "TASK: analyze the SYSTEM described below (an openly-AI character channel plus its production/measurement tool). You may use up to 260 words. Give: (1) the 3 biggest weaknesses, citing the evidence in the brief; (2) 3 concrete mechanics/features that would make people come back and interact (comments, shares, follows) while respecting the hard rules; (3) how to measure that each worked (numbers, time window); (4) one risk. Do not invent data that is not in the brief; if the brief lacks something, say what you would need.",
+    "scan": "TASK: you receive an automatic SCAN of the whole system: measured numbers per dimension (hook = first sentence vs results, voice = speech rate/leading silence/loudness, first visual = first-frame stats) PLUS, if attached, a contact sheet image of the first frames of the latest videos. For EACH of these dimensions give a verdict and ONE concrete change: (1) HOOK, (2) VOICE, (3) FIRST VISUAL (look at the image if you can see it: is there a clear subject, readable text, contrast, a reason to stop scrolling?), (4) INTERACTION (comments/shares are ~0: what exact mechanic would trigger them), (5) TOPIC choice, (6) INTERFACE/workflow of the operator panel. Up to 320 words. Be explicit about what the numbers cannot prove (tiny samples) and never invent numbers.",
     "react": "TASK: below is a SOURCED list of current trends/news (found with web search). You cannot search the web. Say which 1-2 items fit AURA Ai best and why, which to avoid, and what must be verified before use. Do not add new facts.",
 }
 
@@ -684,8 +706,38 @@ def _system_brief():
         "PATTERNS SEEN (small samples, hypotheses): topics people search on TikTok (cern, moai, vostok, derinkuyu) get more views; each video peaks within ~24h then flat (single test-group burst); "
         "~87-90% swipe away in Shorts; comments, shares and follows are ~0 for 3 months; subscribers stuck at 2; TikTok ~100-160 views per video with 0 shares; TikTok search share rose from 1% to 8%.\n"
         "CONSTRAINTS (hard): English content, Turkish only as YouTube CC; always labeled AI and 'not real footage'; no invented facts/titles/events; no earnings promises; no real-person likeness; no fake urgency; operator approves and uploads every post (TikTok upload is manual); no follow/unfollow or engagement groups.\n"
+        "PANEL INTERFACE: tabs Bugun (daily summary, todo, trends), Uretim (draft list, 5-step flow: text+Turkish meaning, approval, render+player, YouTube publish, TikTok pack with copy buttons; assistant chat; council), "
+        "Olcum (per-video 24/48h views, avg view %, TikTok), Ana Panel (Aura chat), Analiz, Gelismis, Yorumlar, Kod. Operator needs ~10 clicks and one PC sync per video; TikTok/Reels upload is manual.\n"
         "OPERATOR GOAL: turn the channel from 'just uploads videos' into an AI character whose next episode people wait for and interact with; wants a system unlike others.\n"
         + live)
+
+
+_SCAN = {"t": 0, "data": None}
+
+
+def _scan_run(force=False):
+    """Tum sistem taramasi (kanca/ses/ilk gorsel/etkilesim): ffmpeg ile kodla olcer; ~10-30 sn. Sonuc 10 dk onbellekte."""
+    import scan, growth
+    if not force and _SCAN["data"] and time.time() - _SCAN["t"] < 600:
+        return _SCAN["data"]
+    drafts = growth.drafts_list()
+    slug_of = lambda ttl: "aura_" + re.sub(r"[^a-z0-9]+", "", str(ttl).lower())[:24] + ".mp4"
+    scripts = {d["title"]: d.get("en_script", "") for d in drafts if d.get("en_script")}
+    outcomes = {}
+    try:
+        for r in _measure_state()["rows"]:
+            outcomes[r["title"]] = {"views": r["views"], "avg_pct": r["avg_pct"], "likes": r["likes"], "comments": r["comments"], "tt_views": r["tt_views"], "tt_shares": r["tt_shares"]}
+    except Exception:
+        pass
+    vids = []
+    for d in sorted(drafts, key=lambda x: x.get("created", ""), reverse=True):
+        fp = os.path.join(OUTPUT_DIR, slug_of(d["title"]))
+        if os.path.isfile(fp) and len(vids) < 6:
+            vids.append({"title": d["title"], "path": fp})
+    rep = scan.build_report(vids, scripts, outcomes, os.path.join(VIDEO_WORK_DIR, "_scan"))
+    rep["stamp"] = time.strftime("%H:%M")
+    _SCAN["t"], _SCAN["data"] = time.time(), rep
+    return rep
 
 
 def _council_run(mode, question, context=""):
@@ -696,7 +748,13 @@ def _council_run(mode, question, context=""):
     if mode == "system":
         q = q or "Analyze our system and propose how to make it clearly better and more interactive."
         context = _system_brief() + (("\n\nOPERATOR QUESTION/CONTEXT:\n" + context) if context else "")
-    if mode not in ("redteam", "system") and not q:
+    img = None
+    if mode == "scan":
+        q = q or "Analyze every dimension of our system from the scan and propose the most valuable changes."
+        sc = _scan_run()
+        context = _system_brief() + "\n\nAUTOMATIC SCAN:\n" + sc.get("text", "") + (("\n\nOPERATOR CONTEXT:\n" + context) if context else "")
+        img = sc.get("sheet_b64")
+    if mode not in ("redteam", "system", "scan") and not q:
         return {"ok": False, "error": "Soru bos."}
     sources, body = [], q
     if mode == "react":
@@ -711,6 +769,8 @@ def _council_run(mode, question, context=""):
         body = (body + "\n\nDRAFT / CONTEXT:\n" + context)[:9000]
     system = _COUNCIL_RULES + " " + _COUNCIL_MODES[mode]
     msgs = [{"role": "user", "content": body}]
+    if img:
+        msgs[0]["image_b64"], msgs[0]["image_mime"] = img, "image/jpeg"     # gorsel destekleyenler (Gemini/Anthropic/OpenAI) gorur; digerleri metne bakar
     members = [(n, fn) for n, ok, fn in COUNCIL_MEMBERS if ok()]
     if not members:
         return {"ok": False, "error": "Hicbir saglayici anahtari yok."}
@@ -1119,7 +1179,8 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="viewport">
 <div id="view-daily" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
 <div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; STUDIO</div><h1 class="dp-h1">Gunluk Uretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
-<div class="dp-row"><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
+<div class="dp-row"><button class="dp-btn" id="dp_scan" onclick="dpScan(this)">&#128270; Sistemi tara</button><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
+<div id="dp_scanout"></div>
 <div class="dp-grid"><div class="dp-list" id="dp_list"></div><div class="dp-main" id="dp_main"></div></div>
 </div>
 <div id="view-measure" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
@@ -1851,7 +1912,7 @@ function dpChatHtml(d){
     '<div class="dp-chat" id="dpa_log" style="max-height:420px"></div>' +
     '<div id="dpa_img" class="sub" style="display:none;margin:0 0 4px"></div>' +
     '<textarea id="dpa_in" rows="3" placeholder="Orn: yarin icin Petra paketi hazirla / bu ekran goruntusunu analiz et (Ctrl+V ile yapistir) / son 7 gunu yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
-    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="system">Konsey: SISTEM ANALIZI (sistemimiz)</option><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
+    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="scan">Konsey: TUM SISTEM TARAMASI (gorselli)</option><option value="system">Konsey: SISTEM ANALIZI (sistemimiz)</option><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
     '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gonder</button><label class="dp-btn" style="cursor:pointer">&#128247; Gorsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> secili taslagi baglam ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
 }
 // ---- Studio Asistani (Uretim sekmesi icinde; ayni ajan, ayni konusma) ----
@@ -1912,6 +1973,25 @@ function dpaSavePin(){
   const v = document.getElementById('dpa_pin_in').value.trim(); if(!v) return;
   try { localStorage.setItem('aura_code_pin', v); } catch(e) {}
   document.getElementById('dpa_pin').style.display = 'none'; DPA.needpin = false; dpaTick();
+}
+async function dpScan(btn){
+  const out = document.getElementById('dp_scanout'); btn.disabled = true;
+  out.innerHTML = '<div class="dp-card sub">Sistem taraniyor (videolar, ses, ilk kareler)... 10-30 sn</div>';
+  try {
+    const j = await (await fetch('/api/scan?force=1')).json();
+    if(!j.ok){ out.innerHTML = '<div class="dp-card" style="color:#f85149">Tarama hatasi: ' + esc(j.error || '') + '</div>'; btn.disabled = false; return; }
+    const names = {kanca: 'Kanca (ilk cumle)', ses: 'Ses', ilk_gorsel: 'Ilk gorsel', etkilesim: 'Etkilesim'};
+    out.innerHTML = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><b style="font-size:16px">Sistem taramasi</b><span class="sub" style="margin:0">' + j.n_videos + ' video &middot; ' + esc(j.stamp) + '</span></div>' +
+      '<div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:10px">' + Object.keys(j.dims).map(k => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(names[k] || k) + '</b>' + j.dims[k].findings.map(f => '<div class="sub" style="margin:6px 0 0">' + esc(f) + '</div>').join('') + '</div>').join('') + '</div>' +
+      (j.sheet_b64 ? '<div style="margin-top:10px"><div class="sub" style="margin:0 0 4px">Son videolarin ilk kareleri (konsey bunu gorerek analiz eder)</div><img style="max-width:100%;border-radius:10px;border:1px solid var(--dp-line)" src="data:image/jpeg;base64,' + j.sheet_b64 + '"></div>' : '') +
+      '<div class="dp-row" style="margin-top:10px"><button class="dp-btn pri" onclick="dpScanCouncil()">&#129504; Konseye analiz ettir (gorselli)</button><span class="sub" style="margin:0">Kanca, ses, ilk gorsel, etkilesim, konu ve arayuz icin ayri karar ve TEK degisiklik ister.</span></div></div>';
+  } catch(e) { out.innerHTML = '<div class="dp-card" style="color:#f85149">Hata: ' + esc(String(e)) + '</div>'; }
+  btn.disabled = false;
+}
+function dpScanCouncil(){
+  const sel = document.getElementById('dpc_mode'); if(sel) sel.value = 'scan';
+  const a = document.getElementById('dpa_log'); if(a) a.scrollIntoView({behavior: 'smooth', block: 'center'});
+  dpcAsk();
 }
 let DPC = null;
 function dpcSynth(){
@@ -4433,7 +4513,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"usage": _ai_usage_get(), "code_prefer": _ai_settings()["code_prefer"]})
         elif u.path.startswith("/download/"):
             _serve_download(self, u.path[len("/download/"):])
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends", "/api/daily", "/api/measure"):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends", "/api/daily", "/api/measure", "/api/scan"):
             q = parse_qs(u.query)
             try:
                 import insights
@@ -4460,6 +4540,9 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_daily_state())
                 elif u.path == "/api/measure":
                     self._json(_measure_state())
+                elif u.path == "/api/scan":
+                    rep = _scan_run(force=bool(q.get("force")))
+                    self._json({"ok": True, **{k: v for k, v in rep.items()}})
                 elif u.path == "/api/trends":
                     self._json(_trends(force=q.get("force", [""])[0] == "1", cached_only=q.get("cached", [""])[0] == "1"))
                 elif u.path == "/api/growth/state":
