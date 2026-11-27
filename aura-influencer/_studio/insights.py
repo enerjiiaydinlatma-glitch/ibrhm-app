@@ -206,7 +206,15 @@ _TOK_STOP = {"inside", "stops", "stop", "with", "from", "this", "that", "here", 
 
 def _title_tokens(t):
     import re as _re
-    return {w for w in _re.findall(r"[a-z0-9]+", (t or "").lower()) if len(w) >= 3 and not w.isdigit() and w not in _TOK_STOP}
+    out = set()
+    for w in _re.findall(r"[a-z0-9]+", (t or "").lower()):
+        if len(w) < 3 or w.isdigit() or w in _TOK_STOP:
+            continue
+        if len(w) > 4 and w.endswith("s") and not w.endswith("ss"):     # robots -> robot, stones -> stone (tekil/cogul farki eslesmeyi bozmasin)
+            w = w[:-1]
+        if w not in _TOK_STOP:
+            out.add(w)
+    return out
 
 
 def _fuzzy_match(caption, rows, used):

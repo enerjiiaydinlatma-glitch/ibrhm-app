@@ -13,7 +13,7 @@ cap = {
  "cern": "Inside CERN: magnets colder than outer space, the 2012 discovery of a Higgs-like particle...",
  "vostok": "Lake Vostok: come with me under almost four kilometers of Antarctic ice...",
  "pyr": "Inside the Great Pyramid: come with me to 3 stops. The Grand Gallery, the King's Chamber...",
- "robot": "Six humanoid robots worked a Shanghai convenience store for 24 hours. The company reports... AgiBot",
+ "robot": "Six humanoid robots worked a Shanghai convenience store for 24 hours. The company reports 1,730 tasks; four robots passed the final test, two fell short. No independent check yet. Real progress, or marketing? Vote below. I'm Aura, an AI. #Robots #Humanoid #AgiBot",
  "easter": "Moai statue in Easter Island: come inside the quarry where the statues were carved from volcanic ash...",
 }
 def m(c):
@@ -24,6 +24,7 @@ ck("CERN", m(cap["cern"]) == "Inside CERN: 2 Stops", m(cap["cern"]))
 ck("Vostok ('Lake Vostok:' ile baslayan aciklama)", m(cap["vostok"]) == "Inside Lake Vostok: 2 Stops", m(cap["vostok"]))
 ck("Buyuk Piramit: 'Inside' ile baslayan aciklama -> Tour videosu (eski video degil)", m(cap["pyr"]) == "Inside the Great Pyramid: 3 Stops", m(cap["pyr"]))
 ck("Easter Island ('Moai statue...') -> Tour videosu", m(cap["easter"]) == "Inside Easter Island: 2 Stops", m(cap["easter"]))
+ck("Robot haberi: 'robots' (cogul) basliktaki 'Robot' ile eslesir (2026-11-27 canli veride bos kalmisti)", m(cap["robot"]) == "Robot Store Shift: 4 of 6 Passed", m(cap["robot"]))
 ck("alakasiz aciklama eslesmez", m("Best pasta recipe tonight #food") is None)
 used = set(); a = insights._fuzzy_match(cap["cern"], rows, used); used.add(a[0]); b = insights._fuzzy_match(cap["cern"], rows, used)
 ck("bir YouTube videosu bir senkronda iki kez kullanilmaz", a and b is None, (a, b))
