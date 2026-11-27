@@ -3,7 +3,7 @@
     python temizle.py          # ne silinecegini ve boyutlarini gosterir
     python temizle.py --sil    # listelenenleri siler
 
-SILER (hepsi kendiliginden yeniden uretilir): __pycache__/ *.pyc, _studio/_video_work/ icindeki gecici render dosyalari,
+SILER (hepsi kendiliginden yeniden uretilir): __pycache__/ *.pyc, _studio/_video_work/ icindeki 7 günden eski gecici render dosyalari (son 7 gun kalir),
 _studio/ altindaki _*_log.txt ve _pub_desc_tmp.txt, _studio/_backups icinde 30 günden eski yedekler, %TEMP%\\aura_guncelle_run.bat.
 ASLA DOKUNMAZ: *.json verileri, output/ (yayin videolari), uploads/, token/anahtar/PIN dosyalari, assets/, live_packages/, kod.
 """
@@ -35,7 +35,9 @@ def collect(root=ROOT, temp=None, now=None, backup_days=30):
     vw = os.path.join(root, "_studio", "_video_work")
     if os.path.isdir(vw):
         for f in os.listdir(vw):
-            items.append(("gecici render dosyasi", os.path.join(vw, f)))
+            pth = os.path.join(vw, f)
+            if now - os.path.getmtime(pth) > 7 * 86400:        # son 7 gunun ham sesi kalir (Turkce altyazi gerekirse yeniden uretilebilsin)
+                items.append(("gecici render dosyasi (7+ gun)", pth))
     for f in LOGS:
         p = os.path.join(root, "_studio", f)
         if os.path.isfile(p):
