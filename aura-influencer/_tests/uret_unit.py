@@ -46,7 +46,7 @@ ck("EVET yazilmazsa render/yayin YOK", c == 0 and calls["render"] == 0 and calls
 c, log = run(["inside test"], ["EVET", ""])
 ck("onay + yayinlama onayi bos: render olur, YAYIN OLMAZ", c == 0 and calls["render"] == 1 and calls["publish"] == 0 and "Yayinlanmadi" in log, log[-250:])
 ck("video oynaticiya acilir (opener)", "OPEN" in log and "aura_test.mp4" in log, log[-400:])
-c, log = run(["inside test"], ["EVET", "YAYINLA"])
+c, log = run(["inside test"], ["Evet", "yayınla"])
 ck("YAYINLA yazilinca yayinlanir; link + TikTok paketi + panoya aciklama", c == 0 and calls["publish"] == 1 and "https://youtu.be/TEST" in log and clip and clip[-1] == "TT caption #AuraAI", (calls, clip))
 ck("sabit yorum onerilir", "Comment A or B." in log)
 c, log = run(["inside test"], [])
@@ -58,6 +58,7 @@ ck("uyarili taslak: EVET yetmez, DEVAM gerekir; vaat ve ibare uyarisi gorunur", 
 uret.BASE = "http://127.0.0.1:1"
 c, log = run(["x"], [])
 ck("panel kapaliysa acik hata (donus kodu 2)", c == 2 and "Panele ulasilamadi" in log, log)
+ck("buyuk/kucuk harf ve Turkce harf farki onaya engel degil (Evet, yayınla), yanlis kelime hala reddedilir", uret.norm("YAYINLA") == uret.norm("yayınla") == "yayinla" and uret.norm("Evet") == "evet" and uret.norm("evt") != "evet")
 bad = [n_ for n_, ok, d in res if not ok]
 for n_, ok, d in res: print(("OK  " if ok else "FAIL"), n_, "" if ok else d)
 print(json.dumps({"total": len(res), "bad": bad}))

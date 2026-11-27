@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 
@@ -25,6 +26,12 @@ def api(method, path, body=None, timeout=60):
                                  headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8") or "null")
+
+
+def norm(s):
+    """Buyuk/kucuk harf ve Turkce harf farkini yok sayar: 'evet', 'EVET', 'Evet', 'yayınla', 'YAYINLA' hepsi esit."""
+    s = unicodedata.normalize("NFKD", str(s).strip().casefold())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn").replace("\u0131", "i")
 
 
 def split_sentences(text):
@@ -65,7 +72,7 @@ def show(d):
         print("    TR: %s" % (tr[i] if i < len(tr) else "(yok)"))
     if len(en) != len(tr):
         print("\n!! DIKKAT: EN %d / TR %d cumle" % (len(en), len(tr)))
-    print("\nNeden bu konu / kaynaklar:\n  " + str(d.get("rationale", ""))[:700])
+    print("\nNeden bu konu / kaynaklar:\n  " + str(d.get("rationale", ""))[:2500])
 
 
 def copy_clip(text):
@@ -114,10 +121,10 @@ def main(argv, inp=input, opener=None, out=print):
     warns = checks(d)
     for w in warns:
         out("\n!! UYARI: " + w)
-    if inp("\nTurkce anlamini okudun ve her sayi/iddianin kaynagi notta var mi? Onay icin EVET yaz: ").strip() != "EVET":
+    if norm(inp("\nTurkce anlamini okudun ve her sayi/iddianin kaynagi notta var mi? Onay icin EVET yaz: ")) != "evet":
         out("Onay verilmedi, durdum.")
         return 0
-    if warns and inp("Uyarilar var. Yine de devam icin DEVAM yaz: ").strip() != "DEVAM":
+    if warns and norm(inp("Uyarilar var. Yine de devam icin DEVAM yaz: ")) != "devam":
         out("Durdum.")
         return 0
     if d.get("status") == "taslak":
@@ -138,7 +145,7 @@ def main(argv, inp=input, opener=None, out=print):
         except Exception:
             pass
     out("Izle: ust bant sonuna kadar duruyor mu, ilk karede yuz var mi, oy karti sonda cikiyor mu, ses temiz mi?")
-    if inp("Yayinlansin mi? (HERKESE ACIK yayin icin YAYINLA yaz, bos birak = cik): ").strip() != "YAYINLA":
+    if norm(inp("Yayinlansin mi? (HERKESE ACIK yayin icin YAYINLA yaz, bos birak = cik): ")) != "yayinla":
         out("Yayinlanmadi. Render hazir; panelden ya da yeniden calistirarak yayinlayabilirsin.")
         return 0
     r = api("POST", "/api/growth/publish_draft", {"id": d["id"], "confirm": True}, timeout=900)
