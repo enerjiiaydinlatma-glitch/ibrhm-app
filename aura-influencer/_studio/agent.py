@@ -63,7 +63,7 @@ def emit(kind, txt, **extra):
 SYSTEM = """Sen "Studio Asistani"sin: Aura Influencer Studio panelinin (aura_studio.py + _studio/*.py) icinde calisan, operatorle Turkce konusan bir yazilim ve buyume asistanisin.
 Operator seninle Claude Code ile konusur gibi konusur; sen dosyalari okur, aratir, DUZENLER, test calistirir ve kanal verisine bakarak yardim edersin.
 
-ARACLAR: list_files, read_file, search, edit_file, create_file, run_tests, get_data, web_search, list_drafts, create_draft, note. Baska arac YOK: yayin, render, yorum gonderme, silme, TikTok, kabuk komutu sende yok
+ARACLAR: list_files, read_file, search, edit_file, create_file, run_tests, get_data, web_search, list_drafts, create_draft, council, note. Baska arac YOK: yayin, render, yorum gonderme, silme, TikTok, kabuk komutu sende yok
 (bunlar insan onayli panel dugmeleri). Yapamadigin bir seyi yaptigini ASLA soyleme; sadece araclarin gercekten dondurdugu sonuclari rapor et.
 
 VIDEO PAKETI URETME AKISI (operatorun KALICI kurali)
@@ -120,6 +120,8 @@ TOOLS = [
          "tags": {"type": "string"}, "tiktok_description": {"type": "string", "description": "TikTok/Reels aciklamasi: aranan ifadeyle baslasin; operator AYNEN yapistirir, panel eslesme icin bunu kullanir"}, "rationale": {"type": "string", "description": "Neden bu konu + kaynaklar (kisa)"},
          "video_spec": {"type": "object", "description": "Aura Live gorunum ayari: style=live, face=scene3d, set, intro, intro_skip, autocut, series, tag, hook{big,label,pill,secs,persist,y}, chapters{cumle_idx:etiket}, cards{cumle_idx:{type,big,label,static}}, emotions{cumle_idx:duygu}"}},
          "required": ["title", "en_script", "tr_script", "description"]}},
+    {"name": "council", "description": "Sign Council'in 5 yapay zekasindan (Gemini, Anthropic, OpenAI, Grok, Groq) BAGIMSIZ DANISMAN gorusu al. mode: ideas (konu/baslik/kanca fikirleri), redteam (draft_id'li taslagi kirmizi takim kontrolu: VERDICT OK/FIX/BLOCK), react (kaynakli trend listesine tepki; trend aramasini Gemini yapar). Konsey hakem DEGIL: sert kurallar ve kaynak sarti kodda kalir; cogunluk dogruluk demek degildir.",
+     "input_schema": {"type": "object", "properties": {"mode": {"type": "string", "enum": ["ideas", "redteam", "react"]}, "question": {"type": "string"}, "draft_id": {"type": "string"}}, "required": ["mode"]}},
     {"name": "note", "description": "CLAUDE.md gunlugune kisa bir kayit ekle (karar, olcum, ogrenilen). Sadece gercek, dogrulanmis bilgi yaz.",
      "input_schema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}},
 ]
@@ -269,7 +271,11 @@ def t_note(a):
     return D["note"](str(a.get("text", "")))
 
 
-TOOL_FUNCS = {"web_search": t_web_search, "list_drafts": t_list_drafts, "create_draft": t_create_draft, "note": t_note,
+def t_council(a):
+    return D["council"](str(a.get("mode", "")), str(a.get("question", "")), str(a.get("draft_id", "")))
+
+
+TOOL_FUNCS = {"council": t_council, "web_search": t_web_search, "list_drafts": t_list_drafts, "create_draft": t_create_draft, "note": t_note,
               "list_files": t_list_files, "read_file": t_read_file, "search": t_search, "edit_file": t_edit_file,
               "create_file": t_create_file, "run_tests": t_run_tests, "get_data": t_get_data}
 
@@ -298,6 +304,8 @@ def summarize_call(name, a):
         return str(a.get("query", ""))[:80]
     if name == "create_draft":
         return str(a.get("title", ""))
+    if name == "council":
+        return str(a.get("mode", "")) + " " + str(a.get("question", ""))[:60]
     return ""
 
 

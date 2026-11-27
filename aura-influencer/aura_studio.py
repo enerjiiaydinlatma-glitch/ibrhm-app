@@ -471,6 +471,7 @@ GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
 ANTHROPIC_API_KEY = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
 OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
+XAI_API_KEY = (os.getenv("XAI_API_KEY") or os.getenv("GROK_API_KEY") or "").strip()
 
 _gemini_client = None
 if GEMINI_API_KEY:
@@ -632,6 +633,82 @@ def _ai_settings_set(code_prefer):
     if code_prefer not in ("Gemini", "Groq", "OpenAI", "Anthropic"):
         raise ValueError("Gecersiz saglayici.")
     json.dump({"code_prefer": code_prefer}, open(AI_SETTINGS_FILE, "w", encoding="utf-8"))
+
+
+def _call_xai(messages, system, timeout=45):
+    msgs = [{"role": "system", "content": system}] + [{"role": m["role"], "content": m["content"]} for m in messages]
+    r = httpx.post("https://api.x.ai/v1/chat/completions",
+                   headers={"Authorization": f"Bearer {XAI_API_KEY}", "Content-Type": "application/json"},
+                   json={"model": os.getenv("COUNCIL_XAI_MODEL", "grok-4"), "messages": msgs, "temperature": 0.8}, timeout=timeout)
+    r.raise_for_status()
+    return (r.json()["choices"][0]["message"]["content"] or "").strip()
+
+
+# ---------------- KONSEY (2026-11-27): Sign Council'in 5 saglayicisi DANISMAN olarak ----------------
+# Kural: konsey oy kullanmaz/hakem degildir. Sert kurallar (uydurma yok, kaynakli dogrulama, AI aciklik, operator onayi,
+# preflight) KODDA kalir. Trend/haber sorusu yalniz arama yapabilen modele (Gemini grounding) gider; digerleri kaynakli listeye tepki verir.
+COUNCIL_MEMBERS = [("Gemini", lambda: bool(_gemini_client), _call_gemini), ("Anthropic", lambda: bool(ANTHROPIC_API_KEY), _call_anthropic),
+                   ("OpenAI", lambda: bool(OPENAI_API_KEY), _call_openai), ("Grok", lambda: bool(XAI_API_KEY), _call_xai),
+                   ("Groq", lambda: bool(GROQ_API_KEY), _call_groq)]
+_COUNCIL_RULES = (
+    "CONTEXT: AURA Ai is an openly-AI YouTube Shorts/TikTok character (a 3D humanoid robot) touring real places and sourced facts; English content, "
+    "~20-28 s, always labeled 'not real footage'. Channel has ~2 subscribers; recent Shorts get 17-243 views; comments/shares are ~0. "
+    "HARD RULES you must respect (not negotiable, do not vote on them): never invent facts, numbers, quotes, events or sources; flag anything you are unsure of; "
+    "fiction is never presented as real; no earnings promises; no real-person likeness; no fake urgency/fear; operator approves everything. "
+    "You are an ADVISOR giving one independent opinion; be concrete, short (max 180 words), and say what evidence you would need.")
+_COUNCIL_MODES = {
+    "ideas": "TASK: propose 3 distinct topic/title/hook ideas for the next Short (a real place or sourced event), each with a one-line reason and the fact that must be verified. Be divergent; avoid repeating topics already covered if listed.",
+    "redteam": "TASK: red-team the draft below. Start your answer with exactly one line 'VERDICT: OK' or 'VERDICT: FIX' or 'VERDICT: BLOCK', then bullet points: unsourced or doubtful claims, misleading wording, platform-policy risks (YouTube inauthentic/misleading metadata, TikTok), and a concrete fix per issue.",
+    "react": "TASK: below is a SOURCED list of current trends/news (found with web search). You cannot search the web. Say which 1-2 items fit AURA Ai best and why, which to avoid, and what must be verified before use. Do not add new facts.",
+}
+
+
+def _council_run(mode, question, context=""):
+    import concurrent.futures as cf
+    if mode not in _COUNCIL_MODES:
+        return {"ok": False, "error": "Gecersiz mod."}
+    q = (question or "").strip()
+    if mode != "redteam" and not q:
+        return {"ok": False, "error": "Soru bos."}
+    sources, body = [], q
+    if mode == "react":
+        try:
+            text, sources = _call_gemini_grounded(
+                q or "What are the most discussed science, history, archaeology and robotics stories this week?",
+                "Find current, specific, verifiable stories (names, dates, numbers) with sources. English, concise. Never invent anything.")
+            body = "SOURCED TREND LIST:\n" + text
+        except Exception as e:
+            return {"ok": False, "error": f"Kaynakli trend aramasi yapilamadi: {type(e).__name__}: {str(e)[:160]}"}
+    if context:
+        body = (body + "\n\nDRAFT / CONTEXT:\n" + context)[:6000]
+    system = _COUNCIL_RULES + " " + _COUNCIL_MODES[mode]
+    msgs = [{"role": "user", "content": body}]
+    members = [(n, fn) for n, ok, fn in COUNCIL_MEMBERS if ok()]
+    if not members:
+        return {"ok": False, "error": "Hicbir saglayici anahtari yok."}
+
+    def one(n, fn):
+        t0 = time.time()
+        try:
+            out = fn(msgs, system, 60)
+            try:
+                _ai_usage_add(n, len(system) + len(body), len(out or ""))
+            except Exception:
+                pass
+            return {"name": n, "text": (out or "").strip(), "ms": int((time.time() - t0) * 1000), "error": None}
+        except Exception as e:
+            return {"name": n, "text": "", "ms": int((time.time() - t0) * 1000), "error": f"{type(e).__name__}: {str(e)[:120]}"}
+    with cf.ThreadPoolExecutor(max_workers=len(members)) as ex:
+        answers = list(ex.map(lambda m: one(*m), members))
+    for a in answers:
+        a["verdict"] = None
+        if mode == "redteam" and a["text"]:
+            first = a["text"].lstrip().split("\n", 1)[0].upper()
+            for v in ("BLOCK", "FIX", "OK"):
+                if "VERDICT" in first and v in first:
+                    a["verdict"] = v
+                    break
+    return {"ok": True, "mode": mode, "answers": answers, "sources": sources[:8], "note": "Konsey danismandir; oy/hakem degil. Cogunluk dogruluk demek degildir, kaynak sarttir."}
 
 
 def call_aura(messages, system, prefer=None, timeout=45):
@@ -971,6 +1048,34 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #view-code{max-width:100vw;overflow-x:hidden}
  #view-code button,#view-code select{min-height:44px;font-size:14px}
  #view-code textarea{font-size:14px}
+
+ /* ===== PREMIUM SKIN (2026-11-27): tum sekmelere ortak koyu tema; yalniz gorunum, davranis degismez ===== */
+ :root{--pm-bg:#0b0f17;--pm-card:#121826;--pm-line:#26304a;--pm-acc:#8b6cff;--pm-mut:#8b98b4}
+ body{background:radial-gradient(1100px 560px at 18% -12%,#1b1544 0%,#0b0f17 58%) fixed,#0b0f17;font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif}
+ #topbar{background:rgba(13,18,31,.88);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--pm-line);padding:10px 18px;gap:8px}
+ #topbar .brand{background:linear-gradient(90deg,#fff,#b9a6ff);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:15px}
+ .tab-btn{border-radius:99px;border:1px solid var(--pm-line);padding:7px 16px;color:var(--pm-mut);transition:.15s}
+ .tab-btn:hover{color:#fff;border-color:var(--pm-acc)}
+ .tab-btn.active-tab{background:linear-gradient(135deg,#7c5cff,#5a8bff);border-color:transparent;color:#fff;box-shadow:0 4px 18px rgba(124,92,255,.38)}
+ .view.active-view{animation:pmfade .18s ease-out}
+ @keyframes pmfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+ .tdcard{background:var(--pm-card);border:1px solid var(--pm-line);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+ .tdcard h3{font-size:15px}
+ #view-today h1,#view-insights h1,#view-growth h1,#view-comments h1{background:linear-gradient(90deg,#fff,#b9a6ff);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:24px}
+ .qa{background:#1b2338;border:1px solid var(--pm-line);border-radius:10px;transition:.15s}
+ .qa:hover{background:#222c47;border-color:var(--pm-acc)}
+ #side,#panel{background:#0e1424;border-color:var(--pm-line)}
+ #status_box,#tt_log,#vm_log,#tn_log{background:#0a0e17;border-color:var(--pm-line)}
+ #panel select,#panel input,#panel textarea,#inputbar textarea{background:#0a0e17;border-color:var(--pm-line);border-radius:10px}
+ #panel button.pub,.pub{background:linear-gradient(135deg,#7c5cff,#5a8bff);border-radius:10px}
+ #inputbar button{background:linear-gradient(135deg,#7c5cff,#5a8bff);border-radius:10px}
+ .msg.user .bubble{background:linear-gradient(135deg,#4b3bb0,#3b5bdb)}
+ .msg.aura .bubble{background:var(--pm-card);border-color:var(--pm-line)}
+ #day_status_table th{border-color:var(--pm-line)}
+ ::-webkit-scrollbar{width:10px;height:10px}
+ ::-webkit-scrollbar-thumb{background:#26304a;border-radius:8px}
+ ::-webkit-scrollbar-thumb:hover{background:#3a4770}
+ ::-webkit-scrollbar-track{background:transparent}
 </style></head><body>
 <div id="topbar">
 <span class="brand">&#127917; Aura Command Center</span>
@@ -1718,6 +1823,7 @@ function dpChatHtml(d){
     '<div class="dp-chat" id="dpa_log" style="max-height:420px"></div>' +
     '<div id="dpa_img" class="sub" style="display:none;margin:0 0 4px"></div>' +
     '<textarea id="dpa_in" rows="3" placeholder="Orn: yarin icin Petra paketi hazirla / bu ekran goruntusunu analiz et (Ctrl+V ile yapistir) / son 7 gunu yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
+    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
     '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gonder</button><label class="dp-btn" style="cursor:pointer">&#128247; Gorsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> secili taslagi baglam ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
 }
 // ---- Studio Asistani (Uretim sekmesi icinde; ayni ajan, ayni konusma) ----
@@ -1778,6 +1884,18 @@ function dpaSavePin(){
   const v = document.getElementById('dpa_pin_in').value.trim(); if(!v) return;
   try { localStorage.setItem('aura_code_pin', v); } catch(e) {}
   document.getElementById('dpa_pin').style.display = 'none'; DPA.needpin = false; dpaTick();
+}
+async function dpcAsk(){
+  const mode = document.getElementById('dpc_mode').value, q = (document.getElementById('dpa_in').value || '').trim(), d = dpCur();
+  if(mode === 'redteam' && !d){ alert('Kirmizi takim icin once bir taslak sec.'); return; }
+  const out = document.getElementById('dpc_out'), btn = document.getElementById('dpc_btn');
+  btn.disabled = true; out.innerHTML = '<div class="sub">Konsey calisiyor (5 yapay zeka paralel, ~30-60 sn)...</div>';
+  const j = await codeApi('/api/council', {mode: mode, question: q, draft_id: d ? d.id : ''});
+  btn.disabled = false;
+  if(!j.ok){ out.innerHTML = '<div class="sub" style="color:#f85149">' + esc(j.error || 'hata') + '</div>'; return; }
+  const col = {OK: 'y', FIX: 'r', BLOCK: 'r'};
+  out.innerHTML = '<div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + j.answers.map(a => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(a.name) + '</b>' + (a.verdict ? ' <span class="dp-pill ' + (col[a.verdict] || 't') + '">' + a.verdict + '</span>' : '') + '<span class="sub" style="margin-left:6px">' + (a.ms / 1000).toFixed(1) + ' sn</span><div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px">' + (a.error ? '<span style="color:#f85149">yanit yok: ' + esc(a.error) + '</span>' : esc(a.text)) + '</div></div>').join('') + '</div>' +
+    (j.sources && j.sources.length ? '<div class="sub" style="margin-top:6px">Kaynaklar: ' + j.sources.map(x => '<a href="' + esc(x.uri) + '" target="_blank" style="color:#7db4ff">' + esc(x.title || x.uri).slice(0, 40) + '</a>').join(' &middot; ') + '</div>' : '') + '<div class="sub" style="margin-top:6px">' + esc(j.note) + '</div>';
 }
 async function dpaCancel(){ await codeApi('/api/agent/cancel', {}); }
 async function dpaReset(){
@@ -4057,6 +4175,23 @@ def _agent_create_draft(a):
             + ("KIRMIZI: " + " | ".join(bad) if bad else "Kirmizi madde yok.") + " Uretim sekmesinde gorunur; operator onay + render + yayin yapar.")
 
 
+def _agent_council(mode, question, draft_id=""):
+    ctx = ""
+    try:
+        import growth
+        dd = growth.draft_get(draft_id) if draft_id else None
+        if dd:
+            ctx = f"TITLE: {dd['title']}\nEN: {dd['en_script']}\nDESCRIPTION: {dd['description'][:400]}"
+    except Exception:
+        pass
+    r = _council_run(mode, question, ctx)
+    if not r.get("ok"):
+        return "HATA: " + str(r.get("error"))
+    lines = [f"[{a['name']}{' ' + a['verdict'] if a.get('verdict') else ''}] " + (a["text"] if not a["error"] else "(yanit yok: " + a["error"] + ")") for a in r["answers"]]
+    src = ("\nKAYNAKLAR:\n" + "\n".join(f"- {x['title']}: {x['uri']}" for x in r["sources"])) if r["sources"] else ""
+    return "\n\n".join(lines) + src + "\n\n" + r["note"]
+
+
 _NOTE_LOCK = threading.Lock()
 
 
@@ -4073,7 +4208,8 @@ def _agent_note(text):
 _agent.configure(studio_dir=STUDIO_DIR, here=HERE, code_list=_code_list, code_read=_code_read, code_write=_code_write,
                  code_restore=_code_restore, code_check=_code_check, skip_dirs=_CODE_SKIP_DIRS, deny_names=_CODE_DENY_NAMES,
                  data=_agent_data, api_key=lambda: ANTHROPIC_API_KEY, usage_add=_ai_usage_add,
-                 web_search=_agent_web_search, list_drafts=_agent_list_drafts, create_draft=_agent_create_draft, note=_agent_note)
+                 web_search=_agent_web_search, list_drafts=_agent_list_drafts, create_draft=_agent_create_draft, note=_agent_note,
+                 council=_agent_council)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -4704,6 +4840,18 @@ class Handler(BaseHTTPRequestHandler):
                     self.end_headers()
             except Exception as e:
                 self._json({"ok": False, "error": f"{type(e).__name__}: {str(e)[:300]}"})
+        elif u.path == "/api/council":
+            if not self._code_allowed():
+                return self._json({"ok": False, "error": "Konsey reddedildi: PIN yanlis/eksik veya acik tunel."}, 403)
+            ctx = ""
+            try:
+                import growth
+                dd = growth.draft_get(body.get("draft_id", "")) if body.get("draft_id") else None
+                if dd:
+                    ctx = f"TITLE: {dd['title']}\nEN: {dd['en_script']}\nDESCRIPTION: {dd['description'][:400]}"
+            except Exception:
+                pass
+            self._json(_council_run(body.get("mode", ""), body.get("question", ""), ctx))
         elif u.path.startswith("/api/agent/"):
             if not self._code_allowed():
                 return self._json({"ok": False, "error": "Asistan reddedildi: PIN yanlis/eksik (5 hatada 60 sn kilit) veya acik tunel/yabanci ag."}, 403)
