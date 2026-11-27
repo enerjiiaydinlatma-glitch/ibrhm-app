@@ -1073,6 +1073,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #view-daily>*{flex-shrink:0}
 
 
+ .dp-sec{font-size:11px;letter-spacing:.12em;color:var(--dp-mut);font-weight:700;text-transform:uppercase;margin:8px 2px 2px}
  .dp-prog{display:flex;align-items:center;gap:0;margin:14px 0 8px;overflow-x:auto}
  .dp-pg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dp-mut);white-space:nowrap}
  .dp-pg span{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#1b2338;border:1px solid var(--dp-line);font-weight:700;font-size:11px}
@@ -1881,9 +1882,12 @@ function dpStep(d, n, title, state, summary, body, defOpen){
     (open ? '<div style="margin-top:10px">' + body + '</div>' : '') + '</div></div>';
 }
 function dpDraw(){
-  document.getElementById('dp_list').innerHTML = DP.drafts.length ? DP.drafts.slice(0, 12).map(d =>
-    '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>'
-  ).join('') : '<div class="dp-card sub">Taslak yok. “Hazır Paketleri Yükle” ya da aşağıdaki asistandan paket iste.</div>';
+  const itemH = d => '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>';
+  const pend = DP.drafts.filter(d => d.status !== 'yayinlandi'), pubs = DP.drafts.filter(d => d.status === 'yayinlandi').slice(0, 8);
+  document.getElementById('dp_list').innerHTML = DP.drafts.length ?
+    '<div class="dp-sec">Bekleyen işler (' + pend.length + ')</div>' + (pend.length ? pend.map(itemH).join('') : '<div class="dp-card sub" style="padding:10px 12px">Bekleyen taslak yok. “Hazır Paketleri Yükle” ya da asistandan paket iste.</div>') +
+    '<div class="dp-sec">Yayınlananlar (son ' + pubs.length + ')</div>' + pubs.map(itemH).join('')
+    : '<div class="dp-card sub">Taslak yok. “Hazır Paketleri Yükle” ya da aşağıdaki asistandan paket iste.</div>';
   if(DP.days && DP.days.length){
     document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><div class="dp-row" style="justify-content:space-between"><b style="font-size:13px">TikTok kaydı eksik</b><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpTTAll()">Hepsi yüklendi</button></div><div class="sub" style="margin:2px 0 6px">Yüklediğin videoları işaretle; Bugün sayfasındaki uyarı kalkar.</div>' + DP.days.map(r =>
       '<div class="dp-row" style="justify-content:space-between;margin:4px 0"><span style="font-size:12px">' + esc(String(r.title || '').slice(0, 30)) + '</span><button class="dp-btn" style="padding:3px 9px;font-size:12px" onclick="dpTT(' + r.day + ')">Yüklendi</button></div>').join('') + '</div>';
