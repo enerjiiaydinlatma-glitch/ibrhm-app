@@ -906,7 +906,21 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #view-insights>*,#view-comments>*,#view-code>*,#view-growth>*,#view-today>*{flex-shrink:0}
 
  #view-daily>*{flex-shrink:0}
- #view-daily{--dp-bg:#0b0f17;--dp-card:#121826;--dp-line:#26304a;--dp-acc:#8b6cff;--dp-acc2:#5ac8fa;--dp-ok:#3fb950;--dp-warn:#d29922;--dp-bad:#f85149;--dp-mut:#8b98b4}
+
+ #view-measure>*{flex-shrink:0}
+ .ms-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+ .ms-kpi{background:var(--dp-card);border:1px solid var(--dp-line);border-radius:14px;padding:12px 14px}
+ .ms-kpi .v{font-size:26px;font-weight:700;color:#fff}.ms-kpi .l{font-size:12px;color:var(--dp-mut)}
+ .ms-wrap{background:var(--dp-card);border:1px solid var(--dp-line);border-radius:14px;overflow-x:auto}
+ .ms-t{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+ .ms-t th{position:sticky;top:0;background:#161d30;text-align:left;font-size:11px;letter-spacing:.05em;color:var(--dp-mut);padding:9px 10px;white-space:nowrap}
+ .ms-t td{padding:9px 10px;border-top:1px solid #1d2640;white-space:nowrap}
+ .ms-t tr:hover td{background:#151c30}
+ .ms-bar{display:inline-block;height:8px;border-radius:4px;background:linear-gradient(90deg,#7c5cff,#5ac8fa);vertical-align:middle;margin-left:6px}
+ .ms-chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+ .ms-g{background:#10301a;color:#5fe07b}.ms-y{background:#3a2f12;color:#f0c24b}.ms-r{background:#3a1616;color:#ff8b82}.ms-n{background:#1b2338;color:var(--dp-mut)}
+ .ms-due{background:#2b2160;color:#cbbcff;margin-left:6px}
+ #view-daily,#view-measure{--dp-bg:#0b0f17;--dp-card:#121826;--dp-line:#26304a;--dp-acc:#8b6cff;--dp-acc2:#5ac8fa;--dp-ok:#3fb950;--dp-warn:#d29922;--dp-bad:#f85149;--dp-mut:#8b98b4}
  .dp-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
  .dp-kicker{font-size:11px;letter-spacing:.18em;color:var(--dp-acc);font-weight:700}
  .dp-h1{font-size:24px;margin:2px 0 0;background:linear-gradient(90deg,#fff,#b9a6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -962,6 +976,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <span class="brand">&#127917; Aura Command Center</span>
 <button class="tab-btn active-tab" id="btn-tab-today" onclick="showTab('today');tdLoad()">&#127968; Bugun</button>
 <button class="tab-btn" id="btn-tab-daily" onclick="showTab('daily');dpLoad()">&#127916; Uretim</button>
+<button class="tab-btn" id="btn-tab-measure" onclick="showTab('measure');msLoad()">&#128202; Olcum</button>
 <button class="tab-btn" id="btn-tab-home" onclick="showTab('home')">Ana Panel</button>
 <button class="tab-btn" id="btn-tab-insights" onclick="showTab('insights');insLoad(false)">&#128200; Analiz</button>
 <button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Gelismis</button>
@@ -973,6 +988,14 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; STUDIO</div><h1 class="dp-h1">Gunluk Uretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
 <div class="dp-row"><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
 <div class="dp-grid"><div class="dp-list" id="dp_list"></div><div class="dp-main" id="dp_main"></div></div>
+</div>
+<div id="view-measure" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
+<div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; OLCUM</div><h1 class="dp-h1">Olcum Panosu</h1><div class="sub" style="margin:2px 0 0" id="ms_stamp">yukleniyor...</div></div><div class="dp-row"><button class="dp-btn" onclick="msLoad(true)">&#8635; Yenile</button></div></div>
+<div class="ms-kpis" id="ms_kpis"></div>
+<div id="ms_due"></div>
+<div class="dp-card"><h3 style="margin:0 0 8px;font-size:15px">Seri karsilastirmasi</h3><div id="ms_groups" class="ms-kpis"></div><div class="sub" style="margin:8px 0 0">Kucuk orneklem: her sayi hipotezdir, kesin sonuc degil. Ort. izlenme % YouTube Analytics'ten (28 gun, video basina).</div></div>
+<div class="ms-wrap"><table class="ms-t" id="ms_table"></table></div>
+<div class="sub">~24 sa / ~48 sa sutunlari, panelin 6 saatte bir aldigi sayac kayitlarindan okunur (yayindan sonra en yakin kayit); kayit yoksa "-". TikTok sutunlari TikTok API senkronundan (eslesmeyen videolarda "-").</div>
 </div>
 <div id="view-today" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
 <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h1 style="font-size:20px;margin:0">Bugun</h1><span class="sub" style="margin:0" id="td_stamp">yukleniyor...</span><button class="qa" style="width:auto;margin-left:auto" onclick="tdLoad(true)">&#8635; Yenile</button></div>
@@ -1203,7 +1226,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 </div>
 <script>
 function showTab(name){
-  ['today','daily','home','insights','growth','comments','code'].forEach(t=>{
+  ['today','daily','measure','home','insights','growth','comments','code'].forEach(t=>{
     document.getElementById('view-'+t).classList.toggle('active-view', t===name);
     document.getElementById('btn-tab-'+t).classList.toggle('active-tab', t===name);
   });
@@ -1814,6 +1837,31 @@ async function dpSend(){
   } catch(e) { DP.chat.push({role: 'assistant', content: '[hata] ' + e}); }
   dpDraw(); const c = document.getElementById('dp_chat'); if(c) c.scrollTop = c.scrollHeight;
 }
+
+// ================= OLCUM panosu (2026-11-27) - PAGE'de ters egik cizgi YOK =================
+let MS = null;
+function msPct(p){ if(p === null || p === undefined) return '<span class="ms-chip ms-n">-</span>'; const c = p >= 50 ? 'ms-g' : (p >= 30 ? 'ms-y' : 'ms-r'); return '<span class="ms-chip ' + c + '">%' + p + '</span>'; }
+function msN(x){ return (x === null || x === undefined) ? '<span style="color:#5d6a89">-</span>' : String(x); }
+async function msLoad(force){
+  try {
+    const j = await (await fetch('/api/measure')).json();
+    if(!j.ok){ document.getElementById('ms_stamp').textContent = 'Hata: ' + (j.error || ''); return; }
+    MS = j; msDraw();
+  } catch(e){ document.getElementById('ms_stamp').textContent = 'Hata: ' + e; }
+}
+function msDraw(){
+  const j = MS; if(!j) return;
+  document.getElementById('ms_stamp').textContent = 'guncellendi ' + j.stamp + (j.analytics ? '' : ' - ort. izlenme % YOK (Analytics yetkisi)') + (j.errors.length ? ' | ' + j.errors.join(' | ') : '');
+  const kp = (l, v, sub) => '<div class="ms-kpi"><div class="v">' + v + '</div><div class="l">' + l + (sub ? ' &middot; ' + sub : '') + '</div></div>';
+  document.getElementById('ms_kpis').innerHTML = kp('YouTube abone', j.subs) + kp('Toplam izlenme', j.total_views) + kp('Son 7 gun', j.week_views === null ? '-' : ('+' + j.week_views)) + kp('Kanal medyani', j.median_views, 'video basina');
+  const due = j.rows.filter(r => r.due24);
+  document.getElementById('ms_due').innerHTML = due.length ? '<div class="dp-card" style="border-color:#5a45c9"><b>24 saat olcumu zamani:</b> ' + due.map(r => esc(r.title) + ' (' + r.age_h + ' sa, ' + r.views + ' izlenme' + (r.avg_pct !== null ? ', %' + r.avg_pct : '') + ')').join(' &middot; ') + '</div>' : '';
+  document.getElementById('ms_groups').innerHTML = j.groups.map(g => '<div class="ms-kpi"><div class="v">' + g.median_views + '</div><div class="l"><b>' + esc(g.name) + '</b> medyan izlenme &middot; n=' + g.n + ' &middot; tutma ' + (g.median_pct === null ? '-' : '%' + g.median_pct) + '</div><div class="l" style="margin-top:4px">en iyi: ' + esc(String(g.best).slice(0, 34)) + '</div></div>').join('');
+  const mx = Math.max(1, ...j.rows.map(r => r.views));
+  document.getElementById('ms_table').innerHTML = '<tr><th>VIDEO</th><th>YAYIN</th><th>YAS</th><th>IZLENME</th><th>~24 SA</th><th>~48 SA</th><th>ORT. IZLENME %</th><th>BEGENI</th><th>YORUM</th><th>TIKTOK</th><th>vs MEDYAN</th></tr>' + j.rows.map(r =>
+    '<tr><td><b>' + esc(String(r.title).slice(0, 38)) + '</b> <span class="ms-chip ms-n">' + esc(r.series) + '</span>' + (r.due24 ? '<span class="ms-chip ms-due">24 sa olcumu</span>' : '') + '</td><td>' + r.published + '</td><td>' + (r.age_h >= 48 ? Math.round(r.age_h / 24) + ' g' : Math.round(r.age_h) + ' sa') + '</td><td>' + r.views + '<span class="ms-bar" style="width:' + Math.round(70 * r.views / mx) + 'px"></span></td><td>' + msN(r.v24) + '</td><td>' + msN(r.v48) + '</td><td>' + msPct(r.avg_pct) + '</td><td>' + r.likes + '</td><td>' + r.comments + '</td><td>' + (r.tt_views === null || r.tt_views === undefined ? '<span style="color:#5d6a89">-</span>' : r.tt_views + (r.tt_shares ? ' (' + r.tt_shares + ' pay.)' : '')) + '</td><td>' + (r.ratio === null ? '-' : '<span class="ms-chip ' + (r.ratio >= 2 ? 'ms-g' : (r.ratio >= 0.8 ? 'ms-y' : 'ms-r')) + '">x' + r.ratio + '</span>') + '</td></tr>').join('');
+}
+setInterval(() => { const v = document.getElementById('view-measure'); if(v && v.classList.contains('active-view')) msLoad(); }, 300000);
 async function gmLoad(){
   try {
     const j = await (await fetch('/api/growth/state')).json();
@@ -2816,6 +2864,78 @@ def _tiktok_zip(handler, names):
         handler.wfile.write(data)
     except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
         pass
+
+
+def _measure_state():
+    """'Olcum' panosu: video bazinda izlenme (simdi / ~24 sa / ~48 sa), ort. izlenme %, begeni/yorum, TikTok - API'den otomatik."""
+    import calendar, statistics, insights, growth
+    errs = []
+    st = insights.channel_stats()
+    now = time.time()
+    snaps = insights._jload(insights.SNAP_FILE, [])
+    try:
+        ana = {r["video_id"]: r for r in insights.analytics_report(28)["rows"]}
+        ana_ok = True
+    except Exception as e:
+        ana, ana_ok = {}, False
+        errs.append(f"Analytics (ort. izlenme %): {type(e).__name__}: {str(e)[:120]}")
+    try:
+        tt = insights.tt_latest()
+    except Exception:
+        tt = {}
+    vids = [v for v in st["videos"] if v.get("privacy") == "public"]
+    med = statistics.median([v["views"] for v in vids]) if vids else 0
+
+    def at_hours(v, t0, hours):
+        target = t0 + hours * 3600
+        if now < target:
+            return None
+        best = None
+        for sn in snaps:
+            b = sn["videos"].get(v["id"])
+            if b is None or sn["ts"] < t0:
+                continue
+            d = abs(sn["ts"] - target)
+            if d <= 8 * 3600 and (best is None or d < best[0]):
+                best = (d, b[0])
+        return best[1] if best else None
+
+    rows = []
+    for v in vids[:24]:
+        try:
+            t0 = calendar.timegm(time.strptime(v["published"], "%Y-%m-%d %H:%M"))
+        except Exception:
+            continue
+        age = (now - t0) / 3600
+        a = ana.get(v["id"], {})
+        t = tt.get(v["id"]) or {}
+        fmt = growth.auto_format(v["title"])
+        series = "Tour" if v["title"].startswith("Inside") else ("Gundem" if fmt in ("agenda", "verdict") else "Diger")
+        rows.append({"id": v["id"], "title": v["title"], "published": time.strftime("%m-%d %H:%M", time.localtime(t0)), "age_h": round(age, 1),
+                     "views": v["views"], "likes": v["likes"], "comments": v["comments"], "v24": at_hours(v, t0, 24), "v48": at_hours(v, t0, 48),
+                     "avg_pct": a.get("avg_pct"), "avg_sec": round(a.get("avg_sec", 0)) if a else None, "subs_gain": a.get("subs"),
+                     "tt_views": t.get("views"), "tt_likes": t.get("likes"), "tt_comments": t.get("comments"), "tt_shares": t.get("shares"),
+                     "series": series, "ratio": round(v["views"] / med, 2) if med else None, "due24": 20 <= age <= 36})
+    groups = []
+    for name in ("Tour", "Gundem", "Diger"):
+        g = [r for r in rows if r["series"] == name]
+        if not g:
+            continue
+        pcts = [r["avg_pct"] for r in g if r["avg_pct"] is not None]
+        groups.append({"name": name, "n": len(g), "median_views": statistics.median([r["views"] for r in g]),
+                       "median_pct": round(statistics.median(pcts), 1) if pcts else None,
+                       "best": max(g, key=lambda r: r["views"])["title"]})
+    week = None
+    try:
+        tr = insights.trend(st)
+        sers = tr.get("series", [])
+        base = [x for x in sers if x["at"] <= time.strftime("%Y-%m-%d %H:%M", time.localtime(now - 7 * 86400))]
+        if base:
+            week = st["total_views"] - base[-1]["total_views"]
+    except Exception:
+        pass
+    return {"ok": True, "subs": st["subscribers"], "total_views": st["total_views"], "median_views": med, "week_views": week,
+            "analytics": ana_ok, "rows": rows, "groups": groups, "errors": errs, "stamp": time.strftime("%H:%M")}
 
 
 def _daily_state():
@@ -4139,7 +4259,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"usage": _ai_usage_get(), "code_prefer": _ai_settings()["code_prefer"]})
         elif u.path.startswith("/download/"):
             _serve_download(self, u.path[len("/download/"):])
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends", "/api/daily"):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends", "/api/daily", "/api/measure"):
             q = parse_qs(u.query)
             try:
                 import insights
@@ -4164,6 +4284,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_today_state())
                 elif u.path == "/api/daily":
                     self._json(_daily_state())
+                elif u.path == "/api/measure":
+                    self._json(_measure_state())
                 elif u.path == "/api/trends":
                     self._json(_trends(force=q.get("force", [""])[0] == "1", cached_only=q.get("cached", [""])[0] == "1"))
                 elif u.path == "/api/growth/state":
