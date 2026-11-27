@@ -958,7 +958,11 @@ def _render_one(st, fi):
         ld.rounded_rectangle([60, 10, W - 60, 420], radius=44, fill=(8, 5, 20, int(150 * a)), outline=ACCENT + (int(130 * a),), width=3)
         ld.text(((W - bw) / 2, 60), big, font=fb, fill=(255, 255, 255, int(255 * a)), stroke_width=8, stroke_fill=(18, 8, 34, int(255 * a)))
         if lab:
-            fl = _font(56)
+            fz = 56
+            fl = _font(fz)
+            while ld.textlength(lab, font=fl) > W - 200 and fz > 30:      # uzun etiket kutudan tasmasin
+                fz -= 3
+                fl = _font(fz)
             lw = ld.textlength(lab, font=fl)
             ld.text(((W - lw) / 2, 60 + size + 40), lab, font=fl, fill=HILITE + (int(255 * a),), stroke_width=4, stroke_fill=(18, 8, 34, int(255 * a)))
         frame.paste(layer, (0, int(hk.get("y", 190))), layer)
@@ -974,7 +978,8 @@ def _render_one(st, fi):
         _pill(frame, txt, 214, st.pill_font, a, ACCENT)
     if st.chapters:                                     # oda/bolum etiketi: "ROOM 2 - GRAND GALLERY"
         ci = max([k for k in st.chapters if k <= si] or [-1])
-        if ci >= 0 and ci < len(st.tl) and si not in st.cards:   # kart varken etiketi gizle (ust uste binmesin)
+        vote_on = bool(st.vote) and t >= st.dur - float(st.vote.get("secs", 7.0))     # oy karti varken de gizle
+        if ci >= 0 and ci < len(st.tl) and si not in st.cards and not vote_on:   # kart varken etiketi gizle (ust uste binmesin)
             c0 = st.tl[ci][1]
             a = min((t - c0) / 0.2, 1.0)
             fl = max(0.0, 1.0 - (t - c0) / 0.14) if ci == si and t >= c0 else 0.0

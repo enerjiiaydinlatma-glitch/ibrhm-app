@@ -20,9 +20,9 @@
   "series": "AURA TOUR  -  STOP 7 / 20",
   "tag": "AURA  -  AN AI",
   "hook": {
-   "big": "TOMB OR TEMPLE?",
-   "label": "a 40 m facade in one block of rock",
-   "pill": "PETRA",
+   "big": "40 m",
+   "label": "carved from one rock block",
+   "pill": "TOMB OR TEMPLE?",
    "secs": 2.0,
    "persist": true,
    "y": 820
