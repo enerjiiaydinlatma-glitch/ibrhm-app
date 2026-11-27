@@ -1,0 +1,233 @@
+# Enerji Aydınlatma – Sosyal Medya Paylaşım Planı
+
+Fotoğraflar: `sosyal-medya/foto/` (numaralar aşağıdaki planla aynı)
+Hepsi Instagram + Facebook + Google İşletme Profili'nde kullanılabilir.
+
+> Kural: Mekân adı/etiket koyma, "Çorlu'da bir restoran/salon" de. Müşteri izin verirse isim etiketlenir.
+> Kullanma: 11-13 numaralı ofis fotoğrafları kişi içeriyor ve masada "NİLPA PANO" tabelası var; kendi yüzünle tanıtım yapmak istersen 11 uygun. Aksi halde 14-16 mağaza karelerini kullan.
+
+---
+
+## 1) REELS – "Işıkla Mekân Değişir" (15-20 sn)
+
+Müzik: telifsiz, sakin/ritmik bir parça. Her kare 1,5-2 sn.
+
+| Sn | Foto | Ekran yazısı |
+|----|------|--------------|
+| 0-2 | 06 | "Tavan düz mü kalmalı?" |
+| 2-4 | 07 | "Lineer LED profil" |
+| 4-6 | 09 | "Beyaz + sıcak ışık" |
+| 6-8 | 01 | "Salon aydınlatması" |
+| 8-10 | 02 | "Gizli ışık + avize" |
+| 10-12 | 04 | "Bahçe / açık alan" |
+| 12-14 | 10 | "Dış cephe LED" |
+| 14-17 | 16 | "Enerji Aydınlatma – Çorlu" |
+
+Açıklama:
+> Düz tavan da, salon da, bahçe de ışıkla bambaşka görünür. ✨
+> Çorlu ve çevresinde LED aydınlatma projeleriniz için bize yazın.
+> 📞 0507 449 79 26
+> 🌐 enerji-aydinlatma.com
+>
+> #çorlu #tekirdağ #ledaydınlatma #tavanaydınlatma #lineerled #gizliışık #avize #bahçeaydınlatma #dekorasyon #mimari #içmimari #aydınlatma #enerjiaydinlatma
+
+---
+
+## 2) KARUSEL (6 kare) – "Tavanda Lineer LED Profil"
+
+Sıra: 06 → 07 → 08 → 09 → 02 → 01
+
+1. Kapak (06): **"Düz tavan, çizgiyle değişir"**
+2. (07) "İnce lineer profil, tek çizgi"
+3. (08) "Koridorda yönlendiren ışık"
+4. (09) "Beyaz + sarı: iki ton bir arada"
+5. (02) "Büyük salonda gizli ışık"
+6. (01) "Projeniz için teklif: 0507 449 79 26"
+
+Açıklama:
+> Lineer LED profil modern tavanların en sade çözümü. Gizli ışıkla birleşince oda büyük ve ferah görünür.
+> Ölçü ve model seçimi için yazın, doğru ürünü birlikte seçelim.
+> 📍 Çorlu / Tekirdağ  📞 0507 449 79 26
+>
+> #lineerled #ledprofil #tavantasarımı #koridoraydınlatma #asmatavan #çorlu #ledaydınlatma #enerjiaydinlatma
+
+---
+
+## 3) HİKAYE (3 gün, günde 1)
+
+- **Gün 1 – (04)** "Bahçe gece böyle görünür 🌙" + anket: *Sıcak ışık mı beyaz mı?*
+- **Gün 2 – (10)** "Dış cephe LED, villa girişi" + soru kutusu: *Evinize ne tür aydınlatma lazım?*
+- **Gün 3 – (16)** "Mağazamız Çorlu'da: ışıklar gerçek bir RGB şov" + konum çıkartması
+
+---
+
+## 4) TEK GÖNDERİLER
+
+**Salon (01 veya 02)**
+> Büyük mekânlarda avize + gizli LED birlikte düşünülmeli. Işık hem ferahlık hem karakter katar.
+> Salon, restoran, düğün mekânı projeleri için: 0507 449 79 26
+> #avize #gizliışık #restoranaydınlatma #mekanaydınlatma #çorlu
+
+**Bahçe (04 veya 05)**
+> Ampul zinciri + zemin spotu = akşam atmosferi. Bahçe, teras ve restoran bahçeleri için.
+> #bahçeaydınlatma #ampulzinciri #dışmekan #çorlu #ledspot
+
+**Dış cephe (10)**
+> Çatı hattına sarı LED şerit: bina geceleri de fark edilsin.
+> #dışcepheaydınlatma #ledşerit #villa #çorlu
+
+**Mağaza (14-16)**
+> Mağazamızda RGB ışık gösterisi 💙💚 Gelin, ürünleri yerinde görün.
+> 📍 Reşadiye Mah. Şht. İsmail Güler Sk. No:30-34/C, Çorlu
+> 🕗 Pzt-Cum 08:30-18:00, Cmt 08:30-13:00
+> #rgbled #ledşerit #çorlu #aydınlatmamağazası
+
+---
+
+## Paylaşım takvimi önerisi
+- Salı: Reels
+- Perşembe: Karusel
+- Cumartesi: Tek gönderi (bahçe)
+- Hikâye: Pazartesi-Çarşamba
+
+## Google İşletme Profili
+Fotoğraf olarak 06, 01, 04, 10, 16 yükle. Başlık: "Çorlu'da LED aydınlatma uygulamaları". Haftada 1 "Güncelleme" gönderisi ekle (karusel metni uygun).
+
+## Not
+- Referans sayısı, "yüzlerce proje" gibi rakamlar yazma; sitedeki kural aynı (doğrulanamayan iddia yok).
+- Videoyu telefondan CapCut ile yap: 9:16, yukarıdaki tablodaki sıra ve ekran yazılarıyla.
+
+---
+
+# EK – İkinci set: ÖNCESİ / SONRASI içerikleri (foto 17-29, video/)
+
+Yeni gelen kareler çoğunlukla **inşaat aşaması**. Bunlar "öncesi" olarak çok değerli: biten halleriyle yan yana koyunca en çok izlenen içerik türü olur.
+
+> Doğrulaman gereken varsayım: Kirişli çatılı restoran + havuzlu/zeytin ağaçlı bahçe, daha önce attığın "Büyük Açılış" afişli gece bahçesiyle (foto 04-05) aynı mekân gibi görünüyor. Aynıysa aşağıdaki öncesi/sonrası mümkün. Aynı değilse yalnızca "çalışma aşaması" olarak kullan.
+
+## Videolar (telefon için küçültüldü, `video/`)
+| Dosya | İçerik | Kullanım |
+|-------|--------|----------|
+| `bahce-havuz-oncesi-13sn.mp4` | Toprak bahçe, havuz, taş zemin | Öncesi sahnesi |
+| `restoran-oncesi-10sn.mp4` | Turuncu bar, kiriş tavan, çalışma alanı | Öncesi sahnesi |
+| `bahce-teras-oncesi-17sn.mp4` | Teras, havuz, zeytin ağaçları | Öncesi sahnesi |
+
+## REELS 2 – "Önce / Sonra" (20 sn)
+| Sn | Görüntü | Yazı |
+|----|---------|------|
+| 0-3 | restoran-oncesi video | "Daha dün böyleydi…" |
+| 3-6 | bahce-teras-oncesi video | "Bahçe: toprak, boş" |
+| 6-8 | foto 23 (kirişte lineer LED) | "Işık işe başladı" |
+| 8-11 | foto 04 (gece bahçe) | "Ve işte sonuç ✨" |
+| 11-14 | foto 05 | "Ampul zinciri + zemin spotu" |
+| 14-17 | foto 01/02 | (salon varsa) "Gizli ışık + avize" |
+| 17-20 | foto 28 | "Enerji Aydınlatma – Çorlu" |
+
+Açıklama:
+> Boş bir alan ışıkla yaşam bulur. Restoran, bahçe, teras: aydınlatma projeniz için ücretsiz görüşme.
+> 📞 0507 449 79 26 · 🌐 enerji-aydinlatma.com
+> #öncesisonrası #restoranaydınlatma #bahçeaydınlatma #ledaydınlatma #çorlu #tekirdağ #kirişaydınlatma #lineerled #enerjiaydinlatma
+
+(Not: "ücretsiz görüşme" yazdım; ücretsiz keşif/danışmanlık verdiğin doğruysa kalsın, değilse "bize yazın" yap.)
+
+## KARUSEL 2 – "Kirişli çatıda aydınlatma"
+Sıra: 17 → 22 → 23 → (bitmiş kare varsa) → 04
+Kapak yazısı: **"Ahşap kiriş + LED = karakter"**
+
+## MAĞAZA TANITIM (26-29)
+- **28 (petek/hexagon LED tavan)** tek başına çok güçlü: "Petek LED armatür – atölye, showroom, garaj için". Satışta varsa ürün linkini ekle.
+- **26-27** mavi LED çerçeveli vitrin: "Mağazamızda binlerce ürün rafta" gibi yazma (sayım yok); "Ovivo, Viko ve daha fazlası rafta" de.
+- **29** ofis zigzag tavan: müşteriye "ofisinize böyle bir tasarım" örneği.
+
+## Paylaşma önerisi
+- 17-22 karelerinde: koli, boya tenekesi ("Dikkat sağlığa zararlıdır" etiketi), işçi görünüyor. Reels'te sorun yok; tek tek gönderide 19-20'deki çalışan kişiyi kırp.
+- Mekân/tabela ismi ve konum etiketi yok, müşteri izni olmadan koyma.
+
+---
+
+# EK 2 – Üçüncü set (foto 30-43): "Tavanın içinden" – kurulum aşaması
+
+Bu set iki parçadan oluşuyor:
+- **34-40, 42-43:** Alçıpan tavanda LED profil kanalları, boya/sıva öncesi. Kıvrımlı (S, oval, yay), iç içe kare ve paralel çizgi tasarımları. Bu kareler **işin zanaatını** gösteriyor; müşterinin göremediği kısım.
+- **30-33, 41:** Kırmızı kiremitli tek katlı bina (okul/anaokulu benzeri), gece dış cephe ve sundurma altında armatürler, bahçede oyun alanı.
+
+## Önerilen içerikler
+
+**Karusel 3 – "Tavan aydınlatmasının görünmeyen yüzü" (6-8 kare)**
+Sıra: 34 → 35 → 36 → 40 → 38 → 39 → 42 (+ bitmiş tavan karesi: 06 veya 09)
+Kapak: **"Işık yanmadan önce tavan böyle görünür"**
+Açıklama:
+> Güzel görünen bir tavanın arkasında doğru planlama var. Profil kanalları alçıpan aşamasında yerleşir, sonra ışık takılır.
+> Eğrisel (S, oval, yay) tasarımlar için esnek profil kullanıyoruz.
+> Evinizin/ofisinizin tavanını planlamadan önce bize yazın: 0507 449 79 26
+> #lineerled #ledprofil #esnekprofil #alçıpantavan #asmatavan #tavantasarımı #çorlu #tekirdağ #enerjiaydinlatma
+
+**Reels 3 – "Kıvrımlı LED tavan nasıl yapılır" (12-15 sn)**
+34 (kare) → 35 (oval) → 36 (S) → 40 (çift S) → bitmiş hal (06 veya 09) → logo/telefon kartı.
+Ekran yazıları: "Önce kanal" · "Sonra eğri" · "Sonra ışık" · "Sonuç"
+
+**Dış cephe (30-33, 41)**
+- Bahçedeki çocuk oyun alanı ve eğitim binası göründüğü için: **mekân adı, konum, "okul" ibaresi koyma**; kamu projesiyse kurum izni/şartname gizliliğine dikkat et. Sadece "Çorlu'da bir proje, dış mekân aydınlatması" de.
+- 33 (sundurma altında tavan armatürleri): "Giriş ve sundurma aydınlatması" olarak tek kare uygun.
+- Fiyat/miktar veya "X armatür" gibi rakam yazma.
+
+## Paylaşma notları
+- 38 ve 42 gibi karelerde duvarda açık kablo/tesisat ve moloz görünüyor; tek gönderide kırp ya da karuselde ortalara koy, kapağa koyma.
+- Kareler çoğunlukla dikey: Reels/hikâye/karusel için doğrudan uygun, 4:5 kırpma yeterli.
+- "25 yıllık tecrübe" ifadesi sitede de kullanılıyor; metinde kullanabilirsin, rakam eklemeden.
+
+---
+
+# EK 3 – Dördüncü set (foto 44-59): Dolap içi LED, makyaj masası, kovuk LED, tavan kanalları
+
+## Gruplar
+- **44-46 (ofis, kovuk LED):** Tavan çevresinde gizli RGB LED; yeşil → turkuaz → mavi/beyaz geçişi. Reels için çok uygun (renk değişimi).
+- **47-51 (tavan profil kanalları, sıva aşaması):** Zigzag ve dikdörtgen çizgiler. Karusel 3'e eklenebilir.
+- **52-55, 57 (cam kapılı gardırop, altın çerçeve):** İç şerit LED + üst spot. **En güçlü set.**
+- **56 (makyaj masası, ampullü ayna):** Hollywood tarzı. Tek gönderi / hikâye.
+- **58-59 (dikey vitrinli gardırop, altın çıtalı):** Dar vitrin LED'li.
+
+## İçerikler
+**Reels 4 – "Dolap içi LED" (15 sn):** 52 → 53 → 54 → 57 → 56 → 58.
+Yazılar: "Cam kapılı gardırop" · "İç şerit LED" · "Gün ışığı değil, sıcak ışık" · "Makyaj köşesi" · "Çorlu / 0507 449 79 26"
+
+**Reels 5 – "Renk değiştiren tavan" (10 sn):** 44 → 45 → 46. Yazı: "Gizli RGB LED – tek kumandayla".
+
+**Karusel 4:** 52, 53, 55, 58, 59 – "Dolabınızı aydınlatın". Metin:
+> Cam kapılı ve vitrinli dolaplarda iç şerit LED hem düzen hem şıklık sağlar. Ölçüye göre uygulama yapıyoruz.
+> #gardıropaydınlatma #dolaplediş #ledşerit #giyinmeodası #çorlu #enerjiaydinlatma
+
+**Tek gönderi (56):** "Makyaj masasında ışık ayna kadar önemli. Ampullü ayna uygulaması." 
+
+## ÖNEMLİ – paylaşmadan önce
+- **Müşteri evleri:** Bu kareler özel yaşam alanı; müşteriden **yazılı/mesajla izin** al. Bebek kıyafetleri ve kutularda isim yazısı ("Arya" gibi) görünüyor → 52-55, 57'de **ismi bulandır veya kırp**.
+- **52, 53, 55, 57 aynada telefon tutan kişi yansıyor** → o kareleri kullanma ya da kırp; 54 ve 53 en temizleri.
+- 58-59'da yatak, kişisel eşyalar, ilaç/kozmetik ürünleri görünüyor → kırp veya paylaşma.
+- 44-46 senin ofisin (masada "NİLPA PANO" yazısı, laptop, kasa): kırp; kasa ve kameranın göründüğü alanı gösterme.
+- Çıplak sıva ve açık tesisat kareleri (47-51) sorunsuz.
+
+---
+
+# EK 4 – Beşinci set (foto 60-72): Mutfak tezgâh altı LED, giyinme odası, okul/sınıf panel armatür
+
+## Gruplar
+- **61, 62, 69 (mutfak):** Üst dolap altı şerit LED + mermer desenli tezgâh/arka cephe; ışığın tezgâhta yansıması çok güzel. **Bu setin en güçlü kareleri (61 en iyisi).**
+- **66-68 (giyinme odası):** Dolap içi şerit LED + ışıklı ayna + kavisli tavan kovuk LED. Temiz, profesyonel görünüm.
+- **60, 63, 64, 65 (tavan profil kanalları):** Önceki setlerle aynı iş türü; "kurulum aşaması" karuseline.
+- **70-72 (okul/anaokulu içi):** Koridor ve sınıfta kare panel armatürler; 72 daha önce attığın sundurma karesinin aynısı (33 ile tekrar, birini kullan).
+
+## İçerikler
+**Reels 6 – "Mutfağa ışık katmak" (10-12 sn):** 62 → 61 → 69. Yazı: "Tezgâh altı LED" · "Mermer + sıcak ışık" · "Çorlu / 0507 449 79 26".
+**Karusel 5 – "Giyinme odası aydınlatması":** 66 → 67 → 68. Metin:
+> Cam kapılı dolap içi LED, ışıklı ayna ve kovuk tavan LED bir arada. Ölçüye özel uygulama.
+> #giyinmeodası #dolaplediş #mutfakaydınlatma #tezgahaltıled #çorlu #enerjiaydinlatma
+**Mutfak tek gönderi (61):** "Üst dolap altı LED: tezgâhta çalışmak da, görünüm de bir üst seviye."
+**Sınıf/panel (71):** "Kare LED panel armatürlerle eşit ve gözü yormayan aydınlatma." (Mekân adı/okul adı yazma.)
+
+## Dikkat
+- **66-68:** Aynada telefon tutan kişi görünüyor ve yatak odası içi; kırp (67/68 daha temiz), müşteri izni al.
+- **70 (koridor):** Uzakta bir işçi ve açık kablo demeti görünüyor → paylaşma veya kırp.
+- **71-72:** Eğitim binası; mekân/konum yazma, kamu işiyse kurum izni.
+- **Mutfak (61, 62, 69):** Zemin ve tezgâhta inşaat atığı/ambalaj var; 61 çok yakın kadraj olduğu için sorun değil, 69'u kırp.
+- Mutfak ve giyinme odası kareleri müşteri evi; paylaşmadan önce izin.
+- Aynı kare (örn. 72 = 33, 63 ≈ 42) tekrar edebilir; kullanmadan önce klasörde eşleştir.
