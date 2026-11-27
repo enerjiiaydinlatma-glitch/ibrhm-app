@@ -1883,9 +1883,10 @@ function dpStep(d, n, title, state, summary, body, defOpen){
 }
 function dpDraw(){
   const itemH = d => '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>';
-  const pend = DP.drafts.filter(d => d.status !== 'yayinlandi'), pubs = DP.drafts.filter(d => d.status === 'yayinlandi').slice(0, 8);
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const pend = DP.drafts.filter(d => d.status !== 'yayinlandi'), stale = pend.filter(d => String(d.created || '').slice(0, 10) < cutoff), pubs = DP.drafts.filter(d => d.status === 'yayinlandi').slice(0, 8);
   document.getElementById('dp_list').innerHTML = DP.drafts.length ?
-    '<div class="dp-sec">Bekleyen işler (' + pend.length + ')</div>' + (pend.length ? pend.map(itemH).join('') : '<div class="dp-card sub" style="padding:10px 12px">Bekleyen taslak yok. “Hazır Paketleri Yükle” ya da asistandan paket iste.</div>') +
+    '<div class="dp-sec" style="display:flex;justify-content:space-between;align-items:center">Bekleyen işler (' + pend.length + ')' + (stale.length ? '<button class="dp-btn" style="padding:2px 8px;font-size:10px;letter-spacing:0" onclick="dpClean()">Eskileri temizle (' + stale.length + ')</button>' : '') + '</div>' + (pend.length ? pend.map(itemH).join('') : '<div class="dp-card sub" style="padding:10px 12px">Bekleyen taslak yok. “Hazır Paketleri Yükle” ya da asistandan paket iste.</div>') +
     '<div class="dp-sec">Yayınlananlar (son ' + pubs.length + ')</div>' + pubs.map(itemH).join('')
     : '<div class="dp-card sub">Taslak yok. “Hazır Paketleri Yükle” ya da aşağıdaki asistandan paket iste.</div>';
   if(DP.days && DP.days.length){
@@ -2062,6 +2063,15 @@ async function dpaReset(){
   if(!confirm('Asistan sohbeti temizlensin mi? (dosya degisiklikleri geri alinmaz)')) return;
   const j = await codeApi('/api/agent/reset', {});
   if(j.ok){ DPA.last = 0; const log = document.getElementById('dpa_log'); if(log) log.textContent = ''; dpaTick(); } else alert(j.error);
+}
+async function dpClean(){
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const old = DP.drafts.filter(d => d.status !== 'yayinlandi' && String(d.created || '').slice(0, 10) < cutoff);
+  if(!old.length) return;
+  const NL = String.fromCharCode(10);
+  if(!confirm('7 günden eski, YAYINLANMAMIŞ ' + old.length + ' taslak silinecek (YouTube’daki videolar etkilenmez):' + NL + NL + old.map(d => '- ' + d.title).join(NL))) return;
+  for(const d of old){ await gmPost('/api/growth/draft_delete', {id: d.id}); }
+  DP.sel = null; dpLoad();
 }
 async function dpTTAll(){
   if(!DP.days.length) return;
