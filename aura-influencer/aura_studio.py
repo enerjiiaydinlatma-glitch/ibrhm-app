@@ -1072,6 +1072,15 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 
  #view-daily>*{flex-shrink:0}
 
+
+ .dp-prog{display:flex;align-items:center;gap:0;margin:14px 0 8px;overflow-x:auto}
+ .dp-pg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dp-mut);white-space:nowrap}
+ .dp-pg span{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#1b2338;border:1px solid var(--dp-line);font-weight:700;font-size:11px}
+ .dp-pg.done{color:#7fe39a}.dp-pg.done span{background:#10301a;border-color:#1f6b32;color:var(--dp-ok)}
+ .dp-pg.act span{background:var(--dp-acc);color:#fff;border-color:var(--dp-acc)}
+ .dp-pg.cur{color:#fff;font-weight:600}.dp-pg.cur span{box-shadow:0 0 12px rgba(139,108,255,.65)}
+ .dp-pl{flex:1;min-width:14px;height:2px;background:var(--dp-line);margin:0 8px}
+ .dp-next{background:linear-gradient(90deg,rgba(124,92,255,.16),rgba(90,139,255,.08));border:1px solid #3a3470;border-radius:10px;padding:9px 12px;font-size:13px}
  #view-measure>*{flex-shrink:0}
  .ms-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
  .ms-kpi{background:var(--dp-card);border:1px solid var(--dp-line);border-radius:14px;padding:12px 14px}
@@ -1167,31 +1176,31 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 </style></head><body>
 <div id="topbar">
 <span class="brand">&#127917; Aura Command Center</span>
-<button class="tab-btn active-tab" id="btn-tab-today" onclick="showTab('today');tdLoad()">&#127968; Bugun</button>
-<button class="tab-btn" id="btn-tab-daily" onclick="showTab('daily');dpLoad()">&#127916; Uretim</button>
-<button class="tab-btn" id="btn-tab-measure" onclick="showTab('measure');msLoad()">&#128202; Olcum</button>
-<button class="tab-btn" id="btn-tab-home" onclick="showTab('home')">Ana Panel</button>
+<button class="tab-btn active-tab" id="btn-tab-daily" onclick="showTab('daily');dpLoad()">&#127916; Üretim</button>
+<button class="tab-btn" id="btn-tab-measure" onclick="showTab('measure');msLoad()">&#128202; Ölçüm</button>
+<button class="tab-btn" id="btn-tab-today" onclick="showTab('today');tdLoad()">&#127968; Bugün</button>
+<button class="tab-btn" id="btn-tab-home" onclick="showTab('home')">&#128172; Ana Panel</button>
 <button class="tab-btn" id="btn-tab-insights" onclick="showTab('insights');insLoad(false)">&#128200; Analiz</button>
-<button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Gelismis</button>
-<button class="tab-btn" id="btn-tab-comments" onclick="showTab('comments');cmInit()">&#128172; Yorumlar</button>
+<button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Gelişmiş</button>
+<button class="tab-btn" id="btn-tab-comments" onclick="showTab('comments');cmInit()">&#128483; Yorumlar</button>
 <button class="tab-btn" id="btn-tab-code" onclick="showTab('code');codeInit();agInit()">&#128187; Kod</button>
 </div>
 <div id="viewport">
-<div id="view-daily" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
-<div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; STUDIO</div><h1 class="dp-h1">Gunluk Uretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
-<div class="dp-row"><button class="dp-btn" id="dp_scan" onclick="dpScan(this)">&#128270; Sistemi tara</button><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
+<div id="view-daily" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
+<div class="dp-head"><div><div class="dp-kicker">AURA TOUR · STÜDYO</div><h1 class="dp-h1">Günlük Üretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
+<div class="dp-row"><button class="dp-btn" id="dp_scan" onclick="dpScan(this)">&#128270; Sistemi tara</button><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazır Paketleri Yükle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
 <div id="dp_scanout"></div>
 <div class="dp-grid"><div class="dp-list" id="dp_list"></div><div class="dp-main" id="dp_main"></div></div>
 </div>
 <div id="view-measure" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
-<div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; OLCUM</div><h1 class="dp-h1">Olcum Panosu</h1><div class="sub" style="margin:2px 0 0" id="ms_stamp">yukleniyor...</div></div><div class="dp-row"><button class="dp-btn" onclick="msLoad(true)">&#8635; Yenile</button></div></div>
+<div class="dp-head"><div><div class="dp-kicker">AURA TOUR · ÖLÇÜM</div><h1 class="dp-h1">Ölçüm Panosu</h1><div class="sub" style="margin:2px 0 0" id="ms_stamp">yükleniyor…</div></div><div class="dp-row"><button class="dp-btn" onclick="msLoad(true)">&#8635; Yenile</button></div></div>
 <div class="ms-kpis" id="ms_kpis"></div>
 <div id="ms_due"></div>
-<div class="dp-card"><h3 style="margin:0 0 8px;font-size:15px">Seri karsilastirmasi</h3><div id="ms_groups" class="ms-kpis"></div><div class="sub" style="margin:8px 0 0">Kucuk orneklem: her sayi hipotezdir, kesin sonuc degil. Ort. izlenme % YouTube Analytics'ten (28 gun, video basina).</div></div>
+<div class="dp-card"><h3 style="margin:0 0 8px;font-size:15px">Seri karşılaştırması</h3><div id="ms_groups" class="ms-kpis"></div><div class="sub" style="margin:8px 0 0">Küçük örneklem: her sayı hipotezdir, kesin sonuç değil. Ort. izlenme % YouTube Analytics’ten (28 gün, video başına).</div></div>
 <div class="ms-wrap"><table class="ms-t" id="ms_table"></table></div>
-<div class="sub">~24 sa / ~48 sa sutunlari, panelin 6 saatte bir aldigi sayac kayitlarindan okunur (yayindan sonra en yakin kayit); kayit yoksa "-". TikTok sutunlari TikTok API senkronundan (eslesmeyen videolarda "-").</div>
+<div class="sub">~24 sa ve ~48 sa sütunları, panelin 6 saatte bir aldığı sayaç kayıtlarından okunur (yayından sonraki en yakın kayıt); kayıt yoksa “-”. TikTok sütunları TikTok API senkronundan gelir (eşleşmeyen videolarda “-”).</div>
 </div>
-<div id="view-today" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
+<div id="view-today" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
 <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h1 style="font-size:20px;margin:0">Bugun</h1><span class="sub" style="margin:0" id="td_stamp">yukleniyor...</span><button class="qa" style="width:auto;margin-left:auto" onclick="tdLoad(true)">&#8635; Yenile</button></div>
 <div class="tdcard"><div id="td_kpi" class="tdgrid"></div></div>
 <div class="tdcard"><h3>&#9989; Simdi ne yapmali?</h3><div id="td_todo"></div></div>
@@ -1822,7 +1831,7 @@ function draftHtml(d){
 
 // ================= URETIM sekmesi (2026-11-27) =================
 // NOT: PAGE normal Python string: JS'te ters egik cizgi YOK.
-let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: [], days: []};
+let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: [], days: [], open: {}, openDef: {}};
 function dpSplit(t){
   const out = []; let cur = ''; const s = String(t || '');
   for(let i = 0; i < s.length; i++){
@@ -1861,13 +1870,23 @@ function dpPillOf(d){
   return '<span class="dp-pill t">TASLAK</span>';
 }
 function dpPick(id){ DP.sel = id; dpDraw(); }
+function dpTog(k){ DP.open[k] = !(DP.open[k] === undefined ? DP.openDef[k] : DP.open[k]); dpDraw(); }
+function dpStep(d, n, title, state, summary, body, defOpen){
+  const key = d.id + ':' + n;
+  DP.openDef[key] = defOpen;
+  const open = (DP.open[key] === undefined ? defOpen : DP.open[key]) && state !== 'lock';
+  const mark = state === 'done' ? '&#10003;' : n;
+  return '<div class="dp-card dp-step ' + state + '" style="padding:12px 16px"><div class="dp-num">' + mark + '</div><div class="dp-body">' +
+    '<div class="dp-row" style="justify-content:space-between;cursor:' + (state === 'lock' ? 'default' : 'pointer') + '" ' + (state === 'lock' ? '' : 'onclick="dpTog(&#39;' + key + '&#39;)"') + '><h3 style="margin:0">' + title + '</h3><span class="sub" style="margin:0">' + summary + (state === 'lock' ? '' : (open ? ' &#9650;' : ' &#9660;')) + '</span></div>' +
+    (open ? '<div style="margin-top:10px">' + body + '</div>' : '') + '</div></div>';
+}
 function dpDraw(){
   document.getElementById('dp_list').innerHTML = DP.drafts.length ? DP.drafts.slice(0, 12).map(d =>
     '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>'
-  ).join('') : '<div class="dp-card sub">Taslak yok. "Hazir Paketleri Yukle" ya da asagidaki sohbetten paket iste.</div>';
+  ).join('') : '<div class="dp-card sub">Taslak yok. “Hazır Paketleri Yükle” ya da aşağıdaki asistandan paket iste.</div>';
   if(DP.days && DP.days.length){
-    document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><div class="dp-row" style="justify-content:space-between"><b style="font-size:13px">TikTok kaydi eksik</b><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpTTAll()">Hepsi yuklendi</button></div><div class="sub" style="margin:2px 0 6px">Yukledigin videolari isaretle, Bugun sayfasindaki uyari kalksin.</div>' + DP.days.map(r =>
-      '<div class="dp-row" style="justify-content:space-between;margin:4px 0"><span style="font-size:12px">' + esc(String(r.title || '').slice(0, 30)) + '</span><button class="dp-btn" style="padding:3px 9px;font-size:12px" onclick="dpTT(' + r.day + ')">Yuklendi</button></div>').join('') + '</div>';
+    document.getElementById('dp_list').innerHTML += '<div class="dp-card" style="padding:10px 12px"><div class="dp-row" style="justify-content:space-between"><b style="font-size:13px">TikTok kaydı eksik</b><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpTTAll()">Hepsi yüklendi</button></div><div class="sub" style="margin:2px 0 6px">Yüklediğin videoları işaretle; Bugün sayfasındaki uyarı kalkar.</div>' + DP.days.map(r =>
+      '<div class="dp-row" style="justify-content:space-between;margin:4px 0"><span style="font-size:12px">' + esc(String(r.title || '').slice(0, 30)) + '</span><button class="dp-btn" style="padding:3px 9px;font-size:12px" onclick="dpTT(' + r.day + ')">Yüklendi</button></div>').join('') + '</div>';
   }
   const d = dpCur();
   const box = document.getElementById('dp_main');
@@ -1876,28 +1895,37 @@ function dpDraw(){
   const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
   const ok = !!DP.ok[d.id];
   const en = dpSplit(d.en_script), tr = dpSplit(d.tr_script || '');
-  let h = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><div><b style="font-size:17px">' + esc(d.title) + '</b> ' + dpPillOf(d) + (done ? '' : ' <button class="dp-btn" style="padding:2px 9px;font-size:11px" onclick="dpDel(&#39;' + d.id + '&#39;)">Taslagi sil</button>') + '</div>' + (d.preflight ? '<span class="dp-badge">Kural uyumu ' + d.preflight.score + '/' + d.preflight.of + ' - ~' + (d.preflight.est_seconds || '?') + ' sn</span>' : '') + '</div><div class="sub" style="margin:6px 0 0">' + esc(d.rationale || '').slice(0, 220) + '</div></div>';
-  // 1 Paket + Turkce anlam
-  h += '<div class="dp-card dp-step ' + (ok || rend ? 'done' : 'act') + '"><div class="dp-num">1</div><div class="dp-body"><h3>Metin ve Turkce anlami</h3><div class="dp-sent"><div class="n"></div><div class="sub" style="margin:0">English (videoda)</div><div class="sub" style="margin:0">Turkce anlami</div>' + en.map((x, i) => '<div class="n">' + (i + 1) + '</div><div>' + esc(x) + '</div><div class="tr">' + esc(tr[i] || '') + '</div>').join('') + '</div>' + (en.length !== tr.length ? '<div class="sub" style="color:#f85149">Dikkat: EN ' + en.length + ' / TR ' + tr.length + ' cumle.</div>' : '') + (d.preflight ? '<div style="margin-top:8px">' + preHtml(d.preflight) + '</div>' : '') + '</div></div>';
+  const st = {1: (ok || rend) ? 'done' : 'act', 2: (ok || rend) ? 'done' : 'act', 3: rend ? 'done' : (ok ? 'act' : 'lock'), 4: done ? 'done' : (rend ? 'act' : 'lock'), 5: done ? 'act' : 'lock'};
+  const names = ['Metin', 'Onay', 'Render', 'YouTube', 'TikTok'];
+  const cur = [1, 2, 3, 4, 5].find(i => st[i] === 'act') || 5;
+  const nextTxt = !ok && !rend ? 'Metni ve Türkçe anlamını oku, sonra onay kutusunu işaretle.' : (!rend ? 'Render et: gerçek Aura sesiyle video üretilir (1–3 dk).' : (!done ? 'Videoyu izle; beğendiysen YouTube’da yayınla.' : 'YouTube’da yayında. Şimdi TikTok ve Reels’e yükle.'));
+  // üst: ilerleme çubuğu + sıradaki adım
+  let h = '<div class="dp-card" style="padding:14px 16px"><div class="dp-row" style="justify-content:space-between"><div><b style="font-size:18px">' + esc(d.title) + '</b> ' + dpPillOf(d) + (done ? '' : ' <button class="dp-btn" style="padding:2px 9px;font-size:11px" onclick="dpDel(&#39;' + d.id + '&#39;)">Taslağı sil</button>') + '</div>' + (d.preflight ? '<span class="dp-badge" title="Kurallara uyum özeti; izlenme tahmini değildir">Kural uyumu ' + d.preflight.score + '/' + d.preflight.of + ' · ~' + (d.preflight.est_seconds || '?') + ' sn</span>' : '') + '</div>' +
+    '<div class="dp-prog">' + names.map((nm, i) => { const k = i + 1; return '<div class="dp-pg ' + st[k] + (k === cur ? ' cur' : '') + '"><span>' + (st[k] === 'done' ? '✓' : k) + '</span>' + nm + '</div>'; }).join('<div class="dp-pl"></div>') + '</div>' +
+    '<div class="dp-next"><b>Sıradaki adım</b> · ' + nextTxt + '</div></div>';
+  // 1 Metin
+  h += dpStep(d, 1, 'Metin ve Türkçe anlamı', st[1], en.length + ' cümle' + (ok || rend ? ' · onaylandı' : ''),
+    '<div class="dp-sent"><div class="n"></div><div class="sub" style="margin:0">English (videoda)</div><div class="sub" style="margin:0">Türkçe anlamı</div>' + en.map((x, i) => '<div class="n">' + (i + 1) + '</div><div>' + esc(x) + '</div><div class="tr">' + esc(tr[i] || '') + '</div>').join('') + '</div>' +
+    (en.length !== tr.length ? '<div class="sub" style="color:#f85149">Dikkat: EN ' + en.length + ' / TR ' + tr.length + ' cümle.</div>' : '') + (d.preflight ? '<div style="margin-top:8px">' + preHtml(d.preflight) + '</div>' : '') + (d.rationale ? '<div class="sub" style="margin-top:8px"><b>Neden bu konu:</b> ' + esc(String(d.rationale).slice(0, 400)) + '</div>' : ''), !(ok || rend));
   // 2 Onay
-  h += '<div class="dp-card dp-step ' + (ok || rend ? 'done' : (en.length ? 'act' : 'lock')) + '"><div class="dp-num">2</div><div class="dp-body"><h3>Onay</h3><label class="dp-row" style="cursor:pointer"><input type="checkbox" ' + (ok || rend ? 'checked ' : '') + (rend ? 'disabled ' : '') + 'onchange="dpOk(&#39;' + d.id + '&#39;,this.checked)"> <span>Turkce anlamini okudum, metni onayliyorum.</span></label><div class="sub" style="margin:4px 0 0">Onaysiz render ve yayin baslamaz.</div></div></div>';
+  h += dpStep(d, 2, 'Onay', st[2], ok || rend ? '✓ onaylandı' : 'onay bekliyor',
+    '<label class="dp-row" style="cursor:pointer;font-size:14px"><input type="checkbox" ' + (ok || rend ? 'checked ' : '') + (rend ? 'disabled ' : '') + 'onchange="dpOk(&#39;' + d.id + '&#39;,this.checked)"> <span>Türkçe anlamını okudum, metni onaylıyorum.</span></label><div class="sub" style="margin:6px 0 0">Onay verilmeden render ve yayın düğmeleri kapalı kalır.</div>', !(ok || rend));
   // 3 Render
-  h += '<div class="dp-card dp-step ' + (rend ? 'done' : (ok ? 'act' : 'lock')) + '"><div class="dp-num">3</div><div class="dp-body"><h3>Render ve izle</h3><div class="dp-row">' +
-    (done ? '' : '<button class="dp-btn pri" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRender(&#39;' + d.id + '&#39;)">' + (d.status === 'render edildi' ? 'Yeniden render et' : 'Sadece render et') + '</button>') +
-    '<span class="sub" id="dp_rmsg" style="margin:0">' + (rend ? 'Render hazir.' : 'Gercek Aura sesiyle 1-3 dk surer.') + '</span></div>' +
-    (rend && info.video ? '<video controls playsinline preload="metadata" src="/download/' + encodeURIComponent(info.video) + '" style="margin-top:10px;max-height:52vh;border-radius:12px;border:1px solid var(--dp-line);background:#000"></video><div class="sub" style="margin:4px 0 0">Kontrol: ust bant sonuna kadar duruyor mu, etiketler dogru mu, ses temiz mi?</div>' : '') + '</div></div>';
-  // 4 Yayin
-  h += '<div class="dp-card dp-step ' + (done ? 'done' : (rend ? 'act' : 'lock')) + '"><div class="dp-num">4</div><div class="dp-body"><h3>YouTube</h3>' +
-    (done ? '<div>Yayinda: <a href="' + esc(d.link || '#') + '" target="_blank" style="color:#7db4ff">' + esc(d.link || '') + '</a></div><div class="sub" style="margin:4px 0 0">24 saat olcumu: yayin saatinden bir gun sonra.</div>'
-      : '<div class="dp-row"><button class="dp-btn go" ' + (rend && ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpPublish(&#39;' + d.id + '&#39;)">Herkese acik yayinla</button><span class="sub" style="margin:0">Etiketler ve Turkce CC otomatik. Yayin saati: ~18:00.</span></div>' +
-        (d.status === 'taslak' ? '<div class="dp-row" style="margin-top:6px"><button class="dp-btn" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRenderPublish(&#39;' + d.id + '&#39;)">Render + yayinla (tek adim)</button></div>' : '')) + '</div></div>';
-  // 5 TikTok / Reels
+  h += dpStep(d, 3, 'Render ve izle', st[3], rend ? 'hazır' : (ok ? 'bekliyor' : 'önce onay'),
+    '<div class="dp-row">' + (done ? '' : '<button class="dp-btn pri" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRender(&#39;' + d.id + '&#39;)">' + (d.status === 'render edildi' ? 'Yeniden render et' : 'Sadece render et') + '</button>') + '<span class="sub" id="dp_rmsg" style="margin:0">' + (rend ? 'Render hazır.' : 'Gerçek Aura sesiyle 1–3 dk sürer.') + '</span></div>' +
+    (rend && info.video ? '<video controls playsinline preload="metadata" src="/download/' + encodeURIComponent(info.video) + '" style="margin-top:10px;max-height:52vh;border-radius:12px;border:1px solid var(--dp-line);background:#000"></video><div class="sub" style="margin:4px 0 0">Kontrol et: ilk karede yüz görünüyor mu, üst bant sonuna kadar duruyor mu, oy kartı sonda çıkıyor mu, ses temiz mi?</div>' : ''), (ok && !rend) || (rend && !done));
+  // 4 YouTube
+  h += dpStep(d, 4, 'YouTube', st[4], done ? '✓ yayında' : (rend ? 'yayına hazır' : 'önce render'),
+    done ? '<div>Yayında: <a href="' + esc(d.link || '#') + '" target="_blank" style="color:#7db4ff">' + esc(d.link || '') + '</a></div><div class="sub" style="margin:4px 0 0">24 saat ölçümü için Ölçüm sekmesine bak.</div>'
+      : '<div class="dp-row"><button class="dp-btn go" ' + (rend && ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpPublish(&#39;' + d.id + '&#39;)">Herkese açık yayınla</button><span class="sub" style="margin:0">Etiketler ve Türkçe altyazı otomatik. Hedef saat ~18:00.</span></div>' +
+        (d.status === 'taslak' ? '<div class="dp-row" style="margin-top:6px"><button class="dp-btn" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRenderPublish(&#39;' + d.id + '&#39;)">Render + yayınla (tek adım, izlemeden)</button></div>' : ''), rend && !done);
+  // 5 TikTok
   const path = (info.path || '');
-  h += '<div class="dp-card dp-step ' + (done ? 'act' : 'lock') + '"><div class="dp-num">5</div><div class="dp-body"><h3>TikTok ve Instagram Reels</h3>' +
-    '<div class="sub" style="margin:0 0 4px">Dosya</div><div class="dp-code" id="dp_c1">' + esc(path) + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c1&#39;,this)">Kopyala</button></div>' +
-    '<div class="sub" style="margin:0 0 4px">Aciklama</div><div class="dp-code" id="dp_c2">' + esc(d.tiktok_description || DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
-    '<div class="sub" style="margin:0 0 4px">Sabit yorum</div><div class="dp-code" id="dp_c3">' + esc(dpPinned(d)) + '</div><div class="dp-row" style="margin:4px 0"><button class="dp-btn" onclick="dpCopy(&#39;dp_c3&#39;,this)">Kopyala</button></div>' +
-    '<div class="sub" style="margin:6px 0 0">AI-generated etiketi acik olsun. Ilk saatte her yoruma cevap ver. Takip/canli yayin gibi yapay etkilesim yapma.</div></div></div>';
+  h += dpStep(d, 5, 'TikTok ve Instagram Reels', st[5], done ? 'yükleme sende' : 'önce YouTube',
+    '<div class="sub" style="margin:0 0 4px">1) Dosya</div><div class="dp-code" id="dp_c1">' + esc(path) + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c1&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:0 0 4px">2) Açıklama</div><div class="dp-code" id="dp_c2">' + esc(d.tiktok_description || DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:0 0 4px">3) Sabit yorum</div><div class="dp-code" id="dp_c3">' + esc(dpPinned(d)) + '</div><div class="dp-row" style="margin:4px 0"><button class="dp-btn" onclick="dpCopy(&#39;dp_c3&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:6px 0 0">“AI ile üretildi” etiketini aç. İlk saatte gelen her yoruma cevap ver. Takip ya da canlı yayın gibi yapay etkileşim yapma.</div>', done);
   const keepTxt = (document.getElementById('dpa_in') || {}).value || '';
   h += dpChatHtml(d);
   box.innerHTML = h;
@@ -1906,14 +1934,14 @@ function dpDraw(){
   if(done && !d.tiktok_description && !DP.pack[d.id] && info.video){ fetch('/api/tiktok_pack?video=' + encodeURIComponent(info.video)).then(r => r.json()).then(j => { if(j.ok && j.description){ DP.pack[d.id] = j.description; const el = document.getElementById('dp_c2'); if(el) el.textContent = j.description; } }).catch(() => {}); }
 }
 function dpChatHtml(d){
-  return '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><h3 style="margin:0;font-size:15px">Studio Asistani <span class="dp-pill y" id="dpa_state">hazir</span></h3><div class="dp-row"><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaCancel()">Durdur</button><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaReset()">Sohbeti temizle</button></div></div>' +
-    '<div class="sub" style="margin:2px 0 0">Claude Code gibi: veriye bakar, web aramasi yapar, taslak yazar, dosya duzenler. Yayin/render/yorum gonderme yapamaz (onu sen yaparsin). Ana Panel Aura sohbetinden AYRI.</div>' +
+  return '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><h3 style="margin:0;font-size:15px">Stüdyo Asistanı <span class="dp-pill y" id="dpa_state">hazır</span></h3><div class="dp-row"><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaCancel()">Durdur</button><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaReset()">Sohbeti temizle</button></div></div>' +
+    '<div class="sub" style="margin:2px 0 0">Claude Code gibi: veriye bakar, web araması yapar, taslak yazar, dosya düzenler. Yayın, render ve yorum gönderme yapamaz (onu sen yaparsın). Ana Panel’deki Aura sohbetinden ayrıdır.</div>' +
     '<div id="dpa_pin" style="display:none;margin:6px 0"><span class="sub">PIN gerekli (Kod sekmesindeki 8 haneli kod):</span> <input id="dpa_pin_in" type="password" style="width:120px"> <button class="dp-btn" onclick="dpaSavePin()">Kaydet</button></div>' +
     '<div class="dp-chat" id="dpa_log" style="max-height:420px"></div>' +
     '<div id="dpa_img" class="sub" style="display:none;margin:0 0 4px"></div>' +
-    '<textarea id="dpa_in" rows="3" placeholder="Orn: yarin icin Petra paketi hazirla / bu ekran goruntusunu analiz et (Ctrl+V ile yapistir) / son 7 gunu yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
-    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="scan">Konsey: TUM SISTEM TARAMASI (gorselli)</option><option value="system">Konsey: SISTEM ANALIZI (sistemimiz)</option><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kirmizi takim (secili taslak)</option><option value="react">Konsey: trend (kaynakli)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey&#39;e sor</button></div><div id="dpc_out"></div>' +
-    '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gonder</button><label class="dp-btn" style="cursor:pointer">&#128247; Gorsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> secili taslagi baglam ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
+    '<textarea id="dpa_in" rows="3" placeholder="Örn: yarın için Petra paketi hazırla / bu ekran görüntüsünü analiz et (Ctrl+V ile yapıştır) / son 7 günü yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
+    '<div class="dp-row" style="margin-top:6px"><select id="dpc_mode" class="dp-btn" style="padding:8px"><option value="scan">Konsey: TÜM SİSTEM TARAMASI (görselli)</option><option value="system">Konsey: SİSTEM ANALİZİ</option><option value="ideas">Konsey: fikir</option><option value="redteam">Konsey: kırmızı takım (seçili taslak)</option><option value="react">Konsey: trend (kaynaklı)</option></select><button class="dp-btn" id="dpc_btn" onclick="dpcAsk()">&#129504; Konsey’e sor</button></div><div id="dpc_out"></div>' +
+    '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gönder</button><label class="dp-btn" style="cursor:pointer">&#128247; Görsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> seçili taslağı bağlama ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
 }
 // ---- Studio Asistani (Uretim sekmesi icinde; ayni ajan, ayni konusma) ----
 let DPA = {last: 0, run: false, needpin: false, img: null, init: false, shown: 0};
@@ -1936,7 +1964,7 @@ async function dpaTick(){
     if(!j.ok){ const m = document.getElementById('dpa_msg'); if(m) m.textContent = j.error || ''; if(j.pin){ DPA.needpin = true; const pb = document.getElementById('dpa_pin'); if(pb) pb.style.display = 'block'; } return; }
     j.events.forEach(dpaAdd);
     DPA.last = Math.max(DPA.last, j.last || 0); DPA.run = j.running;
-    const st = document.getElementById('dpa_state'); if(st){ st.textContent = j.running ? 'calisiyor...' : 'hazir'; st.className = 'dp-pill ' + (j.running ? 'r' : 'y'); }
+    const st = document.getElementById('dpa_state'); if(st){ st.textContent = j.running ? 'çalışıyor...' : 'hazır'; st.className = 'dp-pill ' + (j.running ? 'r' : 'y'); }
     const sb = document.getElementById('dpa_send'); if(sb) sb.disabled = j.running;
     if(j.events.some(e => e.t === 'result' && String(e.txt).indexOf('TASLAK KAYDEDILDI') >= 0)) dpLoad();
   } catch(e) {}
@@ -1976,15 +2004,15 @@ function dpaSavePin(){
 }
 async function dpScan(btn){
   const out = document.getElementById('dp_scanout'); btn.disabled = true;
-  out.innerHTML = '<div class="dp-card sub">Sistem taraniyor (videolar, ses, ilk kareler)... 10-30 sn</div>';
+  out.innerHTML = '<div class="dp-card sub">Sistem taranıyor (videolar, ses, ilk kareler)… 10–30 sn</div>';
   try {
     const j = await (await fetch('/api/scan?force=1')).json();
-    if(!j.ok){ out.innerHTML = '<div class="dp-card" style="color:#f85149">Tarama hatasi: ' + esc(j.error || '') + '</div>'; btn.disabled = false; return; }
-    const names = {kanca: 'Kanca (ilk cumle)', ses: 'Ses', ilk_gorsel: 'Ilk gorsel', etkilesim: 'Etkilesim'};
-    out.innerHTML = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><b style="font-size:16px">Sistem taramasi</b><span class="sub" style="margin:0">' + j.n_videos + ' video &middot; ' + esc(j.stamp) + '</span></div>' +
+    if(!j.ok){ out.innerHTML = '<div class="dp-card" style="color:#f85149">Tarama hatası: ' + esc(j.error || '') + '</div>'; btn.disabled = false; return; }
+    const names = {kanca: 'Kanca (ilk cümle)', ses: 'Ses', ilk_gorsel: 'İlk görsel', etkilesim: 'Etkileşim'};
+    out.innerHTML = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><b style="font-size:16px">Sistem taraması</b><span class="sub" style="margin:0">' + j.n_videos + ' video &middot; ' + esc(j.stamp) + '</span></div>' +
       '<div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:10px">' + Object.keys(j.dims).map(k => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(names[k] || k) + '</b>' + j.dims[k].findings.map(f => '<div class="sub" style="margin:6px 0 0">' + esc(f) + '</div>').join('') + '</div>').join('') + '</div>' +
-      (j.sheet_b64 ? '<div style="margin-top:10px"><div class="sub" style="margin:0 0 4px">Son videolarin ilk kareleri (konsey bunu gorerek analiz eder)</div><img style="max-width:100%;border-radius:10px;border:1px solid var(--dp-line)" src="data:image/jpeg;base64,' + j.sheet_b64 + '"></div>' : '') +
-      '<div class="dp-row" style="margin-top:10px"><button class="dp-btn pri" onclick="dpScanCouncil()">&#129504; Konseye analiz ettir (gorselli)</button><span class="sub" style="margin:0">Kanca, ses, ilk gorsel, etkilesim, konu ve arayuz icin ayri karar ve TEK degisiklik ister.</span></div></div>';
+      (j.sheet_b64 ? '<div style="margin-top:10px"><div class="sub" style="margin:0 0 4px">Son videoların ilk kareleri (konsey bunu görerek analiz eder)</div><img style="max-width:100%;border-radius:10px;border:1px solid var(--dp-line)" src="data:image/jpeg;base64,' + j.sheet_b64 + '"></div>' : '') +
+      '<div class="dp-row" style="margin-top:10px"><button class="dp-btn pri" onclick="dpScanCouncil()">&#129504; Konseye analiz ettir (görselli)</button><span class="sub" style="margin:0">Kanca, ses, ilk görsel, etkileşim, konu ve arayüz için ayrı karar ve TEK değişiklik ister.</span></div></div>';
   } catch(e) { out.innerHTML = '<div class="dp-card" style="color:#f85149">Hata: ' + esc(String(e)) + '</div>'; }
   btn.disabled = false;
 }
@@ -1997,21 +2025,21 @@ let DPC = null;
 function dpcSynth(){
   if(!DPC) return;
   const NL = String.fromCharCode(10);
-  const txt = 'KONSEY (' + DPC.mode + ') 5 yapay zekanin gorusleri asagida. Gorevin: (1) ortak noktalar ve ayrisan noktalar, (2) onerilerin hangisi sert kurallarimiza AYKIRI ya da kanitsiz (isaretle), (3) get_data ile gercek sayilarla uyusmayan iddia var mi, (4) uygulanabilir ilk 3 madde ve nasil olculecek. Sonra note araciyla 3-4 cumlelik ozeti CLAUDE.md gunlugune kaydet.' + NL + NL + DPC.answers.map(a => '[' + a.name + '] ' + (a.text || ('(yanit yok: ' + a.error + ')'))).join(NL + NL);
+  const txt = 'KONSEY (' + DPC.mode + ') 5 yapay zekanin gorusleri asagida. Gorevin: (1) ortak noktalar ve ayrisan noktalar, (2) onerilerin hangisi sert kurallarimiza AYKIRI ya da kanitsiz (isaretle), (3) get_data ile gercek sayilarla uyusmayan iddia var mi, (4) uygulanabilir ilk 3 madde ve nasil olculecek. Sonra note araciyla 3-4 cumlelik ozeti CLAUDE.md gunlugune kaydet.' + NL + NL + DPC.answers.map(a => '[' + a.name + '] ' + (a.text || ('(yanıt yok: ' + a.error + ')'))).join(NL + NL);
   document.getElementById('dpa_in').value = txt;
   dpaSend();
 }
 async function dpcAsk(){
   const mode = document.getElementById('dpc_mode').value, q = (document.getElementById('dpa_in').value || '').trim(), d = dpCur();
-  if(mode === 'redteam' && !d){ alert('Kirmizi takim icin once bir taslak sec.'); return; }
+  if(mode === 'redteam' && !d){ alert('Kırmızı takım için önce bir taslak seç.'); return; }
   const out = document.getElementById('dpc_out'), btn = document.getElementById('dpc_btn');
-  btn.disabled = true; out.innerHTML = '<div class="sub">Konsey calisiyor (5 yapay zeka paralel, ~30-60 sn)...</div>';
+  btn.disabled = true; out.innerHTML = '<div class="sub">Konsey çalışıyor (yapay zekâlar paralel, ~30–60 sn)…</div>';
   const j = await codeApi('/api/council', {mode: mode, question: q, draft_id: d ? d.id : ''});
   btn.disabled = false;
   if(!j.ok){ out.innerHTML = '<div class="sub" style="color:#f85149">' + esc(j.error || 'hata') + '</div>'; return; }
   const col = {OK: 'y', FIX: 'r', BLOCK: 'r'};
   DPC = {mode: mode, q: q, answers: j.answers};
-  out.innerHTML = '<div class="dp-row" style="margin-bottom:8px"><button class="dp-btn pri" onclick="dpcSynth()">Asistan ozetlesin + CLAUDE.md&#39;ye kaydetsin</button><span class="sub" style="margin:0">Cevaplari birlestirip ortak/ayrisan noktalari cikarir, gercek veriyle karsilastirir.</span></div><div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + j.answers.map(a => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(a.name) + '</b>' + (a.verdict ? ' <span class="dp-pill ' + (col[a.verdict] || 't') + '">' + a.verdict + '</span>' : '') + '<span class="sub" style="margin-left:6px">' + (a.ms / 1000).toFixed(1) + ' sn</span><div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px">' + (a.error ? '<span style="color:#f85149">yanit yok: ' + esc(a.error) + '</span>' : esc(a.text)) + '</div></div>').join('') + '</div>' +
+  out.innerHTML = '<div class="dp-row" style="margin-bottom:8px"><button class="dp-btn pri" onclick="dpcSynth()">Asistan özetlesin ve CLAUDE.md’ye kaydetsin</button><span class="sub" style="margin:0">Cevapları birleştirir, ortak ve ayrışan noktaları çıkarır, gerçek veriyle karşılaştırır.</span></div><div class="dp-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + j.answers.map(a => '<div class="dp-card" style="padding:10px 12px"><b>' + esc(a.name) + '</b>' + (a.verdict ? ' <span class="dp-pill ' + (col[a.verdict] || 't') + '">' + a.verdict + '</span>' : '') + '<span class="sub" style="margin-left:6px">' + (a.ms / 1000).toFixed(1) + ' sn</span><div style="white-space:pre-wrap;font-size:12.5px;margin-top:6px">' + (a.error ? '<span style="color:#f85149">yanıt yok: ' + esc(a.error) + '</span>' : esc(a.text)) + '</div></div>').join('') + '</div>' +
     (j.sources && j.sources.length ? '<div class="sub" style="margin-top:6px">Kaynaklar: ' + j.sources.map(x => '<a href="' + esc(x.uri) + '" target="_blank" style="color:#7db4ff">' + esc(x.title || x.uri).slice(0, 40) + '</a>').join(' &middot; ') + '</div>' : '') + '<div class="sub" style="margin-top:6px">' + esc(j.note) + '</div>';
 }
 async function dpaCancel(){ await codeApi('/api/agent/cancel', {}); }
@@ -2092,15 +2120,15 @@ async function msLoad(force){
 }
 function msDraw(){
   const j = MS; if(!j) return;
-  document.getElementById('ms_stamp').textContent = 'guncellendi ' + j.stamp + (j.analytics ? '' : ' - ort. izlenme % YOK (Analytics yetkisi)') + (j.errors.length ? ' | ' + j.errors.join(' | ') : '');
+  document.getElementById('ms_stamp').textContent = 'güncellendi ' + j.stamp + (j.analytics ? '' : ' · ort. izlenme % yok (Analytics yetkisi)') + (j.errors.length ? ' | ' + j.errors.join(' | ') : '');
   const kp = (l, v, sub) => '<div class="ms-kpi"><div class="v">' + v + '</div><div class="l">' + l + (sub ? ' &middot; ' + sub : '') + '</div></div>';
-  document.getElementById('ms_kpis').innerHTML = kp('YouTube abone', j.subs) + kp('Toplam izlenme', j.total_views) + kp('Son 7 gun', j.week_views === null ? '-' : ('+' + j.week_views)) + kp('Kanal medyani', j.median_views, 'video basina');
+  document.getElementById('ms_kpis').innerHTML = kp('YouTube abone', j.subs) + kp('Toplam izlenme', j.total_views) + kp('Son 7 gün', j.week_views === null ? '-' : ('+' + j.week_views)) + kp('Kanal medyanı', j.median_views, 'video başına');
   const due = j.rows.filter(r => r.due24);
-  document.getElementById('ms_due').innerHTML = due.length ? '<div class="dp-card" style="border-color:#5a45c9"><b>24 saat olcumu zamani:</b> ' + due.map(r => esc(r.title) + ' (' + r.age_h + ' sa, ' + r.views + ' izlenme' + (r.avg_pct !== null ? ', %' + r.avg_pct : '') + ')').join(' &middot; ') + '</div>' : '';
+  document.getElementById('ms_due').innerHTML = due.length ? '<div class="dp-card" style="border-color:#5a45c9"><b>24 saat ölçümü zamanı:</b> ' + due.map(r => esc(r.title) + ' (' + r.age_h + ' sa, ' + r.views + ' izlenme' + (r.avg_pct !== null ? ', %' + r.avg_pct : '') + ')').join(' &middot; ') + '</div>' : '';
   document.getElementById('ms_groups').innerHTML = j.groups.map(g => '<div class="ms-kpi"><div class="v">' + g.median_views + '</div><div class="l"><b>' + esc(g.name) + '</b> medyan izlenme &middot; n=' + g.n + ' &middot; tutma ' + (g.median_pct === null ? '-' : '%' + g.median_pct) + '</div><div class="l" style="margin-top:4px">en iyi: ' + esc(String(g.best).slice(0, 34)) + '</div></div>').join('');
   const mx = Math.max(1, ...j.rows.map(r => r.views));
-  document.getElementById('ms_table').innerHTML = '<tr><th>VIDEO</th><th>YAYIN</th><th>YAS</th><th>IZLENME</th><th>~24 SA</th><th>~48 SA</th><th>ORT. IZLENME %</th><th>BEGENI</th><th>YORUM</th><th>TIKTOK</th><th>vs MEDYAN</th></tr>' + j.rows.map(r =>
-    '<tr><td><b>' + esc(String(r.title).slice(0, 38)) + '</b> <span class="ms-chip ms-n">' + esc(r.series) + '</span>' + (r.due24 ? '<span class="ms-chip ms-due">24 sa olcumu</span>' : '') + '</td><td>' + r.published + '</td><td>' + (r.age_h >= 48 ? Math.round(r.age_h / 24) + ' g' : Math.round(r.age_h) + ' sa') + '</td><td>' + r.views + '<span class="ms-bar" style="width:' + Math.round(70 * r.views / mx) + 'px"></span></td><td>' + msN(r.v24) + '</td><td>' + msN(r.v48) + '</td><td>' + msPct(r.avg_pct) + '</td><td>' + r.likes + '</td><td>' + r.comments + '</td><td>' + (r.tt_views === null || r.tt_views === undefined ? '<span style="color:#5d6a89">-</span>' : r.tt_views + (r.tt_shares ? ' (' + r.tt_shares + ' pay.)' : '')) + '</td><td>' + (r.ratio === null ? '-' : '<span class="ms-chip ' + (r.ratio >= 2 ? 'ms-g' : (r.ratio >= 0.8 ? 'ms-y' : 'ms-r')) + '">x' + r.ratio + '</span>') + '</td></tr>').join('');
+  document.getElementById('ms_table').innerHTML = '<tr><th>VIDEO</th><th>YAYIN</th><th>YAŞ</th><th>İZLENME</th><th>~24 SA</th><th>~48 SA</th><th>ORT. İZLENME %</th><th>BEĞENİ</th><th>YORUM</th><th>TIKTOK</th><th>MEDYANA GÖRE</th></tr>' + j.rows.map(r =>
+    '<tr><td><b>' + esc(String(r.title).slice(0, 38)) + '</b> <span class="ms-chip ms-n">' + esc(r.series) + '</span>' + (r.due24 ? '<span class="ms-chip ms-due">24 sa ölçümü</span>' : '') + '</td><td>' + r.published + '</td><td>' + (r.age_h >= 48 ? Math.round(r.age_h / 24) + ' g' : Math.round(r.age_h) + ' sa') + '</td><td>' + r.views + '<span class="ms-bar" style="width:' + Math.round(70 * r.views / mx) + 'px"></span></td><td>' + msN(r.v24) + '</td><td>' + msN(r.v48) + '</td><td>' + msPct(r.avg_pct) + '</td><td>' + r.likes + '</td><td>' + r.comments + '</td><td>' + (r.tt_views === null || r.tt_views === undefined ? '<span style="color:#5d6a89">-</span>' : r.tt_views + (r.tt_shares ? ' (' + r.tt_shares + ' pay.)' : '')) + '</td><td>' + (r.ratio === null ? '-' : '<span class="ms-chip ' + (r.ratio >= 2 ? 'ms-g' : (r.ratio >= 0.8 ? 'ms-y' : 'ms-r')) + '">x' + r.ratio + '</span>') + '</td></tr>').join('');
 }
 setInterval(() => { const v = document.getElementById('view-measure'); if(v && v.classList.contains('active-view')) msLoad(); }, 300000);
 async function gmLoad(){
@@ -2506,6 +2534,7 @@ async function tdMake(btn){
   finally { btn.disabled = false; btn.textContent = old; }
 }
 tdLoad();
+dpLoad();
 setInterval(() => { const v = document.getElementById('view-today'); if(v && v.classList.contains('active-view')) tdLoad(true); }, 300000);
 
 // ---- UZUN VIDEO paneli (JS'te ters egik cizgi YOK) ----
@@ -4310,7 +4339,7 @@ def _agent_council(mode, question, draft_id=""):
     r = _council_run(mode, question, ctx)
     if not r.get("ok"):
         return "HATA: " + str(r.get("error"))
-    lines = [f"[{a['name']}{' ' + a['verdict'] if a.get('verdict') else ''}] " + (a["text"] if not a["error"] else "(yanit yok: " + a["error"] + ")") for a in r["answers"]]
+    lines = [f"[{a['name']}{' ' + a['verdict'] if a.get('verdict') else ''}] " + (a["text"] if not a["error"] else "(yanıt yok: " + a["error"] + ")") for a in r["answers"]]
     src = ("\nKAYNAKLAR:\n" + "\n".join(f"- {x['title']}: {x['uri']}" for x in r["sources"])) if r["sources"] else ""
     return "\n\n".join(lines) + src + "\n\n" + r["note"]
 
