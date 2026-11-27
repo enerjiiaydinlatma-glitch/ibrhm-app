@@ -3229,7 +3229,7 @@ def _daily_state():
     slug_of = lambda ttl: "aura_" + re.sub(r"[^a-z0-9]+", "", str(ttl).lower())[:24] + ".mp4"
     rows = growth.drafts_list()
     items = []
-    for d in rows[-12:][::-1]:
+    for d in rows[::-1]:                      # TUM taslaklar (growth en fazla 60 tutar); eskiden yalniz son 12 vardi -> eski taslakta video/dosya yolu bos kaliyordu
         v = d.get("video") or slug_of(d.get("title", ""))
         items.append({"id": d.get("id"), "title": d.get("title", ""), "status": d.get("status", ""), "video": v,
                       "path": os.path.join(OUTPUT_DIR, v), "exists": os.path.exists(os.path.join(OUTPUT_DIR, v)),

@@ -16,6 +16,11 @@ def get(path):
         r = urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=20); return r.status, r.read().decode()
     except urllib.error.HTTPError as e:
         return e.code, ""
+drafts[:] = [{"id": "old", "title": "Eski Bekleyen Taslak", "status": "taslak", "created": "2026-11-01"}] + [{"id": "n%d" % i, "title": "Yeni %d" % i, "status": "yayinlandi", "created": "2026-11-2%d" % (i % 10)} for i in range(20)]
+c, b = get("/api/daily"); j = json.loads(b or "null")
+ck("20+ taslakta ESKI bekleyen taslak da doner (video/dosya yolu icin; eskiden yalniz son 12)", c == 200 and any(x["id"] == "old" for x in j["items"]) and len(j["items"]) == 21, len(j["items"]))
+drafts[:] = [{"id": "a1", "title": "Inside Test: 2 Stops", "status": "taslak", "created": "2026-11-27 10:00"},
+          {"id": "b2", "title": "Yayinda Olan", "status": "yayinlandi", "video": "aura_yayindaolan.mp4", "link": "https://youtu.be/x", "created": "2026-11-26 10:00"}]
 c, b = get("/api/daily"); j = json.loads(b or "null")
 ck("HTTP GET /api/daily: 200 + ok", c == 200 and j and j.get("ok"), (c, b[:100]))
 ck("en yeni taslak ustte, slug dogru", j and j["items"][0]["title"] == "Yayinda Olan" and j["items"][1]["video"] == "aura_insidetest2stops.mp4", j and j["items"])
