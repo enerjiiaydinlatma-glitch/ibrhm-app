@@ -25,7 +25,7 @@ def duration(path):
 
 def audio_stats(path):
     """Ortalama/tepe ses seviyesi (dB), basta sessizlik (sn). Kanca icin: ilk sesin gecikmesi izleyiciyi kaybettirir."""
-    out = {"mean_db": None, "max_db": None, "lead_silence_s": None}
+    out = {"mean_db": None, "max_db": None, "lead_silence_s": None, "lufs": None}
     r = _run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "volumedetect,silencedetect=noise=-38dB:d=0.15", "-f", "null", "-"])
     t = r.stderr
     m1 = re.search(r"mean_volume:\s*(-?[\d.]+) dB", t)
@@ -34,6 +34,13 @@ def audio_stats(path):
         out["mean_db"] = float(m1.group(1))
     if m2:
         out["max_db"] = float(m2.group(1))
+    try:                                           # gercek algilanan yuksek ses (LUFS): sosyal medya icin hedef ~-14..-16
+        r2 = _run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"])
+        m3 = re.findall(r"Integrated loudness:\s*\n\s*I:\s*(-?[\d.]+) LUFS", r2.stderr)
+        if m3:
+            out["lufs"] = float(m3[-1])
+    except Exception:
+        pass
     # basta sessizlik: ilk silence_start ~0 ise onu izleyen silence_end
     starts = [float(x) for x in re.findall(r"silence_start:\s*(-?[\d.]+)", t)]
     ends = [float(x) for x in re.findall(r"silence_end:\s*(-?[\d.]+)", t)]
@@ -133,6 +140,9 @@ def voice_findings(stats):
     ls = [s["lead_silence_s"] for s in stats if s.get("lead_silence_s") is not None]
     if ls:
         out.append(f"Videonun basinda sessizlik: medyan {_med(ls)} sn, en uzun {max(ls)} sn" + (" -> ilk sesin gecikmesi kanca icin riskli" if max(ls) > 0.6 else ""))
+    lf = [s["lufs"] for s in stats if s.get("lufs") is not None]
+    if lf:
+        out.append(f"Algilanan ses yuksekligi (LUFS): medyan {_med(lf)}; sosyal medya icin tipik hedef -14..-16 (daha dusukse telefonda sessiz kalir)" + (" -> HEDEFIN ALTINDA" if _med(lf) < -18 else ""))
     md = [s["mean_db"] for s in stats if s.get("mean_db") is not None]
     if md:
         out.append(f"Ortalama ses seviyesi: medyan {_med(md)} dB (cok dusukse (<-24 dB) telefonda zayif duyulur)")
@@ -169,7 +179,7 @@ def build_report(videos, scripts, outcomes, workdir):
     shares = sum(o.get("tt_shares") or 0 for o in tot)
     dims = {
         "kanca": {"rows": [{k: r[k] for k in ("title", "first", "words", "views", "avg_pct")} for r in measured][:20], "findings": hook_findings(measured)},
-        "ses": {"rows": [{k: s.get(k) for k in ("title", "duration", "wps", "lead_silence_s", "mean_db", "max_db")} for s in vstats], "findings": voice_findings(vstats)},
+        "ses": {"rows": [{k: s.get(k) for k in ("title", "duration", "wps", "lead_silence_s", "mean_db", "max_db", "lufs")} for s in vstats], "findings": voice_findings(vstats)},
         "ilk_gorsel": {"rows": [{"title": s["title"], **(s.get("first_frame") or {})} for s in vstats], "findings": [
             "Ilk kare istatistikleri (parlaklik 0-255, kontrast, renk yayilimi). Kapak/ilk karenin gucunu YAPAY ZEKA GORSEL analizi (konsey) degerlendirir; sayilar tek basina karar vermez."]},
         "etkilesim": {"findings": [f"Toplam (taranan videolar): {views} izlenme, {likes} begeni, {comments} yorum, TikTok paylasim {shares}.",

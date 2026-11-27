@@ -1101,7 +1101,8 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
         for s in segs:
             f.write("file '" + os.path.abspath(s).replace("\\", "/") + "'\n")
     p = subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-i", wav_path,
-                        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+                        "-map", "0:v", "-map", "1:a", "-c:v", "copy"] + (["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"] if spec.get("loudnorm", True) else []) +
+                       ["-c:a", "aac", "-b:a", "192k", "-ar", "44100",
                         "-ac", "2", "-shortest", out_path], capture_output=True, text=True, **_NOWIN)
     if p.returncode != 0:
         raise RuntimeError("ffmpeg birlestirme hatasi: " + p.stderr[-800:])
