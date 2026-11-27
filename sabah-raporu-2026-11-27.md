@@ -23,3 +23,9 @@ Neden otomatik yapılmadı: toplu güncelleme (bulk) aracı güvenlik politikas�
 - Tema yayınlama ("Garanti 1 yıl düzeltmeli kopya" temasını sen yayınla; canlı temada hâlâ "2 yıl" var).
 - Politika metinleri: `politika-guncel-iade-ve-kullanim.md` içeriğini Ayarlar → Politikalar'a elle yapıştır.
 - Apple Business: kuruluş adresi "Canan Sk." yazıyor, doğru adresle güncelle.
+
+## Ek (devam)
+- 3 makaleye daha ürün kutusu eklendi: LED şerit kaç metre bağlanır (Horoz trafolar), LED trafosu kaç volt (Horoz trafolar), LED ampül kaç watt (9W/20W/30W ampul). Canlı sayfa ile karşılaştırıldı.
+- Ampül makalesinde kontrol listesindeki "Garanti süresi en az 2 yıl mı?" maddesi "Garanti belgesi ve fatura var mı?" yapıldı (mağaza garantisi 1 yıl).
+- Trafo makalesinde "Gücu" yazım hatası "Gücü" olarak düzeldi.
+- Henüz kutu eklenmeyen, trafiği olan makaleler: LED projektör kaç watt (68 oturum), oturma odası kaç lümen (62), gizli LED aydınlatma (39), salon avize seçimi (39).
