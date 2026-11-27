@@ -54,8 +54,9 @@ def build_plan(nf, tl, cards, emos, spec):
     cold = int(float(spec.get("cold_open", 0) or 0) * fps)      # ilk karede yakin plan yuz (kaydirmayi durdurmak icin)
     skip = int(float(spec.get("intro_skip", 0) or 0) * fps)   # yuruyusun basini atla: video robot zaten yakindayken acilir
     skip = min(skip, CLIP_N["intro"] - 30)
+    cold_clip = "idle_M" if str(spec.get("cold_shot", "C")).upper() == "M" else "idle_C"   # M = yakin plan (yuz+govde kadrajı doldurur) - ilk kare cesitliligi
     for f in range(min(cold, nf)):
-        plan[f] = "idle_C"
+        plan[f] = cold_clip
     if want_intro:
         for f in range(cold, min(cold + CLIP_N["intro"] - skip, nf)):
             plan[f] = "intro"

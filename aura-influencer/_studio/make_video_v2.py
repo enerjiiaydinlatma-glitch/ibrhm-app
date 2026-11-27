@@ -816,6 +816,7 @@ class _State:
         self.hook = ctx.get("hook") or None
         self.chapters = {int(k): str(v)[:40] for k, v in (ctx.get("chapters") or {}).items()}
         self.pill_font = _font(44)
+        self.vote = ctx.get("vote") or None
         self.poses = {int(k): v for k, v in (ctx.get("poses") or {}).items()}
 
 
@@ -961,6 +962,10 @@ def _render_one(st, fi):
             lw = ld.textlength(lab, font=fl)
             ld.text(((W - lw) / 2, 60 + size + 40), lab, font=fl, fill=HILITE + (int(255 * a),), stroke_width=4, stroke_fill=(18, 8, 34, int(255 * a)))
         frame.paste(layer, (0, int(hk.get("y", 190))), layer)
+    if st.vote:                                         # ekran ici A/B oy karti (son ~7 sn): "yorumda A ya da B yaz" - dusuk surtunmeli etkilesim istegi
+        v0 = st.dur - float(st.vote.get("secs", 7.0))
+        if t >= v0:
+            _vote_banner(frame, st.vote, min((t - v0) / 0.25, 1.0), st.pill_font)
     if st.hook and st.hook.get("persist") and t >= float(st.hook.get("secs", 2.0)):
         # kanca rakami videonun SONUNA kadar kucuk bant olarak kalir (8 MILYARDA 1 ornegi)
         hk = st.hook
@@ -981,6 +986,30 @@ def _render_one(st, fi):
         sw = d.textlength(st.series, font=st.series_font)
         d.text((W - 60 - sw, 160), st.series, font=st.series_font, fill=HILITE, stroke_width=3, stroke_fill=(18, 8, 34))
     return frame.tobytes()
+
+
+def _vote_banner(frame, vote, a, font):
+    """Alt-orta panel: ustte CTA, altta iki secenek (A / B). Yazilar kisa tutulur (<=18 karakter)."""
+    y0 = 960
+    layer = Image.new("RGBA", (W, 260), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([60, 0, W - 60, 250], radius=40, fill=(8, 5, 20, int(185 * a)), outline=ACCENT + (int(170 * a),), width=3)
+    cta = str(vote.get("cta", "COMMENT  A  OR  B"))[:30]
+    cw = ld.textlength(cta, font=font)
+    ld.text(((W - cw) / 2, 14), cta, font=font, fill=(255, 255, 255, int(255 * a)), stroke_width=3, stroke_fill=(18, 8, 34, int(255 * a)))
+    chip_f = _font(40)
+    big_f = _font(70)
+    for k, (key, col) in enumerate((("a", ACCENT), ("b", (90, 200, 250)))):
+        x0 = 100 + k * ((W - 200) // 2 + 10)
+        x1 = x0 + (W - 200) // 2 - 10
+        ld.rounded_rectangle([x0, 100, x1, 230], radius=26, fill=(20, 14, 44, int(230 * a)), outline=tuple(col) + (int(255 * a),), width=3)
+        ld.ellipse([x0 + 14, 120, x0 + 104, 210], fill=tuple(col) + (int(255 * a),))
+        L = "AB"[k]
+        lw = ld.textlength(L, font=big_f)
+        ld.text((x0 + 59 - lw / 2, 118), L, font=big_f, fill=(10, 5, 25, int(255 * a)))
+        lab = str(vote.get(key, ""))[:18]
+        ld.text((x0 + 122, 148), lab, font=chip_f, fill=(255, 255, 255, int(255 * a)), stroke_width=2, stroke_fill=(18, 8, 34, int(255 * a)))
+    frame.paste(layer, (0, y0), layer)
 
 
 def _pill(frame, txt, y, font, a, edge):
@@ -1062,9 +1091,9 @@ def make_video_v2(audio_path, out_path, script_text, spec=None, work_dir=None, s
            "tag": spec.get("tag", "AURA  -  AN AI"), "cards": {str(k): v for k, v in cards_spec.items()},
            "emos": emos, "parts": parts, "face": face, "nf": n_frames,
            "series": str(spec.get("series") or "")[:48], "hook": spec.get("hook") or None,
-           "chapters": {str(k): v for k, v in (spec.get("chapters") or {}).items()},
+           "chapters": {str(k): v for k, v in (spec.get("chapters") or {}).items()}, "vote": spec.get("vote") or None,
            "spec3d": {"set": set3d, "intro": spec.get("intro", True), "gestures": spec.get("gestures") or {}, "point": spec.get("point", True), "auto_gestures": spec.get("auto_gestures", True),
-                      "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cold_open": spec.get("cold_open", 0), "intro_skip": spec.get("intro_skip", 0), "cutaway_sets": spec.get("cutaway_sets") or []},
+                      "shots": spec.get("shots") or {}, "autocut": bool(spec.get("autocut")), "cold_open": spec.get("cold_open", 0), "cold_shot": spec.get("cold_shot", "C"), "intro_skip": spec.get("intro_skip", 0), "cutaway_sets": spec.get("cutaway_sets") or []},
            "poses": {str(k): v for k, v in (spec.get("poses") or {}).items()}}
 
     workers = workers or min(os.cpu_count() or 1, 6)
