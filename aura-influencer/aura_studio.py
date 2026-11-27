@@ -1831,7 +1831,7 @@ function draftHtml(d){
 
 // ================= URETIM sekmesi (2026-11-27) =================
 // NOT: PAGE normal Python string: JS'te ters egik cizgi YOK.
-let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: [], days: [], open: {}, openDef: {}};
+let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: [], days: [], open: {}, openDef: {}, chk: {}};
 function dpSplit(t){
   const out = []; let cur = ''; const s = String(t || '');
   for(let i = 0; i < s.length; i++){
@@ -1893,8 +1893,15 @@ function dpDraw(){
   if(!d){ box.innerHTML = dpChatHtml(null); dpaInit(); return; }
   const info = dpInfo(d);
   const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
-  const ok = !!DP.ok[d.id];
+  const chk = DP.chk[d.id] || {};
+  const ok = !!(chk.a && chk.b);
   const en = dpSplit(d.en_script), tr = dpSplit(d.tr_script || '');
+  const allTxt = String(d.en_script || '') + ' ' + String(d.description || '');
+  const footOk = /not real footage|3D rebuild/i.test(allTxt);
+  const lowEn = String(d.en_script || '').toLowerCase(), AP = String.fromCharCode(39);
+  const promTerms = ['i will', 'i' + AP + 'll', 'every day', 'every week', 'every month', 'always', 'i promise', 'guarantee'];
+  const promHit = promTerms.find(t => (' ' + lowEn.replace(/[^a-z0-9 ]/g, ' ') + ' ').indexOf(' ' + t.replace(AP, ' ') + ' ') >= 0 || lowEn.indexOf(t) >= 0);
+  const promMatch = promHit ? [promHit] : null;
   const st = {1: (ok || rend) ? 'done' : 'act', 2: (ok || rend) ? 'done' : 'act', 3: rend ? 'done' : (ok ? 'act' : 'lock'), 4: done ? 'done' : (rend ? 'act' : 'lock'), 5: done ? 'act' : 'lock'};
   const names = ['Metin', 'Onay', 'Render', 'YouTube', 'TikTok'];
   const cur = [1, 2, 3, 4, 5].find(i => st[i] === 'act') || 5;
@@ -1907,9 +1914,13 @@ function dpDraw(){
   h += dpStep(d, 1, 'Metin ve Türkçe anlamı', st[1], en.length + ' cümle' + (ok || rend ? ' · onaylandı' : ''),
     '<div class="dp-sent"><div class="n"></div><div class="sub" style="margin:0">English (videoda)</div><div class="sub" style="margin:0">Türkçe anlamı</div>' + en.map((x, i) => '<div class="n">' + (i + 1) + '</div><div>' + esc(x) + '</div><div class="tr">' + esc(tr[i] || '') + '</div>').join('') + '</div>' +
     (en.length !== tr.length ? '<div class="sub" style="color:#f85149">Dikkat: EN ' + en.length + ' / TR ' + tr.length + ' cümle.</div>' : '') + (d.preflight ? '<div style="margin-top:8px">' + preHtml(d.preflight) + '</div>' : '') + (d.rationale ? '<div class="sub" style="margin-top:8px"><b>Neden bu konu:</b> ' + esc(String(d.rationale).slice(0, 400)) + '</div>' : ''), !(ok || rend));
-  // 2 Onay
-  h += dpStep(d, 2, 'Onay', st[2], ok || rend ? '✓ onaylandı' : 'onay bekliyor',
-    '<label class="dp-row" style="cursor:pointer;font-size:14px"><input type="checkbox" ' + (ok || rend ? 'checked ' : '') + (rend ? 'disabled ' : '') + 'onchange="dpOk(&#39;' + d.id + '&#39;,this.checked)"> <span>Türkçe anlamını okudum, metni onaylıyorum.</span></label><div class="sub" style="margin:6px 0 0">Onay verilmeden render ve yayın düğmeleri kapalı kalır.</div>', !(ok || rend));
+  // 2 Onay (yayin oncesi kontrol listesi)
+  h += dpStep(d, 2, 'Onay ve kontrol listesi', st[2], ok || rend ? '✓ onaylandı' : 'onay bekliyor',
+    '<label class="dp-row" style="cursor:pointer;font-size:14px;margin-bottom:6px"><input type="checkbox" ' + (ok || rend ? 'checked ' : (chk.a ? 'checked ' : '')) + (rend ? 'disabled ' : '') + 'onchange="dpChk(&#39;' + d.id + '&#39;,&#39;a&#39;,this.checked)"> <span>Türkçe anlamını okudum, metni onaylıyorum.</span></label>' +
+    '<label class="dp-row" style="cursor:pointer;font-size:14px;margin-bottom:8px"><input type="checkbox" ' + (ok || rend ? 'checked ' : (chk.b ? 'checked ' : '')) + (rend ? 'disabled ' : '') + 'onchange="dpChk(&#39;' + d.id + '&#39;,&#39;b&#39;,this.checked)"> <span>Videodaki her sayı ve iddianın kaynağı “Neden bu konu” notunda var.</span></label>' +
+    '<div class="sub" style="margin:0"><span style="color:' + (footOk ? '#3fb950' : '#f85149') + '">' + (footOk ? '✓' : '⚠') + '</span> ' + (footOk ? 'Yapay zekâ / “gerçek görüntü değil” ibaresi var (otomatik kontrol).' : 'Videoda ya da açıklamada “not real footage” ibaresi yok!') + '</div>' +
+    '<div class="sub" style="margin:2px 0 0"><span style="color:' + (promMatch ? '#f0c24b' : '#3fb950') + '">' + (promMatch ? '⚠' : '✓') + '</span> ' + (promMatch ? 'Gelecek davranış vaadi olabilir: “' + esc(promMatch[0]) + '”. Her seferinde tutabilecek misin? Tutamayacaksan çıkar.' : 'Gelecek davranış vaadi bulunmadı (otomatik kontrol).') + '</div>' +
+    '<div class="sub" style="margin:6px 0 0">İki kutu işaretlenmeden render ve yayın düğmeleri kapalı kalır.</div>', !(ok || rend));
   // 3 Render
   h += dpStep(d, 3, 'Render ve izle', st[3], rend ? 'hazır' : (ok ? 'bekliyor' : 'önce onay'),
     '<div class="dp-row">' + (done ? '' : '<button class="dp-btn pri" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRender(&#39;' + d.id + '&#39;)">' + (d.status === 'render edildi' ? 'Yeniden render et' : 'Sadece render et') + '</button>') + '<span class="sub" id="dp_rmsg" style="margin:0">' + (rend ? 'Render hazır.' : 'Gerçek Aura sesiyle 1–3 dk sürer.') + '</span></div>' +
@@ -2060,7 +2071,7 @@ async function dpDel(id){
   if(!confirm('Bu TASLAK silinecek (yayinlanmis video etkilenmez): ' + d.title)) return;
   await gmPost('/api/growth/draft_delete', {id: id}); DP.sel = null; dpLoad();
 }
-function dpOk(id, v){ DP.ok[id] = !!v; dpDraw(); }
+function dpChk(id, k, v){ DP.chk[id] = Object.assign({}, DP.chk[id] || {}, {[k]: !!v}); dpDraw(); }
 async function dpCopy(id, btn){
   const el = document.getElementById(id); if(!el) return;
   const ta = document.createElement('textarea'); ta.value = el.textContent; document.body.appendChild(ta); ta.select();
