@@ -971,7 +971,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="viewport">
 <div id="view-daily" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
 <div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; STUDIO</div><h1 class="dp-h1">Gunluk Uretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
-<div class="dp-row"><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
+<div class="dp-row"><button class="dp-btn pri" onclick="var a=document.getElementById(&#39;dpa_log&#39;);if(a){a.scrollIntoView({behavior:&#39;smooth&#39;,block:&#39;center&#39;});document.getElementById(&#39;dpa_in&#39;).focus();}">&#128172; Asistana sor</button><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
 <div class="dp-grid"><div class="dp-list" id="dp_list"></div><div class="dp-main" id="dp_main"></div></div>
 </div>
 <div id="view-today" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
@@ -1654,7 +1654,7 @@ function dpDraw(){
   }
   const d = dpCur();
   const box = document.getElementById('dp_main');
-  if(!d){ box.innerHTML = dpChatHtml(null); return; }
+  if(!d){ box.innerHTML = dpChatHtml(null); dpaInit(); return; }
   const info = dpInfo(d);
   const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
   const ok = !!DP.ok[d.id];
@@ -1681,16 +1681,86 @@ function dpDraw(){
     '<div class="sub" style="margin:0 0 4px">Aciklama</div><div class="dp-code" id="dp_c2">' + esc(DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
     '<div class="sub" style="margin:0 0 4px">Sabit yorum</div><div class="dp-code" id="dp_c3">' + esc(dpPinned(d)) + '</div><div class="dp-row" style="margin:4px 0"><button class="dp-btn" onclick="dpCopy(&#39;dp_c3&#39;,this)">Kopyala</button></div>' +
     '<div class="sub" style="margin:6px 0 0">AI-generated etiketi acik olsun. Ilk saatte her yoruma cevap ver. Takip/canli yayin gibi yapay etkilesim yapma.</div></div></div>';
+  const keepTxt = (document.getElementById('dpa_in') || {}).value || '';
   h += dpChatHtml(d);
   box.innerHTML = h;
+  dpaInit();
+  const kin = document.getElementById('dpa_in'); if(kin && keepTxt) kin.value = keepTxt;
   if(done && !DP.pack[d.id] && info.video){ fetch('/api/tiktok_pack?video=' + encodeURIComponent(info.video)).then(r => r.json()).then(j => { if(j.ok && j.description){ DP.pack[d.id] = j.description; const el = document.getElementById('dp_c2'); if(el) el.textContent = j.description; } }).catch(() => {}); }
 }
 function dpChatHtml(d){
-  const msgs = (DP.chat || []).filter(m => m.role === 'user' || m.role === 'assistant').slice(-6);
-  return '<div class="dp-card"><h3 style="margin:0 0 4px;font-size:15px">Karar ve konusma</h3><div class="sub" style="margin:0">Aura ile burada konus; paket iste, karar al, fikir sor. Ana Panel ile ayni sohbet.</div><div class="dp-chat" id="dp_chat">' +
-    msgs.map(m => '<div class="dp-msg ' + (m.role === 'user' ? 'u' : 'a') + '">' + esc(String(m.content || '').slice(0, 1200)) + '</div>').join('') + '</div>' +
-    '<textarea id="dp_in" rows="2" placeholder="Orn: Yarin icin hangi yer? / bu metni daha merak uyandirici yap" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
-    '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dp_send" onclick="dpSend()">Gonder</button>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dp_ctx"> secili taslagi baglam olarak ekle</label>' : '') + '<span class="sub" id="dp_cmsg" style="margin:0"></span></div></div>';
+  return '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><h3 style="margin:0;font-size:15px">Studio Asistani <span class="dp-pill y" id="dpa_state">hazir</span></h3><div class="dp-row"><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaCancel()">Durdur</button><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaReset()">Sohbeti temizle</button></div></div>' +
+    '<div class="sub" style="margin:2px 0 0">Claude Code gibi: veriye bakar, web aramasi yapar, taslak yazar, dosya duzenler. Yayin/render/yorum gonderme yapamaz (onu sen yaparsin). Ana Panel Aura sohbetinden AYRI.</div>' +
+    '<div id="dpa_pin" style="display:none;margin:6px 0"><span class="sub">PIN gerekli (Kod sekmesindeki 8 haneli kod):</span> <input id="dpa_pin_in" type="password" style="width:120px"> <button class="dp-btn" onclick="dpaSavePin()">Kaydet</button></div>' +
+    '<div class="dp-chat" id="dpa_log" style="max-height:420px"></div>' +
+    '<div id="dpa_img" class="sub" style="display:none;margin:0 0 4px"></div>' +
+    '<textarea id="dpa_in" rows="3" placeholder="Orn: yarin icin Petra paketi hazirla / bu ekran goruntusunu analiz et (Ctrl+V ile yapistir) / son 7 gunu yorumla" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
+    '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dpa_send" onclick="dpaSend()">Gonder</button><label class="dp-btn" style="cursor:pointer">&#128247; Gorsel<input type="file" accept="image/*" style="display:none" onchange="dpaImg(this.files[0]);this.value=&#39;&#39;"></label>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dpa_ctx"> secili taslagi baglam ekle</label>' : '') + '<span class="sub" id="dpa_msg" style="margin:0"></span></div></div>';
+}
+// ---- Studio Asistani (Uretim sekmesi icinde; ayni ajan, ayni konusma) ----
+let DPA = {last: 0, run: false, needpin: false, img: null, init: false, shown: 0};
+function dpaAdd(ev){
+  const log = document.getElementById('dpa_log'); if(!log) return;
+  const d = document.createElement('div');
+  if(ev.t === 'user'){ d.className = 'dp-msg u'; d.textContent = ev.txt + (ev.has_image ? ' [gorsel]' : ''); }
+  else if(ev.t === 'text'){ d.className = 'dp-msg a'; d.innerHTML = mdHtml(ev.txt); d.style.whiteSpace = 'normal'; }
+  else if(ev.t === 'tool'){ d.className = 'sub'; d.style.margin = '2px 0'; d.innerHTML = '&#128295; ' + esc(ev.txt); }
+  else if(ev.t === 'result'){ d.innerHTML = '<details><summary class="sub" style="cursor:pointer;margin:0;color:' + (ev.ok === false ? '#f85149' : '#8b98b4') + '">sonuc' + (ev.ok === false ? ' (HATA)' : '') + '</summary><pre style="white-space:pre-wrap;font-size:11px;margin:4px 0;max-height:200px;overflow:auto">' + esc(ev.txt) + '</pre></details>'; }
+  else if(ev.t === 'error'){ d.className = 'sub'; d.style.color = '#f85149'; d.textContent = 'Hata: ' + ev.txt; }
+  else return;
+  log.appendChild(d); log.scrollTop = log.scrollHeight;
+}
+async function dpaTick(){
+  if(!document.getElementById('view-daily').classList.contains('active-view')) return;
+  try {
+    if(DPA.needpin) return;
+    const j = await codeApi('/api/agent/poll?since=' + DPA.last, undefined, false, true);
+    if(!j.ok){ const m = document.getElementById('dpa_msg'); if(m) m.textContent = j.error || ''; if(j.pin){ DPA.needpin = true; const pb = document.getElementById('dpa_pin'); if(pb) pb.style.display = 'block'; } return; }
+    j.events.forEach(dpaAdd);
+    DPA.last = Math.max(DPA.last, j.last || 0); DPA.run = j.running;
+    const st = document.getElementById('dpa_state'); if(st){ st.textContent = j.running ? 'calisiyor...' : 'hazir'; st.className = 'dp-pill ' + (j.running ? 'r' : 'y'); }
+    const sb = document.getElementById('dpa_send'); if(sb) sb.disabled = j.running;
+    if(j.events.some(e => e.t === 'result' && String(e.txt).indexOf('TASLAK KAYDEDILDI') >= 0)) dpLoad();
+  } catch(e) {}
+}
+function dpaInit(){
+  DPA.last = 0; const log = document.getElementById('dpa_log'); if(log) log.textContent = '';
+  const inp = document.getElementById('dpa_in');
+  if(inp){
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); dpaSend(); } });
+    inp.addEventListener('paste', e => { const it = (e.clipboardData && e.clipboardData.items) || []; for(const x of it){ if(x.type && x.type.indexOf('image') === 0){ dpaImg(x.getAsFile()); e.preventDefault(); break; } } });
+  }
+  dpaTick();
+  if(!DPA.init){ DPA.init = true; setInterval(dpaTick, 1500); }
+}
+function dpaImg(f){
+  if(!f){ DPA.img = null; return; }
+  const rd = new FileReader();
+  rd.onload = () => { DPA.img = {b64: String(rd.result).split(',')[1], mime: f.type || 'image/png'}; const el = document.getElementById('dpa_img'); if(el){ el.style.display = 'block'; el.textContent = 'Gorsel eklendi - mesajla birlikte gidecek.'; } };
+  rd.readAsDataURL(f);
+}
+async function dpaSend(){
+  const inp = document.getElementById('dpa_in'); let text = (inp.value || '').trim();
+  if(!text || DPA.run) return;
+  const d = dpCur(), cx = document.getElementById('dpa_ctx');
+  if(d && cx && cx.checked) text = '[Secili taslak: "' + d.title + '" (' + d.status + ') id ' + d.id + ']' + String.fromCharCode(10) + text;
+  const body = {message: text};
+  if(DPA.img){ body.image = DPA.img.b64; body.mime = DPA.img.mime; }
+  const j = await codeApi('/api/agent/send', body);
+  if(!j.ok){ dpaAdd({t: 'error', txt: j.error || 'gonderilemedi'}); if(j.pin){ DPA.needpin = true; document.getElementById('dpa_pin').style.display = 'block'; } return; }
+  inp.value = ''; DPA.img = null; const el = document.getElementById('dpa_img'); if(el) el.style.display = 'none';
+  DPA.run = true; dpaTick();
+}
+function dpaSavePin(){
+  const v = document.getElementById('dpa_pin_in').value.trim(); if(!v) return;
+  try { localStorage.setItem('aura_code_pin', v); } catch(e) {}
+  document.getElementById('dpa_pin').style.display = 'none'; DPA.needpin = false; dpaTick();
+}
+async function dpaCancel(){ await codeApi('/api/agent/cancel', {}); }
+async function dpaReset(){
+  if(!confirm('Asistan sohbeti temizlensin mi? (dosya degisiklikleri geri alinmaz)')) return;
+  const j = await codeApi('/api/agent/reset', {});
+  if(j.ok){ DPA.last = 0; const log = document.getElementById('dpa_log'); if(log) log.textContent = ''; dpaTick(); } else alert(j.error);
 }
 async function dpTT(day){ await fetch('/api/day_status', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day: day, field: 'tiktok', value: true})}); dpLoad(); }
 async function dpDel(id){
@@ -3833,9 +3903,56 @@ def _agent_data():
 
 import agent as _agent  # noqa: E402  (Studio Asistani: panel ici Claude-benzeri ajan)
 
+def _agent_web_search(q):
+    try:
+        text, sources = _call_gemini_grounded(
+            q, "You are a fact-finding assistant for a YouTube Shorts channel. Answer concisely in English with specific facts, names, dates and numbers. "
+               "Use ONLY information found in search results; if sources conflict or you are unsure, say so. Never invent numbers.")
+    except Exception as e:
+        return f"HATA: web aramasi yapilamadi ({type(e).__name__}: {str(e)[:200]})"
+    srcs = "\n".join(f"- {x['title']}: {x['uri']}" for x in sources[:8]) or "(kaynak donmedi - icerigi DOGRULANMIS sayma)"
+    return text + "\n\nKAYNAKLAR:\n" + srcs
+
+
+def _agent_list_drafts():
+    import growth
+    rows = growth.drafts_list()[::-1][:15]
+    return "\n".join(f"{d.get('id')} | {d.get('status')} | {d.get('title')} | {d.get('created','')}" for d in rows) or "(taslak yok)"
+
+
+def _agent_create_draft(a):
+    import growth
+    title = str(a.get("title", "")).strip()
+    if any(d.get("title", "").strip().lower() == title.lower() for d in growth.drafts_list()):
+        return "OLUSTURULMADI: ayni baslikli taslak zaten var."
+    en, tr, desc = str(a["en_script"]).strip(), str(a["tr_script"]).strip(), str(a["description"]).strip()
+    existing = [d.get("title", "") for d in growth.drafts_list()]
+    pf = growth.preflight(title, en, tr, desc, existing)
+    spec = a.get("video_spec") if isinstance(a.get("video_spec"), dict) else None
+    row = growth.draft_add({"title": title, "en_script": en, "tr_script": tr, "description": desc, "tags": str(a.get("tags", "")),
+                            "rationale": str(a.get("rationale", ""))[:300], "preflight": pf, "format": "other", "video_spec": spec})
+    bad = [f"{c['label']}: {c.get('detail','')}" for c in pf.get("checks", []) if c.get("ok") is False]
+    return (f"TASLAK KAYDEDILDI (id {row['id']}, YAYINLANMADI). On kontrol {pf.get('score')}/{pf.get('of')}, tahmini {pf.get('est_seconds')} sn. "
+            + ("KIRMIZI: " + " | ".join(bad) if bad else "Kirmizi madde yok.") + " Uretim sekmesinde gorunur; operator onay + render + yayin yapar.")
+
+
+_NOTE_LOCK = threading.Lock()
+
+
+def _agent_note(text):
+    text = " ".join(str(text).split())[:1500]
+    if not text:
+        return "HATA: bos not."
+    with _NOTE_LOCK:
+        with open(CLAUDE_MD_PATH, "a", encoding="utf-8") as f:
+            f.write(f"\n- {time.strftime('%Y-%m-%d %H:%M')} [Studio Asistani] {text}\n")
+    return "CLAUDE.md gunlugune eklendi."
+
+
 _agent.configure(studio_dir=STUDIO_DIR, here=HERE, code_list=_code_list, code_read=_code_read, code_write=_code_write,
                  code_restore=_code_restore, code_check=_code_check, skip_dirs=_CODE_SKIP_DIRS, deny_names=_CODE_DENY_NAMES,
-                 data=_agent_data, api_key=lambda: ANTHROPIC_API_KEY, usage_add=_ai_usage_add)
+                 data=_agent_data, api_key=lambda: ANTHROPIC_API_KEY, usage_add=_ai_usage_add,
+                 web_search=_agent_web_search, list_drafts=_agent_list_drafts, create_draft=_agent_create_draft, note=_agent_note)
 
 
 class Handler(BaseHTTPRequestHandler):

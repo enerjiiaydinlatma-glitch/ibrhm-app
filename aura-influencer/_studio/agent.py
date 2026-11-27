@@ -63,8 +63,15 @@ def emit(kind, txt, **extra):
 SYSTEM = """Sen "Studio Asistani"sin: Aura Influencer Studio panelinin (aura_studio.py + _studio/*.py) icinde calisan, operatorle Turkce konusan bir yazilim ve buyume asistanisin.
 Operator seninle Claude Code ile konusur gibi konusur; sen dosyalari okur, aratir, DUZENLER, test calistirir ve kanal verisine bakarak yardim edersin.
 
-ARACLAR: list_files, read_file, search, edit_file, create_file, run_tests, get_data. Baska arac YOK: yayin, yorum gonderme, silme, TikTok, kabuk komutu sende yok
+ARACLAR: list_files, read_file, search, edit_file, create_file, run_tests, get_data, web_search, list_drafts, create_draft, note. Baska arac YOK: yayin, render, yorum gonderme, silme, TikTok, kabuk komutu sende yok
 (bunlar insan onayli panel dugmeleri). Yapamadigin bir seyi yaptigini ASLA soyleme; sadece araclarin gercekten dondurdugu sonuclari rapor et.
+
+VIDEO PAKETI URETME AKISI (operatorun KALICI kurali)
+1) Konuyu veriye dayandir (get_data: izlenme, tutma; TikTok aramalari operator soyler). 2) web_search ile olgulari KAYNAKLA dogrula; kaynak bulunmayan sayi/iddia paket'e girmez, "UNCLEAR/tartismali" de.
+3) create_draft ile taslak kaydet (on kontrolu OKU, kirmizi madde varsa duzelt). 4) Sohbette Ingilizce metni VE TURKCE ANLAMINI tablo halinde goster ve operator onayini BEKLE:
+   onay gelmeden "render et/yayinla" onerme; operator Uretim sekmesinde onay kutusunu isaretleyip dugmelere basar. 5) Yayinlandi/yuklendi dedigin hicbir sey olmadi: bunlari yalniz operator yapar.
+Icerik kurallari: kurgu gercek gibi sunulmaz ("not real footage"), uydurma olay/baslik YOK ("Stop #2 was a mistake" gibi), kazanç vaadi yok, gercek kisi benzerligi yok, korku/sahte aciliyet yok.
+Ekran goruntusu gelirse: hangi hesap/kanal oldugunu (AURA Ai kanal kimligi UClYXgzueuL..., TikTok @aura.ai) DOGRULA, yanlis kanal ise veriyi kullanma. Onemli olcum/karar sonuclarini note ile kaydet.
 
 CALISMA KURALLARI
 - Duzenlemeden once ilgili kismi read_file/search ile OKU. edit_file tam ve benzersiz eslesme ister; kucuk, hedefli degisiklik yap.
@@ -103,6 +110,18 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"quick": {"type": "boolean"}}}},
     {"name": "get_data", "description": "Kanalin GERCEK verisini oku: YouTube sayilari, tutma, format tablosu, TikTok (elle girilen). Salt okunur.",
      "input_schema": {"type": "object", "properties": {}}},
+    {"name": "web_search", "description": "Google aramasiyla (Gemini grounding) GUNCEL web bilgisi ve KAYNAK linkleri getirir. Haber, trend, tarihi/bilimsel olgu dogrulamak icin kullan. Donen kaynaksiz hicbir sayiyi/iddiayi pakete koyma.",
+     "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+    {"name": "list_drafts", "description": "Panelde kayitli taslaklari ve durumlarini listele (taslak / render edildi / yayinlandi).",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "create_draft", "description": "Yeni video paketini TASLAK olarak panele kaydet (Uretim sekmesinde gorunur). Otomatik on kontrol calisir ve sonucu doner. YAYINLAMAZ, render etmez. en_script ve tr_script ayni cumle sayisinda olmali (her TR cumle <=72 karakter); en_script'te Turkce karakter olmamali; baslik <=35 karakter.",
+     "input_schema": {"type": "object", "properties": {
+         "title": {"type": "string"}, "en_script": {"type": "string"}, "tr_script": {"type": "string"}, "description": {"type": "string"},
+         "tags": {"type": "string"}, "rationale": {"type": "string", "description": "Neden bu konu + kaynaklar (kisa)"},
+         "video_spec": {"type": "object", "description": "Aura Live gorunum ayari: style=live, face=scene3d, set, intro, intro_skip, autocut, series, tag, hook{big,label,pill,secs,persist,y}, chapters{cumle_idx:etiket}, cards{cumle_idx:{type,big,label,static}}, emotions{cumle_idx:duygu}"}},
+         "required": ["title", "en_script", "tr_script", "description"]}},
+    {"name": "note", "description": "CLAUDE.md gunlugune kisa bir kayit ekle (karar, olcum, ogrenilen). Sadece gercek, dogrulanmis bilgi yaz.",
+     "input_schema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}},
 ]
 
 
@@ -228,7 +247,30 @@ def t_get_data(_a):
     return _clip(D["data"](), 9000)
 
 
-TOOL_FUNCS = {"list_files": t_list_files, "read_file": t_read_file, "search": t_search, "edit_file": t_edit_file,
+def t_web_search(a):
+    q = str(a.get("query", "")).strip()
+    if not q:
+        return "HATA: query bos."
+    return D["web_search"](q)
+
+
+def t_list_drafts(_a):
+    return D["list_drafts"]()
+
+
+def t_create_draft(a):
+    need = [k for k in ("title", "en_script", "tr_script", "description") if not str(a.get(k, "")).strip()]
+    if need:
+        return "OLUSTURULMADI: eksik alan: " + ", ".join(need)
+    return D["create_draft"](a)
+
+
+def t_note(a):
+    return D["note"](str(a.get("text", "")))
+
+
+TOOL_FUNCS = {"web_search": t_web_search, "list_drafts": t_list_drafts, "create_draft": t_create_draft, "note": t_note,
+              "list_files": t_list_files, "read_file": t_read_file, "search": t_search, "edit_file": t_edit_file,
               "create_file": t_create_file, "run_tests": t_run_tests, "get_data": t_get_data}
 
 
@@ -252,6 +294,10 @@ def summarize_call(name, a):
         return str(a.get("path"))
     if name == "run_tests":
         return "quick" if a.get("quick", True) else "tam"
+    if name == "web_search":
+        return str(a.get("query", ""))[:80]
+    if name == "create_draft":
+        return str(a.get("title", ""))
     return ""
 
 
