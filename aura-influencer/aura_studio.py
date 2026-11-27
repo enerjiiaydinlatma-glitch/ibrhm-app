@@ -904,6 +904,44 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .view{display:none;flex:1;min-width:0}
  .view.active-view{display:flex}
  #view-insights>*,#view-comments>*,#view-code>*,#view-growth>*,#view-today>*{flex-shrink:0}
+
+ #view-daily>*{flex-shrink:0}
+ #view-daily{--dp-bg:#0b0f17;--dp-card:#121826;--dp-line:#26304a;--dp-acc:#8b6cff;--dp-acc2:#5ac8fa;--dp-ok:#3fb950;--dp-warn:#d29922;--dp-bad:#f85149;--dp-mut:#8b98b4}
+ .dp-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+ .dp-kicker{font-size:11px;letter-spacing:.18em;color:var(--dp-acc);font-weight:700}
+ .dp-h1{font-size:24px;margin:2px 0 0;background:linear-gradient(90deg,#fff,#b9a6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+ .dp-grid{display:grid;grid-template-columns:minmax(230px,300px) 1fr;gap:14px;align-items:start}
+ @media(max-width:900px){.dp-grid{grid-template-columns:1fr}}
+ .dp-list{display:flex;flex-direction:column;gap:8px}
+ .dp-item{background:var(--dp-card);border:1px solid var(--dp-line);border-radius:12px;padding:10px 12px;cursor:pointer;transition:.15s}
+ .dp-item:hover{border-color:var(--dp-acc)}
+ .dp-item.sel{border-color:var(--dp-acc);box-shadow:0 0 0 1px var(--dp-acc) inset,0 6px 24px rgba(139,108,255,.18)}
+ .dp-item b{font-size:13px}
+ .dp-pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;margin-left:6px;vertical-align:middle;letter-spacing:.04em}
+ .dp-pill.t{background:#2a3350;color:#b8c4e8}.dp-pill.r{background:#3a2f12;color:#f0c24b}.dp-pill.y{background:#10301a;color:#5fe07b}
+ .dp-main{display:flex;flex-direction:column;gap:12px}
+ .dp-card{background:var(--dp-card);border:1px solid var(--dp-line);border-radius:14px;padding:14px 16px}
+ .dp-step{display:flex;gap:12px}
+ .dp-num{flex:0 0 30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:#1b2338;color:var(--dp-mut);border:1px solid var(--dp-line)}
+ .dp-step.done .dp-num{background:#10301a;color:var(--dp-ok);border-color:#1f6b32}
+ .dp-step.act .dp-num{background:var(--dp-acc);color:#fff;border-color:var(--dp-acc);box-shadow:0 0 14px rgba(139,108,255,.55)}
+ .dp-step.lock{opacity:.5}
+ .dp-body{flex:1;min-width:0}
+ .dp-body h3{margin:2px 0 8px;font-size:15px}
+ .dp-btn{background:#1b2338;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer}
+ .dp-btn:hover{border-color:var(--dp-acc)}
+ .dp-btn.pri{background:linear-gradient(135deg,#7c5cff,#5a8bff);border:0;color:#fff;font-weight:600}
+ .dp-btn.go{background:linear-gradient(135deg,#1f9d4a,#2dc46a);border:0;color:#fff;font-weight:600}
+ .dp-btn:disabled{opacity:.45;cursor:not-allowed}
+ .dp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .dp-sent{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px 10px;font-size:13px;align-items:start}
+ .dp-sent .n{color:var(--dp-mut);font-size:11px;padding-top:2px}
+ .dp-sent .tr{color:#9fe3b0}
+ .dp-code{background:#0a0e17;border:1px solid var(--dp-line);border-radius:8px;padding:8px 10px;font-family:Consolas,monospace;font-size:12px;word-break:break-all;white-space:pre-wrap}
+ .dp-chat{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin:8px 0}
+ .dp-msg{padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;max-width:92%}
+ .dp-msg.u{align-self:flex-end;background:#2b2160}.dp-msg.a{align-self:flex-start;background:#1b2338;border:1px solid var(--dp-line)}
+ .dp-badge{font-size:12px;padding:3px 9px;border-radius:99px;background:#1b2338;border:1px solid var(--dp-line)}
  .tdcard{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px}
  .tdcard{font-size:14px}
  .tdcard b{color:#e6edf3}
@@ -923,6 +961,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="topbar">
 <span class="brand">&#127917; Aura Command Center</span>
 <button class="tab-btn active-tab" id="btn-tab-today" onclick="showTab('today');tdLoad()">&#127968; Bugun</button>
+<button class="tab-btn" id="btn-tab-daily" onclick="showTab('daily');dpLoad()">&#127916; Uretim</button>
 <button class="tab-btn" id="btn-tab-home" onclick="showTab('home')">Ana Panel</button>
 <button class="tab-btn" id="btn-tab-insights" onclick="showTab('insights');insLoad(false)">&#128200; Analiz</button>
 <button class="tab-btn" id="btn-tab-growth" onclick="showTab('growth');gmLoad()">&#128640; Gelismis</button>
@@ -930,6 +969,11 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <button class="tab-btn" id="btn-tab-code" onclick="showTab('code');codeInit();agInit()">&#128187; Kod</button>
 </div>
 <div id="viewport">
+<div id="view-daily" class="view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:14px;background:#0b0f17">
+<div class="dp-head"><div><div class="dp-kicker">AURA TOUR &middot; STUDIO</div><h1 class="dp-h1">Gunluk Uretim</h1><div class="sub" style="margin:2px 0 0" id="dp_stamp">yukleniyor...</div></div>
+<div class="dp-row"><button class="dp-btn" id="dp_pkg" onclick="dpPackages(this)">&#128230; Hazir Paketleri Yukle</button><button class="dp-btn" onclick="dpLoad()">&#8635; Yenile</button></div></div>
+<div class="dp-grid"><div class="dp-list" id="dp_list"></div><div class="dp-main" id="dp_main"></div></div>
+</div>
 <div id="view-today" class="view active-view" style="padding:16px;overflow-y:auto;flex-direction:column;gap:12px">
 <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h1 style="font-size:20px;margin:0">Bugun</h1><span class="sub" style="margin:0" id="td_stamp">yukleniyor...</span><button class="qa" style="width:auto;margin-left:auto" onclick="tdLoad(true)">&#8635; Yenile</button></div>
 <div class="tdcard"><div id="td_kpi" class="tdgrid"></div></div>
@@ -1159,7 +1203,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 </div>
 <script>
 function showTab(name){
-  ['today','home','insights','growth','comments','code'].forEach(t=>{
+  ['today','daily','home','insights','growth','comments','code'].forEach(t=>{
     document.getElementById('view-'+t).classList.toggle('active-view', t===name);
     document.getElementById('btn-tab-'+t).classList.toggle('active-tab', t===name);
   });
@@ -1557,6 +1601,137 @@ function draftHtml(d){
   if(d.link) btns += '<a href="' + d.link + '" target="_blank" style="color:#58a6ff">' + d.link + '</a> ';
   btns += '<button class="qa" style="width:auto" data-id="' + d.id + '" onclick="gmDraftDel(this)">Sil</button>';
   return '<div style="border:1px solid #30363d;border-radius:8px;padding:10px;margin:8px 0"><b>' + esc(d.title) + '</b> <span class="sub">[' + esc(d.format) + '] &middot; ' + st + ' &middot; ' + d.created + '</span><div class="sub">' + esc(d.rationale || '') + '</div><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0">' + esc(d.en_script) + '</pre><div style="background:#10301a;border:1px solid #238636;border-radius:6px;padding:6px 8px;margin:4px 0;font-size:12px"><b>&#127481;&#127479; Turkce anlami (video ne diyor):</b><br>' + esc(d.tr_script || '(Turkce metin yok!)') + '</div>' + preHtml(d.preflight) + '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + btns + '</div></div>';
+}
+
+// ================= URETIM sekmesi (2026-11-27) =================
+// NOT: PAGE normal Python string: JS'te ters egik cizgi YOK.
+let DP = {drafts: [], daily: null, sel: null, ok: {}, busy: false, pack: {}, chat: []};
+function dpSplit(t){
+  const out = []; let cur = ''; const s = String(t || '');
+  for(let i = 0; i < s.length; i++){
+    cur += s[i];
+    const ch = s[i];
+    if((ch === '.' || ch === '?' || ch === '!') && (i + 1 >= s.length || s[i + 1] === ' ')){ out.push(cur.trim()); cur = ''; }
+  }
+  if(cur.trim()) out.push(cur.trim());
+  return out;
+}
+function dpCur(){ return DP.drafts.find(d => d.id === DP.sel) || null; }
+function dpInfo(d){ return (DP.daily && DP.daily.items || []).find(x => x.id === d.id) || {}; }
+function dpPinned(d){
+  if(d.pinned_comment) return d.pinned_comment;
+  const ss = dpSplit(d.en_script || '');
+  const q = ss.filter(x => x.endsWith('?'));
+  const last = ss[ss.length - 1] || '';
+  return (q.length ? q[q.length - 1] : '') + (last.toLowerCase().indexOf('one word') >= 0 ? ' ' + last : '');
+}
+async function dpLoad(){
+  try {
+    const rs = await Promise.all([fetch('/api/growth/state').then(r => r.json()), fetch('/api/daily').then(r => r.json())]);
+    const g = rs[0]; DP.daily = rs[1];
+    if(!g.ok){ document.getElementById('dp_main').innerHTML = '<div class="dp-card">Hata: ' + esc(g.error || '') + '</div>'; return; }
+    DP.drafts = g.drafts || [];
+    if(!DP.sel || !dpCur()){ const open = DP.drafts.find(d => d.status !== 'yayinlandi'); DP.sel = (open || DP.drafts[0] || {}).id; }
+    try { DP.chat = (await (await fetch('/api/history')).json()).slice(-8); } catch(e) {}
+    document.getElementById('dp_stamp').textContent = 'Taslak: ' + DP.drafts.filter(d => d.status !== 'yayinlandi').length + ' bekliyor - Yayinda: ' + DP.drafts.filter(d => d.status === 'yayinlandi').length;
+    dpDraw();
+  } catch(e){ document.getElementById('dp_main').innerHTML = '<div class="dp-card">Hata: ' + esc(String(e)) + '</div>'; }
+}
+function dpPillOf(d){
+  if(d.status === 'yayinlandi') return '<span class="dp-pill y">YAYINDA</span>';
+  if(d.status === 'render edildi') return '<span class="dp-pill r">RENDER HAZIR</span>';
+  return '<span class="dp-pill t">TASLAK</span>';
+}
+function dpPick(id){ DP.sel = id; dpDraw(); }
+function dpDraw(){
+  document.getElementById('dp_list').innerHTML = DP.drafts.length ? DP.drafts.slice(0, 12).map(d =>
+    '<div class="dp-item' + (d.id === DP.sel ? ' sel' : '') + '" onclick="dpPick(&#39;' + d.id + '&#39;)"><b>' + esc(d.title) + '</b>' + dpPillOf(d) + '<div class="sub" style="margin:3px 0 0">' + esc(d.created || '') + '</div></div>'
+  ).join('') : '<div class="dp-card sub">Taslak yok. "Hazir Paketleri Yukle" ya da asagidaki sohbetten paket iste.</div>';
+  const d = dpCur();
+  const box = document.getElementById('dp_main');
+  if(!d){ box.innerHTML = dpChatHtml(null); return; }
+  const info = dpInfo(d);
+  const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
+  const ok = !!DP.ok[d.id];
+  const en = dpSplit(d.en_script), tr = dpSplit(d.tr_script || '');
+  let h = '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><div><b style="font-size:17px">' + esc(d.title) + '</b> ' + dpPillOf(d) + '</div>' + (d.preflight ? '<span class="dp-badge">Kural uyumu ' + d.preflight.score + '/' + d.preflight.of + ' - ~' + (d.preflight.est_seconds || '?') + ' sn</span>' : '') + '</div><div class="sub" style="margin:6px 0 0">' + esc(d.rationale || '').slice(0, 220) + '</div></div>';
+  // 1 Paket + Turkce anlam
+  h += '<div class="dp-card dp-step ' + (ok || rend ? 'done' : 'act') + '"><div class="dp-num">1</div><div class="dp-body"><h3>Metin ve Turkce anlami</h3><div class="dp-sent"><div class="n"></div><div class="sub" style="margin:0">English (videoda)</div><div class="sub" style="margin:0">Turkce anlami</div>' + en.map((x, i) => '<div class="n">' + (i + 1) + '</div><div>' + esc(x) + '</div><div class="tr">' + esc(tr[i] || '') + '</div>').join('') + '</div>' + (en.length !== tr.length ? '<div class="sub" style="color:#f85149">Dikkat: EN ' + en.length + ' / TR ' + tr.length + ' cumle.</div>' : '') + (d.preflight ? '<div style="margin-top:8px">' + preHtml(d.preflight) + '</div>' : '') + '</div></div>';
+  // 2 Onay
+  h += '<div class="dp-card dp-step ' + (ok || rend ? 'done' : (en.length ? 'act' : 'lock')) + '"><div class="dp-num">2</div><div class="dp-body"><h3>Onay</h3><label class="dp-row" style="cursor:pointer"><input type="checkbox" ' + (ok || rend ? 'checked ' : '') + (rend ? 'disabled ' : '') + 'onchange="dpOk(&#39;' + d.id + '&#39;,this.checked)"> <span>Turkce anlamini okudum, metni onayliyorum.</span></label><div class="sub" style="margin:4px 0 0">Onaysiz render ve yayin baslamaz.</div></div></div>';
+  // 3 Render
+  h += '<div class="dp-card dp-step ' + (rend ? 'done' : (ok ? 'act' : 'lock')) + '"><div class="dp-num">3</div><div class="dp-body"><h3>Render ve izle</h3><div class="dp-row">' +
+    (done ? '' : '<button class="dp-btn pri" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRender(&#39;' + d.id + '&#39;)">' + (d.status === 'render edildi' ? 'Yeniden render et' : 'Sadece render et') + '</button>') +
+    '<span class="sub" id="dp_rmsg" style="margin:0">' + (rend ? 'Render hazir.' : 'Gercek Aura sesiyle 1-3 dk surer.') + '</span></div>' +
+    (rend && info.video ? '<video controls playsinline preload="metadata" src="/download/' + encodeURIComponent(info.video) + '" style="margin-top:10px;max-height:52vh;border-radius:12px;border:1px solid var(--dp-line);background:#000"></video><div class="sub" style="margin:4px 0 0">Kontrol: ust bant sonuna kadar duruyor mu, etiketler dogru mu, ses temiz mi?</div>' : '') + '</div></div>';
+  // 4 Yayin
+  h += '<div class="dp-card dp-step ' + (done ? 'done' : (rend ? 'act' : 'lock')) + '"><div class="dp-num">4</div><div class="dp-body"><h3>YouTube</h3>' +
+    (done ? '<div>Yayinda: <a href="' + esc(d.link || '#') + '" target="_blank" style="color:#7db4ff">' + esc(d.link || '') + '</a></div><div class="sub" style="margin:4px 0 0">24 saat olcumu: yayin saatinden bir gun sonra.</div>'
+      : '<div class="dp-row"><button class="dp-btn go" ' + (rend && ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpPublish(&#39;' + d.id + '&#39;)">Herkese acik yayinla</button><span class="sub" style="margin:0">Etiketler ve Turkce CC otomatik. Yayin saati: ~18:00.</span></div>' +
+        (d.status === 'taslak' ? '<div class="dp-row" style="margin-top:6px"><button class="dp-btn" ' + (ok && !DP.busy ? '' : 'disabled ') + 'onclick="dpRenderPublish(&#39;' + d.id + '&#39;)">Render + yayinla (tek adim)</button></div>' : '')) + '</div></div>';
+  // 5 TikTok / Reels
+  const path = (info.path || '');
+  h += '<div class="dp-card dp-step ' + (done ? 'act' : 'lock') + '"><div class="dp-num">5</div><div class="dp-body"><h3>TikTok ve Instagram Reels</h3>' +
+    '<div class="sub" style="margin:0 0 4px">Dosya</div><div class="dp-code" id="dp_c1">' + esc(path) + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c1&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:0 0 4px">Aciklama</div><div class="dp-code" id="dp_c2">' + esc(DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:0 0 4px">Sabit yorum</div><div class="dp-code" id="dp_c3">' + esc(dpPinned(d)) + '</div><div class="dp-row" style="margin:4px 0"><button class="dp-btn" onclick="dpCopy(&#39;dp_c3&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:6px 0 0">AI-generated etiketi acik olsun. Ilk saatte her yoruma cevap ver. Takip/canli yayin gibi yapay etkilesim yapma.</div></div></div>';
+  h += dpChatHtml(d);
+  box.innerHTML = h;
+  if(done && !DP.pack[d.id] && info.video){ fetch('/api/tiktok_pack?video=' + encodeURIComponent(info.video)).then(r => r.json()).then(j => { if(j.ok && j.description){ DP.pack[d.id] = j.description; const el = document.getElementById('dp_c2'); if(el) el.textContent = j.description; } }).catch(() => {}); }
+}
+function dpChatHtml(d){
+  const msgs = (DP.chat || []).filter(m => m.role === 'user' || m.role === 'assistant').slice(-6);
+  return '<div class="dp-card"><h3 style="margin:0 0 4px;font-size:15px">Karar ve konusma</h3><div class="sub" style="margin:0">Aura ile burada konus; paket iste, karar al, fikir sor. Ana Panel ile ayni sohbet.</div><div class="dp-chat" id="dp_chat">' +
+    msgs.map(m => '<div class="dp-msg ' + (m.role === 'user' ? 'u' : 'a') + '">' + esc(String(m.content || '').slice(0, 1200)) + '</div>').join('') + '</div>' +
+    '<textarea id="dp_in" rows="2" placeholder="Orn: Yarin icin hangi yer? / bu metni daha merak uyandirici yap" style="width:100%;box-sizing:border-box;background:#0a0e17;color:#e6edf3;border:1px solid var(--dp-line);border-radius:10px;padding:9px;font-family:inherit;font-size:13px"></textarea>' +
+    '<div class="dp-row" style="margin-top:6px"><button class="dp-btn pri" id="dp_send" onclick="dpSend()">Gonder</button>' + (d ? '<label class="sub dp-row" style="margin:0;cursor:pointer"><input type="checkbox" id="dp_ctx"> secili taslagi baglam olarak ekle</label>' : '') + '<span class="sub" id="dp_cmsg" style="margin:0"></span></div></div>';
+}
+function dpOk(id, v){ DP.ok[id] = !!v; dpDraw(); }
+async function dpCopy(id, btn){
+  const el = document.getElementById(id); if(!el) return;
+  const ta = document.createElement('textarea'); ta.value = el.textContent; document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  if(!ok && navigator.clipboard){ try { await navigator.clipboard.writeText(el.textContent); ok = true; } catch(e) {} }
+  const old = btn.textContent; btn.textContent = ok ? 'Kopyalandi' : 'Kopyalanamadi'; setTimeout(() => { btn.textContent = old; }, 1500);
+}
+async function dpPackages(btn){
+  btn.disabled = true;
+  try { const j = await gmPost('/api/growth/load_packages', {}); if(!j.ok) alert(j.error || 'Basarisiz'); } catch(e) { alert('Hata: ' + e); }
+  btn.disabled = false; dpLoad();
+}
+async function dpRender(id){
+  DP.busy = true; dpDraw(); const m = document.getElementById('dp_rmsg'); if(m) m.textContent = 'Render ediliyor (1-3 dk)...';
+  try { const j = await gmPost('/api/growth/render_draft', {id: id}); if(!j.ok) alert(j.error); else if(j.warning) alert(j.warning); } catch(e) { alert('Hata: ' + e); }
+  DP.busy = false; dpLoad();
+}
+async function dpPublish(id){
+  const d = DP.drafts.find(x => x.id === id); if(!d) return;
+  if(!confirm('YouTube icinde HERKESE ACIK yayinlanacak: ' + d.title + ' - Onayliyor musun?')) return;
+  DP.busy = true; dpDraw();
+  try { const j = await gmPost('/api/growth/publish_draft', {id: id, confirm: true}); alert(j.ok ? ('Yayinlandi: ' + j.link) : ('Yayinlanamadi: ' + j.error)); } catch(e) { alert('Hata: ' + e); }
+  DP.busy = false; dpLoad(); if(typeof loadDayStatus === 'function') loadDayStatus();
+}
+async function dpRenderPublish(id){
+  const d = DP.drafts.find(x => x.id === id); if(!d) return;
+  if(!confirm('Render edilip YouTube icinde HERKESE ACIK yayinlanacak: ' + d.title + ' - Onayliyor musun?')) return;
+  DP.busy = true; dpDraw(); const m = document.getElementById('dp_rmsg'); if(m) m.textContent = 'Render + yayin (2-4 dk)...';
+  try { const j = await gmPost('/api/growth/render_publish_draft', {id: id, confirm: true}); alert(j.ok ? ('Yayinlandi: ' + j.link) : ('Olmadi: ' + j.error)); } catch(e) { alert('Hata: ' + e); }
+  DP.busy = false; dpLoad(); if(typeof loadDayStatus === 'function') loadDayStatus();
+}
+async function dpSend(){
+  const inp = document.getElementById('dp_in'); let text = (inp.value || '').trim(); if(!text) return;
+  const d = dpCur(), ctx = document.getElementById('dp_ctx');
+  if(d && ctx && ctx.checked) text = '[Baglam: taslak "' + d.title + '" - EN: ' + String(d.en_script || '').slice(0, 600) + ']' + String.fromCharCode(10) + text;
+  const btn = document.getElementById('dp_send'); btn.disabled = true; document.getElementById('dp_cmsg').textContent = 'Aura dusunuyor...';
+  inp.value = '';
+  DP.chat.push({role: 'user', content: text});
+  try {
+    const j = await (await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: text})})).json();
+    DP.chat.push({role: 'assistant', content: j.error ? ('[hata] ' + j.error) : j.reply});
+  } catch(e) { DP.chat.push({role: 'assistant', content: '[hata] ' + e}); }
+  dpDraw(); const c = document.getElementById('dp_chat'); if(c) c.scrollTop = c.scrollHeight;
 }
 async function gmLoad(){
   try {
@@ -2560,6 +2735,21 @@ def _tiktok_zip(handler, names):
         handler.wfile.write(data)
     except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
         pass
+
+
+def _daily_state():
+    """'Uretim' sekmesi: taslak/yayin akisi icin sunucu bilgisi (mutlak klasor, dosya adlari, Tailscale)."""
+    import growth
+    slug_of = lambda ttl: "aura_" + re.sub(r"[^a-z0-9]+", "", str(ttl).lower())[:24] + ".mp4"
+    rows = growth.drafts_list()
+    items = []
+    for d in rows[-12:][::-1]:
+        v = d.get("video") or slug_of(d.get("title", ""))
+        items.append({"id": d.get("id"), "title": d.get("title", ""), "status": d.get("status", ""), "video": v,
+                      "path": os.path.join(OUTPUT_DIR, v), "exists": os.path.exists(os.path.join(OUTPUT_DIR, v)),
+                      "link": d.get("link"), "created": d.get("created", "")})
+    ts = _tailscale_status()
+    return {"ok": True, "output_dir": OUTPUT_DIR, "items": items, "tailscale_ip": (ts.get("ip") if isinstance(ts, dict) else None)}
 
 
 def _tiktok_pack(video):
@@ -3821,7 +4011,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"usage": _ai_usage_get(), "code_prefer": _ai_settings()["code_prefer"]})
         elif u.path.startswith("/download/"):
             _serve_download(self, u.path[len("/download/"):])
-        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends"):
+        elif u.path.startswith(("/api/insights/", "/api/growth/", "/api/tr_cc/", "/api/learn/", "/api/longform/")) or u.path in ("/api/today", "/api/trends", "/api/daily"):
             q = parse_qs(u.query)
             try:
                 import insights
@@ -3844,6 +4034,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(_lf_list())
                 elif u.path == "/api/today":
                     self._json(_today_state())
+                elif u.path == "/api/daily":
+                    self._json(_daily_state())
                 elif u.path == "/api/trends":
                     self._json(_trends(force=q.get("force", [""])[0] == "1", cached_only=q.get("cached", [""])[0] == "1"))
                 elif u.path == "/api/growth/state":

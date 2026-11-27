@@ -131,6 +131,14 @@ def main():
             check(f"Bugun ana yuzu birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Bugun ana yuzu birim testleri", False, (tdu.stderr[-400:] + tdu.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "daily_unit.py")):
+        shutil.copy2(os.path.join(ROOT, "_tests", "daily_unit.py"), os.path.join(work, "_daily_unit.py"))
+        dq = subprocess.run([sys.executable, "_daily_unit.py"], cwd=work, capture_output=True, text=True, timeout=120, env=dict(os.environ, AURA_NO_OPEN="1", AURA_STUDIO_PORT="8892"))
+        try:
+            jr = json.loads(dq.stdout.strip().splitlines()[-1])
+            check(f"Uretim sekmesi birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("Uretim sekmesi birim testleri", False, (dq.stderr[-400:] + dq.stdout[-300:]) or repr(ex))
     if os.path.exists(os.path.join(ROOT, "_tests", "series_unit.py")):
         shutil.copy2(os.path.join(ROOT, "_tests", "series_unit.py"), os.path.join(work, "_series_unit.py"))
         su = subprocess.run([sys.executable, "_series_unit.py"], cwd=work, capture_output=True, text=True, timeout=300, env=dict(os.environ, AURA_NO_OPEN="1"))
