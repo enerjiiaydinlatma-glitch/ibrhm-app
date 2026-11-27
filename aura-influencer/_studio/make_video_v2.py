@@ -1007,8 +1007,14 @@ def _vote_banner(frame, vote, a, font):
         L = "AB"[k]
         lw = ld.textlength(L, font=big_f)
         ld.text((x0 + 59 - lw / 2, 118), L, font=big_f, fill=(10, 5, 25, int(255 * a)))
-        lab = str(vote.get(key, ""))[:18]
-        ld.text((x0 + 122, 148), lab, font=chip_f, fill=(255, 255, 255, int(255 * a)), stroke_width=2, stroke_fill=(18, 8, 34, int(255 * a)))
+        lab = str(vote.get(key, ""))[:22]
+        avail = (x1 - x0) - 122 - 16
+        fz = 40
+        cf = chip_f
+        while ld.textlength(lab, font=cf) > avail and fz > 22:      # uzun secenek metni kutudan tasmasin
+            fz -= 2
+            cf = _font(fz)
+        ld.text((x0 + 122, 148 + (40 - fz) // 2), lab, font=cf, fill=(255, 255, 255, int(255 * a)), stroke_width=2, stroke_fill=(18, 8, 34, int(255 * a)))
     frame.paste(layer, (0, y0), layer)
 
 
