@@ -1678,3 +1678,8 @@ Okuma: roast/öz-ironi YouTube'da TUTMAYI belirgin artırdı (%61,2 vs önceki %
 - "24 saat ölçümü zamanı" bandı: yaşı 20-36 sa olan videolar otomatik öne çıkar. Hatırlatma/ekran görüntüsü isteğine gerek kalmaz (TikTok'un eşleşmeyen videoları ve TikTok Studio'ya özgü profil/trafik metrikleri hâlâ elle).
 - Testler: `_tests/measure_unit.py` (14 kontrol, GERÇEK HTTP dahil) run_tests'e bağlı; Chromium ekran görüntüsü gerçekçi örnek veriyle hatasız. PC'de canlı YouTube/Analytics verisiyle henüz denenmedi.
 - Not: "~24/48 sa" sütunları ancak bu güncellemeden SONRA da panel açık kaldıkça dolu kalır; panel kapalıyken sayaç kaydı alınmaz (eski videolarda kayıt aralığı boşsa "-" çıkar).
+
+### 2026-11-27 (devam 3) — PANEL YENİLEME 4. ADIM: TikTok açıklaması TEK KAYNAK + eşleştirme düzeltmesi
+- Sorun: sana verdiğim TikTok açıklamaları taslaktaki (YouTube) açıklamadan farklıydı → `tiktok_sync` açıklama öneki eşleşmedi → Ölçüm'de TikTok sütunu boş kalıyordu.
+- Çözüm: (1) taslağa `tiktok_description` alanı (paket JSON'unda/`create_draft`'ta verilir; yoksa YouTube açıklaması); render'da `tiktok_meta.json` buna yazılır; Üretim 5. adımda operatör AYNISINI kopyalar → eşleşme birebir. (2) Yedek: açıklama birebir eşleşmezse `insights._fuzzy_match`: TikTok açıklamasında videonun BAŞLIK anahtar kelimeleri (≥%60, daha spesifik başlık kazanır, "Inside…" ile başlayan açıklama Tour videosuna öncelik, bir video bir senkronda bir kez). Önceki Tour videolarının (Piramit, Derinkuyu 2, Vostok, CERN, Robot, Easter Island, Who Hid) bu aşamada eşleşmesi beklenir.
+- `_tests/tiktok_match_unit.py` (10 kontrol, run_tests'e bağlı). PC'de canlı TikTok verisiyle henüz denenmedi: Ölçüm sekmesinde TikTok sütunu dolmalı; boş kalan olursa ekran görüntüsü + açıklama metni gerekir.

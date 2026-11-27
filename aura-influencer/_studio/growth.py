@@ -294,7 +294,7 @@ def draft_add(d):
     rows = _jl(DRAFT_FILE, [])
     row = {"id": uuid.uuid4().hex[:8], "title": str(d.get("title", ""))[:60], "en_script": str(d.get("en_script", "")),
            "tr_script": str(d.get("tr_script", "")), "description": str(d.get("description", "")),
-           "tags": str(d.get("tags", "")), "format": d.get("format") if d.get("format") in FORMATS else "other",
+           "tags": str(d.get("tags", "")), "tiktok_description": str(d.get("tiktok_description", "")), "format": d.get("format") if d.get("format") in FORMATS else "other",
            "rationale": str(d.get("rationale", ""))[:300], "preflight": d.get("preflight"),
            "status": "taslak", "video": None, "srt": None, "link": None, "created": time.strftime("%Y-%m-%d %H:%M")}
     if isinstance(d.get("video_spec"), dict):      # Aura Live gorunum ayari (kartlar/duygular); yoksa klasik video

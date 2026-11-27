@@ -117,7 +117,7 @@ TOOLS = [
     {"name": "create_draft", "description": "Yeni video paketini TASLAK olarak panele kaydet (Uretim sekmesinde gorunur). Otomatik on kontrol calisir ve sonucu doner. YAYINLAMAZ, render etmez. en_script ve tr_script ayni cumle sayisinda olmali (her TR cumle <=72 karakter); en_script'te Turkce karakter olmamali; baslik <=35 karakter.",
      "input_schema": {"type": "object", "properties": {
          "title": {"type": "string"}, "en_script": {"type": "string"}, "tr_script": {"type": "string"}, "description": {"type": "string"},
-         "tags": {"type": "string"}, "rationale": {"type": "string", "description": "Neden bu konu + kaynaklar (kisa)"},
+         "tags": {"type": "string"}, "tiktok_description": {"type": "string", "description": "TikTok/Reels aciklamasi: aranan ifadeyle baslasin; operator AYNEN yapistirir, panel eslesme icin bunu kullanir"}, "rationale": {"type": "string", "description": "Neden bu konu + kaynaklar (kisa)"},
          "video_spec": {"type": "object", "description": "Aura Live gorunum ayari: style=live, face=scene3d, set, intro, intro_skip, autocut, series, tag, hook{big,label,pill,secs,persist,y}, chapters{cumle_idx:etiket}, cards{cumle_idx:{type,big,label,static}}, emotions{cumle_idx:duygu}"}},
          "required": ["title", "en_script", "tr_script", "description"]}},
     {"name": "note", "description": "CLAUDE.md gunlugune kisa bir kayit ekle (karar, olcum, ogrenilen). Sadece gercek, dogrulanmis bilgi yaz.",

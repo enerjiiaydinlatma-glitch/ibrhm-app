@@ -201,6 +201,32 @@ def _norm_title(s):
     return _re.sub(r"[^a-z0-9]+", "", (s or "").lower())
 
 
+_TOK_STOP = {"inside", "stops", "stop", "with", "from", "this", "that", "here", "come", "real", "the", "and", "for", "how", "did", "who"}
+
+
+def _title_tokens(t):
+    import re as _re
+    return {w for w in _re.findall(r"[a-z0-9]+", (t or "").lower()) if len(w) >= 3 and not w.isdigit() and w not in _TOK_STOP}
+
+
+def _fuzzy_match(caption, rows, used):
+    """TikTok aciklamasi bizim tuttugumuz metinle birebir ayni degilse: videonun BASLIK anahtar kelimelerinin (>=%60) aciklamada gecmesi.
+    Beraberlikte daha cok anahtar kelimeli (daha spesifik) baslik kazanir; her YouTube videosu bir senkronda bir kez kullanilir."""
+    cap = _title_tokens(" ".join(str(caption or "").split()[:40]))
+    best = None
+    for yid, title, toks in rows:
+        if yid in used or not toks:
+            continue
+        hit = len(toks & cap)
+        ratio = hit / len(toks)
+        if hit >= 1 and ratio >= 0.6:
+            tour = 1 if (str(title).lower().startswith("inside") and str(caption or "").lower().startswith("inside")) else 0
+            key = (ratio, tour, len(toks))
+            if best is None or key > best[0]:
+                best = (key, (yid, title))
+    return best[1] if best else None
+
+
 def tiktok_sync(day_rows, tiktok_meta):
     """TikTok Display API'den (video.list) gercek video listesini ceker, bizim tiktok_meta.json'daki
     (gercekte TikTok'a yapistirilan) ACIKLAMA metniyle eslestirip tt_add ile kaydeder. day_rows:
@@ -220,10 +246,15 @@ def tiktok_sync(day_rows, tiktok_meta):
         if yid and desc:
             targets.append((yid, r["title"], _norm_title(desc)[:50]))
     matched, unmatched = [], []
+    fuzzy_rows = [(r["youtube_id"], r["title"], _title_tokens(r["title"])) for r in day_rows if r.get("youtube_id") and r.get("title")]
+    used = set()
     for v in videos:
         cap_norm = _norm_title(v.get("title", ""))[:70]
         hit = next(((yid, t) for yid, t, nd in targets if nd and nd in cap_norm), None)
+        if not hit:                                   # aciklama birebir eslesmediyse: baslik anahtar kelimeleriyle (2026-11-27)
+            hit = _fuzzy_match(v.get("title", ""), fuzzy_rows, used)
         if hit:
+            used.add(hit[0])
             yid, t = hit
             tt_add(yid, t, v.get("view_count", 0), v.get("like_count", 0),
                    v.get("comment_count", 0), v.get("share_count", 0))

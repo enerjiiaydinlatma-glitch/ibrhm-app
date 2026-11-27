@@ -155,6 +155,14 @@ def main():
             check(f"Olcum panosu birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
         except Exception as ex:
             check("Olcum panosu birim testleri", False, (mq.stderr[-400:] + mq.stdout[-300:]) or repr(ex))
+    if os.path.exists(os.path.join(ROOT, "_tests", "tiktok_match_unit.py")):
+        shutil.copy2(os.path.join(ROOT, "_tests", "tiktok_match_unit.py"), os.path.join(work, "_tiktok_match_unit.py"))
+        tm = subprocess.run([sys.executable, "_tiktok_match_unit.py"], cwd=work, capture_output=True, text=True, timeout=120, env=dict(os.environ, AURA_NO_OPEN="1"))
+        try:
+            jr = json.loads(tm.stdout.strip().splitlines()[-1])
+            check(f"TikTok esleme birim testleri ({jr['total']} kontrol)", not jr["bad"], str(jr["bad"])[:300])
+        except Exception as ex:
+            check("TikTok esleme birim testleri", False, (tm.stderr[-400:] + tm.stdout[-300:]) or repr(ex))
     if os.path.exists(os.path.join(ROOT, "_tests", "series_unit.py")):
         shutil.copy2(os.path.join(ROOT, "_tests", "series_unit.py"), os.path.join(work, "_series_unit.py"))
         su = subprocess.run([sys.executable, "_series_unit.py"], cwd=work, capture_output=True, text=True, timeout=300, env=dict(os.environ, AURA_NO_OPEN="1"))

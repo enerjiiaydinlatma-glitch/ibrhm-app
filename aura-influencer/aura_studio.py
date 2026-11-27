@@ -1701,7 +1701,7 @@ function dpDraw(){
   const path = (info.path || '');
   h += '<div class="dp-card dp-step ' + (done ? 'act' : 'lock') + '"><div class="dp-num">5</div><div class="dp-body"><h3>TikTok ve Instagram Reels</h3>' +
     '<div class="sub" style="margin:0 0 4px">Dosya</div><div class="dp-code" id="dp_c1">' + esc(path) + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c1&#39;,this)">Kopyala</button></div>' +
-    '<div class="sub" style="margin:0 0 4px">Aciklama</div><div class="dp-code" id="dp_c2">' + esc(DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
+    '<div class="sub" style="margin:0 0 4px">Aciklama</div><div class="dp-code" id="dp_c2">' + esc(d.tiktok_description || DP.pack[d.id] || d.description || '') + '</div><div class="dp-row" style="margin:4px 0 8px"><button class="dp-btn" onclick="dpCopy(&#39;dp_c2&#39;,this)">Kopyala</button></div>' +
     '<div class="sub" style="margin:0 0 4px">Sabit yorum</div><div class="dp-code" id="dp_c3">' + esc(dpPinned(d)) + '</div><div class="dp-row" style="margin:4px 0"><button class="dp-btn" onclick="dpCopy(&#39;dp_c3&#39;,this)">Kopyala</button></div>' +
     '<div class="sub" style="margin:6px 0 0">AI-generated etiketi acik olsun. Ilk saatte her yoruma cevap ver. Takip/canli yayin gibi yapay etkilesim yapma.</div></div></div>';
   const keepTxt = (document.getElementById('dpa_in') || {}).value || '';
@@ -1709,7 +1709,7 @@ function dpDraw(){
   box.innerHTML = h;
   dpaInit();
   const kin = document.getElementById('dpa_in'); if(kin && keepTxt) kin.value = keepTxt;
-  if(done && !DP.pack[d.id] && info.video){ fetch('/api/tiktok_pack?video=' + encodeURIComponent(info.video)).then(r => r.json()).then(j => { if(j.ok && j.description){ DP.pack[d.id] = j.description; const el = document.getElementById('dp_c2'); if(el) el.textContent = j.description; } }).catch(() => {}); }
+  if(done && !d.tiktok_description && !DP.pack[d.id] && info.video){ fetch('/api/tiktok_pack?video=' + encodeURIComponent(info.video)).then(r => r.json()).then(j => { if(j.ok && j.description){ DP.pack[d.id] = j.description; const el = document.getElementById('dp_c2'); if(el) el.textContent = j.description; } }).catch(() => {}); }
 }
 function dpChatHtml(d){
   return '<div class="dp-card"><div class="dp-row" style="justify-content:space-between"><h3 style="margin:0;font-size:15px">Studio Asistani <span class="dp-pill y" id="dpa_state">hazir</span></h3><div class="dp-row"><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaCancel()">Durdur</button><button class="dp-btn" style="padding:3px 9px;font-size:11px" onclick="dpaReset()">Sohbeti temizle</button></div></div>' +
@@ -3669,7 +3669,7 @@ def _growth_render_draft(did):
             except Exception as e:
                 warn = f"Turkce CC uretilemedi ({type(e).__name__}); video CC'siz yayinlanir."
         growth.draft_update(did, status="render edildi", video=os.path.basename(vp), srt=srt)
-        _tiktok_meta_set(os.path.basename(vp), d["title"], d["description"])
+        _tiktok_meta_set(os.path.basename(vp), d["title"], d.get("tiktok_description") or d["description"])
         return {"ok": True, "video": os.path.basename(vp), "warning": warn}
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"}
@@ -4050,7 +4050,8 @@ def _agent_create_draft(a):
     pf = growth.preflight(title, en, tr, desc, existing)
     spec = a.get("video_spec") if isinstance(a.get("video_spec"), dict) else None
     row = growth.draft_add({"title": title, "en_script": en, "tr_script": tr, "description": desc, "tags": str(a.get("tags", "")),
-                            "rationale": str(a.get("rationale", ""))[:300], "preflight": pf, "format": "other", "video_spec": spec})
+                            "rationale": str(a.get("rationale", ""))[:300], "preflight": pf, "format": "other", "video_spec": spec,
+                            "tiktok_description": str(a.get("tiktok_description", "")).strip()})
     bad = [f"{c['label']}: {c.get('detail','')}" for c in pf.get("checks", []) if c.get("ok") is False]
     return (f"TASLAK KAYDEDILDI (id {row['id']}, YAYINLANMADI). On kontrol {pf.get('score')}/{pf.get('of')}, tahmini {pf.get('est_seconds')} sn. "
             + ("KIRMIZI: " + " | ".join(bad) if bad else "Kirmizi madde yok.") + " Uretim sekmesinde gorunur; operator onay + render + yayin yapar.")
