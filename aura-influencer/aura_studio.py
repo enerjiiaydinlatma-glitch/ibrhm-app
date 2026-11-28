@@ -1899,7 +1899,7 @@ function dpDraw(){
   const info = dpInfo(d);
   const done = d.status === 'yayinlandi', rend = d.status === 'render edildi' || done;
   const chk = DP.chk[d.id] || {};
-  const ok = !!(chk.a && chk.b);
+  const ok = !!(chk.a && chk.b) || rend;      // render edilmis taslak zaten onaylanmistir (onay kutulari sayfa yenilenince sifirlaniyordu -> yayin dugmesi kilitli kaliyordu)
   const en = dpSplit(d.en_script), tr = dpSplit(d.tr_script || '');
   const allTxt = String(d.en_script || '') + ' ' + String(d.description || '');
   const footOk = /not real footage|3D rebuild/i.test(allTxt);
