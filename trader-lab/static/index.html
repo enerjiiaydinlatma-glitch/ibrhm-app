@@ -1,0 +1,86 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trader Lab</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mu:#667085;--bd:#e3e6ea;--ac:#2563eb;--up:#16a34a;--dn:#dc2626;--wa:#b45309}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--tx:#e7eaf0;--mu:#8b93a3;--bd:#262c36;--ac:#6ea0ff;--up:#4ade80;--dn:#f87171;--wa:#fbbf24}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,sans-serif}
+header{padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}h1{font-size:18px;margin:0}
+.banner{margin:0 16px;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--wa) 18%,transparent);color:var(--wa);font-weight:600}
+nav{display:flex;gap:4px;padding:8px 16px;flex-wrap:wrap}nav button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 12px;border-radius:8px;cursor:pointer}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+main{padding:0 16px 24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px;overflow-x:auto}
+.k{color:var(--mu);font-size:12px}.v{font-size:20px;font-weight:700}.up{color:var(--up)}.dn{color:var(--dn)}
+table{border-collapse:collapse;width:100%}th,td{padding:5px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}th{color:var(--mu);font-weight:600;font-size:12px}
+td.r{white-space:normal;min-width:260px}
+button.a{background:var(--ac);color:#fff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;margin:0 6px 6px 0}button.a:disabled{opacity:.5}
+select,input{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:6px}
+canvas{width:100%;height:220px}.tab{display:none}.tab.on{display:block}label{margin-right:12px;display:inline-block;margin-bottom:6px}
+.tag{padding:1px 7px;border-radius:99px;font-size:11px;border:1px solid var(--bd)}pre{white-space:pre-wrap;font-size:12px}
+</style></head><body>
+<header><h1>Trader Lab <span class="k">paper trading &middot; gercek para yok</span></h1><span id="meta" class="k"></span></header>
+<div id="ban"></div>
+<nav id="nav"></nav>
+<main>
+<section class="tab on" id="t0"><div class="grid" id="kpi"></div>
+ <div class="card"><b>Ozkaynak egrisi</b><canvas id="ch"></canvas></div>
+ <div class="card"><b>Pozisyonlar</b><div id="pos"></div></div>
+ <div class="card"><b>Cuzdanlar</b><div id="cash"></div></div></section>
+<section class="tab" id="t1"><div class="card"><button class="a" id="bScan">Tara (yeni gun)</button><button class="a" id="bReplay">Son 120 gunu hizli oynat (demo)</button>
+ <label>Filtre <select id="fAct"><option value="">hepsi</option><option>approve</option><option>reduce</option><option>veto</option></select></label>
+ <span id="vfy" class="k"></span><div id="jr"></div></div></section>
+<section class="tab" id="t2"><div class="card"><button class="a" onclick="bt()">Backtest</button><button class="a" onclick="cmpF()">Cuzdan vs tek para (cevirme maliyeti)</button>
+ <label>Strateji <select id="ws"><option>trend</option><option>meanrev</option><option>breakout</option></select></label><button class="a" onclick="wf()">Walk-forward kapisi</button>
+ <div id="res"></div><canvas id="ch2"></canvas></div></section>
+<section class="tab" id="t3"><div class="card" id="an"></div></section>
+<section class="tab" id="t4"><div class="card" id="cfg"></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id),fmt=(x,d=0)=>x==null?'-':Number(x).toLocaleString('tr-TR',{maximumFractionDigits:d}),pc=x=>x==null?'-':(x*100).toFixed(1)+'%';
+const cls=x=>x>=0?'up':'dn';
+async function api(p,m='GET',b){const r=await fetch('/api/'+p,{method:m,headers:{'content-type':'application/json'},body:b?JSON.stringify(b):undefined});
+ const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);return j}
+const tabs=['Ozet','Karar defteri','Arastirma','Analiz','Ayarlar'];
+$('nav').innerHTML=tabs.map((t,i)=>`<button data-i=${i}>${t}</button>`).join('');
+$('nav').onclick=e=>{const i=e.target.dataset.i;if(i==null)return;document.querySelectorAll('.tab').forEach((s,j)=>s.classList.toggle('on',j==i));
+ [...$('nav').children].forEach((b,j)=>b.classList.toggle('on',j==i));({0:load,1:jour,3:ana,4:cfgView})[i]?.()};
+$('nav').children[0].classList.add('on');
+function line(c,pts,label){const cv=$(c),r=devicePixelRatio||1;cv.width=cv.clientWidth*r;cv.height=cv.clientHeight*r;const x=cv.getContext('2d');x.scale(r,r);
+ const W=cv.clientWidth,H=cv.clientHeight;x.clearRect(0,0,W,H);if(pts.length<2)return;const v=pts.map(p=>p[1]),mn=Math.min(...v),mx=Math.max(...v),pd=(mx-mn)*.1||1;
+ const st=getComputedStyle(document.body);x.strokeStyle=st.getPropertyValue('--ac');x.lineWidth=2;x.beginPath();
+ pts.forEach((p,i)=>{const X=i/(pts.length-1)*(W-60)+50,Y=H-18-(p[1]-mn+pd)/(mx-mn+2*pd)*(H-30);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();
+ x.fillStyle=st.getPropertyValue('--mu');x.font='11px system-ui';x.fillText(fmt(mx),2,14);x.fillText(fmt(mn),2,H-20);x.fillText(pts[0][0],50,H-3);x.fillText(pts.at(-1)[0],W-70,H-3)}
+let S;
+async function load(){S=await api('state');const e=S.equity,r=e/S.capital0-1;
+ $('ban').innerHTML=S.synthetic?'<div class="banner">UYARI: SENTETIK veri (gercek piyasa degil). Internet/Yahoo erisimi olan makinede gercek veriyle calisir.</div>':'';
+ $('meta').textContent=`veri: ${S.data_source} | mod: ${S.effective_mode}${S.cfg.mode!=S.effective_mode?' (istenen '+S.cfg.mode+': LLM anahtari yok)':''} | son gun: ${S.last_date||'-'}`;
+ const K=(k,v,c='')=>`<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`;
+ $('kpi').innerHTML=K('Ozkaynak ('+S.base+')',fmt(e))+K('Getiri',pc(r),cls(r))+K('Komisyon+vergi',fmt(S.costs.fees))+K('Kayma/etki',fmt(S.costs.impact))+K('Cevirme (FX) kaybi',fmt(S.costs.fx))+K('Risk freni',S.halted||'yok',S.halted?'dn':'');
+ line('ch',S.curve.map(p=>[p.date,p.equity]));
+ $('pos').innerHTML=S.positions.length?'<table><tr><th>Borsa<th>Sembol<th>Adet<th>Maliyet<th>Son<th>Stop<th>K/Z<th>Strateji'+S.positions.map(p=>`<tr><td>${p.market}<td>${p.symbol}<td>${fmt(p.qty)}<td>${fmt(p.avg,2)} ${p.ccy}<td>${fmt(p.last,2)}<td>${fmt(p.stop,2)}<td class="${cls(p.pnl_pct)}">${pc(p.pnl_pct)}<td>${p.strategy}`).join('')+'</table>':'<span class="k">Acik pozisyon yok. Karar defteri sekmesinden tara.</span>';
+ $('cash').innerHTML=Object.entries(S.cash).map(([c,v])=>`<span class="tag">${c} ${fmt(v)}</span> `).join('')}
+async function jour(){const a=$('fAct').value;const j=await api('journal?limit=100'+(a?'&action='+a:''));const v=await api('ledger/verify');
+ $('vfy').textContent=v.ok?'defter butunlugu: DOGRULANDI':'defter BOZULMUS (id '+v.first_bad_id+')';
+ $('jr').innerHTML='<table><tr><th>Tarih<th>Sembol<th>Strateji<th>Rejim<th>Karar<th>Boyut<th>Adet<th>Gerekce<th>Gecersizlik<th>Risk notu'+j.map(d=>`<tr><td>${d.date}<td>${d.market}:${d.symbol}<td>${d.strategy}<td>${d.regime}<td><span class="tag">${d.brain}/${d.action}</span><td>${d.size_mult}<td>${d.qty||0}<td class="r">${d.rationale}<td class="r">${d.invalidation}<td>${d.risk_note||''}`).join('')+'</table>'}
+$('fAct').onchange=jour;
+$('bScan').onclick=async()=>{const r=await api('scan','POST');alert(JSON.stringify(r));jour()};
+$('bReplay').onclick=async()=>{$('bReplay').disabled=true;try{const r=await api('scan?replay_days=120','POST');alert(JSON.stringify(r))}catch(e){alert(e.message)}$('bReplay').disabled=false;jour()};
+const M=m=>m?`<table>${Object.entries({'Toplam getiri':pc(m.total_return),'Yillik (CAGR)':pc(m.cagr),'Maks dusus':pc(m.max_dd),'Sharpe':fmt(m.sharpe,2),'Islem':m.trades,'Isabet':pc(m.win_rate),'Profit factor':fmt(m.profit_factor,2),'Komisyon':fmt(m.fees_base),'Kayma/etki':fmt(m.impact_base),'FX maliyeti':fmt(m.fx_cost_base),'Toplam maliyet / sermaye':pc(m.cost_pct_of_capital)}).map(([k,v])=>`<tr><td>${k}<td><b>${v}</b>`).join('')}</table>`:'veri yok';
+async function run(fn){$('res').innerHTML='calisiyor...';try{await fn()}catch(e){$('res').innerHTML='<span class=dn>'+e.message+'</span>'}}
+const bt=()=>run(async()=>{const r=await api('backtest','POST');$('res').innerHTML=`<p class=k>veri: ${r.data_source}</p>`+M(r.metrics);line('ch2',r.curve)});
+const cmpF=()=>run(async()=>{const r=await api('compare-funding','POST');$('res').innerHTML=`<p>Her borsa kendi para biriminde cuzdan (<b>per_market</b>) ile tek baz para + her alimda cevirme (<b>single_base</b>):</p><div class=grid><div>${M(r.per_market)}</div><div>${M(r.single_base)}</div></div>`});
+const wf=()=>run(async()=>{const r=await api('walkforward?strategy='+$('ws').value,'POST'),s=r.summary;
+ $('res').innerHTML=`<p><b class="${s.gate_passed?'up':'dn'}">KAPI: ${s.gate_passed?'GECTI':'GECEMEDI'}</b> &middot; ${s.positive_folds}/${s.folds} katlama kazancli, ort. OOS Sharpe ${fmt(s.mean_oos_sharpe,2)}, medyan PF ${fmt(s.median_oos_pf,2)}</p><table><tr><th>Egitim<th>Test (gorulmemis)<th>Parametre<th>OOS getiri<th>OOS Sharpe`+r.folds.map(f=>`<tr><td>${f.train}<td>${f.test}<td>${JSON.stringify(f.params)}<td class="${cls(f.oos.total_return)}">${pc(f.oos.total_return)}<td>${fmt(f.oos.sharpe,2)}`).join('')+'</table>'});
+const T=(h,rows)=>'<table><tr>'+h.map(x=>'<th>'+x).join('')+rows.map(r=>'<tr>'+r.map(x=>'<td>'+(x??'-')).join('')).join('')+'</table>';
+async function ana(){const a=await api('analytics');$('an').innerHTML=`<p>Defter: <b>${a.ledger_ok?'butun':'BOZUK'}</b></p><h4>Strateji</h4>${T(['Strateji','Islem','Ort %','Isabet %'],a.by_strategy.map(r=>[r.strategy,r.n,r.avg_pct,r.win]))}<h4>Rejim</h4>${T(['Rejim','Islem','Ort %'],a.by_regime.map(r=>[r.regime,r.n,r.avg_pct]))}<h4>Borsa</h4>${T(['Borsa','Islem','Ort %'],a.by_market.map(r=>[r.market,r.n,r.avg_pct]))}<h4>Veto degeri</h4><p class=k>Reddedilen sinyallerin 10 gun sonraki "golge" getirisi. Negatifse veto dogruydu.</p>${T(['Veto sayisi','Ort golge getiri %'],[[a.veto_value.n,a.veto_value.avg_shadow10_pct]])}<h4>Kararlar</h4>${T(['Beyin','Karar','Adet'],a.decisions.map(r=>[r.brain,r.action,r.n]))}`}
+async function cfgView(){const s=await api('state'),c=s.cfg;$('cfg').innerHTML=`<label>Mod <select id="cm">${['rule','hybrid','agent'].map(x=>`<option ${c.mode==x?'selected':''}>${x}</option>`)}</select></label>
+ <label>Fonlama <select id="cf">${['per_market','single_base'].map(x=>`<option ${c.funding==x?'selected':''}>${x}</option>`)}</select></label>
+ <label>Baz para <select id="cb">${['USD','TRY','EUR','GBP'].map(x=>`<option ${c.base==x?'selected':''}>${x}</option>`)}</select></label>
+ <label>Sermaye <input id="cc" type="number" value="${c.capital}"></label><label>Hisse/borsa <input id="cp" type="number" min=1 max=8 value="${c.per_market}" style="width:60px"></label><br>
+ <label>Borsalar: ${Object.entries(s.markets).map(([k,v])=>`<label><input type=checkbox class=mk value=${k} ${c.markets.includes(k)?'checked':''}> ${k} (${v.ccy})</label>`).join('')}</label><br>
+ <label>Veri <select id="cs">${['auto','yahoo','synthetic'].map(x=>`<option ${c.source==x?'selected':''}>${x}</option>`)}</select></label><br>
+ <button class=a onclick="save()">Kaydet</button><button class=a onclick="if(confirm('Hesap ve defter sifirlansin mi?'))api('reset','POST').then(cfgView)">Hesabi sifirla</button>
+ <p class=k>hybrid/agent icin ANTHROPIC_API_KEY ortam degiskeni gerekir; yoksa sistem kural moduna duser ve bunu ustte yazar. Fonlama/baz para degisikligi icin hesabi sifirla.</p>`}
+async function save(){await api('config','POST',{mode:$('cm').value,funding:$('cf').value,base:$('cb').value,capital:+$('cc').value,per_market:+$('cp').value,source:$('cs').value,markets:[...document.querySelectorAll('.mk:checked')].map(x=>x.value)});alert('kaydedildi');load()}
+load().catch(e=>$('ban').innerHTML='<div class="banner">'+e.message+'</div>');
+</script></body></html>
