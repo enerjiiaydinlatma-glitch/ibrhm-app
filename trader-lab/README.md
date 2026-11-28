@@ -7,10 +7,16 @@
 
 Gerekenler: Python 3.11+, internet (Yahoo Finance verisi için). Başka hesap/anahtar gerekmez.
 
-```bash
+**Windows (PowerShell veya cmd):**
+```powershell
 cd trader-lab
-./run.sh            # venv kurar, bağımlılıkları yükler, http://127.0.0.1:8000 açar
+.\run.bat
 ```
+**Mac/Linux:**
+```bash
+cd trader-lab && ./run.sh
+```
+Her ikisi sanal ortam kurar, bağımlılıkları yükler ve http://127.0.0.1:8000 açar.
 
 Testler: `python -m pytest -q tests`
 
