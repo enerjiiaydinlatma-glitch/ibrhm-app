@@ -22,7 +22,8 @@ canvas{width:100%;height:220px}.tab{display:none}.tab.on{display:block}label{mar
 <div id="ban"></div>
 <nav id="nav"></nav>
 <main>
-<section class="tab on" id="t0"><div class="grid" id="kpi"></div>
+<section class="tab on" id="t0"><div class="card" id="start"><b>Baslangic</b><p class="k" style="margin:4px 0 8px">Hesap henuz taranmadi. Once bir tarama yap: sistem son kapanisa gore sinyalleri hesaplar, emirler bir sonraki gun acilista dolar.</p>
+ <button class="a" onclick="doScan(0)">Tara (son gun)</button><button class="a" onclick="doScan(120)">Son 120 gunu hizli oynat (demo)</button><span id="scanmsg" class="k"></span></div><div class="grid" id="kpi"></div>
  <div class="card"><b>Ozkaynak egrisi</b><canvas id="ch"></canvas></div>
  <div class="card"><b>Pozisyonlar</b><div id="pos"></div></div>
  <div class="card"><b>Cuzdanlar</b><div id="cash"></div></div></section>
@@ -50,12 +51,14 @@ function line(c,pts,label){const cv=$(c),r=devicePixelRatio||1;cv.width=cv.clien
  const st=getComputedStyle(document.body);x.strokeStyle=st.getPropertyValue('--ac');x.lineWidth=2;x.beginPath();
  pts.forEach((p,i)=>{const X=i/(pts.length-1)*(W-60)+50,Y=H-18-(p[1]-mn+pd)/(mx-mn+2*pd)*(H-30);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();
  x.fillStyle=st.getPropertyValue('--mu');x.font='11px system-ui';x.fillText(fmt(mx),2,14);x.fillText(fmt(mn),2,H-20);x.fillText(pts[0][0],50,H-3);x.fillText(pts.at(-1)[0],W-70,H-3)}
+async function doScan(n){$('scanmsg').textContent='calisiyor...';try{const r=await api('scan'+(n?'?replay_days='+n:''),'POST');$('scanmsg').textContent=r.processed?`${r.processed} gun islendi`:'yeni gun yok (piyasa verisi degismedi)';await load()}catch(e){$('scanmsg').textContent='Hata: '+e.message}}
 let S;
 async function load(){$('ban').innerHTML='<div class="banner">Veri yukleniyor... ilk acilista 30-90 sn surebilir, sayfayi kapatma.</div>';S=await api('state');const e=S.equity,r=e/S.capital0-1;
  $('ban').innerHTML=S.synthetic?'<div class="banner">UYARI: SENTETIK veri (gercek piyasa degil). Internet/Yahoo erisimi olan makinede gercek veriyle calisir.</div>':'';
  $('meta').textContent=`veri: ${S.data_source} | mod: ${S.effective_mode}${S.cfg.mode!=S.effective_mode?' (istenen '+S.cfg.mode+': LLM anahtari yok)':''} | son gun: ${S.last_date||'-'}`;
  const K=(k,v,c='')=>`<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`;
  $('kpi').innerHTML=K('Ozkaynak ('+S.base+')',fmt(e))+K('Getiri',pc(r),cls(r))+K('Komisyon+vergi',fmt(S.costs.fees))+K('Kayma/etki',fmt(S.costs.impact))+K('Cevirme (FX) kaybi',fmt(S.costs.fx))+K('Risk freni',S.halted||'yok',S.halted?'dn':'');
+ $('start').style.display=S.last_date?'none':'block';
  line('ch',S.curve.map(p=>[p.date,p.equity]));
  $('pos').innerHTML=S.positions.length?'<table><tr><th>Borsa<th>Sembol<th>Adet<th>Maliyet<th>Son<th>Stop<th>K/Z<th>Strateji'+S.positions.map(p=>`<tr><td>${p.market}<td>${p.symbol}<td>${fmt(p.qty)}<td>${fmt(p.avg,2)} ${p.ccy}<td>${fmt(p.last,2)}<td>${fmt(p.stop,2)}<td class="${cls(p.pnl_pct)}">${pc(p.pnl_pct)}<td>${p.strategy}`).join('')+'</table>':'<span class="k">Acik pozisyon yok. Karar defteri sekmesinden tara.</span>';
  $('cash').innerHTML=Object.entries(S.cash).map(([c,v])=>`<span class="tag">${c} ${fmt(v)}</span> `).join('')}
