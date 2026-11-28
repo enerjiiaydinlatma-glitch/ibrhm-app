@@ -46,12 +46,12 @@ $('nav').innerHTML=tabs.map((t,i)=>`<button data-i=${i}>${t}</button>`).join('')
 $('nav').onclick=e=>{const i=e.target.dataset.i;if(i==null)return;document.querySelectorAll('.tab').forEach((s,j)=>s.classList.toggle('on',j==i));
  [...$('nav').children].forEach((b,j)=>b.classList.toggle('on',j==i));({0:load,1:jour,3:ana,4:cfgView})[i]?.()};
 $('nav').children[0].classList.add('on');
-function line(c,pts,label){const cv=$(c),r=devicePixelRatio||1;cv.width=cv.clientWidth*r;cv.height=cv.clientHeight*r;const x=cv.getContext('2d');x.scale(r,r);
+function line(c,pts,label){if(pts.length<2){const e=$(c);e.getContext('2d').clearRect(0,0,e.width,e.height);e.getContext('2d').fillText('Egri icin en az 2 gun gerekir: demo oynat veya ertesi gun tekrar tara',10,20);return}const cv=$(c),r=devicePixelRatio||1;cv.width=cv.clientWidth*r;cv.height=cv.clientHeight*r;const x=cv.getContext('2d');x.scale(r,r);
  const W=cv.clientWidth,H=cv.clientHeight;x.clearRect(0,0,W,H);if(pts.length<2)return;const v=pts.map(p=>p[1]),mn=Math.min(...v),mx=Math.max(...v),pd=(mx-mn)*.1||1;
  const st=getComputedStyle(document.body);x.strokeStyle=st.getPropertyValue('--ac');x.lineWidth=2;x.beginPath();
  pts.forEach((p,i)=>{const X=i/(pts.length-1)*(W-60)+50,Y=H-18-(p[1]-mn+pd)/(mx-mn+2*pd)*(H-30);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();
  x.fillStyle=st.getPropertyValue('--mu');x.font='11px system-ui';x.fillText(fmt(mx),2,14);x.fillText(fmt(mn),2,H-20);x.fillText(pts[0][0],50,H-3);x.fillText(pts.at(-1)[0],W-70,H-3)}
-async function doScan(n){$('scanmsg').textContent='calisiyor...';try{const r=await api('scan'+(n?'?replay_days='+n:''),'POST');$('scanmsg').textContent=r.processed?`${r.processed} gun islendi`:'yeni gun yok (piyasa verisi degismedi)';await load()}catch(e){$('scanmsg').textContent='Hata: '+e.message}}
+async function doScan(n){if(n&&S&&S.last_date&&!confirm('Demo oynatma icin hesap sifirlanip son '+n+' gun bastan oynatilacak. Devam?'))return;$('scanmsg').textContent='calisiyor...';try{if(n&&S&&S.last_date)await api('reset','POST');const r=await api('scan'+(n?'?replay_days='+n:''),'POST');$('scanmsg').textContent=r.processed?`${r.processed} gun islendi`:'yeni gun yok (piyasa verisi degismedi)';await load()}catch(e){$('scanmsg').textContent='Hata: '+e.message}}
 let S;
 async function load(){$('ban').innerHTML='<div class="banner">Veri yukleniyor... ilk acilista 30-90 sn surebilir, sayfayi kapatma.</div>';S=await api('state');const e=S.equity,r=e/S.capital0-1;
  $('ban').innerHTML=S.synthetic?'<div class="banner">UYARI: SENTETIK veri (gercek piyasa degil). Internet/Yahoo erisimi olan makinede gercek veriyle calisir.</div>':'';
@@ -64,10 +64,10 @@ async function load(){$('ban').innerHTML='<div class="banner">Veri yukleniyor...
  $('cash').innerHTML=Object.entries(S.cash).map(([c,v])=>`<span class="tag">${c} ${fmt(v)}</span> `).join('')}
 async function jour(){const a=$('fAct').value;const j=await api('journal?limit=100'+(a?'&action='+a:''));const v=await api('ledger/verify');
  $('vfy').textContent=v.ok?'defter butunlugu: DOGRULANDI':'defter BOZULMUS (id '+v.first_bad_id+')';
- $('jr').innerHTML='<table><tr><th>Tarih<th>Sembol<th>Strateji<th>Rejim<th>Karar<th>Boyut<th>Adet<th>Gerekce<th>Gecersizlik<th>Risk notu'+j.map(d=>`<tr><td>${d.date}<td>${d.market}:${d.symbol}<td>${d.strategy}<td>${d.regime}<td><span class="tag">${d.brain}/${d.action}</span><td>${d.size_mult}<td>${d.qty||0}<td class="r">${d.rationale}<td class="r">${d.invalidation}<td>${d.risk_note||''}`).join('')+'</table>'}
+ $('jr').innerHTML='<table><tr><th>Tarih<th>Sembol<th>Strateji<th>Rejim<th>Karar<th>Boyut<th>Adet<th>Gerekce<th>Gecersizlik<th>Risk notu'+j.map(d=>`<tr><td>${d.date}<td>${d.market}:${d.symbol}<td>${d.strategy}<td>${d.regime}<td><span class="tag">${d.brain}/${d.action}</span><td>${d.size_mult}<td>${d.qty||(d.action!='veto'&&!d.risk_note?'bekliyor (ertesi acilis)':0)}<td class="r">${d.rationale}<td class="r">${d.invalidation}<td>${d.risk_note||''}`).join('')+'</table>'}
 $('fAct').onchange=jour;
 $('bScan').onclick=async()=>{const r=await api('scan','POST');alert(JSON.stringify(r));jour()};
-$('bReplay').onclick=async()=>{$('bReplay').disabled=true;try{const r=await api('scan?replay_days=120','POST');alert(JSON.stringify(r))}catch(e){alert(e.message)}$('bReplay').disabled=false;jour()};
+$('bReplay').onclick=async()=>{if(S&&S.last_date&&!confirm('Hesap sifirlanip son 120 gun bastan oynatilacak. Devam?'))return;$('bReplay').disabled=true;try{if(S&&S.last_date)await api('reset','POST');const r=await api('scan?replay_days=120','POST');alert(r.processed+' gun islendi');S=await api('state')}catch(e){alert(e.message)}$('bReplay').disabled=false;jour()};
 const M=m=>m?`<table>${Object.entries({'Toplam getiri':pc(m.total_return),'Yillik (CAGR)':pc(m.cagr),'Maks dusus':pc(m.max_dd),'Sharpe':fmt(m.sharpe,2),'Islem':m.trades,'Isabet':pc(m.win_rate),'Profit factor':fmt(m.profit_factor,2),'Komisyon':fmt(m.fees_base),'Kayma/etki':fmt(m.impact_base),'FX maliyeti':fmt(m.fx_cost_base),'Toplam maliyet / sermaye':pc(m.cost_pct_of_capital)}).map(([k,v])=>`<tr><td>${k}<td><b>${v}</b>`).join('')}</table>`:'veri yok';
 async function run(fn){$('res').innerHTML='calisiyor...';try{await fn()}catch(e){$('res').innerHTML='<span class=dn>'+e.message+'</span>'}}
 const bt=()=>run(async()=>{const r=await api('backtest','POST');$('res').innerHTML=`<p class=k>veri: ${r.data_source}</p>`+M(r.metrics);line('ch2',r.curve)});

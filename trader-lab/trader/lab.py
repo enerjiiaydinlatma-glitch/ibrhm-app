@@ -51,8 +51,8 @@ class Lab:
     def reset(self):
         with self.lock:
             for t in ("decisions", "trades", "equity", "state"): self.ledger.db.execute(f"DELETE FROM {t}")
-            self.ledger.db.commit(); self.engine = None; self._loaded = None
-            self.cfg = dict(DEFAULTS)
+            self.ledger.db.commit(); self.engine = None
+            self.ledger.put_state("cfg", self.cfg)   # ayarlar korunur, yalniz hesap/defter sifirlanir
 
     # ---------- canli paper ----------
     def _engine(self):
