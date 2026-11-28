@@ -30,8 +30,11 @@ class Lab:
     def _data(self, refresh=False):
         key = (tuple(self.cfg["markets"]), self.cfg["per_market"], self.provider.name)
         if refresh or self._loaded is None or self._loaded[0] != key:
-            self._loaded = (key, load_universe(self.provider, self.cfg["markets"], self.cfg["per_market"]),
-                            FxTable(self.provider.fx_table()))
+            print(f"[veri] {self.provider.name} yukleniyor: {self.cfg['markets']} (ilk seferde 30-90 sn surebilir)...", flush=True)
+            uni = load_universe(self.provider, self.cfg["markets"], self.cfg["per_market"])
+            fx = FxTable(self.provider.fx_table())
+            print(f"[veri] hazir: {len(uni)} sembol", flush=True)
+            self._loaded = (key, uni, fx)
         return self._loaded[1], self._loaded[2]
 
     # ---------- ayarlar ----------

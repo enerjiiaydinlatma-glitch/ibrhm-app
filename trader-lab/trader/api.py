@@ -21,6 +21,11 @@ class Cfg(BaseModel):
 
 def create_app(lab: Lab | None = None):
     app = FastAPI(title="trader-lab"); L = lab or Lab()
+    import threading
+    def warm():
+        try: L.state()
+        except Exception as e: print("[veri] onyukleme hatasi:", repr(e), flush=True)
+    threading.Thread(target=warm, daemon=True).start()
     def guard(fn, *a, **k):
         try: return clean(fn(*a, **k))
         except ValueError as e: raise HTTPException(400, str(e))

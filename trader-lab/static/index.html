@@ -51,7 +51,7 @@ function line(c,pts,label){const cv=$(c),r=devicePixelRatio||1;cv.width=cv.clien
  pts.forEach((p,i)=>{const X=i/(pts.length-1)*(W-60)+50,Y=H-18-(p[1]-mn+pd)/(mx-mn+2*pd)*(H-30);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();
  x.fillStyle=st.getPropertyValue('--mu');x.font='11px system-ui';x.fillText(fmt(mx),2,14);x.fillText(fmt(mn),2,H-20);x.fillText(pts[0][0],50,H-3);x.fillText(pts.at(-1)[0],W-70,H-3)}
 let S;
-async function load(){S=await api('state');const e=S.equity,r=e/S.capital0-1;
+async function load(){$('ban').innerHTML='<div class="banner">Veri yukleniyor... ilk acilista 30-90 sn surebilir, sayfayi kapatma.</div>';S=await api('state');const e=S.equity,r=e/S.capital0-1;
  $('ban').innerHTML=S.synthetic?'<div class="banner">UYARI: SENTETIK veri (gercek piyasa degil). Internet/Yahoo erisimi olan makinede gercek veriyle calisir.</div>':'';
  $('meta').textContent=`veri: ${S.data_source} | mod: ${S.effective_mode}${S.cfg.mode!=S.effective_mode?' (istenen '+S.cfg.mode+': LLM anahtari yok)':''} | son gun: ${S.last_date||'-'}`;
  const K=(k,v,c='')=>`<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`;
@@ -82,5 +82,5 @@ async function cfgView(){const s=await api('state'),c=s.cfg;$('cfg').innerHTML=`
  <button class=a onclick="save()">Kaydet</button><button class=a onclick="if(confirm('Hesap ve defter sifirlansin mi?'))api('reset','POST').then(cfgView)">Hesabi sifirla</button>
  <p class=k>hybrid/agent icin ANTHROPIC_API_KEY ortam degiskeni gerekir; yoksa sistem kural moduna duser ve bunu ustte yazar. Fonlama/baz para degisikligi icin hesabi sifirla.</p>`}
 async function save(){await api('config','POST',{mode:$('cm').value,funding:$('cf').value,base:$('cb').value,capital:+$('cc').value,per_market:+$('cp').value,source:$('cs').value,markets:[...document.querySelectorAll('.mk:checked')].map(x=>x.value)});alert('kaydedildi');load()}
-load().catch(e=>$('ban').innerHTML='<div class="banner">'+e.message+'</div>');
+load().catch(e=>$('ban').innerHTML='<div class="banner">Hata: '+e.message+' (PowerShell penceresindeki yaziyi bana gonder)</div>');
 </script></body></html>
