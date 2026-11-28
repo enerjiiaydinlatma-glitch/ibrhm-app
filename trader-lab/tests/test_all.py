@@ -99,3 +99,12 @@ def test_api_flow(client):
 def test_state_persists_across_restart(tmp_path):
     db = str(tmp_path / "p.db"); a = Lab(db, provider=P); a.scan(replay_days=120); eq = a.state()["equity"]
     b = Lab(db, provider=P); assert abs(b.state()["equity"] - eq) < 1e-6 and b.scan()["processed"] == 0
+
+def test_market_filter_blocks_entries_when_index_down():
+    d = load_universe(P, ["US"], 3)
+    for f in d.values(): f["mkt_up"] = 0.0
+    r = run_backtest(d, fx=FX, markets=["US"], strategies=["trend", "breakout"], params={"trend": {"mkt_filter": True}, "breakout": {"mkt_filter": True}})
+    assert r["metrics"].get("trades", 0) == 0
+    r2 = run_backtest(d, fx=FX, markets=["US"], strategies=["trend"], params={"trend": {"mkt_filter": False}})
+    assert r2["metrics"]["trades"] > 0
+

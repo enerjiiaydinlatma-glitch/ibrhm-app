@@ -15,18 +15,19 @@ class Market:
     slip_bps: float        # taban kayma
     price_div: float = 1.0 # LSE pence -> GBP
     symbols: tuple = ()
+    benchmark: str = ""    # piyasa genel yonu icin endeks (yfinance kodu)
 
 MARKETS = {
     "BIST": Market("BIST", "Borsa Istanbul", "TRY", ".IS", 15, 0, 0, 1.0, 12, 1.0,
-                   ("THYAO", "GARAN", "ASELS", "EREGL", "BIMAS", "KCHOL", "AKBNK", "TUPRS")),
+                   ("THYAO", "GARAN", "ASELS", "EREGL", "BIMAS", "KCHOL", "AKBNK", "TUPRS"), benchmark="XU100.IS"),
     "US": Market("US", "ABD (NYSE/Nasdaq)", "USD", "", 0, 0, 0, 0.3, 5, 1.0,
-                 ("AAPL", "MSFT", "NVDA", "JPM", "XOM", "SPY", "QQQ", "AMZN")),
+                 ("AAPL", "MSFT", "NVDA", "JPM", "XOM", "SPY", "QQQ", "AMZN"), benchmark="SPY"),
     "LSE": Market("LSE", "Londra", "GBP", ".L", 8, 0, 50, 0, 10, 100.0,
-                  ("SHEL", "AZN", "HSBA", "ULVR")),
+                  ("SHEL", "AZN", "HSBA", "ULVR"), benchmark="^FTSE"),
     "XETRA": Market("XETRA", "Frankfurt/XETRA", "EUR", ".DE", 8, 0, 0, 0, 8, 1.0,
-                    ("SAP", "SIE", "ALV")),
-    "TSE": Market("TSE", "Tokyo", "JPY", ".T", 5, 0, 0, 0, 8, 1.0, ("7203", "6758", "9984")),
-    "HKEX": Market("HKEX", "Hong Kong", "HKD", ".HK", 10, 0, 13, 13, 10, 1.0, ("0700", "0005", "9988")),
+                    ("SAP", "SIE", "ALV"), benchmark="^GDAXI"),
+    "TSE": Market("TSE", "Tokyo", "JPY", ".T", 5, 0, 0, 0, 8, 1.0, ("7203", "6758", "9984"), benchmark="^N225"),
+    "HKEX": Market("HKEX", "Hong Kong", "HKD", ".HK", 10, 0, 13, 13, 10, 1.0, ("0700", "0005", "9988"), benchmark="^HSI"),
 }
 
 FX_SPREAD_BPS = 30   # gercek cevirimde (alinan/satilan) spread; kayip buradan dogar

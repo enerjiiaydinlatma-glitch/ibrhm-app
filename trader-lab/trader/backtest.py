@@ -11,12 +11,23 @@ from .risk import RiskEngine
 from .strategies import build
 from .brain import RuleBrain
 
+def market_up(provider, market):
+    """Endeks kapanisi 200g ortalamasinin ustunde mi? (nedensel). Veri yoksa None -> filtre uygulanmaz."""
+    try:
+        b = provider.benchmark(market)["close"]
+        return (b > b.rolling(200).mean()).astype(float).where(b.rolling(200).mean().notna())
+    except Exception:
+        return None
+
 def load_universe(provider, markets, per_market=None):
     data = {}
     for m in markets:
+        up = market_up(provider, m)
         for s in MARKETS[m].symbols[:per_market]:
-            try: data[(m, s)] = prepare(provider.ohlcv(m, s))
+            try: f = prepare(provider.ohlcv(m, s))
             except Exception: continue
+            f["mkt_up"] = up.reindex(f.index, method="ffill").fillna(1.0) if up is not None else 1.0
+            data[(m, s)] = f
     return data
 
 def metrics(eq: pd.Series, trades: list, extra=None):
@@ -48,7 +59,7 @@ def run_backtest(data, start=None, end=None, base="USD", capital=100_000.0, fund
               cost_pct_of_capital=(broker.fees_base + broker.fx_cost_base + broker.impact_base) / capital)
     return dict(metrics=metrics(eq, trades, ex), equity=eq, trades=trades, ledger=ledger, engine=eng)
 
-def walk_forward(data, fx, strategy, train=504, test=126, **kw):
+def walk_forward(data, fx, strategy, train=504, test=126, fixed=None, **kw):
     """Her katlamada gridden egitimde en iyi parametre secilir, SONRAKI doneminde test edilir (gormedigi veri)."""
     dates = sorted(set().union(*[set(f.index) for f in data.values()]))
     cls = build([strategy])[0].__class__
@@ -56,11 +67,12 @@ def walk_forward(data, fx, strategy, train=504, test=126, **kw):
     while i + train + test <= len(dates):
         tr0, tr1, te1 = dates[i], dates[i + train - 1], dates[i + train + test - 1]
         best, bs = None, -1e9
-        for p in cls.grid:
+        for p0 in cls.grid:
+            p = {**p0, **(fixed or {})}
             res = run_backtest(data, tr0, tr1, strategies=[strategy], params={strategy: p}, fx=fx, **kw)
             sc = res["metrics"].get("sharpe", -9) if res["metrics"].get("trades", 0) >= 3 else -9
             if sc > bs: best, bs = p, sc
-        best = best if best is not None else cls.grid[0]
+        best = best if best is not None else {**cls.grid[0], **(fixed or {})}
         # test: egitim donemini isinma icin kullan ama sadece test araligini olc
         res = run_backtest(data, dates[i + train - 60], te1, strategies=[strategy], params={strategy: best}, fx=fx, **kw)
         eq = res["equity"][res["equity"].index >= dates[i + train]]

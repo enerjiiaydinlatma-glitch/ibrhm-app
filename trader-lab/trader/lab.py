@@ -126,6 +126,8 @@ class Lab:
         return {f: self.backtest(funding=f)["metrics"] for f in ("per_market", "single_base")}
 
     def walkforward(self, strategy):
+        """Piyasa filtresi KAPALI ve ACIK ayni veriyle yan yana (meanrev filtre kullanmaz)."""
         data, fx = self._data()
-        return walk_forward(data, fx, strategy, base=self.cfg["base"], capital=self.cfg["capital"],
-                            funding=self.cfg["funding"], markets=self.cfg["markets"])
+        kw = dict(base=self.cfg["base"], capital=self.cfg["capital"], funding=self.cfg["funding"], markets=self.cfg["markets"])
+        return {"off": walk_forward(data, fx, strategy, fixed={"mkt_filter": False}, **kw),
+                "on": walk_forward(data, fx, strategy, fixed={"mkt_filter": True}, **kw)}

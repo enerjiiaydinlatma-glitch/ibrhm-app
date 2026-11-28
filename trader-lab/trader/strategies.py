@@ -16,17 +16,20 @@ def _feat(r):
 
 class Strategy:
     name = ""; allowed = ()
+    def mkt_blocked(self, r):
+        """Piyasa filtresi: endeks 200g ortalamanin altindaysa yeni trend/kirilim girisi yok."""
+        return bool(self.p.get("mkt_filter")) and r.get("mkt_up", 1.0) == 0.0
     grid = [{}]
     def __init__(self, **p): self.p = {**self.defaults, **p}
     defaults = {}
 
 class TrendFollow(Strategy):
     name = "trend"; allowed = ("TREND_UP",)
-    defaults = {"adx_min": 22, "atr_mult": 2.5}
+    defaults = {"adx_min": 22, "atr_mult": 2.5, "mkt_filter": True}
     grid = [{"adx_min": a, "atr_mult": m} for a in (18, 24) for m in (2.0, 3.0)]
     def entry(self, f, i):
         r = f.iloc[i]
-        if r["regime"] not in self.allowed: return None
+        if r["regime"] not in self.allowed or self.mkt_blocked(r): return None
         if r["ema20"] > r["ema50"] and r["close"] > r["ema50"] and r["adx"] >= self.p["adx_min"] and r["ret20"] > 0:
             stop = r["close"] - self.p["atr_mult"] * r["atr"]
             return Signal(self.name, min(1, r["adx"] / 40), stop,
@@ -58,11 +61,11 @@ class MeanReversion(Strategy):
 
 class Breakout(Strategy):
     name = "breakout"; allowed = ("TREND_UP", "RANGE")
-    defaults = {"atr_mult": 2.0, "vol_x": 1.2}
+    defaults = {"atr_mult": 2.0, "vol_x": 1.2, "mkt_filter": True}
     grid = [{"atr_mult": m, "vol_x": v} for m in (1.5, 2.5) for v in (1.0, 1.5)]
     def entry(self, f, i):
         r = f.iloc[i]
-        if r["regime"] not in self.allowed or r["dc_hi55"] != r["dc_hi55"]: return None
+        if r["regime"] not in self.allowed or r["dc_hi55"] != r["dc_hi55"] or self.mkt_blocked(r): return None
         if r["close"] > r["dc_hi55"] and r["volume"] > self.p["vol_x"] * r["volavg"]:
             return Signal(self.name, 0.7, r["close"] - self.p["atr_mult"] * r["atr"],
                           f"55g zirve kirildi, hacim {r['volume']/r['volavg']:.1f}x ortalama",

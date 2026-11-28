@@ -39,6 +39,9 @@ class SyntheticProvider:
         vol = rng.lognormal(14, 0.4, n) * (1 + 3 * np.abs(r) / (sig + 1e-9) * 0.1)
         return pd.DataFrame({"open": open_, "high": hi, "low": lo, "close": close, "volume": vol}, index=idx)
 
+    def benchmark(self, market):
+        return self.ohlcv(market, "ENDEKS_" + market)
+
     def fx_table(self):
         idx = _bdays(self.days, self.end); out = {}
         for ccy, v in SYNTH_FX.items():
@@ -69,6 +72,9 @@ class YahooProvider:
         if m.price_div != 1.0:
             for c in ("open", "high", "low", "close"): df[c] = df[c] / m.price_div
         return df
+
+    def benchmark(self, market):
+        return self._get(MARKETS[market].benchmark)
 
     def fx_table(self):
         cols = {"USD": None}
