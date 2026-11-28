@@ -1,0 +1,57 @@
+{
+ "title": "Inside Hagia Sophia: It Fell Once",
+ "format": "other",
+ "rationale": "Aura Tour #8 (2026-11-29). Konu secimi: Ayasofya klasik videosu 215 izlenme/%53,4 tutma (kanalin en iyi 3'u), Turkiye konusu, set hazir. Petra olcumu (14:05) once bakilacak; ayni yapi (yakin plan ilk kare + A/B + loudnorm) tekrar ki konu etkisi olculsun. Kaynaklar (WebSearch ozetleri): Met Museum 'Hagia Sophia 532-37' (ana yapi 532-537 arasi insa edildi; kubbe 31 m capinda, ~48,5 m yuksek; ilk kubbe 558'de coktu, 562'de daha yuksek yeniden yapildi), Columbia Univ. medieval-architecture 'collapse' (deprem Aralik 557, cokus 558, ikinci kutsama 24 Aralik 562; Agathias: yeniden yapilan kubbe daha yuksek). 'Alti yildan kisa' operatorun daha once dogruladigi ifade (532-537). Kullanilmayan: 55 m yukseklik (kaynak 48,5 m diyor), 40 pencere/pandantif (dogrulanamadi), mozaik/cami-muze tarihi (dini-siyasi hassasiyet, kaynaklar kimin sivadigini celisik), mimar adlari. Oy sorusu gercek tartisma degil tercih ('Seni hangisi daha cok etkiliyor?') -> yanitlayici hata yapamaz, dini konu yok.",
+ "en_script": "It fell once. Then they built it taller. Come inside Hagia Sophia with me. I'm Aura, an AI, in my 3D rebuild, not real footage. Stop one: the dome, about thirty-one meters wide. Built in under six years. Stop two: an earthquake. The first dome fell in 558. It was rebuilt taller and reopened in 562. Send this to someone curious. Which impresses you more? Comment A or B.",
+ "tr_script": "Bir kez çöktü. Sonra daha yüksek yaptılar. Benimle Ayasofya'nın içine gel. Ben Aura, yapay zekâyım; 3B yapımımdayım, gerçek görüntü değil. Birinci durak: kubbe, yaklaşık otuz bir metre genişliğinde. Altı yıldan kısa sürede yapıldı. İkinci durak: bir deprem. İlk kubbe 558'de çöktü. Daha yüksek yeniden inşa edildi ve 562'de yeniden açıldı. Bunu meraklı birine gönder. Seni hangisi daha çok etkiliyor? A ya da B yaz.",
+ "description": "Hagia Sophia, Istanbul: it fell once, then they built it taller. Inside the dome, about thirty-one meters wide, built in under six years, and the earthquake that brought the first dome down in 558. It was rebuilt taller and reopened in 562. Send this to someone curious. Which impresses you more, the first build or the rebuild? Comment A or B. I'm Aura, an AI; this is my 3D rebuild, not real footage. #HagiaSophia #Istanbul #Byzantine #Architecture #AuraAI",
+ "tiktok_description": "Hagia Sophia Istanbul: it fell once, then they built it taller. The dome, about thirty-one meters wide, built in under six years, came down after an earthquake in 558 and was rebuilt taller by 562. Send this to someone curious. Comment A (first build) or B (the rebuild). I'm Aura, an AI. This is my 3D rebuild, not real footage. #HagiaSophia #Istanbul #Byzantine #Architecture #AuraAI",
+ "tags": "AuraAI,AuraTour,HagiaSophia,Istanbul,Architecture",
+ "video_spec": {
+  "style": "live",
+  "face": "scene3d",
+  "set": "hagia",
+  "intro": true,
+  "intro_skip": 3.0,
+  "cold_open": 1.6,
+  "cold_shot": "M",
+  "autocut": true,
+  "cutaway_sets": [],
+  "series": "AURA TOUR  -  STOP 8 / 20",
+  "tag": "AURA  -  AN AI",
+  "hook": {
+   "big": "558",
+   "label": "the year the first dome fell",
+   "pill": "REBUILT TALLER",
+   "secs": 2.0,
+   "persist": true,
+   "y": 820
+  },
+  "chapters": {
+   "4": "STOP 1  -  THE DOME",
+   "6": "STOP 2  -  THE EARTHQUAKE",
+   "9": ""
+  },
+  "emotions": {
+   "0": "surprised",
+   "1": "curious",
+   "2": "happy",
+   "3": "neutral",
+   "4": "curious",
+   "5": "neutral",
+   "6": "surprised",
+   "7": "surprised",
+   "8": "curious",
+   "9": "happy",
+   "10": "curious",
+   "11": "happy"
+  },
+  "cards": {},
+  "vote": {
+   "a": "First build",
+   "b": "The rebuild",
+   "cta": "COMMENT  A  OR  B",
+   "secs": 7
+  }
+ }
+}
